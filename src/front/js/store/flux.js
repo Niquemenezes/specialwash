@@ -10,6 +10,7 @@ const getState = ({ getStore, getActions, setStore }) => {
       entradasProductos: [],
       salidas_productos: [],
       historial_salidas: [],
+      empleados: [],
       productosConStock: [],
     },
 
@@ -110,6 +111,7 @@ const getState = ({ getStore, getActions, setStore }) => {
           );
           if (!res.ok) throw new Error("Error al obtener funcionarios");
           const data = await res.json();
+          setStore({ empleados: data });
           return data;
         } catch (err) {
           console.error("Error en obtenerFuncionarios:", err);
@@ -129,6 +131,28 @@ const getState = ({ getStore, getActions, setStore }) => {
           }
         } catch (error) {
           console.error("Error en getEmpleados:", error);
+          return false;
+        }
+      },
+
+      getUsuariosPorRol: async (rol = "empleado") => {
+        try {
+          const token = sessionStorage.getItem("token");
+          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/usuarios?rol=${rol}`, {
+            headers: {
+              Authorization: "Bearer " + token,
+            },
+          });
+          const data = await resp.json();
+          if (resp.ok) {
+            setStore({ empleados: data }); // Puedes usar otro nombre como `usuarios_filtrados`
+            return true;
+          } else {
+            console.error("Error al obtener usuarios por rol:", data);
+            return false;
+          }
+        } catch (error) {
+          console.error("Error en getUsuariosPorRol:", error);
           return false;
         }
       },
@@ -379,7 +403,7 @@ const getState = ({ getStore, getActions, setStore }) => {
         const payload = { ...data, responsable: user?.nombre };
         try {
           const resp = await fetch(
-            process.env.BACKEND_URL + "/api/registro-salida",
+             `${process.env.REACT_APP_BACKEND_URL}/api/registro-salida`,
             {
               method: "POST",
               headers: {
@@ -421,22 +445,23 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
       },
 
-      getSalidasProductos: async () => {
-        try {
-          const res = await fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/registro-salida`,
-            {
-              headers: {
-                Authorization: `Bearer ${sessionStorage.getItem("token")}`,
-              },
-            }
-          );
-          const data = await res.json();
-          setStore({ salidas_productos: data });
-        } catch (err) {
-          console.error("Error al cargar salidas:", err);
-        }
-      },
+    getSalidasProductos: async () => {
+  try {
+    const resp = await fetch(process.env.REACT_APP_BACKEND_URL + "/api/salidas");
+    const data = await resp.json();
+
+    if (Array.isArray(data)) {
+      setStore({ salidas_productos: data });
+    } else {
+      console.warn("Respuesta inesperada en salidas:", data);
+      setStore({ salidas_productos: [] });
+    }
+  } catch (error) {
+    console.error("Error al obtener salidas:", error);
+    setStore({ salidas_productos: [] });
+  }
+},
+
 
       getProveedores: async () => {
         try {

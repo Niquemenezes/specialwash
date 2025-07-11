@@ -16,22 +16,26 @@ const HistorialSalidas = () => {
   }, [store.salidas_productos, filtro]);
 
   const aplicarFiltro = () => {
-    const { desde, hasta } = filtro;
-    const salidas = store.salidas_productos || [];
+  const { desde, hasta } = filtro;
 
-    const filtradas = salidas.filter((s) => {
-      const fecha = new Date(s.fecha_salida);
-      const desdeFecha = desde ? new Date(desde) : null;
-      const hastaFecha = hasta ? new Date(hasta) : null;
+  const salidas = Array.isArray(store.salidas_productos)
+    ? store.salidas_productos
+    : [];
 
-      return (
-        (!desdeFecha || fecha >= desdeFecha) &&
-        (!hastaFecha || fecha <= hastaFecha)
-      );
-    });
+  const filtradas = salidas.filter((s) => {
+    const fecha = new Date(s.fecha_salida);
+    const desdeFecha = desde ? new Date(desde) : null;
+    const hastaFecha = hasta ? new Date(hasta) : null;
 
-    setSalidasFiltradas(filtradas);
-  };
+    return (
+      (!desdeFecha || fecha >= desdeFecha) &&
+      (!hastaFecha || fecha <= hastaFecha)
+    );
+  });
+
+  setSalidasFiltradas(filtradas);
+};
+
 
   const exportarExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(salidasFiltradas);

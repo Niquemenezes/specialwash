@@ -12,7 +12,6 @@ const StockDashboard = () => {
 
   useEffect(() => {
     actions.getProductos();
-    actions
   }, []);
 
   const mostrarTodos = () => {

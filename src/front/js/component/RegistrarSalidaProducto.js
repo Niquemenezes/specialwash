@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useContext } from "react";
 import { Context } from "../store/appContext";
 import { useNavigate } from "react-router-dom";
+import HistorialSalidas from "./HistorialSalidas";
 
 const RegistrarSalidaProducto = () => {
   const { store, actions } = useContext(Context);
   const navigate = useNavigate();
   const user = JSON.parse(sessionStorage.getItem("user") || "null");
+
   const [formData, setFormData] = useState({
     producto_id: "",
     cantidad: "",
@@ -15,19 +17,21 @@ const RegistrarSalidaProducto = () => {
   });
 
   useEffect(() => {
-    actions.getProductos();
-    actions.getEmpleados(); // ✅ NUEVA LÍNEA
-  }, []);
+  actions.getProductos();
+  actions.obtenerFuncionarios();
+  actions.getSalidasProductos(); // 👈 trae los usuarios con rol=empleado
+}, []);
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.producto_id || !formData.cantidad || !formData.fecha_salida) {
+    if (!formData.producto_id || !formData.cantidad || !formData.fecha_salida || !formData.empleado) {
       alert("Todos los campos marcados son obligatorios.");
       return;
     }
@@ -35,21 +39,20 @@ const RegistrarSalidaProducto = () => {
     const exito = await actions.registrarSalidaProducto(formData);
 
     if (exito) {
-      await actions.getProductos(); // ✅ REFRESCA STOCK
-
+      await actions.getProductos(); // ✅ Refrescar stock
+      await actions.getSalidasProductos();
       setFormData({
         producto_id: "",
         cantidad: "",
         fecha_salida: "",
         empleado: "",
         observaciones: "",
-
       });
-      navigate("/historial-salidas");
-    }
+         }
   };
 
   return (
+    <>
     <div className="container mt-4">
       <div className="card shadow p-4">
         <h4 className="mb-4 text-primary text-center">
@@ -57,6 +60,7 @@ const RegistrarSalidaProducto = () => {
         </h4>
 
         <form onSubmit={handleSubmit}>
+          {/* Producto */}
           <div className="mb-3">
             <label htmlFor="producto_id">Producto <span className="text-danger">*</span></label>
             <select
@@ -83,6 +87,7 @@ const RegistrarSalidaProducto = () => {
             </select>
           </div>
 
+          {/* Cantidad */}
           <div className="mb-3">
             <label htmlFor="cantidad">Cantidad <span className="text-danger">*</span></label>
             <input
@@ -97,6 +102,7 @@ const RegistrarSalidaProducto = () => {
             />
           </div>
 
+          {/* Fecha de salida */}
           <div className="mb-3">
             <label htmlFor="fecha_salida">Fecha de salida <span className="text-danger">*</span></label>
             <input
@@ -109,6 +115,8 @@ const RegistrarSalidaProducto = () => {
               required
             />
           </div>
+
+          {/* Empleado */}
           <div className="mb-3">
             <label htmlFor="empleado">Empleado que retira <span className="text-danger">*</span></label>
             <select
@@ -128,7 +136,7 @@ const RegistrarSalidaProducto = () => {
             </select>
           </div>
 
-
+          {/* Observaciones */}
           <div className="mb-3">
             <label htmlFor="observaciones">Observaciones</label>
             <textarea
@@ -149,6 +157,8 @@ const RegistrarSalidaProducto = () => {
         </form>
       </div>
     </div>
+    <HistorialSalidas />
+    </>
   );
 };
 

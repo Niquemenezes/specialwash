@@ -268,8 +268,8 @@ def get_almacen_productos():
 @jwt_required()
 def create_almacen_producto():
     data = request.json
-    clave = (data.get("producto_id"))
-    if AlmacenProducto.query.get(clave):
+    clave = data.get("producto_id")
+    if AlmacenProducto.query.filter_by(producto_id=clave).first():
         return jsonify({"msg": "Este producto ya está registrado en ese almacén."}), 400
 
     nuevo = AlmacenProducto(
@@ -282,7 +282,7 @@ def create_almacen_producto():
     return jsonify(nuevo.serialize()), 201
 
 
-@api.route("/almacen-productos//<int:producto_id>", methods=["PUT"])
+@api.route("/almacen-productos/<int:producto_id>", methods=["PUT"])
 @jwt_required()
 def update_almacen_producto(producto_id):
     p = AlmacenProducto.query.filter_by(producto_id=producto_id).first_or_404()
@@ -293,10 +293,10 @@ def update_almacen_producto(producto_id):
     return jsonify(p.serialize()), 200
 
 
-@api.route("/almacen-productos/<int:almacen_id>/<int:producto_id>", methods=["DELETE"])
+@api.route("/almacen-productos/<int:producto_id>", methods=["DELETE"])
 @jwt_required()
-def delete_almacen_producto(almacen_id, producto_id):
-    p = AlmacenProducto.query.get_or_404((almacen_id, producto_id))
+def delete_almacen_producto(producto_id):
+    p = AlmacenProducto.query.filter_by(producto_id=producto_id).first_or_404()
     db.session.delete(p)
     db.session.commit()
     return jsonify({"msg": "Producto eliminado del almacén"}), 200
