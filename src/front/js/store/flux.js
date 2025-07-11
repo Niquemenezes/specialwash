@@ -3,12 +3,14 @@ const getState = ({ getStore, getActions, setStore }) => {
     store: {
       token: sessionStorage.getItem("token") || null,
       rol: sessionStorage.getItem("rol") || null,
+      user: JSON.parse(sessionStorage.getItem("user") || "null"),
       adminExists: { exists: false, total: 0 },
       productos: [],
       proveedores: [],
       entradasProductos: [],
       salidas_productos: [],
       historial_salidas: [],
+      productosConStock: [],
     },
 
     actions: {
@@ -218,6 +220,48 @@ const getState = ({ getStore, getActions, setStore }) => {
           console.error("Error al crear producto:", err);
         }
       },
+      editarProducto: async (id, datos) => {
+        try {
+          const res = await fetch(
+            `${process.env.REACT_APP_BACKEND_URL}/api/productos/${id}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+              },
+              body: JSON.stringify(datos),
+            }
+          );
+          if (!res.ok) throw new Error(await res.text());
+          alert("Producto actualizado correctamente");
+          getActions().getProductos();
+          return true;
+        } catch (err) {
+          console.error("Error al editar producto:", err);
+          return false;
+        }
+      },
+
+      eliminarProducto: async (id) => {
+        try {
+          const res = await fetch(
+            `${process.env.REACT_APP_BACKEND_URL}/api/productos/${id}`,
+            {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+              },
+            }
+          );
+          if (!res.ok) throw new Error(await res.text());
+          getActions().getProductos();
+          return true;
+        } catch (err) {
+          console.error("Error al eliminar producto:", err);
+          return false;
+        }
+      },
 
       getEntradasProductos: async () => {
         try {
@@ -234,6 +278,61 @@ const getState = ({ getStore, getActions, setStore }) => {
           setStore({ entradasProductos: data });
         } catch (err) {
           console.error("Error al obtener las entradas:", err);
+        }
+      },
+
+      registrarEntradaProducto: async (datos) => {
+        try {
+          const resp = await fetch(
+            `${process.env.REACT_APP_BACKEND_URL}/api/registro-entrada`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+              },
+              body: JSON.stringify(datos),
+            }
+          );
+
+          if (!resp.ok) {
+            const error = await resp.json();
+            console.error("❌ Error al registrar entrada:", error); // muestra todo el objeto
+            return false;
+          }
+
+          const data = await resp.json();
+
+          // 🔄 Refrescar stock después de registrar
+          await getActions().getProductosConStock();
+          await getActions().getEntradasProductos();
+
+          return true; // ✅ éxito
+        } catch (err) {
+          console.error("Error del servidor:", err);
+          return false;
+        }
+      },
+
+      getProductosConStock: async () => {
+        try {
+          const resp = await fetch(
+            `${process.env.REACT_APP_BACKEND_URL}/api/productos-con-stock`,
+            {
+              headers: {
+                Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+              },
+            }
+          );
+
+          if (resp.ok) {
+            const data = await resp.json();
+            setStore({ productosConStock: data }); // 👈 Esto actualiza correctamente el store
+          } else {
+            console.error("❌ Error al obtener productos con stock");
+          }
+        } catch (error) {
+          console.error("❌ Error en getProductosConStock", error);
         }
       },
 
@@ -259,6 +358,8 @@ const getState = ({ getStore, getActions, setStore }) => {
 
       registrarSalidaProducto: async (data) => {
         const token = sessionStorage.getItem("token");
+        const user = JSON.parse(sessionStorage.getItem("user") || "null");
+        const payload = { ...data, responsable: user?.nombre };
         try {
           const resp = await fetch(
             process.env.BACKEND_URL + "/api/registro-salida",
@@ -268,7 +369,7 @@ const getState = ({ getStore, getActions, setStore }) => {
                 "Content-Type": "application/json",
                 Authorization: "Bearer " + token,
               },
-              body: JSON.stringify(data),
+              body: JSON.stringify(payload),
             }
           );
 
@@ -286,7 +387,7 @@ const getState = ({ getStore, getActions, setStore }) => {
         const token = sessionStorage.getItem("token");
         try {
           const resp = await fetch(
-            process.env.BACKEND_URL + "/api/historial-salidas",
+            `${process.env.REACT_APP_BACKEND_URL}/api/registro-salida`,
             {
               headers: {
                 Authorization: "Bearer " + token,
@@ -304,7 +405,7 @@ const getState = ({ getStore, getActions, setStore }) => {
       getSalidasProductos: async () => {
         try {
           const res = await fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/historial-salidas`,
+            `${process.env.REACT_APP_BACKEND_URL}/api/registro-salida`,
             {
               headers: {
                 Authorization: `Bearer ${sessionStorage.getItem("token")}`,
@@ -315,27 +416,6 @@ const getState = ({ getStore, getActions, setStore }) => {
           setStore({ salidas_productos: data });
         } catch (err) {
           console.error("Error al cargar salidas:", err);
-        }
-      },
-
-      crearAlmacen: async (nombre) => {
-        try {
-          const res = await fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/almacenes`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${sessionStorage.getItem("token")}`,
-              },
-              body: JSON.stringify({ nombre }),
-            }
-          );
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.msg);
-          alert("Almacén creado correctamente");
-        } catch (err) {
-          console.error("Error al crear almacén:", err);
         }
       },
 

@@ -16,14 +16,14 @@ import { Footer } from "./component/footer";
 import SignupAdmin from "./pages/SignupAdmin.js";
 import PrivateAdmin from "./component/PrivateAdmin";
 import PrivateFuncionario from "./component/PrivateFuncionario";
-import StockDashboard from "./pages/StockDashboard";
+import StockDashboard from "./pages/StockDashboard.js";
 import CrearProducto from "./component/CrearProducto";
 import EditarProducto from "./component/EditarProducto";
 import RegistrarSalidaProducto from "./component/RegistrarSalidaProducto.js";
 import RegistrarEntradaProducto from "./component/RegistrarEntradaProducto";
 import ResumenEntradas from "./component/ResumenEntradas";
 import HistorialSalidas from "./component/HistorialSalidas";
-import CrearAlmacen from "./component/CrearAlmacen";
+
 import ResumenStockMinimo from "./component/ResumenStockMinimo";
 
 // ✅ Agrega este import al principio (después de los tuyos si prefieres)
@@ -56,7 +56,6 @@ const Layout = () => {
             <Route path="/historial-salidas" element={<HistorialSalidas />} />
             <Route path="/registrar-entrada" element={<RegistrarEntradaProducto />}/>
             <Route path="/resumen-entradas" element={<ResumenEntradas />} />
-            <Route path="/crear-almacen" element={<CrearAlmacen />} />
             <Route path="/resumen-stockminimo" element={<ResumenStockMinimo />} />
             <Route path="/single/:theid" element={<Single />} />
             <Route path="*" element={<h1>Not found!</h1>} />

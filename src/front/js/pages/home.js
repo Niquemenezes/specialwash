@@ -60,8 +60,9 @@ const Home = () => {
           <h2 className="card-title text-center mb-4">Login</h2>
           <form onSubmit={handleLogin}>
             <div className="mb-3">
-              <label className="form-label">Email</label>
+              <label htmlFor="email" className="form-label">Email</label>
               <input
+                id="email"
                 type="email"
                 name="email"
                 className="form-control"
@@ -71,8 +72,9 @@ const Home = () => {
               />
             </div>
             <div className="mb-3">
-              <label className="form-label">Contraseña</label>
+              <label htmlFor="password" className="form-label">Contraseña</label>
               <input
+                id="password"
                 type="password"
                 name="password"
                 className="form-control"
@@ -82,8 +84,9 @@ const Home = () => {
               />
             </div>
             <div className="mb-3">
-              <label className="form-label">Rol</label>
+                <label htmlFor="rol" className="form-label">Rol</label>
               <select
+                id="rol"
                 name="rol"
                 className="form-select"
                 value={formData.rol}

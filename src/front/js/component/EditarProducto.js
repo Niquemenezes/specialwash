@@ -40,21 +40,37 @@ const EditarProducto = () => {
         <div className="container mt-4">
             <h2>Editar Producto</h2>
             <form onSubmit={handleSubmit}>
-                <input className="form-control my-2" type="text" name="detalle" value={formData.detalle} onChange={handleChange} placeholder="Detalle del producto" />
-                <input className="form-control my-2" type="text" name="categoria" value={formData.categoria} onChange={handleChange} placeholder="Categoría" />
-
-                <select className="form-control my-2" name="proveedor_id" value={formData.proveedor_id || ""} onChange={handleChange}>
-                    <option value="">Selecciona un proveedor</option>
-                    {store.proveedores?.map((p) => (
-                        <option key={p.id} value={p.id}>
-                            {p.nombre}
-                        </option>
-                    ))}
-                </select>
-
-                <input className="form-control my-2" type="text" name="precio_unitario" value={formData.precio_unitario} onChange={handleChange} placeholder="Precio unitario (€)" />
-                <input className="form-control my-2" type="number" name="cantidad_comprada" value={formData.cantidad_comprada} onChange={handleChange} placeholder="Cantidad comprada" />
-                <input className="form-control my-2" type="number" name="stock_minimo" value={formData.stock_minimo} onChange={handleChange} placeholder="Stock mínimo recomendado" />
+               <div className="mb-3">
+                    <label htmlFor="detalle" className="form-label">Detalle del producto</label>
+                    <input id="detalle" className="form-control" type="text" name="detalle" value={formData.detalle} onChange={handleChange} />
+                </div>
+                <div className="mb-3">
+                    <label htmlFor="categoria" className="form-label">Categoría</label>
+                    <input id="categoria" className="form-control" type="text" name="categoria" value={formData.categoria} onChange={handleChange} />
+                </div>
+                <div className="mb-3">
+                    <label htmlFor="proveedor" className="form-label">Proveedor</label>
+                    <select id="proveedor" className="form-control" name="proveedor_id" value={formData.proveedor_id || ""} onChange={handleChange}>
+                        <option value="">Selecciona un proveedor</option>
+                        {store.proveedores?.map((p) => (
+                            <option key={p.id} value={p.id}>
+                                {p.nombre}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <div className="mb-3">
+                    <label htmlFor="precio_unitario" className="form-label">Precio unitario (€)</label>
+                    <input id="precio_unitario" className="form-control" type="text" name="precio_unitario" value={formData.precio_unitario} onChange={handleChange} />
+                </div>
+                <div className="mb-3">
+                    <label htmlFor="cantidad_comprada" className="form-label">Cantidad comprada</label>
+                    <input id="cantidad_comprada" className="form-control" type="number" name="cantidad_comprada" value={formData.cantidad_comprada} onChange={handleChange} />
+                </div>
+                <div className="mb-3">
+                    <label htmlFor="stock_minimo" className="form-label">Stock mínimo recomendado</label>
+                    <input id="stock_minimo" className="form-control" type="number" name="stock_minimo" value={formData.stock_minimo} onChange={handleChange} />
+                </div>
                 <button className="btn btn-primary mt-2" type="submit">Guardar cambios</button>
             </form>
         </div>

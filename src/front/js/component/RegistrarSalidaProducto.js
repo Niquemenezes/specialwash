@@ -3,11 +3,13 @@ import { Context } from "../store/appContext";
 
 const RegistrarSalidaProducto = () => {
   const { store, actions } = useContext(Context);
+  const user = JSON.parse(sessionStorage.getItem("user") || "null");
   const [formData, setFormData] = useState({
     producto_id: "",
     cantidad: "",
     fecha_salida: "",
     observaciones: "",
+    empleado: "",
   });
 
   useEffect(() => {
@@ -28,12 +30,17 @@ const RegistrarSalidaProducto = () => {
     }
 
     const exito = await actions.registrarSalidaProducto(formData);
+
     if (exito !== false) {
+      await actions.getProductos(); // ✅ REFRESCA STOCK
+
       setFormData({
         producto_id: "",
         cantidad: "",
         fecha_salida: "",
+        empleado: "",
         observaciones: "",
+        
       });
     }
   };
@@ -47,8 +54,9 @@ const RegistrarSalidaProducto = () => {
 
         <form onSubmit={handleSubmit}>
           <div className="mb-3">
-            <label>Producto <span className="text-danger">*</span></label>
+            <label htmlFor="producto_id">Producto <span className="text-danger">*</span></label>
             <select
+              id="producto_id"
               className="form-select"
               name="producto_id"
               value={formData.producto_id}
@@ -65,8 +73,9 @@ const RegistrarSalidaProducto = () => {
           </div>
 
           <div className="mb-3">
-            <label>Cantidad <span className="text-danger">*</span></label>
+            <label htmlFor="cantidad">Cantidad <span className="text-danger">*</span></label>
             <input
+              id="cantidad"
               type="number"
               name="cantidad"
               className="form-control"
@@ -78,8 +87,9 @@ const RegistrarSalidaProducto = () => {
           </div>
 
           <div className="mb-3">
-            <label>Fecha de salida <span className="text-danger">*</span></label>
+            <label htmlFor="fecha_salida">Fecha de salida <span className="text-danger">*</span></label>
             <input
+              id="fecha_salida"
               type="date"
               name="fecha_salida"
               className="form-control"
@@ -88,10 +98,20 @@ const RegistrarSalidaProducto = () => {
               required
             />
           </div>
-
           <div className="mb-3">
-            <label>Observaciones</label>
+            <label>Empleado que retira</label>
+            <input
+              type="text"
+              name="empleado"
+              className="form-control"
+              value={formData.empleado}
+              onChange={handleChange}
+            />
+          </div>
+          <div className="mb-3">
+            <label htmlFor="observaciones">Observaciones</label>
             <textarea
+              id="observaciones"
               name="observaciones"
               className="form-control"
               value={formData.observaciones}

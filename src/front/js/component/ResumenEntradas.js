@@ -109,35 +109,43 @@ const ResumenEntradas = () => {
           Exportar PDF
         </Button>
       </div>
+<Table striped bordered hover responsive>
+  <thead>
+    <tr>
+      <th>Producto</th>
+      <th>Proveedor</th>
+      <th>Fecha</th>
+      <th>Albarán</th>
+      <th>Cantidad</th>
+      <th>Precio sin IVA</th>
+      <th>IVA (%)</th>
+      <th>IVA (€)</th>
+      <th>Descuento (€)</th>
+      <th>Precio con IVA</th>
+      <th>Total pagado</th>
+      <th>Observaciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {entradasFiltradas.map((entrada, idx) => (
+      <tr key={idx}>
+        <td>{entrada.producto?.detalle}</td>
+        <td>{entrada.proveedor?.nombre}</td>
+        <td>{entrada.fecha_entrada?.slice(0, 10)}</td>
+        <td>{entrada.numero_albaran}</td>
+        <td>{entrada.cantidad}</td>
+        <td>€ {entrada.precio_sin_iva}</td>
+        <td>{entrada.porcentaje_iva} %</td>
+        <td>€ {entrada.valor_iva}</td>
+        <td>€ {entrada.descuento}</td>
+        <td>€ {entrada.precio_con_iva}</td>
+        <td>€ {entrada.precio_final_pagado}</td>
+        <td>{entrada.observaciones}</td>
+      </tr>
+    ))}
+  </tbody>
+</Table>
 
-      <Table striped bordered hover responsive>
-        <thead>
-          <tr>
-            <th>Producto</th>
-            <th>Proveedor</th>
-            <th>Fecha</th>
-            <th>Cantidad</th>
-            <th>Precio sin IVA</th>
-            <th>IVA</th>
-            <th>Precio con IVA</th>
-          </tr>
-        </thead>
-        <tbody>
-          {entradasFiltradas.map((entrada, idx) => (
-            <tr key={idx}>
-              <td>{entrada.producto?.detalle}</td>
-              <td>{entrada.proveedor?.nombre}</td>
-              <td>{entrada.fecha_entrada}</td>
-              <td>{entrada.cantidad}</td>
-              <td>€ {entrada.precio_sin_iva}</td>
-              <td>€ {entrada.valor_iva}</td>
-              <td>€ {entrada.precio_con_iva}</td>
-              <td>{entrada.precio_final_pagado} €</td>
-
-            </tr>
-          ))}
-        </tbody>
-      </Table>
 
       <div className="mt-4">
         <p><strong>Total sin IVA:</strong> € {totalSinIVA.toFixed(2)}</p>

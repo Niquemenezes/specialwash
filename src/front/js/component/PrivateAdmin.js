@@ -7,11 +7,11 @@ const gestionItems = [
   { path: "/maquinaria", label: "Maquinaria", icon: "fas fa-tools" },
   { path: "/proveedores", label: "Proveedores", icon: "fas fa-truck" },
   { path: "/almacen-stock", label: "Stock de Almacén", icon: "fas fa-boxes" },
+  { path: "/stock/crear", label: "Crear Producto", icon: "fas fa-plus" },
   { path: "/registrar-salida", label: "Registrar Salida", icon: "fas fa-arrow-up-right-from-square" },
   { path: "/historial-salidas", label: "Historial Salidas", icon: "fas fa-clock-rotate-left" },
   { path: "/registrar-entrada", label: "Registrar entrada", icon: "fas fa-file-signature" },
   { path: "/resumen-entradas", label: "Resumen de Entradas", icon: "fas fa-clipboard-list" },
-  { path: "/crear-almacen", label: "Crear Almacén", icon: "fas fa-warehouse" },
 ];
 
 const PrivateAdmin = () => {

@@ -12,6 +12,7 @@ const StockDashboard = () => {
 
   useEffect(() => {
     actions.getProductos();
+    actions
   }, []);
 
   const mostrarTodos = () => {
@@ -105,8 +106,6 @@ const StockDashboard = () => {
           <tr>
             <th>Producto</th>
             <th>Categoría</th>
-            <th>Proveedor</th>
-            <th>Precio Unitario</th>
             <th>Cantidad</th>
             <th>StockMinimo</th>
             <th>Acciones</th>
@@ -120,9 +119,7 @@ const StockDashboard = () => {
                 <tr key={producto.id} className={bajoStock ? "table-danger" : ""}>
                   <td>{producto.detalle}</td>
                   <td>{producto.categoria}</td>
-                  <td>{producto.proveedor || producto.proveedor_nombre}</td>
-                  <td>{producto.precio_unitario} €</td>
-                  <td>
+                                   <td>
                     {producto.cantidad_comprada}
                     {bajoStock && (
                       <span className="badge bg-danger ms-2">¡Bajo stock!</span>

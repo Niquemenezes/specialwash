@@ -72,10 +72,6 @@ class Maquinaria(db.Model):
             "garantia": self.garantia
         }
 
-class Almacen(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    nombre = db.Column(db.String(100), nullable=False)
-
 class AlmacenProducto(db.Model):
     __tablename__ = 'almacen_producto'
     id = db.Column(db.Integer, primary_key=True)
@@ -107,6 +103,7 @@ class RegistroEntradaProducto(db.Model):
     valor_iva = db.Column(db.Float)
     precio_con_iva = db.Column(db.Float)
     descuento = db.Column(db.Float, default=0)
+    precio_final_pagado = db.Column(db.Float)  # 🆕 NUEVO CAMPO
     observaciones = db.Column(db.Text)
 
     def serialize(self):
@@ -122,20 +119,31 @@ class RegistroEntradaProducto(db.Model):
             "valor_iva": self.valor_iva,
             "precio_con_iva": self.precio_con_iva,
             "descuento": self.descuento,
+            "precio_final_pagado": self.precio_final_pagado,
             "observaciones": self.observaciones,
         }
-
-
 
 class RegistroSalidaProducto(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     producto_id = db.Column(db.Integer, db.ForeignKey('producto.id'), nullable=False)
     cantidad = db.Column(db.Float, nullable=False)
     fecha_salida = db.Column(db.DateTime, default=datetime.utcnow)
-    responsable = db.Column(db.String(120))
+    # Keep the DB column name for backwards compatibility
+    empleado = db.Column('responsable', db.String(120))
     observaciones = db.Column(db.Text)
 
     producto = db.relationship('Producto')
+
+    def serialize(self):
+        return {
+            "id": self.id,
+            "producto_id": self.producto_id,
+            "producto": self.producto.serialize() if self.producto else None,
+            "cantidad": self.cantidad,
+            "fecha_salida": self.fecha_salida.isoformat() if self.fecha_salida else None,
+            "empleado": self.empleado,
+            "observaciones": self.observaciones,
+        }
 
 class MovimientoStock(db.Model):
     id = db.Column(db.Integer, primary_key=True)

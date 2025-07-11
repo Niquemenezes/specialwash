@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity
-from api.models import db, Usuario, Producto, Maquinaria, Proveedor, AlmacenProducto, MovimientoStock, RegistroEntradaProducto, RegistroSalidaProducto, Almacen
+from api.models import db, Usuario, Producto, Maquinaria, Proveedor, AlmacenProducto, MovimientoStock, RegistroEntradaProducto, RegistroSalidaProducto
 from datetime import datetime
 import json
 import traceback
@@ -151,6 +151,33 @@ def crear_producto():
 
     return jsonify({"msg": "Producto creado", "producto": nuevo_producto.serialize()}), 201
 
+@api.route("/productos/<int:id>", methods=["PUT"])
+@jwt_required()
+def update_producto(id):
+    producto = Producto.query.get_or_404(id)
+    data = request.get_json()
+
+    producto.detalle = data.get("detalle", producto.detalle)
+    producto.nombre = data.get("nombre", producto.nombre)
+    producto.precio_unitario = to_float(data.get("precio_unitario", producto.precio_unitario))
+    producto.proveedor_id = data.get("proveedor_id", producto.proveedor_id)
+    producto.cantidad_comprada = to_float(data.get("cantidad_comprada", producto.cantidad_comprada))
+    producto.unidad = data.get("unidad", producto.unidad)
+    producto.categoria = data.get("categoria", producto.categoria)
+    producto.stock_minimo = data.get("stock_minimo", producto.stock_minimo)
+
+    db.session.commit()
+    return jsonify(producto.serialize()), 200
+
+
+@api.route("/productos/<int:id>", methods=["DELETE"])
+@jwt_required()
+def delete_producto(id):
+    producto = Producto.query.get_or_404(id)
+    db.session.delete(producto)
+    db.session.commit()
+    return jsonify({"msg": "Producto eliminado"}), 200
+
 # -------------------
 # MAQUINARIA
 # -------------------
@@ -228,7 +255,9 @@ def delete_proveedor(id):
 @api.route("/almacen-productos", methods=["GET"])
 @jwt_required()
 def get_almacen_productos():
-    return jsonify([p.serialize() for p in AlmacenProducto.query.all()]), 200
+    productos_en_stock = AlmacenProducto.query.all()
+    return jsonify([p.serialize() for p in productos_en_stock]), 200
+
 
 
 @api.route("/almacen-productos", methods=["POST"])
@@ -240,8 +269,7 @@ def create_almacen_producto():
         return jsonify({"msg": "Este producto ya está registrado en ese almacén."}), 400
 
     nuevo = AlmacenProducto(
-        almacen_id=clave[0],
-        producto_id=clave[1],
+        producto_id=clave,
         cantidad=data.get("cantidad", 0),
         cantidad_minima=data.get("cantidad_minima", 0)
     )
@@ -250,10 +278,10 @@ def create_almacen_producto():
     return jsonify(nuevo.serialize()), 201
 
 
-@api.route("/almacen-productos/<int:almacen_id>/<int:producto_id>", methods=["PUT"])
+@api.route("/almacen-productos//<int:producto_id>", methods=["PUT"])
 @jwt_required()
-def update_almacen_producto(almacen_id, producto_id):
-    p = AlmacenProducto.query.get_or_404((almacen_id, producto_id))
+def update_almacen_producto(producto_id):
+    p = AlmacenProducto.query.filter_by(producto_id=producto_id).first_or_404()
     data = request.json
     p.cantidad = data.get("cantidad", p.cantidad)
     p.cantidad_minima = data.get("cantidad_minima", p.cantidad_minima)
@@ -276,31 +304,12 @@ def productos_bajo_minimo():
     bajos = [p.serialize() for p in AlmacenProducto.query.all() if p.cantidad <= p.cantidad_minima]
     return jsonify(bajos), 200
 
-@api.route("/api/productos/bajo-stock", methods=["GET"])
+@api.route("/productos/bajo-stock", methods=["GET"])
 @jwt_required()
 def productos_bajo_stock():
     productos = Producto.query.all()
     bajo_stock = [p.serialize() for p in productos if p.cantidad_comprada <= p.stock_minimo]
     return jsonify(bajo_stock), 200
-
-
-# -------------------
-# ALMACENES
-# -------------------
-
-@api.route('/almacenes', methods=['POST'])
-@jwt_required()
-def crear_almacen():
-    data = request.get_json()
-    nombre = data.get("nombre")
-    if not nombre:
-        return jsonify({"msg": "Nombre del almacén requerido"}), 400
-
-    nuevo_almacen = Almacen(nombre=nombre)
-    db.session.add(nuevo_almacen)
-    db.session.commit()
-
-    return jsonify({"msg": "Almacén creado correctamente"}), 201
 
 
 # -------------------
@@ -315,6 +324,7 @@ def registrar_salida():
         producto_id = data.get("producto_id")
         cantidad = to_float(data.get("cantidad"))
         fecha_salida = data.get("fecha_salida", datetime.utcnow())
+        empleado = data.get("empleado")
         observaciones = data.get("observaciones", "")
 
         if not producto_id or not cantidad:
@@ -331,6 +341,7 @@ def registrar_salida():
             producto_id=producto_id,
             cantidad=cantidad,
             fecha_salida=fecha_salida,
+            empleado=empleado,
             observaciones=observaciones
         )
         db.session.add(salida)
@@ -373,54 +384,80 @@ def historial_salidas():
 @api.route("/registro-entrada", methods=["POST"])
 @jwt_required()
 def registrar_entrada_producto():
-    data = request.get_json()
-    
-    producto_id = data.get("producto_id")
-    proveedor_id = data.get("proveedor_id")
-    numero_albaran = data.get("numero_albaran")
-    fecha_entrada = data.get("fecha_entrada", datetime.utcnow())
-    cantidad = float(data.get("cantidad", 0))
-    precio_sin_iva = float(data.get("precio_sin_iva", 0))
-    porcentaje_iva = float(data.get("porcentaje_iva", 0))
-    descuento = float(data.get("descuento", 0))
-    observaciones = data.get("observaciones", "")
+    try:
+        data = request.get_json()
 
-    if not all([producto_id, proveedor_id, numero_albaran, cantidad, precio_sin_iva, porcentaje_iva]):
-        return jsonify({"msg": "Faltan campos obligatorios"}), 400
+        producto_id = data.get("producto_id")
+        proveedor_id = data.get("proveedor_id")
+        numero_albaran = data.get("numero_albaran")
+        fecha_entrada = data.get("fecha_entrada", datetime.utcnow())
+        cantidad = float(data.get("cantidad", 0))
+        precio_sin_iva = float(data.get("precio_sin_iva", 0))
+        porcentaje_iva = float(data.get("porcentaje_iva", 0))
+        descuento = float(data.get("descuento", 0))
+        observaciones = data.get("observaciones", "")
 
-    # Calcular valores automáticos
-    valor_iva = precio_sin_iva * porcentaje_iva / 100
-    precio_con_iva = precio_sin_iva + valor_iva - descuento
+        if not producto_id or not proveedor_id or not numero_albaran:
+            return jsonify({"msg": "Producto, proveedor y albarán son obligatorios"}), 400
+        if cantidad <= 0:
+            return jsonify({"msg": "La cantidad debe ser mayor que cero"}), 400
+        if precio_sin_iva < 0:
+            return jsonify({"msg": "El precio no puede ser negativo"}), 400
 
-    # 1. Registrar entrada
-    entrada = RegistroEntradaProducto(
-        producto_id=producto_id,
-        proveedor_id=proveedor_id,
-        numero_albaran=numero_albaran,
-        fecha_entrada=fecha_entrada,
-        cantidad=cantidad,
-        precio_sin_iva=precio_sin_iva,
-        porcentaje_iva=porcentaje_iva,
-        valor_iva=valor_iva,
-        precio_con_iva=precio_con_iva,
-        descuento=descuento,
-        observaciones=observaciones,
-    )
-    db.session.add(entrada)
+        # Cálculos corregidos
+        subtotal = precio_sin_iva * cantidad
+        valor_iva = subtotal * porcentaje_iva / 100
+        total_con_iva = subtotal + valor_iva
+        descuento_valor = total_con_iva * descuento / 100
+        precio_con_iva = total_con_iva - descuento_valor
 
-    # 2. Actualizar stock del producto
-    producto = Producto.query.get(producto_id)
-    if not producto:
-        return jsonify({"msg": "Producto no encontrado"}), 404
+        entrada = RegistroEntradaProducto(
+            producto_id=producto_id,
+            proveedor_id=proveedor_id,
+            numero_albaran=numero_albaran,
+            fecha_entrada=fecha_entrada,
+            cantidad=cantidad,
+            precio_sin_iva=precio_sin_iva,
+            porcentaje_iva=porcentaje_iva,
+            valor_iva=valor_iva,
+            precio_con_iva=precio_con_iva,
+            descuento=descuento,
+            precio_final_pagado=precio_con_iva,
+            observaciones=observaciones,
+        )
+        db.session.add(entrada)
 
-    producto.cantidad_comprada += cantidad
-    db.session.commit()
+        producto = Producto.query.get(producto_id)
+        if not producto:
+            return jsonify({"msg": "Producto no encontrado"}), 404
+        producto.cantidad_comprada += cantidad
 
-    return jsonify({
-        "msg": "Entrada registrada y stock actualizado correctamente",
-        "entrada": entrada.serialize(),
-        "producto_actualizado": producto.serialize()
-    }), 201
+        almacen_producto = AlmacenProducto.query.filter_by(producto_id=producto_id).first()
+        if almacen_producto:
+            almacen_producto.cantidad += cantidad
+        else:
+            nuevo_stock = AlmacenProducto(
+                producto_id=producto_id,
+                cantidad=cantidad,
+                cantidad_minima=producto.stock_minimo or 0
+            )
+            db.session.add(nuevo_stock)
+
+        db.session.commit()
+
+        return jsonify({
+            "msg": "Entrada registrada y stock actualizado correctamente",
+            "entrada": entrada.serialize(),
+            "producto_actualizado": producto.serialize()
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        print("❌ ERROR EN /registro-entrada:", e)
+        return jsonify({"msg": "Error interno del servidor", "error": str(e)}), 500
+
+
+
 
 
     
@@ -434,3 +471,11 @@ def get_registros_entrada():
         traceback.print_exc()
         return jsonify({"msg": "Error al obtener registros de entrada", "error": str(e)}), 500
 
+@api.route("/productos-con-stock", methods=["GET"])
+@jwt_required()
+def productos_con_stock():
+    try:
+        productos_stock = AlmacenProducto.query.all()
+        return jsonify([p.serialize() for p in productos_stock]), 200
+    except Exception as e:
+        return jsonify({"msg": "Error al obtener productos con stock", "error": str(e)}), 500

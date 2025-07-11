@@ -83,6 +83,7 @@ const HistorialSalidas = () => {
                 <th>Producto</th>
                 <th>Cantidad</th>
                 <th>Fecha</th>
+                <th>Empleado</th>
                 <th>Observaciones</th>
               </tr>
             </thead>
@@ -99,6 +100,7 @@ const HistorialSalidas = () => {
                     <td>{s.producto?.detalle || "Sin nombre"}</td>
                     <td>{s.cantidad}</td>
                     <td>{s.fecha_salida}</td>
+                    <td>{s.empleado || "-"}</td>
                     <td>{s.observaciones || "-"}</td>
                   </tr>
                 ))
