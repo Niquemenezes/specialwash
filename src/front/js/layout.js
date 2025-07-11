@@ -4,7 +4,6 @@ import ScrollToTop from "./component/scrollToTop";
 import { BackendURL } from "./component/backendURL";
 
 import Home from "./pages/home";
-import { Demo } from "./pages/demo";
 import { Single } from "./pages/single";
 import injectContext from "./store/appContext";
 
@@ -46,7 +45,6 @@ const Layout = () => {
             <Route path="/funcionarios" element={<Funcionarios />} />
             <Route path="/maquinaria" element={<Maquinaria />} />
             <Route path="/proveedores" element={<Proveedores />} />
-            <Route path="/demo" element={<Demo />} />
             <Route path="/signup-admin" element={<SignupAdmin />} />
             <Route path="/almacen-stock" element={<StockDashboard />} />
             <Route path="/stock/crear" element={<CrearProducto />} />

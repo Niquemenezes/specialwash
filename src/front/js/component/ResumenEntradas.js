@@ -16,7 +16,7 @@ const ResumenEntradas = () => {
   }, []);
 
   // Si los datos aún no llegaron, mostrar spinner
-  if (!store.entradas_productos || !Array.isArray(store.entradas_productos)) {
+  if (!store.entradasProductos || !Array.isArray(store.entradasProductos)) {
     return (
       <div className="text-center mt-5">
         <div className="spinner-border text-primary" role="status"></div>
@@ -25,7 +25,7 @@ const ResumenEntradas = () => {
     );
   }
 
-  const entradasFiltradas = (store.entradas_productos || []).filter((entrada) => {
+  const entradasFiltradas = (store.entradasProductos || []).filter((entrada) => {
     const cumpleProveedor = proveedorFiltro
       ? entrada.proveedor?.nombre?.toLowerCase() === proveedorFiltro.toLowerCase()
       : true;

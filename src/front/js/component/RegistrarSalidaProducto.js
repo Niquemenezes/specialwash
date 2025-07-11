@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useContext } from "react";
 import { Context } from "../store/appContext";
+import { useNavigate } from "react-router-dom";
 
 const RegistrarSalidaProducto = () => {
   const { store, actions } = useContext(Context);
+  const navigate = useNavigate();
   const user = JSON.parse(sessionStorage.getItem("user") || "null");
   const [formData, setFormData] = useState({
     producto_id: "",
@@ -31,7 +33,7 @@ const RegistrarSalidaProducto = () => {
 
     const exito = await actions.registrarSalidaProducto(formData);
 
-    if (exito !== false) {
+     if (exito) {
       await actions.getProductos(); // ✅ REFRESCA STOCK
 
       setFormData({
@@ -42,6 +44,7 @@ const RegistrarSalidaProducto = () => {
         observaciones: "",
         
       });
+       navigate("/historial-salidas");
     }
   };
 
@@ -64,11 +67,18 @@ const RegistrarSalidaProducto = () => {
               required
             >
               <option value="">Selecciona un producto</option>
-              {store.productos.map((prod) => (
-                <option key={prod.id} value={prod.id}>
-                  {prod.detalle} - Stock: {prod.cantidad}
-                </option>
-              ))}
+               {store.productos.map((prod) => {
+                const stock = prod.cantidad !== undefined ? prod.cantidad : prod.cantidad_comprada;
+                return (
+                  <option
+                    key={prod.id}
+                    value={prod.id}
+                    className={stock <= 0 ? "text-danger" : ""}
+                  >
+                    {prod.detalle} - Stock: {stock}
+                  </option>
+                );
+              })}
             </select>
           </div>
 

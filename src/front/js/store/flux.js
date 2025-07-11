@@ -376,10 +376,12 @@ const getState = ({ getStore, getActions, setStore }) => {
           if (!resp.ok) throw new Error("Error al registrar salida");
           const result = await resp.json();
           alert(result.msg);
-          actions.getProductos(); // Actualiza stock
+          getActions().getProductos(); // Actualiza stock
+          return true;
         } catch (err) {
           console.error("❌ Error registrar salida:", err);
           alert("Error al registrar salida");
+          return false;
         }
       },
 

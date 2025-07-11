@@ -336,6 +336,9 @@ def registrar_salida():
             return jsonify({"msg": "Stock insuficiente"}), 400
 
         stock.cantidad -= cantidad
+        producto = Producto.query.get(producto_id)
+        if producto:
+            producto.cantidad_comprada = max(producto.cantidad_comprada - cantidad, 0)
         salida = RegistroSalidaProducto(
             producto_id=producto_id,
             cantidad=cantidad,
