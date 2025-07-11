@@ -9,7 +9,6 @@ const ModalCrearProducto = ({ onClose, onSave }) => {
     detalle: "",
     precio_unitario: "",
     proveedor_id: "",
-    cantidad_comprada: "",
     unidad: "",
     categoria: "",
     stock_minimo: ""
@@ -65,10 +64,6 @@ const ModalCrearProducto = ({ onClose, onSave }) => {
                       <option key={p.id} value={p.id}>{p.nombre}</option>
                     ))}
                   </select>
-                </div>
-                <div className="form-group col-md-6">
-                  <label>Cantidad comprada</label>
-                  <input type="number" className="form-control" name="cantidad_comprada" value={formData.cantidad_comprada} onChange={handleChange} />
                 </div>
                 <div className="form-group col-md-6">
                   <label>Unidad</label>

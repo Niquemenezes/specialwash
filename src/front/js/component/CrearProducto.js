@@ -11,7 +11,6 @@ const CrearProducto = () => {
         categoria: "",
         proveedor_id: "",
         precio_unitario: "",
-        cantidad_comprada: "",
         stock_minimo: "",
         unidad: ""
     });
@@ -22,7 +21,7 @@ const CrearProducto = () => {
 
     const handleChange = (e) => {
         let { name, value } = e.target;
-        if (name === "precio_unitario" || name === "cantidad_comprada") {
+        if (name === "precio_unitario") {
             value = value.replace(",", ".");
         }
         setFormData({ ...formData, [name]: value });
@@ -34,7 +33,6 @@ const CrearProducto = () => {
         const parsedData = {
             ...formData,
             precio_unitario: parseFloat(formData.precio_unitario),
-            cantidad_comprada: parseFloat(formData.cantidad_comprada),
             stock_minimo: parseInt(formData.stock_minimo),
             proveedor_id: parseInt(formData.proveedor_id)
         };
@@ -102,17 +100,7 @@ const CrearProducto = () => {
                         onChange={handleChange}
                     />
                 </div>
-                <div className="mb-3">
-                    <label htmlFor="cantidad_comprada" className="form-label">Cantidad comprada</label>
-                    <input
-                        id="cantidad_comprada"
-                        className="form-control"
-                        type="number"
-                        name="cantidad_comprada"
-                        onChange={handleChange}
-                        step="any"
-                    />
-                </div>
+               
                 <div className="mb-3">
                     <label htmlFor="stock_minimo" className="form-label">Stock mínimo recomendado</label>
                     <input

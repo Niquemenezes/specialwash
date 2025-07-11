@@ -120,7 +120,7 @@ const ResumenEntradas = () => {
       <th>Precio sin IVA</th>
       <th>IVA (%)</th>
       <th>IVA (€)</th>
-      <th>Descuento (€)</th>
+       <th>Descuento (%)</th>
       <th>Precio con IVA</th>
       <th>Total pagado</th>
       <th>Observaciones</th>
@@ -137,7 +137,7 @@ const ResumenEntradas = () => {
         <td>€ {entrada.precio_sin_iva}</td>
         <td>{entrada.porcentaje_iva} %</td>
         <td>€ {entrada.valor_iva}</td>
-        <td>€ {entrada.descuento}</td>
+        <td>{entrada.descuento} %</td>
         <td>€ {entrada.precio_con_iva}</td>
         <td>€ {entrada.precio_final_pagado}</td>
         <td>{entrada.observaciones}</td>

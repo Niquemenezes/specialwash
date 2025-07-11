@@ -27,25 +27,29 @@ const FormularioEntradaProducto = () => {
   };
 
   const calcularPrecioFinal = () => {
-    const precio = parseFloat(formData.precio_sin_iva) || 0;
+    const precioUnitario = parseFloat(formData.precio_sin_iva) || 0;
+    const cantidad = parseFloat(formData.cantidad) || 0;
     const iva = parseFloat(formData.porcentaje_iva) || 0;
     const descuento = parseFloat(formData.descuento) || 0;
-    const valor_iva = (precio * iva) / 100;
-    const precio_con_iva = precio + valor_iva;
-    return (precio_con_iva - descuento).toFixed(2);
+     const subtotal = precioUnitario * cantidad;
+    const valorIVA = (subtotal * iva) / 100;
+    const totalConIVA = subtotal + valorIVA;
+    const valorDescuento = (totalConIVA * descuento) / 100;
+
+    return (totalConIVA - valorDescuento).toFixed(2);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const datos = {
-      ...formulario,
-      producto_id: parseInt(formulario.producto_id),
-      proveedor_id: parseInt(formulario.proveedor_id),
-      cantidad: parseFloat(formulario.cantidad),
-      precio_sin_iva: parseFloat(formulario.precio_sin_iva),
-      porcentaje_iva: parseFloat(formulario.porcentaje_iva),
-      descuento: parseFloat(formulario.descuento || 0),
+      ...formData,
+      producto_id: parseInt(formData.producto_id),
+      proveedor_id: parseInt(formData.proveedor_id),
+      cantidad: parseFloat(formData.cantidad),
+      precio_sin_iva: parseFloat(formData.precio_sin_iva),
+      porcentaje_iva: parseFloat(formData.porcentaje_iva),
+      descuento: parseFloat(formData.descuento || 0),
       precio_final_pagado: parseFloat(calcularPrecioFinal()),
     };
     

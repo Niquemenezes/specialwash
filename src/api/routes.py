@@ -128,7 +128,6 @@ def crear_producto():
     nombre = data.get("nombre")
     precio_unitario = data.get("precio_unitario", 0)
     proveedor_id = data.get("proveedor_id")
-    cantidad_comprada = data.get("cantidad_comprada", 0)
     unidad = data.get("unidad", "")
     categoria = data.get("categoria", "general")
     stock_minimo = data.get("stock_minimo", 0)
@@ -141,7 +140,7 @@ def crear_producto():
         nombre=nombre,
         precio_unitario=precio_unitario,
         proveedor_id=proveedor_id,
-        cantidad_comprada=cantidad_comprada,
+        cantidad_comprada=0,
         unidad=unidad,
         categoria=categoria,
         stock_minimo=stock_minimo

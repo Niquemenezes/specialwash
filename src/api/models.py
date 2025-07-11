@@ -36,7 +36,7 @@ class Producto(db.Model):
     detalle = db.Column(db.Text, nullable=False)
     precio_unitario = db.Column(db.Float, nullable=False)
     proveedor_id = db.Column(db.Integer, db.ForeignKey('proveedor.id'), nullable=False)
-    cantidad_comprada = db.Column(db.Float, nullable=False)
+    cantidad_comprada = db.Column(db.Float, nullable=False, default=0)
     unidad = db.Column(db.String(50), nullable=True)
     categoria = db.Column(db.String(100), nullable=False)
     stock_minimo = db.Column(db.Integer, nullable=True)
