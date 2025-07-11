@@ -116,6 +116,23 @@ const getState = ({ getStore, getActions, setStore }) => {
           return [];
         }
       },
+      getEmpleados: async () => {
+        try {
+          const resp = await fetch(process.env.REACT_APP_BACKEND_URL + "/api/empleados");
+          const data = await resp.json();
+          if (resp.ok) {
+            setStore({ empleados: data });
+            return true;
+          } else {
+            console.error("Error al obtener empleados");
+            return false;
+          }
+        } catch (error) {
+          console.error("Error en getEmpleados:", error);
+          return false;
+        }
+      },
+
 
       crearFuncionario: async (datos) => {
         try {

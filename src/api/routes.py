@@ -48,7 +48,12 @@ def admin_exists():
 @api.route("/usuarios", methods=["GET"])
 @jwt_required()
 def get_usuarios():
-    return jsonify([u.serialize() for u in Usuario.query.all()]), 200
+    rol = request.args.get("rol")
+    query = Usuario.query
+    if rol:
+        query = query.filter_by(rol=rol.lower())
+    return jsonify([u.serialize() for u in query.all()]), 200
+
 
 @api.route("/usuarios", methods=["POST"])
 def create_usuario():

@@ -16,6 +16,7 @@ const RegistrarSalidaProducto = () => {
 
   useEffect(() => {
     actions.getProductos();
+    actions.getEmpleados(); // ✅ NUEVA LÍNEA
   }, []);
 
   const handleChange = (e) => {
@@ -33,7 +34,7 @@ const RegistrarSalidaProducto = () => {
 
     const exito = await actions.registrarSalidaProducto(formData);
 
-     if (exito) {
+    if (exito) {
       await actions.getProductos(); // ✅ REFRESCA STOCK
 
       setFormData({
@@ -42,9 +43,9 @@ const RegistrarSalidaProducto = () => {
         fecha_salida: "",
         empleado: "",
         observaciones: "",
-        
+
       });
-       navigate("/historial-salidas");
+      navigate("/historial-salidas");
     }
   };
 
@@ -67,7 +68,7 @@ const RegistrarSalidaProducto = () => {
               required
             >
               <option value="">Selecciona un producto</option>
-               {store.productos.map((prod) => {
+              {store.productos.map((prod) => {
                 const stock = prod.cantidad !== undefined ? prod.cantidad : prod.cantidad_comprada;
                 return (
                   <option
@@ -109,15 +110,25 @@ const RegistrarSalidaProducto = () => {
             />
           </div>
           <div className="mb-3">
-            <label>Empleado que retira</label>
-            <input
-              type="text"
+            <label htmlFor="empleado">Empleado que retira <span className="text-danger">*</span></label>
+            <select
+              id="empleado"
+              className="form-select"
               name="empleado"
-              className="form-control"
               value={formData.empleado}
               onChange={handleChange}
-            />
+              required
+            >
+              <option value="">Selecciona un empleado</option>
+              {store.empleados && store.empleados.map((emp) => (
+                <option key={emp.id} value={emp.nombre}>
+                  {emp.nombre}
+                </option>
+              ))}
+            </select>
           </div>
+
+
           <div className="mb-3">
             <label htmlFor="observaciones">Observaciones</label>
             <textarea
