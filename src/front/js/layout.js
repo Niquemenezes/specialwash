@@ -6,10 +6,11 @@ import { BackendURL } from "./component/backendURL";
 import Home from "./pages/home";
 import { Single } from "./pages/single";
 import injectContext from "./store/appContext";
+import Empleados from "./component/Empleados.js";
+
 
 import Maquinaria from "./component/Maquinaria";
 import Proveedores from "./component/Proveedores";
-import Funcionarios from "./component/Funcionarios";
 import Navbar from "./component/navbar";
 import { Footer } from "./component/footer";
 import SignupAdmin from "./pages/SignupAdmin.js";
@@ -41,8 +42,8 @@ const Layout = () => {
           <Navbar />
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/funcionario" element={<PrivateFuncionario />} />      
-            <Route path="/funcionarios" element={<Funcionarios />} />
+            <Route path="/funcionario" element={<PrivateFuncionario />} /> 
+            <Route path="/empleados" element={<Empleados />} />
             <Route path="/maquinaria" element={<Maquinaria />} />
             <Route path="/proveedores" element={<Proveedores />} />
             <Route path="/signup-admin" element={<SignupAdmin />} />

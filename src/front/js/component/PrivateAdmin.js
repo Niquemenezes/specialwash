@@ -3,16 +3,19 @@ import { useNavigate } from "react-router-dom";
 import { Context } from "../store/appContext"; // ← Añadido para acceder a productos
 
 const gestionItems = [
-  { path: "/funcionarios", label: "Funcionarios", icon: "fas fa-users" },
-  { path: "/maquinaria", label: "Maquinaria", icon: "fas fa-tools" },
+  { path: "/empleados", label: "Empleados", icon: "fas fa-users" },
   { path: "/proveedores", label: "Proveedores", icon: "fas fa-truck" },
   { path: "/almacen-stock", label: "Stock de Almacén", icon: "fas fa-boxes" },
   { path: "/stock/crear", label: "Crear Producto", icon: "fas fa-plus" },
-  { path: "/registrar-salida", label: "Registrar Salida", icon: "fas fa-arrow-up-right-from-square" },
-  { path: "/historial-salidas", label: "Historial Salidas", icon: "fas fa-clock-rotate-left" },
   { path: "/registrar-entrada", label: "Registrar entrada", icon: "fas fa-file-signature" },
   { path: "/resumen-entradas", label: "Resumen de Entradas", icon: "fas fa-clipboard-list" },
+  { path: "/registrar-salida", label: "Registrar Salida", icon: "fas fa-arrow-up-right-from-square" },
+  { path: "/historial-salidas", label: "Historial Salidas", icon: "fas fa-clock-rotate-left" },
+  { path: "/maquinaria", label: "Maquinaria", icon: "fas fa-tools" }
 ];
+
+ 
+
 
 const PrivateAdmin = () => {
   const { store, actions } = useContext(Context); // ← Para acceder a productos

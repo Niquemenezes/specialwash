@@ -18,7 +18,7 @@ const RegistrarSalidaProducto = () => {
 
   useEffect(() => {
   actions.getProductos();
-  actions.obtenerFuncionarios();
+  actions.getUsuarios();
   actions.getSalidasProductos(); // 👈 trae los usuarios con rol=empleado
 }, []);
 
@@ -38,8 +38,7 @@ const RegistrarSalidaProducto = () => {
 
     const exito = await actions.registrarSalidaProducto(formData);
 
-    if (exito) {
-      await actions.getProductos(); // ✅ Refrescar stock
+     if (exito) {
       await actions.getSalidasProductos();
       setFormData({
         producto_id: "",
@@ -48,7 +47,8 @@ const RegistrarSalidaProducto = () => {
         empleado: "",
         observaciones: "",
       });
-         }
+       navigate("/historial-salidas");
+    }
   };
 
   return (

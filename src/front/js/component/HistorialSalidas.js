@@ -4,11 +4,12 @@ import * as XLSX from "xlsx";
 
 const HistorialSalidas = () => {
   const { store, actions } = useContext(Context);
-  const [filtro, setFiltro] = useState({ desde: "", hasta: "" });
+  const [filtro, setFiltro] = useState({ desde: "", hasta: "", producto: "" });
   const [salidasFiltradas, setSalidasFiltradas] = useState([]);
 
   useEffect(() => {
     actions.getSalidasProductos();
+     actions.getProductos();
   }, []);
 
   useEffect(() => {
@@ -16,7 +17,7 @@ const HistorialSalidas = () => {
   }, [store.salidas_productos, filtro]);
 
   const aplicarFiltro = () => {
-  const { desde, hasta } = filtro;
+  const { desde, hasta, producto } = filtro;
 
   const salidas = Array.isArray(store.salidas_productos)
     ? store.salidas_productos
@@ -26,20 +27,37 @@ const HistorialSalidas = () => {
     const fecha = new Date(s.fecha_salida);
     const desdeFecha = desde ? new Date(desde) : null;
     const hastaFecha = hasta ? new Date(hasta) : null;
+    const cumpleProducto = producto ? s.producto?.id === parseInt(producto) : true;
 
     return (
       (!desdeFecha || fecha >= desdeFecha) &&
       (!hastaFecha || fecha <= hastaFecha)
+      (!hastaFecha || fecha <= hastaFecha) &&
+      cumpleProducto
     );
   });
 
   setSalidasFiltradas(filtradas);
 };
 
+const totalGastado = salidasFiltradas.reduce((acc, s) => {
+  const precio = parseFloat(s.producto?.precio_unitario || 0);
+  const cantidad = parseFloat(s.cantidad || 0);
+  return acc + precio * cantidad;
+}, 0);
+
 
   const exportarExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(salidasFiltradas);
-    const workbook = XLSX.utils.book_new();
+   const data = salidasFiltradas.map(s => ({
+      producto: s.producto?.detalle,
+      cantidad: s.cantidad,
+      fecha: s.fecha_salida,
+      empleado: s.empleado,
+      observaciones: s.observaciones,
+      costo: (s.cantidad * (s.producto?.precio_unitario || 0)).toFixed(2)
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    
     XLSX.utils.book_append_sheet(workbook, worksheet, "Salidas");
 
     XLSX.writeFile(workbook, "historial_salidas.xlsx");
@@ -51,7 +69,7 @@ const HistorialSalidas = () => {
         <h4 className="text-primary mb-4 text-center">Historial de Salidas</h4>
 
         <div className="row g-3 mb-4">
-          <div className="col-md-4">
+           <div className="col-md-3">
             <label>Desde</label>
             <input
               type="date"
@@ -60,7 +78,7 @@ const HistorialSalidas = () => {
               onChange={(e) => setFiltro({ ...filtro, desde: e.target.value })}
             />
           </div>
-          <div className="col-md-4">
+           <div className="col-md-3">
             <label>Hasta</label>
             <input
               type="date"
@@ -70,6 +88,22 @@ const HistorialSalidas = () => {
             />
           </div>
           <div className="col-md-4 d-flex align-items-end">
+              <div className="col-md-3">
+            <label>Producto</label>
+            <select
+              className="form-select"
+              value={filtro.producto}
+              onChange={(e) => setFiltro({ ...filtro, producto: e.target.value })}
+            >
+              <option value="">Todos</option>
+              {(store.productos || []).map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.detalle}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="col-md-3 d-flex align-items-end"></div>
             <button
               className="btn btn-success w-100"
               onClick={exportarExcel}
@@ -88,6 +122,7 @@ const HistorialSalidas = () => {
                 <th>Cantidad</th>
                 <th>Fecha</th>
                 <th>Empleado</th>
+                <th>Costo (€)</th>
                 <th>Observaciones</th>
               </tr>
             </thead>
@@ -105,12 +140,21 @@ const HistorialSalidas = () => {
                     <td>{s.cantidad}</td>
                     <td>{s.fecha_salida}</td>
                     <td>{s.empleado || "-"}</td>
+                      <td>
+                      {(
+                        parseFloat(s.cantidad || 0) *
+                        parseFloat(s.producto?.precio_unitario || 0)
+                      ).toFixed(2)}
+                    </td>
                     <td>{s.observaciones || "-"}</td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
+        </div>
+          <div className="mt-3">
+          <strong>Total gastado:</strong> € {totalGastado.toFixed(2)}
         </div>
       </div>
     </div>

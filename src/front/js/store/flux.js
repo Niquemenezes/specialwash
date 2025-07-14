@@ -7,6 +7,7 @@ const getState = ({ getStore, getActions, setStore }) => {
       adminExists: { exists: false, total: 0 },
       productos: [],
       proveedores: [],
+      usuarios: [],
       entradasProductos: [],
       salidas_productos: [],
       historial_salidas: [],
@@ -17,14 +18,11 @@ const getState = ({ getStore, getActions, setStore }) => {
     actions: {
       login: async ({ email, password, rol }) => {
         try {
-          const resp = await fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/login`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ email, password, rol }),
-            }
-          );
+          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password, rol }),
+          });
 
           if (!resp.ok) throw new Error(await resp.text());
 
@@ -33,11 +31,7 @@ const getState = ({ getStore, getActions, setStore }) => {
           sessionStorage.setItem("token", data.access_token);
           sessionStorage.setItem("rol", rolLower);
           sessionStorage.setItem("user", JSON.stringify(data.user));
-          setStore({
-            token: data.access_token,
-            rol: rolLower,
-            user: data.user,
-          });
+          setStore({ token: data.access_token, rol: rolLower, user: data.user });
           return true;
         } catch (err) {
           console.error("Error en login:", err);
@@ -61,9 +55,7 @@ const getState = ({ getStore, getActions, setStore }) => {
 
       checkAdminExists: async () => {
         try {
-          const resp = await fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/admin-exists`
-          );
+          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/admin-exists`);
           if (!resp.ok) throw new Error(await resp.text());
           const data = await resp.json();
           setStore({ adminExists: data });
@@ -77,19 +69,14 @@ const getState = ({ getStore, getActions, setStore }) => {
       signupAdmin: async (formData) => {
         try {
           const token = sessionStorage.getItem("token");
-
-          const resp = await fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/usuarios`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                ...(token ? { Authorization: `Bearer ${token}` } : {}), // 👈 agrega token si hay
-              },
-              body: JSON.stringify(formData),
-            }
-          );
-
+          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/usuarios`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify(formData),
+          });
           if (!resp.ok) throw new Error((await resp.json()).msg);
           return true;
         } catch (error) {
@@ -98,40 +85,50 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
       },
 
-      obtenerFuncionarios: async () => {
+      getUsuarios: async () => {
         try {
-          const token = sessionStorage.getItem("token");
-          const res = await fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/usuarios?rol=funcionario`,
-            {
-              headers: {
-                Authorization: "Bearer " + token,
-              },
-            }
-          );
-          if (!res.ok) throw new Error("Error al obtener funcionarios");
-          const data = await res.json();
-          setStore({ empleados: data });
-          return data;
-        } catch (err) {
-          console.error("Error en obtenerFuncionarios:", err);
-          return [];
+          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/usuarios`);
+          const data = await resp.json();
+          setStore({ usuarios: data });
+        } catch (error) {
+          console.error("Error al obtener usuarios:", error);
         }
       },
-      getEmpleados: async () => {
+
+      createUsuario: async (usuario) => {
         try {
-          const resp = await fetch(process.env.REACT_APP_BACKEND_URL + "/api/empleados");
-          const data = await resp.json();
-          if (resp.ok) {
-            setStore({ empleados: data });
-            return true;
-          } else {
-            console.error("Error al obtener empleados");
-            return false;
-          }
+          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/usuarios`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(usuario),
+          });
+          if (resp.ok) getActions().getUsuarios();
         } catch (error) {
-          console.error("Error en getEmpleados:", error);
-          return false;
+          console.error("Error al crear usuario:", error);
+        }
+      },
+
+      editUsuario: async (id, usuario) => {
+        try {
+          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/usuarios/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(usuario),
+          });
+          if (resp.ok) getActions().getUsuarios();
+        } catch (error) {
+          console.error("Error al editar usuario:", error);
+        }
+      },
+
+      deleteUsuario: async (id) => {
+        try {
+          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/usuarios/${id}`, {
+            method: "DELETE",
+          });
+          if (resp.ok) getActions().getUsuarios();
+        } catch (error) {
+          console.error("Error al eliminar usuario:", error);
         }
       },
 
@@ -139,13 +136,11 @@ const getState = ({ getStore, getActions, setStore }) => {
         try {
           const token = sessionStorage.getItem("token");
           const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/usuarios?rol=${rol}`, {
-            headers: {
-              Authorization: "Bearer " + token,
-            },
+            headers: { Authorization: "Bearer " + token },
           });
           const data = await resp.json();
           if (resp.ok) {
-            setStore({ empleados: data }); // Puedes usar otro nombre como `usuarios_filtrados`
+            setStore({ empleados: data });
             return true;
           } else {
             console.error("Error al obtener usuarios por rol:", data);
@@ -157,70 +152,110 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
       },
 
+      obtenerEmpleados: async () => {
+  const token = sessionStorage.getItem("token");
+  try {
+    const resp = await fetch(process.env.BACKEND_URL + "/api/usuarios?rol=empleado", {
+      headers: {
+        Authorization: "Bearer " + token
+      }
+    });
+    if (!resp.ok) throw new Error("Error al obtener empleados");
+    const data = await resp.json();
+    return data;
+  } catch (err) {
+    console.error("Error al obtener empleados:", err);
+    return [];
+  }
+},
 
-      crearFuncionario: async (datos) => {
+
+
+      crearEmpleado: async (datos) => {
+        const token = sessionStorage.getItem("token");
+
+        if (!token) {
+          alert("Debes estar autenticado para crear empleados.");
+          return false;
+        }
+
         try {
-          const token = sessionStorage.getItem("token");
-          const res = await fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/usuarios`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify(datos),
-            }
-          );
-          if (!res.ok) throw new Error(await res.text());
+          const resp = await fetch(process.env.BACKEND_URL + "/api/usuarios", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + token
+            },
+            body: JSON.stringify(datos)
+          });
+
+          if (!resp.ok) {
+            const errorData = await resp.json();
+            alert(errorData.msg || "Error al crear empleado");
+            return false;
+          }
+
           return true;
-        } catch (err) {
-          console.error("Error en crearFuncionario:", err);
+        } catch (error) {
+          console.error("Error en crearEmpleado:", error);
           return false;
         }
       },
 
-      editarFuncionario: async (id, datos) => {
+
+      editarEmpleado: async (id, datos) => {
         try {
-          const token = sessionStorage.getItem("token");
-          const res = await fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/usuarios/${id}`,
-            {
-              method: "PUT",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: "Bearer " + token,
-              },
-              body: JSON.stringify(datos),
-            }
-          );
-          if (!res.ok) throw new Error("Error al editar funcionario");
-          return true;
-        } catch (err) {
-          console.error("Error en editarFuncionario:", err);
+          const resp = await fetch(process.env.BACKEND_URL + `/api/usuarios/${id}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + sessionStorage.getItem("token")
+            },
+            body: JSON.stringify(datos)
+          });
+          return resp.ok;
+        } catch (error) {
+          console.error("Error al editar empleado:", error);
           return false;
         }
       },
 
-      eliminarFuncionario: async (id) => {
+      eliminarEmpleado: async (id) => {
         try {
-          const token = sessionStorage.getItem("token");
-          const res = await fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/usuarios/${id}`,
-            {
-              method: "DELETE",
-              headers: {
-                Authorization: "Bearer " + token,
-              },
+          const resp = await fetch(process.env.BACKEND_URL + `/api/usuarios/${id}`, {
+            method: "DELETE",
+            headers: {
+              Authorization: "Bearer " + sessionStorage.getItem("token")
             }
-          );
-          if (!res.ok) throw new Error("Error al eliminar funcionario");
-          return true;
-        } catch (err) {
-          console.error("Error en eliminarFuncionario:", err);
+          });
+          return resp.ok;
+        } catch (error) {
+          console.error("Error al eliminar empleado:", error);
           return false;
         }
       },
+
+      getUsuariosPorRol: async (rol = "empleado") => {
+  try {
+    const token = sessionStorage.getItem("token");
+    const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/usuarios?rol=${rol}`, {
+      headers: { Authorization: "Bearer " + token },
+    });
+    const data = await resp.json();
+    if (resp.ok) {
+      setStore({ empleados: data }); // ✅ sí actualiza el store
+      return true;
+    } else {
+      console.error("Error al obtener usuarios por rol:", data);
+      return false;
+    }
+  } catch (error) {
+    console.error("Error en getUsuariosPorRol:", error);
+    return false;
+  }
+},
+
+
 
       getProductos: async () => {
         try {
@@ -403,7 +438,7 @@ const getState = ({ getStore, getActions, setStore }) => {
         const payload = { ...data, responsable: user?.nombre };
         try {
           const resp = await fetch(
-             `${process.env.REACT_APP_BACKEND_URL}/api/registro-salida`,
+            `${process.env.REACT_APP_BACKEND_URL}/api/registro-salida`,
             {
               method: "POST",
               headers: {
@@ -417,7 +452,9 @@ const getState = ({ getStore, getActions, setStore }) => {
           if (!resp.ok) throw new Error("Error al registrar salida");
           const result = await resp.json();
           alert(result.msg);
-          getActions().getProductos(); // Actualiza stock
+          // Refresh stock and salida history so UI stays in sync
+          await getActions().getProductos();
+          await getActions().getSalidasProductos();
           return true;
         } catch (err) {
           console.error("❌ Error registrar salida:", err);
@@ -445,22 +482,22 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
       },
 
-    getSalidasProductos: async () => {
-  try {
-    const resp = await fetch(process.env.REACT_APP_BACKEND_URL + "/api/salidas");
-    const data = await resp.json();
+      getSalidasProductos: async () => {
+        try {
+          const resp = await fetch(process.env.REACT_APP_BACKEND_URL + "/api/salidas");
+          const data = await resp.json();
 
-    if (Array.isArray(data)) {
-      setStore({ salidas_productos: data });
-    } else {
-      console.warn("Respuesta inesperada en salidas:", data);
-      setStore({ salidas_productos: [] });
-    }
-  } catch (error) {
-    console.error("Error al obtener salidas:", error);
-    setStore({ salidas_productos: [] });
-  }
-},
+          if (Array.isArray(data)) {
+            setStore({ salidas_productos: data });
+          } else {
+            console.warn("Respuesta inesperada en salidas:", data);
+            setStore({ salidas_productos: [] });
+          }
+        } catch (error) {
+          console.error("Error al obtener salidas:", error);
+          setStore({ salidas_productos: [] });
+        }
+      },
 
 
       getProveedores: async () => {
