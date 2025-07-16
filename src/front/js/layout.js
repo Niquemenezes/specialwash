@@ -4,7 +4,6 @@ import ScrollToTop from "./component/scrollToTop";
 import { BackendURL } from "./component/backendURL";
 
 import Home from "./pages/home";
-import { Single } from "./pages/single";
 import injectContext from "./store/appContext";
 import Empleados from "./component/Empleados";
 import Maquinaria from "./component/Maquinaria";
@@ -51,7 +50,7 @@ const Layout = () => {
             <Route path="/registrar-entrada" element={<RegistrarEntradaProducto />} />
             <Route path="/resumen-entradas" element={<ResumenEntradas />} />
             <Route path="/resumen-stockminimo" element={<ResumenStockMinimo />} />
-            <Route path="/single/:theid" element={<Single />} />
+           
             <Route path="*" element={<h1>Not found!</h1>} />
           </Routes>
         </div>
