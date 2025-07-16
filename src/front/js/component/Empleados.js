@@ -4,8 +4,12 @@ import { Table, Button, Modal, Form } from "react-bootstrap";
 
 const Empleados = () => {
   const { store, actions } = useContext(Context);
+  console.log("EMPLEADOS EN STORE:", store.empleados);
   const [cargando, setCargando] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [modoEdicion, setModoEdicion] = useState(false);
+  const [empleadoEditando, setEmpleadoEditando] = useState(null);
+
   const [nuevoEmpleado, setNuevoEmpleado] = useState({
     nombre: "",
     email: "",
@@ -18,13 +22,50 @@ const Empleados = () => {
   }, []);
 
   const cargarEmpleados = async () => {
-    const success = await actions.getUsuariosPorRol("empleado");
-    if (success) setCargando(false);
+    await actions.getTodosLosUsuarios();
+    setCargando(false);
+
   };
 
   const handleChange = (e) => {
     setNuevoEmpleado({ ...nuevoEmpleado, [e.target.name]: e.target.value });
   };
+  const handleEditar = (empleado) => {
+    setEmpleadoEditando(empleado);
+    setNuevoEmpleado({
+      nombre: empleado.nombre,
+      email: empleado.email,
+      password: "", // dejamos vacío por seguridad
+      rol: empleado.rol,
+    });
+    setModoEdicion(true);
+    setShowModal(true);
+  };
+  const handleGuardarEmpleado = async () => {
+    if (!nuevoEmpleado.nombre || !nuevoEmpleado.email || (!modoEdicion && !nuevoEmpleado.password)) {
+      alert("Todos los campos son obligatorios");
+      return;
+    }
+
+    let exito = false;
+
+    if (modoEdicion && empleadoEditando) {
+      const datosActualizados = { ...nuevoEmpleado };
+      if (!nuevoEmpleado.password) delete datosActualizados.password;
+      exito = await actions.editarEmpleado(empleadoEditando.id, datosActualizados);
+    } else {
+      exito = await actions.crearEmpleado(nuevoEmpleado);
+    }
+
+    if (exito) {
+      await cargarEmpleados();
+      setShowModal(false);
+      setNuevoEmpleado({ nombre: "", email: "", password: "", rol: "empleado" });
+      setModoEdicion(false);
+      setEmpleadoEditando(null);
+    }
+  };
+
 
   const handleCrearEmpleado = async () => {
     if (!nuevoEmpleado.nombre || !nuevoEmpleado.email || !nuevoEmpleado.password) {
@@ -75,11 +116,23 @@ const Empleados = () => {
                 <td>{emp.email}</td>
                 <td>{emp.rol}</td>
                 <td>
-                  {/* Aquí puedes agregar edición luego */}
-                  <Button variant="danger" size="sm" onClick={() => handleEliminar(emp.id)}>
+                  <Button
+                    variant="warning"
+                    size="sm"
+                    className="me-2"
+                    onClick={() => handleEditar(emp)}
+                  >
+                    ✏️ Editar
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => handleEliminar(emp.id)}
+                  >
                     🗑️ Eliminar
                   </Button>
                 </td>
+
               </tr>
             ))}
           </tbody>
@@ -126,11 +179,11 @@ const Empleados = () => {
             <Form.Group className="mt-2">
               <Form.Label>Rol</Form.Label>
               <Form.Select name="rol" value={nuevoEmpleado.rol} onChange={handleChange}>
-                <option value="empleado">Empleado</option>
                 <option value="pintor">Pintor</option>
                 <option value="limpiador">Limpiador</option>
-                <option value="mantenimiento">Mantenimiento</option>
                 <option value="almacen">Almacén</option>
+                <option value="administrador">Administrador</option>
+                <option value="encargado">Encargado</option>
               </Form.Select>
             </Form.Group>
           </Form>
@@ -139,9 +192,10 @@ const Empleados = () => {
           <Button variant="secondary" onClick={() => setShowModal(false)}>
             Cancelar
           </Button>
-          <Button variant="primary" onClick={handleCrearEmpleado}>
+          <Button variant="primary" onClick={handleGuardarEmpleado}>
             Guardar
           </Button>
+
         </Modal.Footer>
       </Modal>
     </div>

@@ -1,0 +1,80 @@
+body {
+  background-color: #f5f7fa;
+  font-family: "Segoe UI", "Roboto", sans-serif;
+  color: #001f3f;
+}
+
+h1, h2, h3, h4, h5 {
+  font-weight: 600;
+}
+
+.btn-primary {
+  background-color: #001f3f;
+  border-color: #001f3f;
+}
+
+.btn-primary:hover {
+  background-color: #003366;
+  border-color: #003366;
+}
+
+.card {
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.table th {
+  background-color: #001f3f;
+  color: white;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) {
+  background-color: #f0f4f8;
+}
+
+.badge.bg-danger {
+  background-color: #dc3545;
+  font-size: 0.75rem;
+}
+body {
+  background-color: #f5f7fa;
+  font-family: 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.card {
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.btn-primary {
+  background-color: #001f3f;
+  border-color: #001f3f;
+}
+
+.card-specialwash {
+  background-color: #1e1e1e;
+  color: #ffffff;
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease;
+}
+
+.card-specialwash:hover {
+  transform: translateY(-4px);
+}
+
+.card-specialwash .icono {
+  font-size: 2.5rem;
+  color: #d4af37;
+}
+
+.card-specialwash .btn-gold-outline {
+  border: 1px solid #d4af37;
+  color: #d4af37;
+  background-color: transparent;
+}
+
+.card-specialwash .btn-gold-outline:hover {
+  background-color: #d4af37;
+  color: #1e1e1e;
+}

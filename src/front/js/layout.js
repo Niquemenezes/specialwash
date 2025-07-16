@@ -17,7 +17,6 @@ import SignupAdmin from "./pages/SignupAdmin.js";
 import PrivateAdmin from "./component/PrivateAdmin";
 import PrivateFuncionario from "./component/PrivateFuncionario";
 import StockDashboard from "./pages/StockDashboard.js";
-import CrearProducto from "./component/CrearProducto";
 import EditarProducto from "./component/EditarProducto";
 import RegistrarSalidaProducto from "./component/RegistrarSalidaProducto.js";
 import RegistrarEntradaProducto from "./component/RegistrarEntradaProducto";
@@ -48,7 +47,6 @@ const Layout = () => {
             <Route path="/proveedores" element={<Proveedores />} />
             <Route path="/signup-admin" element={<SignupAdmin />} />
             <Route path="/almacen-stock" element={<StockDashboard />} />
-            <Route path="/stock/crear" element={<CrearProducto />} />
             <Route path="/stock/editar/:id" element={<EditarProducto />} />
             <Route path="/privateadmin" element={<PrivateAdmin />} />
             <Route path="/registrar-salida" element={<RegistrarSalidaProducto />}/>

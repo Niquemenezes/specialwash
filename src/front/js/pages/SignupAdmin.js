@@ -1,6 +1,9 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { Context } from "../store/appContext";
+import "../../styles/specialwash-theme.css";
+
+
 
 const SignupAdmin = () => {
   const { actions } = useContext(Context);
@@ -12,16 +15,6 @@ const SignupAdmin = () => {
     password: ""
   });
 
-  useEffect(() => {
-    const verificarAdmin = async () => {
-      const existe = await actions.checkAdminExists();
-      if (existe) {
-        navigate("/"); // Si ya hay admin, redirige al login
-      }
-    };
-    verificarAdmin();
-  }, []);
-
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -29,69 +22,76 @@ const SignupAdmin = () => {
     });
   };
 
- const handleSubmit = async (e) => {
-  e.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  const nuevoAdmin = {
-    ...formData,
-    rol: "administrador" // 👈 Asegura que se mande como administrador
+    const success = await actions.signupAdmin({
+      nombre: formData.nombre,
+      email: formData.email,
+      password: formData.password
+    });
+
+    if (success) {
+      alert("Administrador registrado correctamente");
+      navigate("/");
+    } else {
+      alert("Error al registrar. Verifica los datos o intenta más tarde.");
+    }
   };
 
-  const success = await actions.signupAdmin(nuevoAdmin);
-  if (success) {
-    alert("Administrador registrado con éxito. Inicia sesión.");
-    navigate("/"); // redirige al login
-  }
-};
-
-
   return (
-    <div className="container mt-5">
-      <div className="card mx-auto" style={{ maxWidth: "400px" }}>
-        <div className="card-body">
-          <h2 className="card-title text-center mb-4">Registro de Administrador</h2>
-          <form onSubmit={handleSubmit}>
-            <div className="mb-3">
-               <label htmlFor="nombre" className="form-label">Nombre</label>
-              <input
-                id="nombre"
-                type="text"
-                name="nombre"
-                className="form-control"
-                value={formData.nombre}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <div className="mb-3">
-               <label htmlFor="email" className="form-label">Email</label>
-              <input
-                id="email"
-                type="email"
-                name="email"
-                className="form-control"
-                value={formData.email}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <div className="mb-3">
-               <label htmlFor="password" className="form-label">Contraseña</label>
-              <input
-                id="password"
-                type="password"
-                name="password"
-                className="form-control"
-                value={formData.password}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <div className="d-grid">
-              <button type="submit" className="btn btn-primary">Registrarse</button>
-            </div>
-          </form>
-        </div>
+    <div className="container-fluid d-flex justify-content-center align-items-center min-vh-100 bg-light">
+      <div className="card shadow rounded-4 p-4" style={{ maxWidth: "420px", width: "100%" }}>
+        <h3 className="text-center mb-4 text-dark">Registro de Administrador</h3>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-3">
+            <label htmlFor="nombre" className="form-label">Nombre completo</label>
+            <input
+              type="text"
+              className="form-control"
+              id="nombre"
+              name="nombre"
+              value={formData.nombre}
+              onChange={handleChange}
+              placeholder="Tu nombre"
+              required
+            />
+          </div>
+
+          <div className="mb-3">
+            <label htmlFor="email" className="form-label">Correo electrónico</label>
+            <input
+              type="email"
+              className="form-control"
+              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="admin@specialwash.es"
+              required
+            />
+          </div>
+
+          <div className="mb-3">
+            <label htmlFor="password" className="form-label">Contraseña</label>
+            <input
+              type="password"
+              className="form-control"
+              id="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="••••••••"
+              required
+            />
+          </div>
+
+          <div className="d-grid">
+            <button type="submit" className="btn btn-primary">
+              Crear cuenta
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

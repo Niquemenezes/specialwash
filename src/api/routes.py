@@ -122,26 +122,40 @@ def delete_usuario(id):
 def get_productos():
     return jsonify([p.serialize() for p in Producto.query.all()]), 200
 
-@api.route("/productos", methods=["POST"])
+@api.route('/productos', methods=['POST'])
 @jwt_required()
 def crear_producto():
     data = request.get_json()
-    if not data.get("nombre"):
-        return jsonify({"msg": "El nombre del producto es obligatorio"}), 400
 
-    nuevo_producto = Producto(
-        detalle=data.get("detalle", ""),
-        nombre=data["nombre"],
-        precio_unitario=safe_float(data.get("precio_unitario", 0)),
-        proveedor_id=data.get("proveedor_id"),
-        cantidad_comprada=0,
-        unidad=data.get("unidad", ""),
-        categoria=data.get("categoria", "general"),
-        stock_minimo=safe_int(data.get("stock_minimo", 0))
-    )
-    db.session.add(nuevo_producto)
-    db.session.commit()
-    return jsonify({"msg": "Producto creado", "producto": nuevo_producto.serialize()}), 201
+    try:
+        nombre = data.get('nombre')
+        detalle = data.get('detalle', '')
+        categoria = data.get('categoria', '')
+        stock_minimo = int(data.get('stock_minimo') or 0)
+
+        if not nombre or not categoria:
+            return jsonify({"msg": "Nombre y categoría son obligatorios"}), 400
+
+        nuevo = Producto(
+            nombre=nombre,
+            detalle=detalle,
+            precio_unitario=0.0,               # valor por defecto
+            proveedor_id=1,                    # puedes cambiar este ID por uno válido o permitir NULL
+            cantidad_comprada=0.0,
+            unidad="",
+            categoria=categoria,
+            stock_minimo=stock_minimo
+        )
+
+        db.session.add(nuevo)
+        db.session.commit()
+
+        return jsonify({"msg": "Producto creado", "id": nuevo.id}), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
 
 @api.route("/productos/<int:id>", methods=["PUT"])
 @jwt_required()
