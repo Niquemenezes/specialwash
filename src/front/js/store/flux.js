@@ -95,6 +95,27 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
       },
 
+        getTodosLosUsuarios: async () => {
+  try {
+    const resp = await fetch(`${process.env.BACKEND_URL}/api/usuarios`, {
+      method: "GET",
+      headers: {
+        Authorization: "Bearer " + sessionStorage.getItem("token"),
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!resp.ok) throw new Error("Error al obtener todos los usuarios");
+
+    const data = await resp.json();
+    setStore({ empleados: data }); // Reutilizamos store.empleados como lista general de usuarios
+    return true;
+  } catch (error) {
+    console.error("Error al obtener todos los usuarios:", error);
+    return false;
+  }
+},
+
       createUsuario: async (usuario) => {
         try {
           const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/usuarios`, {
@@ -132,44 +153,23 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
       },
 
-      getUsuariosPorRol: async (rol = "empleado") => {
-        try {
-          const token = sessionStorage.getItem("token");
-          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/usuarios?rol=${rol}`, {
-            headers: { Authorization: "Bearer " + token },
-          });
-          const data = await resp.json();
-          if (resp.ok) {
-            setStore({ empleados: data });
-            return true;
-          } else {
-            console.error("Error al obtener usuarios por rol:", data);
-            return false;
-          }
-        } catch (error) {
-          console.error("Error en getUsuariosPorRol:", error);
-          return false;
-        }
-      },
-
-      obtenerEmpleados: async () => {
-  const token = sessionStorage.getItem("token");
+     getUsuariosPorRol: async (rol) => {
   try {
-    const resp = await fetch(process.env.BACKEND_URL + "/api/usuarios?rol=empleado", {
+    const resp = await fetch(`${process.env.BACKEND_URL}/api/usuarios/rol/${rol}`, {
       headers: {
-        Authorization: "Bearer " + token
-      }
+        Authorization: "Bearer " + sessionStorage.getItem("token"),
+      },
     });
-    if (!resp.ok) throw new Error("Error al obtener empleados");
+    if (!resp.ok) throw new Error("Error al obtener usuarios por rol");
+
     const data = await resp.json();
-    return data;
-  } catch (err) {
-    console.error("Error al obtener empleados:", err);
-    return [];
+    setStore({ empleados: data }); // 👈 esto debe coincidir con store.empleados
+    return true;
+  } catch (error) {
+    console.error("Error:", error);
+    return false;
   }
 },
-
-
 
       crearEmpleado: async (datos) => {
         const token = sessionStorage.getItem("token");
@@ -235,29 +235,7 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
       },
 
-      getUsuariosPorRol: async (rol = "empleado") => {
-  try {
-    const token = sessionStorage.getItem("token");
-    const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/usuarios?rol=${rol}`, {
-      headers: { Authorization: "Bearer " + token },
-    });
-    const data = await resp.json();
-    if (resp.ok) {
-      setStore({ empleados: data }); // ✅ sí actualiza el store
-      return true;
-    } else {
-      console.error("Error al obtener usuarios por rol:", data);
-      return false;
-    }
-  } catch (error) {
-    console.error("Error en getUsuariosPorRol:", error);
-    return false;
-  }
-},
-
-
-
-      getProductos: async () => {
+  getProductos: async () => {
         try {
           const res = await fetch(
             `${process.env.REACT_APP_BACKEND_URL}/api/productos`,
@@ -276,26 +254,32 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
       },
 
-      crearProducto: async (datos) => {
-        try {
-          const res = await fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/productos`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${sessionStorage.getItem("token")}`,
-              },
-              body: JSON.stringify(datos),
-            }
-          );
-          if (!res.ok) throw new Error("Error al crear producto");
-          alert("Producto creado correctamente");
-          getActions().getProductos();
-        } catch (err) {
-          console.error("Error al crear producto:", err);
-        }
+crearProducto: async (nuevoProducto) => {
+  try {
+    const resp = await fetch(`${process.env.BACKEND_URL}/api/productos`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + sessionStorage.getItem("token"),
       },
+      body: JSON.stringify(nuevoProducto),
+    });
+
+    if (!resp.ok) {
+      const error = await resp.json();
+      console.error("Error del servidor:", error);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error("Error al crear producto:", err);
+    return false;
+  }
+},
+
+
+
       editarProducto: async (id, datos) => {
         try {
           const res = await fetch(

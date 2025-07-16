@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
-import { Context } from "../store/appContext"; // ← Añadido para acceder a productos
+import { Context } from "../store/appContext";
+import "../../styles/specialwash-theme.css"; // ✅ Importa tu tema
 
 const gestionItems = [
   { path: "/empleados", label: "Empleados", icon: "fas fa-users" },
   { path: "/proveedores", label: "Proveedores", icon: "fas fa-truck" },
   { path: "/almacen-stock", label: "Stock de Almacén", icon: "fas fa-boxes" },
-  { path: "/stock/crear", label: "Crear Producto", icon: "fas fa-plus" },
   { path: "/registrar-entrada", label: "Registrar entrada", icon: "fas fa-file-signature" },
   { path: "/resumen-entradas", label: "Resumen de Entradas", icon: "fas fa-clipboard-list" },
   { path: "/registrar-salida", label: "Registrar Salida", icon: "fas fa-arrow-up-right-from-square" },
@@ -14,11 +14,8 @@ const gestionItems = [
   { path: "/maquinaria", label: "Maquinaria", icon: "fas fa-tools" }
 ];
 
- 
-
-
 const PrivateAdmin = () => {
-  const { store, actions } = useContext(Context); // ← Para acceder a productos
+  const { store, actions } = useContext(Context);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [productosBajoStock, setProductosBajoStock] = useState([]);
@@ -32,7 +29,7 @@ const PrivateAdmin = () => {
       navigate("/");
     } else {
       setLoading(false);
-      actions.getProductos(); // Carga productos
+      actions.getProductos();
     }
   }, []);
 
@@ -55,15 +52,14 @@ const PrivateAdmin = () => {
   return (
     <div className="container py-5">
       <div className="text-center mb-4">
-        <h2 className="fw-bold">¡Bienvenido, {user?.nombre || "Administrador"}!</h2>
+        <h2 className="fw-bold text-dark">Bienvenido, {user?.nombre || "Administrador"} 🛠️</h2>
         <p className="text-muted">Gestiona cada sección desde las siguientes tarjetas:</p>
       </div>
 
-      {/* 🔔 Alerta si hay productos con bajo stock */}
       {productosBajoStock.length > 0 && (
         <div className="alert alert-warning d-flex justify-content-between align-items-center">
           <div>
-            ⚠️ <strong>{productosBajoStock.length}</strong> producto(s) están por debajo del <strong>StockMinimo</strong>
+            ⚠️ <strong>{productosBajoStock.length}</strong> producto(s) están por debajo del <strong>Stock mínimo</strong>
           </div>
           <button
             className="btn btn-sm btn-outline-dark"
@@ -77,15 +73,15 @@ const PrivateAdmin = () => {
       <div className="row justify-content-center g-4 mt-3">
         {gestionItems.map((item, i) => (
           <div className="col-12 col-sm-6 col-md-4 col-lg-3" key={i}>
-            <div className="card h-100 shadow-sm border-0 text-center" style={{ borderRadius: "1rem" }}>
+            <div className="card card-specialwash h-100 text-center">
               <div className="card-body d-flex flex-column justify-content-between">
                 <div>
-                  <i className={`${item.icon} display-4 text-primary`}></i>
+                  <i className={`${item.icon} icono`}></i>
                   <h5 className="card-title mt-3">{item.label}</h5>
-                  <p className="card-text text-muted">Gestionar {item.label.toLowerCase()}</p>
+                  <p className="card-text">Gestionar {item.label.toLowerCase()}</p>
                 </div>
                 <button
-                  className="btn btn-primary mt-3"
+                  className="btn btn-gold-outline mt-3"
                   onClick={() => navigate(item.path)}
                 >
                   Ir a {item.label}
