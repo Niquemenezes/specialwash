@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identi
 from api.models import db, Usuario, Producto, Maquinaria, Proveedor, AlmacenProducto, MovimientoStock, RegistroEntradaProducto, RegistroSalidaProducto
 from datetime import datetime
 import json
+
 from werkzeug.security import check_password_hash
 
 api = Blueprint("api", __name__)
@@ -319,9 +320,27 @@ def historial_salidas():
             query = query.filter(RegistroSalidaProducto.fecha_salida <= fecha_fin)
 
         salidas = query.order_by(RegistroSalidaProducto.fecha_salida.desc()).all()
-        return jsonify([s.serialize() for s in salidas]), 200
+
+        resultado = []
+        for s in salidas:
+            producto = Producto.query.get(s.producto_id)
+            usuario = Usuario.query.filter(Usuario.nombre == s.empleado).first()
+
+            resultado.append({
+                "id": s.id,
+                "producto_id": s.producto_id,
+                "producto_nombre": producto.nombre if producto else "Producto no encontrado",
+                "cantidad": s.cantidad,
+                "fecha_salida": s.fecha_salida.strftime("%Y-%m-%d"),
+                "responsable": usuario.nombre if usuario else s.empleado,
+                "observaciones": s.observaciones or ""
+            })
+
+        return jsonify(resultado), 200
+
     except Exception as e:
         return jsonify({"msg": "Error al obtener historial de salidas", "error": str(e)}), 500
+
 
 # -------------------
 # REGISTRO DE ENTRADA

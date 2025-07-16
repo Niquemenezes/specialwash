@@ -56,7 +56,7 @@ const StockDashboard = () => {
   return (
     <div className="container mt-4">
       <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap">
-        <h2 className="fw-bold text-dark">Gestión de Stock</h2>
+        <h2 className="fw-bold white">Gestión de Stock</h2>
         <div className="d-flex flex-wrap gap-2">
           {filtroBajoStock ? (
             <button className="btn btn-secondary" onClick={mostrarTodos}>

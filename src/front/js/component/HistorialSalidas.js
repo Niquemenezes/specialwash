@@ -9,7 +9,7 @@ const HistorialSalidas = () => {
 
   useEffect(() => {
     actions.getSalidasProductos();
-     actions.getProductos();
+    actions.getProductos();
   }, []);
 
   useEffect(() => {
@@ -17,47 +17,46 @@ const HistorialSalidas = () => {
   }, [store.salidas_productos, filtro]);
 
   const aplicarFiltro = () => {
-  const { desde, hasta, producto } = filtro;
+    const { desde, hasta, producto } = filtro;
 
-  const salidas = Array.isArray(store.salidas_productos)
-    ? store.salidas_productos
-    : [];
+    const salidas = Array.isArray(store.salidas_productos)
+      ? store.salidas_productos
+      : [];
 
-  const filtradas = salidas.filter((s) => {
-    const fecha = new Date(s.fecha_salida);
-    const desdeFecha = desde ? new Date(desde) : null;
-    const hastaFecha = hasta ? new Date(hasta) : null;
-    const cumpleProducto = producto ? s.producto?.id === parseInt(producto) : true;
+    const filtradas = salidas.filter((s) => {
+      const fecha = new Date(s.fecha_salida);
+      const desdeFecha = desde ? new Date(desde) : null;
+      const hastaFecha = hasta ? new Date(hasta) : null;
+      const cumpleProducto = producto ? s.producto?.id === parseInt(producto) : true;
 
-    return (
-      (!desdeFecha || fecha >= desdeFecha) &&
-      (!hastaFecha || fecha <= hastaFecha)
-      (!hastaFecha || fecha <= hastaFecha) &&
-      cumpleProducto
-    );
-  });
+      return (
+        (!desdeFecha || fecha >= desdeFecha) &&
+        (!hastaFecha || fecha <= hastaFecha) &&
+        cumpleProducto
+      );
+    });
 
-  setSalidasFiltradas(filtradas);
-};
+    setSalidasFiltradas(filtradas);
+  };
 
-const totalGastado = salidasFiltradas.reduce((acc, s) => {
-  const precio = parseFloat(s.producto?.precio_unitario || 0);
-  const cantidad = parseFloat(s.cantidad || 0);
-  return acc + precio * cantidad;
-}, 0);
-
+  const totalGastado = salidasFiltradas.reduce((acc, s) => {
+    const precio = parseFloat(s.producto?.precio_unitario || 0);
+    const cantidad = parseFloat(s.cantidad || 0);
+    return acc + precio * cantidad;
+  }, 0);
 
   const exportarExcel = () => {
-   const data = salidasFiltradas.map(s => ({
-      producto: s.producto?.detalle,
+    const data = salidasFiltradas.map(s => ({
+      producto: s.producto?.detalle || "Sin nombre",
       cantidad: s.cantidad,
-      fecha: s.fecha_salida,
-      empleado: s.empleado,
-      observaciones: s.observaciones,
+      fecha: new Date(s.fecha_salida).toLocaleDateString(),
+      empleado: s.responsable || "-",
+      observaciones: s.observaciones || "-",
       costo: (s.cantidad * (s.producto?.precio_unitario || 0)).toFixed(2)
     }));
+
     const worksheet = XLSX.utils.json_to_sheet(data);
-    
+    const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Salidas");
 
     XLSX.writeFile(workbook, "historial_salidas.xlsx");
@@ -69,7 +68,7 @@ const totalGastado = salidasFiltradas.reduce((acc, s) => {
         <h4 className="text-primary mb-4 text-center">Historial de Salidas</h4>
 
         <div className="row g-3 mb-4">
-           <div className="col-md-3">
+          <div className="col-md-3">
             <label>Desde</label>
             <input
               type="date"
@@ -78,7 +77,7 @@ const totalGastado = salidasFiltradas.reduce((acc, s) => {
               onChange={(e) => setFiltro({ ...filtro, desde: e.target.value })}
             />
           </div>
-           <div className="col-md-3">
+          <div className="col-md-3">
             <label>Hasta</label>
             <input
               type="date"
@@ -87,8 +86,7 @@ const totalGastado = salidasFiltradas.reduce((acc, s) => {
               onChange={(e) => setFiltro({ ...filtro, hasta: e.target.value })}
             />
           </div>
-          <div className="col-md-4 d-flex align-items-end">
-              <div className="col-md-3">
+          <div className="col-md-4">
             <label>Producto</label>
             <select
               className="form-select"
@@ -98,25 +96,25 @@ const totalGastado = salidasFiltradas.reduce((acc, s) => {
               <option value="">Todos</option>
               {(store.productos || []).map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.detalle}
+                  {p.nombre}
                 </option>
               ))}
             </select>
           </div>
-          <div className="col-md-3 d-flex align-items-end"></div>
+          <div className="col-md-2 d-flex align-items-end">
             <button
               className="btn btn-success w-100"
               onClick={exportarExcel}
               disabled={salidasFiltradas.length === 0}
             >
-              <i className="fas fa-file-excel me-2"></i> Exportar a Excel
+              <i className="fas fa-file-excel me-2"></i> Exportar
             </button>
           </div>
         </div>
 
         <div className="table-responsive">
           <table className="table table-striped table-bordered">
-            <thead className="table-light">
+            <thead className="table-light text-center">
               <tr>
                 <th>Producto</th>
                 <th>Cantidad</th>
@@ -129,7 +127,7 @@ const totalGastado = salidasFiltradas.reduce((acc, s) => {
             <tbody>
               {salidasFiltradas.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="text-center text-muted">
+                  <td colSpan="6" className="text-center text-muted">
                     No hay salidas registradas en el periodo seleccionado.
                   </td>
                 </tr>
@@ -137,10 +135,10 @@ const totalGastado = salidasFiltradas.reduce((acc, s) => {
                 salidasFiltradas.map((s, i) => (
                   <tr key={i}>
                     <td>{s.producto?.detalle || "Sin nombre"}</td>
-                    <td>{s.cantidad}</td>
-                    <td>{s.fecha_salida}</td>
-                    <td>{s.empleado || "-"}</td>
-                      <td>
+                    <td className="text-center">{s.cantidad}</td>
+                    <td className="text-center">{new Date(s.fecha_salida).toLocaleDateString()}</td>
+                    <td className="text-center">{s.responsable || "-"}</td>
+                    <td className="text-end">
                       {(
                         parseFloat(s.cantidad || 0) *
                         parseFloat(s.producto?.precio_unitario || 0)
@@ -153,7 +151,8 @@ const totalGastado = salidasFiltradas.reduce((acc, s) => {
             </tbody>
           </table>
         </div>
-          <div className="mt-3">
+
+        <div className="mt-3 text-end">
           <strong>Total gastado:</strong> € {totalGastado.toFixed(2)}
         </div>
       </div>

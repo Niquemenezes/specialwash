@@ -123,13 +123,13 @@ const ResumenEntradas = () => {
        <th>Descuento (%)</th>
       <th>Precio con IVA</th>
       <th>Total pagado</th>
-      <th>Observaciones</th>
+      
     </tr>
   </thead>
   <tbody>
     {entradasFiltradas.map((entrada, idx) => (
       <tr key={idx}>
-        <td>{entrada.producto?.detalle}</td>
+        <td>{entrada.producto?.nombre}</td>
         <td>{entrada.proveedor?.nombre}</td>
         <td>{entrada.fecha_entrada?.slice(0, 10)}</td>
         <td>{entrada.numero_albaran}</td>
@@ -140,7 +140,7 @@ const ResumenEntradas = () => {
         <td>{entrada.descuento} %</td>
         <td>€ {entrada.precio_con_iva}</td>
         <td>€ {entrada.precio_final_pagado}</td>
-        <td>{entrada.observaciones}</td>
+        
       </tr>
     ))}
   </tbody>

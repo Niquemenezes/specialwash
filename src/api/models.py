@@ -110,11 +110,17 @@ class RegistroEntradaProducto(db.Model):
     precio_final_pagado = db.Column(db.Float)
     observaciones = db.Column(db.Text)
 
+    # 🔧 Relaciones necesarias
+    producto = db.relationship("Producto")
+    proveedor = db.relationship("Proveedor")
+
     def serialize(self):
         return {
             "id": self.id,
             "producto_id": self.producto_id,
+            "producto": self.producto.serialize() if self.producto else None,
             "proveedor_id": self.proveedor_id,
+            "proveedor": self.proveedor.serialize() if self.proveedor else None,
             "numero_albaran": self.numero_albaran,
             "fecha_entrada": self.fecha_entrada.isoformat() if self.fecha_entrada else None,
             "cantidad": self.cantidad,
@@ -126,6 +132,7 @@ class RegistroEntradaProducto(db.Model):
             "precio_final_pagado": self.precio_final_pagado,
             "observaciones": self.observaciones,
         }
+
 
 class RegistroSalidaProducto(db.Model):
     id = db.Column(db.Integer, primary_key=True)

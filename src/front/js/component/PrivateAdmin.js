@@ -52,8 +52,8 @@ const PrivateAdmin = () => {
   return (
     <div className="container py-5">
       <div className="text-center mb-4">
-        <h2 className="fw-bold text-dark">Bienvenido, {user?.nombre || "Administrador"} 🛠️</h2>
-        <p className="text-muted">Gestiona cada sección desde las siguientes tarjetas:</p>
+        <h2 className="fw-bold text-white">Bienvenido, {user?.nombre || "Administrador"} 🛠️</h2>
+        <p className="text-white">Gestiona cada sección desde las siguientes tarjetas:</p>
       </div>
 
       {productosBajoStock.length > 0 && (

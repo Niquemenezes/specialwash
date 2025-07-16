@@ -1,8 +1,14 @@
 body {
-  background-color: #f5f7fa;
+  background-color: #121212;
   font-family: "Segoe UI", "Roboto", sans-serif;
   color: #001f3f;
 }
+
+.bg-darkwash {
+  background-color: #1e1e1e;
+  color: #ffffff;
+}
+
 
 h1, h2, h3, h4, h5 {
   font-weight: 600;
@@ -36,15 +42,6 @@ h1, h2, h3, h4, h5 {
   background-color: #dc3545;
   font-size: 0.75rem;
 }
-body {
-  background-color: #f5f7fa;
-  font-family: 'Segoe UI', 'Roboto', sans-serif;
-}
-
-.card {
-  border-radius: 1rem;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-}
 
 .btn-primary {
   background-color: #001f3f;
@@ -75,6 +72,54 @@ body {
 }
 
 .card-specialwash .btn-gold-outline:hover {
+  background-color: #d4af37;
+  color: #1e1e1e;
+}
+
+.specialwash-footer {
+  border-top: 1px solid #d4af37;
+  background-color: #000000;
+}
+
+.text-gold {
+  color: #d4af37;
+}
+
+.footer a {
+  color: #d4af37;
+  text-decoration: none;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}
+
+body {
+  background-image: url("https://images.unsplash.com/photo-1601582583213-93e4c2d3f0c2");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  font-family: "Segoe UI", "Roboto", sans-serif;
+  color: #ffffff;
+}
+
+.specialwash-login-bg {
+  background: linear-gradient(to bottom, #000000, #1a1a1a);
+  background-image: url("https://images.unsplash.com/photo-1601582583213-93e4c2d3f0c2");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.btn-gold-outline {
+  border: 1px solid #d4af37;
+  color: #d4af37;
+  background-color: transparent;
+  transition: all 0.3s ease;
+}
+
+.btn-gold-outline:hover {
   background-color: #d4af37;
   color: #1e1e1e;
 }

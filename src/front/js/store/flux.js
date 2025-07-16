@@ -467,21 +467,21 @@ crearProducto: async (nuevoProducto) => {
       },
 
       getSalidasProductos: async () => {
-        try {
-          const resp = await fetch(process.env.REACT_APP_BACKEND_URL + "/api/salidas");
-          const data = await resp.json();
-
-          if (Array.isArray(data)) {
-            setStore({ salidas_productos: data });
-          } else {
-            console.warn("Respuesta inesperada en salidas:", data);
-            setStore({ salidas_productos: [] });
-          }
-        } catch (error) {
-          console.error("Error al obtener salidas:", error);
-          setStore({ salidas_productos: [] });
-        }
+  try {
+    const resp = await fetch(process.env.BACKEND_URL + "/api/salidas-productos", {
+      headers: {
+        Authorization: "Bearer " + sessionStorage.getItem("token"),
       },
+    });
+    if (!resp.ok) throw new Error("Error al obtener salidas");
+
+    const data = await resp.json();
+    setStore({ salidas_productos: data });
+  } catch (err) {
+    console.error("Error en getSalidasProductos", err);
+  }
+},
+
 
 
       getProveedores: async () => {

@@ -18,8 +18,8 @@ const RegistrarSalidaProducto = () => {
 
   useEffect(() => {
   actions.getProductos();
-  actions.getUsuarios();
-  actions.getSalidasProductos(); // 👈 trae los usuarios con rol=empleado
+  actions.getTodosLosUsuarios();
+  actions.getSalidasProductos(); 
 }, []);
 
 
