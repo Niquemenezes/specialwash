@@ -1,15 +1,39 @@
-const { merge } = require('webpack-merge');
-const common = require('./webpack.common.js');
+const webpack = require('webpack');
+const path = require('path');
 const Dotenv = require('dotenv-webpack');
-module.exports = merge(common, {
-    mode: 'production',
-    output: {
-        publicPath: '/'
-    },
-    plugins: [
-        new Dotenv({
-            safe: true,
-            systemvars: true
-        })
-    ]
-});
+
+module.exports = {
+  entry: './src/index.js',
+  output: {
+    filename: 'bundle.js',
+    path: path.resolve(__dirname, 'build'),
+    publicPath: '/',
+  },
+  mode: 'production',
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        exclude: /node_modules/,
+        use: {
+          loader: 'babel-loader',
+        },
+      },
+      {
+        test: /\.css$/,
+        use: ['style-loader', 'css-loader'],
+      },
+    ],
+  },
+  plugins: [
+    new Dotenv({
+      path: './.env',
+      systemvars: true, // permite usar variables desde Render
+      allowEmptyValues: true // permite compilar aunque falten variables
+    }),
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify('production'),
+    }),
+  ],
+  devtool: 'source-map',
+};
