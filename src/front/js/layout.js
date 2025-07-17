@@ -2,7 +2,6 @@ import React from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import ScrollToTop from "./component/scrollToTop";
 import { BackendURL } from "./component/backendURL";
-
 import Home from "./pages/home";
 import injectContext from "./store/appContext";
 import Empleados from "./component/Empleados";
@@ -20,7 +19,6 @@ import RegistrarEntradaProducto from "./component/RegistrarEntradaProducto";
 import ResumenEntradas from "./component/ResumenEntradas";
 import HistorialSalidas from "./component/HistorialSalidas";
 import ResumenStockMinimo from "./component/ResumenStockMinimo";
-
 import "bootstrap/dist/css/bootstrap.min.css";
 
 const Layout = () => {
@@ -50,7 +48,6 @@ const Layout = () => {
             <Route path="/registrar-entrada" element={<RegistrarEntradaProducto />} />
             <Route path="/resumen-entradas" element={<ResumenEntradas />} />
             <Route path="/resumen-stockminimo" element={<ResumenStockMinimo />} />
-           
             <Route path="*" element={<h1>Not found!</h1>} />
           </Routes>
         </div>
