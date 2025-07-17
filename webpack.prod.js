@@ -3,7 +3,7 @@ const path = require('path');
 const Dotenv = require('dotenv-webpack');
 
 module.exports = {
-  entry: './src/index.js',
+  entry: './src/front/index.js', // ✅ Ruta corregida
   output: {
     filename: 'bundle.js',
     path: path.resolve(__dirname, 'build'),
@@ -13,7 +13,7 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /\.js$/,
+        test: /\.(js|jsx)$/,
         exclude: /node_modules/,
         use: {
           loader: 'babel-loader',
@@ -23,13 +23,21 @@ module.exports = {
         test: /\.css$/,
         use: ['style-loader', 'css-loader'],
       },
+        {
+        test: /\.(png|svg|jpg|gif|jpeg|webp)$/,
+        use: {
+          loader: 'file-loader',
+          options: { name: '[name].[ext]' }
+        }
+      },
+      { test: /\.woff($|\?)|\.woff2($|\?)|\.ttf($|\?)|\.eot($|\?)|\.svg($|\?)/, use: ['file-loader'] }
     ],
   },
   plugins: [
     new Dotenv({
       path: './.env',
-      systemvars: true, // permite usar variables desde Render
-      allowEmptyValues: true // permite compilar aunque falten variables
+      systemvars: true,
+      allowEmptyValues: true
     }),
     new webpack.DefinePlugin({
       'process.env.NODE_ENV': JSON.stringify('production'),

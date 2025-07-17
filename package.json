@@ -1,8 +1,8 @@
 {
 	"name": "react-hello-webapp",
-	"engines": {
-		"node": "18.x"
-	},
+     "engines": {
+        "node": "20.x"
+    },
 	"version": "1.0.1",
 	"description": "",
 	"main": "index.js",
