@@ -21,7 +21,10 @@ app = Flask(__name__, static_folder="../dist", static_url_path="")
 app.url_map.strict_slashes = False
 
 # Habilitar CORS
-CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True,
+     allow_headers=["Content-Type", "Authorization"],
+     expose_headers=["Authorization"])
+
 
 # JWT
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-key")

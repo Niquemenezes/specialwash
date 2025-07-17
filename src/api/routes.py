@@ -59,12 +59,14 @@ def admin_exists():
 # -------------------
 @api.route("/usuarios", methods=["GET"])
 @jwt_required()
-def get_usuarios():
+def obtener_usuarios_por_rol():
     rol = request.args.get("rol")
-    query = Usuario.query
-    if rol:
-        query = query.filter_by(rol=rol.lower())
-    return jsonify([u.serialize() for u in query.all()]), 200
+    if not rol:
+        return jsonify({"error": "Rol no especificado"}), 400
+    usuarios = Usuario.query.filter_by(rol=rol).all()
+    resultado = [user.serialize() for user in usuarios]
+    return jsonify(resultado), 200
+
 
 @api.route("/usuarios", methods=["POST"])
 def create_usuario():
@@ -114,6 +116,14 @@ def delete_usuario(id):
     db.session.delete(u)
     db.session.commit()
     return jsonify({"msg": "Usuario eliminado"}), 200
+
+@api.route("/api/usuarios/rol/<rol>", methods=["GET"])
+@jwt_required()
+def obtener_usuarios_por_rol_param(rol):
+    usuarios = Usuario.query.filter_by(rol=rol).all()
+    return jsonify([usuario.serialize() for usuario in usuarios]), 200
+
+
 
 # -------------------
 # PRODUCTOS

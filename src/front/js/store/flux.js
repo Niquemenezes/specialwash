@@ -8,14 +8,15 @@ const getState = ({ getStore, getActions, setStore }) => {
       productos: [],
       proveedores: [],
       usuarios: [],
+      empleados: [],
       entradasProductos: [],
       salidas_productos: [],
       historial_salidas: [],
-      empleados: [],
       productosConStock: [],
     },
 
     actions: {
+      // --- AUTENTICACIÓN ---
       login: async ({ email, password, rol }) => {
         try {
           const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/login`, {
@@ -23,11 +24,10 @@ const getState = ({ getStore, getActions, setStore }) => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password, rol }),
           });
-
           if (!resp.ok) throw new Error(await resp.text());
-
           const data = await resp.json();
           const rolLower = data.rol.toLowerCase();
+
           sessionStorage.setItem("token", data.access_token);
           sessionStorage.setItem("rol", rolLower);
           sessionStorage.setItem("user", JSON.stringify(data.user));
@@ -85,108 +85,50 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
       },
 
-      getUsuarios: async () => {
-        try {
-          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/usuarios`);
-          const data = await resp.json();
-          setStore({ usuarios: data });
-        } catch (error) {
-          console.error("Error al obtener usuarios:", error);
-        }
-      },
-
-        getTodosLosUsuarios: async () => {
+      // --- USUARIOS / EMPLEADOS ---
+     getUsuariosPorRol: async (rol, storeKey = "usuarios") => {
   try {
-    const resp = await fetch(`${process.env.BACKEND_URL}/api/usuarios`, {
-      method: "GET",
-      headers: {
-        Authorization: "Bearer " + sessionStorage.getItem("token"),
-        "Content-Type": "application/json",
-      },
+    const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/usuarios/rol/${rol}`, {
+      headers: { Authorization: "Bearer " + sessionStorage.getItem("token") },
     });
-
-    if (!resp.ok) throw new Error("Error al obtener todos los usuarios");
-
+    if (!resp.ok) throw new Error("Error al obtener usuarios por rol");
     const data = await resp.json();
-    setStore({ empleados: data }); // Reutilizamos store.empleados como lista general de usuarios
+    setStore({ [storeKey]: data });
     return true;
   } catch (error) {
-    console.error("Error al obtener todos los usuarios:", error);
+    console.error("Error en getUsuariosPorRol:", error);
     return false;
   }
 },
 
-      createUsuario: async (usuario) => {
+
+
+      getEmpleados: async () => {
+        try {
+          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/usuarios/rol/empleado`, {
+            headers: {
+              Authorization: "Bearer " + sessionStorage.getItem("token"),
+            },
+          });
+          if (!resp.ok) throw new Error("Error al obtener empleados");
+
+          const data = await resp.json();
+          setStore({ empleados: data });
+        } catch (error) {
+          console.error("Error en getEmpleados:", error);
+        }
+      },
+
+
+      crearEmpleado: async (datos) => {
         try {
           const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/usuarios`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(usuario),
-          });
-          if (resp.ok) getActions().getUsuarios();
-        } catch (error) {
-          console.error("Error al crear usuario:", error);
-        }
-      },
-
-      editUsuario: async (id, usuario) => {
-        try {
-          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/usuarios/${id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(usuario),
-          });
-          if (resp.ok) getActions().getUsuarios();
-        } catch (error) {
-          console.error("Error al editar usuario:", error);
-        }
-      },
-
-      deleteUsuario: async (id) => {
-        try {
-          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/usuarios/${id}`, {
-            method: "DELETE",
-          });
-          if (resp.ok) getActions().getUsuarios();
-        } catch (error) {
-          console.error("Error al eliminar usuario:", error);
-        }
-      },
-
-     getUsuariosPorRol: async (rol) => {
-  try {
-    const resp = await fetch(`${process.env.BACKEND_URL}/api/usuarios/rol/${rol}`, {
-      headers: {
-        Authorization: "Bearer " + sessionStorage.getItem("token"),
-      },
-    });
-    if (!resp.ok) throw new Error("Error al obtener usuarios por rol");
-
-    const data = await resp.json();
-    setStore({ empleados: data }); // 👈 esto debe coincidir con store.empleados
-    return true;
-  } catch (error) {
-    console.error("Error:", error);
-    return false;
-  }
-},
-
-      crearEmpleado: async (datos) => {
-        const token = sessionStorage.getItem("token");
-
-        if (!token) {
-          alert("Debes estar autenticado para crear empleados.");
-          return false;
-        }
-
-        try {
-          const resp = await fetch(process.env.BACKEND_URL + "/api/usuarios", {
-            method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: "Bearer " + token
+              Authorization: "Bearer " + sessionStorage.getItem("token"),
             },
-            body: JSON.stringify(datos)
+            body: JSON.stringify(datos),
           });
 
           if (!resp.ok) {
@@ -202,16 +144,15 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
       },
 
-
       editarEmpleado: async (id, datos) => {
         try {
-          const resp = await fetch(process.env.BACKEND_URL + `/api/usuarios/${id}`, {
+          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/usuarios/${id}`, {
             method: "PUT",
             headers: {
               "Content-Type": "application/json",
-              Authorization: "Bearer " + sessionStorage.getItem("token")
+              Authorization: "Bearer " + sessionStorage.getItem("token"),
             },
-            body: JSON.stringify(datos)
+            body: JSON.stringify(datos),
           });
           return resp.ok;
         } catch (error) {
@@ -222,11 +163,9 @@ const getState = ({ getStore, getActions, setStore }) => {
 
       eliminarEmpleado: async (id) => {
         try {
-          const resp = await fetch(process.env.BACKEND_URL + `/api/usuarios/${id}`, {
+          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/usuarios/${id}`, {
             method: "DELETE",
-            headers: {
-              Authorization: "Bearer " + sessionStorage.getItem("token")
-            }
+            headers: { Authorization: "Bearer " + sessionStorage.getItem("token") },
           });
           return resp.ok;
         } catch (error) {
@@ -235,16 +174,12 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
       },
 
-  getProductos: async () => {
+      // --- PRODUCTOS ---
+      getProductos: async () => {
         try {
-          const res = await fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/productos`,
-            {
-              headers: {
-                Authorization: `Bearer ${sessionStorage.getItem("token")}`,
-              },
-            }
-          );
+          const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/productos`, {
+            headers: { Authorization: `Bearer ${sessionStorage.getItem("token")}` },
+          });
           if (!res.ok) throw new Error(await res.text());
           const data = await res.json();
           setStore({ productos: data });
@@ -254,85 +189,64 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
       },
 
-crearProducto: async (nuevoProducto) => {
-  try {
-    const resp = await fetch(`${process.env.BACKEND_URL}/api/productos`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + sessionStorage.getItem("token"),
-      },
-      body: JSON.stringify(nuevoProducto),
-    });
-
-    if (!resp.ok) {
-      const error = await resp.json();
-      console.error("Error del servidor:", error);
-      return false;
-    }
-
-    return true;
-  } catch (err) {
-    console.error("Error al crear producto:", err);
-    return false;
-  }
-},
-
-
-
-      editarProducto: async (id, datos) => {
+      crearProducto: async (nuevoProducto) => {
         try {
-          const res = await fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/productos/${id}`,
-            {
-              method: "PUT",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${sessionStorage.getItem("token")}`,
-              },
-              body: JSON.stringify(datos),
-            }
-          );
-          if (!res.ok) throw new Error(await res.text());
-          alert("Producto actualizado correctamente");
-          getActions().getProductos();
+          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/productos`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + sessionStorage.getItem("token"),
+            },
+            body: JSON.stringify(nuevoProducto),
+          });
+
+          if (!resp.ok) {
+            const error = await resp.json();
+            console.error("Error del servidor:", error);
+            return false;
+          }
+
           return true;
         } catch (err) {
-          console.error("Error al editar producto:", err);
+          console.error("Error al crear producto:", err);
           return false;
         }
       },
 
-      eliminarProducto: async (id) => {
+      // --- ENTRADAS ---
+      registrarEntradaProducto: async (datos) => {
         try {
-          const res = await fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/productos/${id}`,
-            {
-              method: "DELETE",
-              headers: {
-                Authorization: `Bearer ${sessionStorage.getItem("token")}`,
-              },
-            }
-          );
-          if (!res.ok) throw new Error(await res.text());
-          getActions().getProductos();
+          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/registro-entrada`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + sessionStorage.getItem("token"),
+            },
+            body: JSON.stringify(datos),
+          });
+
+          if (!resp.ok) {
+            const error = await resp.json();
+            console.error("❌ Error al registrar entrada:", error);
+            return false;
+          }
+
+          const data = await resp.json();
+          await getActions().getProductosConStock();
+          await getActions().getEntradasProductos();
+
           return true;
         } catch (err) {
-          console.error("Error al eliminar producto:", err);
+          console.error("Error del servidor:", err);
           return false;
         }
       },
 
       getEntradasProductos: async () => {
         try {
-          const res = await fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/registro-entrada`,
-            {
-              headers: {
-                Authorization: `Bearer ${sessionStorage.getItem("token")}`,
-              },
-            }
-          );
+          const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/registro-entrada`, {
+            headers: { Authorization: `Bearer ${sessionStorage.getItem("token")}` },
+          });
           const data = await res.json();
           if (!res.ok) throw new Error(data.msg);
           setStore({ entradasProductos: data });
@@ -341,102 +255,24 @@ crearProducto: async (nuevoProducto) => {
         }
       },
 
-      registrarEntradaProducto: async (datos) => {
-        try {
-          const resp = await fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/registro-entrada`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${sessionStorage.getItem("token")}`,
-              },
-              body: JSON.stringify(datos),
-            }
-          );
-
-          if (!resp.ok) {
-            const error = await resp.json();
-            console.error("❌ Error al registrar entrada:", error); // muestra todo el objeto
-            return false;
-          }
-
-          const data = await resp.json();
-
-          // 🔄 Refrescar stock después de registrar
-          await getActions().getProductosConStock();
-          await getActions().getEntradasProductos();
-
-          return true; // ✅ éxito
-        } catch (err) {
-          console.error("Error del servidor:", err);
-          return false;
-        }
-      },
-
-      getProductosConStock: async () => {
-        try {
-          const resp = await fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/productos-con-stock`,
-            {
-              headers: {
-                Authorization: `Bearer ${sessionStorage.getItem("token")}`,
-              },
-            }
-          );
-
-          if (resp.ok) {
-            const data = await resp.json();
-            setStore({ productosConStock: data }); // 👈 Esto actualiza correctamente el store
-          } else {
-            console.error("❌ Error al obtener productos con stock");
-          }
-        } catch (error) {
-          console.error("❌ Error en getProductosConStock", error);
-        }
-      },
-
-      getProductosBajoStock: async () => {
-        try {
-          const resp = await fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/productos/bajo-stock`,
-            {
-              headers: {
-                Authorization: `Bearer ${sessionStorage.getItem("token")}`,
-              },
-            }
-          );
-          if (!resp.ok)
-            throw new Error("Error al obtener productos bajo stock");
-
-          const data = await resp.json();
-          setStore({ productos: data });
-        } catch (error) {
-          console.error("Error en getProductosBajoStock (backend):", error);
-        }
-      },
-
+      // --- SALIDAS ---
       registrarSalidaProducto: async (data) => {
         const token = sessionStorage.getItem("token");
         const user = JSON.parse(sessionStorage.getItem("user") || "null");
         const payload = { ...data, responsable: user?.nombre };
         try {
-          const resp = await fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/registro-salida`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: "Bearer " + token,
-              },
-              body: JSON.stringify(payload),
-            }
-          );
+          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/registro-salida`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + token,
+            },
+            body: JSON.stringify(payload),
+          });
 
           if (!resp.ok) throw new Error("Error al registrar salida");
           const result = await resp.json();
           alert(result.msg);
-          // Refresh stock and salida history so UI stays in sync
           await getActions().getProductos();
           await getActions().getSalidasProductos();
           return true;
@@ -447,17 +283,24 @@ crearProducto: async (nuevoProducto) => {
         }
       },
 
-      getHistorialSalidas: async () => {
-        const token = sessionStorage.getItem("token");
+      getSalidasProductos: async () => {
         try {
-          const resp = await fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/registro-salida`,
-            {
-              headers: {
-                Authorization: "Bearer " + token,
-              },
-            }
-          );
+          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/salidas-productos`, {
+            headers: { Authorization: "Bearer " + sessionStorage.getItem("token") },
+          });
+          if (!resp.ok) throw new Error("Error al obtener salidas");
+          const data = await resp.json();
+          setStore({ salidas_productos: data });
+        } catch (err) {
+          console.error("Error en getSalidasProductos", err);
+        }
+      },
+
+        getHistorialSalidas: async () => {
+        try {
+          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/registro-salida`, {
+            headers: { Authorization: "Bearer " + sessionStorage.getItem("token") },
+          });
           if (!resp.ok) throw new Error("Error al obtener historial");
           const data = await resp.json();
           setStore({ historial_salidas: data });
@@ -466,34 +309,12 @@ crearProducto: async (nuevoProducto) => {
         }
       },
 
-      getSalidasProductos: async () => {
-  try {
-    const resp = await fetch(process.env.BACKEND_URL + "/api/salidas-productos", {
-      headers: {
-        Authorization: "Bearer " + sessionStorage.getItem("token"),
-      },
-    });
-    if (!resp.ok) throw new Error("Error al obtener salidas");
-
-    const data = await resp.json();
-    setStore({ salidas_productos: data });
-  } catch (err) {
-    console.error("Error en getSalidasProductos", err);
-  }
-},
-
-
-
+      // --- PROVEEDORES ---
       getProveedores: async () => {
         try {
-          const res = await fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/proveedores`,
-            {
-              headers: {
-                Authorization: `Bearer ${sessionStorage.getItem("token")}`,
-              },
-            }
-          );
+          const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/proveedores`, {
+            headers: { Authorization: `Bearer ${sessionStorage.getItem("token")}` },
+          });
           if (!res.ok) throw new Error(await res.text());
           const data = await res.json();
           setStore({ proveedores: data });
@@ -505,17 +326,14 @@ crearProducto: async (nuevoProducto) => {
 
       crearProveedor: async (datos) => {
         try {
-          const res = await fetch(
-            `${process.env.REACT_APP_BACKEND_URL}/api/proveedores`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${sessionStorage.getItem("token")}`,
-              },
-              body: JSON.stringify(datos),
-            }
-          );
+          const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/proveedores`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+            },
+            body: JSON.stringify(datos),
+          });
           if (!res.ok) throw new Error("Error al crear proveedor");
           alert("Proveedor creado correctamente");
           getActions().getProveedores();
