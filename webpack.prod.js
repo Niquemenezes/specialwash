@@ -1,13 +1,15 @@
 const webpack = require('webpack');
 const path = require('path');
 const Dotenv = require('dotenv-webpack');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+
 
 module.exports = {
-  entry: './src/front/index.js',
+  entry: './src/front/js/index.js',
 
   output: {
     filename: 'bundle.js',
-    path: path.resolve(__dirname, 'build'),
+    path: path.resolve(__dirname, 'dist'),
     publicPath: '/',
   },
   mode: 'production',
@@ -35,6 +37,11 @@ module.exports = {
     new webpack.DefinePlugin({
       'process.env.NODE_ENV': JSON.stringify('production'),
     }),
+    new HtmlWebpackPlugin({
+    template: './src/front/index.html', // o donde esté tu template HTML
+    filename: 'index.html',
+  }),
+
   ],
   devtool: 'source-map',
 };
