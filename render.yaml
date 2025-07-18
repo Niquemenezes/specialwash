@@ -4,8 +4,6 @@ services:
     env: python
     region: ohio
     buildCommand: |
-      npm install
-      npm run build
       pip install -r requirements.txt
     startCommand: gunicorn wsgi:application --chdir ./src
     plan: free
@@ -30,4 +28,4 @@ services:
 
 databases:
   - name: specialwash-db
-    region:
+    region: ohio
