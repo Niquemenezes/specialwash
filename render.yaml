@@ -28,6 +28,13 @@ services:
           name: specialwash-db
           property: connectionString
 
+  - type: static
+    name: specialwash-frontend
+    env: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    plan: free
+
 databases:
   - name: specialwash-db
     region:
