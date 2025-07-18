@@ -1,22 +1,20 @@
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 const webpack = require('webpack');
 const path = require('path');
 const Dotenv = require('dotenv-webpack');
-const HtmlWebpackPlugin = require('html-webpack-plugin');
-
 
 module.exports = {
   entry: './src/front/js/index.js',
-
   output: {
     filename: 'bundle.js',
-    path: path.resolve(__dirname, 'dist'),
+    path: path.resolve(__dirname, 'dist'), // Asegúrate que sea 'dist'
     publicPath: '/',
   },
   mode: 'production',
   module: {
     rules: [
       {
-        test: /\.js$/,
+        test: /\.(js|jsx)$/, // Incluye jsx
         exclude: /node_modules/,
         use: {
           loader: 'babel-loader',
@@ -26,22 +24,28 @@ module.exports = {
         test: /\.css$/,
         use: ['style-loader', 'css-loader'],
       },
+      {
+        test: /\.(png|svg|jpg|jpeg|gif)$/i,
+        type: 'asset/resource',
+      },
     ],
   },
   plugins: [
     new Dotenv({
       path: './.env',
-      systemvars: true, // permite usar variables desde Render
-      allowEmptyValues: true // permite compilar aunque falten variables
+      systemvars: true,
+      allowEmptyValues: true,
+    }),
+    new HtmlWebpackPlugin({
+      template: './public/index.html',
+      filename: 'index.html',
     }),
     new webpack.DefinePlugin({
       'process.env.NODE_ENV': JSON.stringify('production'),
     }),
-    new HtmlWebpackPlugin({
-    template: './src/front/index.html', // o donde esté tu template HTML
-    filename: 'index.html',
-  }),
-
   ],
+  resolve: {
+    extensions: ['.js', '.jsx'],
+  },
   devtool: 'source-map',
 };
