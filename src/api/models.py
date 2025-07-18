@@ -132,27 +132,27 @@ class RegistroEntradaProducto(db.Model):
             "precio_final_pagado": self.precio_final_pagado,
             "observaciones": self.observaciones,
         }
-
-
 class RegistroSalidaProducto(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     producto_id = db.Column(db.Integer, db.ForeignKey('producto.id'), nullable=False)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     cantidad = db.Column(db.Float, nullable=False)
-    fecha_salida = db.Column(db.DateTime, default=datetime.utcnow)
-    empleado = db.Column('responsable', db.String(120))  # alias para frontend
+    fecha = db.Column(db.DateTime, default=datetime.utcnow)
     observaciones = db.Column(db.Text)
 
-    producto = db.relationship('Producto')
+    producto = db.relationship("Producto")
+    usuario = db.relationship("Usuario")
 
     def serialize(self):
-        return {
-            "id": self.id,
-            "producto_id": self.producto_id,
-            "producto": self.producto.serialize() if self.producto else None,
-            "cantidad": self.cantidad,
-            "fecha_salida": self.fecha_salida.isoformat() if self.fecha_salida else None,
-            "responsable": self.empleado,
-            "observaciones": self.observaciones,
+      return {
+        "id": self.id,
+        "producto_id": self.producto_id,
+        "producto": self.producto.serialize() if self.producto else None,
+        "usuario_id": self.usuario_id,
+        "usuario": self.usuario.serialize() if self.usuario else None,
+        "cantidad": self.cantidad,
+        "fecha": self.fecha.strftime("%Y-%m-%d %H:%M:%S") if self.fecha else None,
+        "observaciones": self.observaciones
         }
 
 class MovimientoStock(db.Model):

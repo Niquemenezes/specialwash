@@ -19,6 +19,7 @@ const RegistrarSalidaProducto = () => {
   useEffect(() => {
   actions.getProductos();
   actions.getTodosLosUsuarios();
+
   actions.getSalidasProductos(); 
 }, []);
 

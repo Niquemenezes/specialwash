@@ -64,8 +64,8 @@ def obtener_usuarios_por_rol():
     if not rol:
         return jsonify({"error": "Rol no especificado"}), 400
     usuarios = Usuario.query.filter_by(rol=rol).all()
-    resultado = [user.serialize() for user in usuarios]
-    return jsonify(resultado), 200
+    return jsonify([user.serialize() for user in usuarios]), 200
+
 
 
 @api.route("/usuarios", methods=["POST"])
@@ -117,11 +117,18 @@ def delete_usuario(id):
     db.session.commit()
     return jsonify({"msg": "Usuario eliminado"}), 200
 
-@api.route("/api/usuarios/rol/<rol>", methods=["GET"])
+@api.route("/usuarios/rol/<rol>", methods=["GET"])
 @jwt_required()
 def obtener_usuarios_por_rol_param(rol):
     usuarios = Usuario.query.filter_by(rol=rol).all()
     return jsonify([usuario.serialize() for usuario in usuarios]), 200
+
+@api.route("/usuarios-todos", methods=["GET"])
+@jwt_required()
+def obtener_todos_los_usuarios():
+    usuarios = Usuario.query.all()
+    return jsonify([usuario.serialize() for usuario in usuarios]), 200
+
 
 
 
@@ -318,39 +325,60 @@ def registrar_salida():
 
 @api.route("/registro-salida", methods=["GET"])
 @jwt_required()
-def historial_salidas():
+def obtener_historial_salidas():
     try:
-        fecha_inicio = request.args.get("fecha_inicio")
-        fecha_fin = request.args.get("fecha_fin")
-
-        query = RegistroSalidaProducto.query
-        if fecha_inicio:
-            query = query.filter(RegistroSalidaProducto.fecha_salida >= fecha_inicio)
-        if fecha_fin:
-            query = query.filter(RegistroSalidaProducto.fecha_salida <= fecha_fin)
-
-        salidas = query.order_by(RegistroSalidaProducto.fecha_salida.desc()).all()
-
+        salidas = RegistroSalidaProducto.query.all()
         resultado = []
-        for s in salidas:
-            producto = Producto.query.get(s.producto_id)
-            usuario = Usuario.query.filter(Usuario.nombre == s.empleado).first()
-
+        for salida in salidas:
             resultado.append({
-                "id": s.id,
-                "producto_id": s.producto_id,
-                "producto_nombre": producto.nombre if producto else "Producto no encontrado",
-                "cantidad": s.cantidad,
-                "fecha_salida": s.fecha_salida.strftime("%Y-%m-%d"),
-                "responsable": usuario.nombre if usuario else s.empleado,
-                "observaciones": s.observaciones or ""
+                "id": salida.id,
+                "producto": {
+                    "id": salida.producto.id,
+                    "nombre": salida.producto.nombre,
+                    "detalle": salida.producto.detalle,
+                    "precio_unitario": salida.producto.precio_unitario
+                },
+                "cantidad": salida.cantidad,
+                "fecha_salida": salida.fecha_salida,
+                "responsable": salida.usuario.nombre if salida.usuario else None,
+                "observaciones": salida.observaciones
             })
-
         return jsonify(resultado), 200
-
     except Exception as e:
-        return jsonify({"msg": "Error al obtener historial de salidas", "error": str(e)}), 500
+        print("Error en /registro-salida:", e)
+        return jsonify({"msg": "Error al obtener historial de salidas"}), 500
 
+@api.route('/salidas', methods=['GET'])
+@jwt_required()
+def obtener_salidas():
+    desde = request.args.get('desde')
+    hasta = request.args.get('hasta')
+
+    query = db.session.query(SalidaProducto).join(Producto).join(Usuario)
+
+    if desde and hasta:
+        try:
+            fecha_desde = datetime.strptime(desde, "%Y-%m-%d")
+            fecha_hasta = datetime.strptime(hasta, "%Y-%m-%d")
+            query = query.filter(SalidaProducto.fecha >= fecha_desde, SalidaProducto.fecha <= fecha_hasta)
+        except ValueError:
+            return jsonify({"msg": "Formato de fecha inválido"}), 400
+
+    salidas = query.order_by(SalidaProducto.fecha.desc()).all()
+
+    return jsonify([{
+        "id": salida.id,
+        "cantidad": salida.cantidad,
+        "fecha": salida.fecha,
+        "producto": {
+            "id": salida.producto.id,
+            "nombre": salida.producto.nombre
+        } if salida.producto else None,
+        "usuario": {
+            "id": salida.usuario.id,
+            "nombre": salida.usuario.nombre
+        } if salida.usuario else None
+    } for salida in salidas]), 200
 
 # -------------------
 # REGISTRO DE ENTRADA

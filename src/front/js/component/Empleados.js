@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
+import { Context } from "../store/appContext";
 import { Table, Button, Modal, Form } from "react-bootstrap";
 
 const Empleados = () => {
-  const [empleados, setEmpleados] = useState([]);
+  const { store, actions } = useContext(Context);
   const [cargando, setCargando] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [modoEdicion, setModoEdicion] = useState(false);
@@ -16,23 +17,13 @@ const Empleados = () => {
   });
 
   useEffect(() => {
-    cargarEmpleados();
-  }, []);
+    const cargar = async () => {
+      await actions.getTodosLosUsuarios();
 
-  const cargarEmpleados = async () => {
-    try {
-      const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/usuarios?rol=empleado`, {
-  headers: { Authorization: "Bearer " + sessionStorage.getItem("token") },
-});
-      if (!resp.ok) throw new Error("Error al obtener empleados");
-      const data = await resp.json();
-      setEmpleados(data);
-    } catch (error) {
-      console.error("Error al cargar empleados:", error);
-    } finally {
       setCargando(false);
-    }
-  };
+    };
+    cargar();
+  }, []);
 
   const handleChange = (e) => {
     setNuevoEmpleado({ ...nuevoEmpleado, [e.target.name]: e.target.value });
@@ -76,7 +67,7 @@ const Empleados = () => {
 
       if (!resp.ok) throw new Error("Error al guardar el empleado");
 
-      await cargarEmpleados();
+      await actions.getEmpleados();
       setShowModal(false);
       setNuevoEmpleado({ nombre: "", email: "", password: "", rol: "empleado" });
       setModoEdicion(false);
@@ -99,7 +90,7 @@ const Empleados = () => {
 
       if (!resp.ok) throw new Error("Error al eliminar empleado");
 
-      await cargarEmpleados();
+      await actions.getEmpleados();
     } catch (error) {
       console.error("Error al eliminar empleado:", error);
     }
@@ -115,7 +106,7 @@ const Empleados = () => {
 
       {cargando ? (
         <p>Cargando empleados...</p>
-      ) : empleados.length === 0 ? (
+      ) : store.empleados.length === 0 ? (
         <p>No hay empleados registrados.</p>
       ) : (
         <Table striped bordered hover responsive>
@@ -128,7 +119,7 @@ const Empleados = () => {
             </tr>
           </thead>
           <tbody>
-            {empleados.map((emp) => (
+            {store.empleados.map((emp) => (
               <tr key={emp.id}>
                 <td>{emp.nombre}</td>
                 <td>{emp.email}</td>
