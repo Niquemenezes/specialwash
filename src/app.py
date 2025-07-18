@@ -1,4 +1,7 @@
 import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__)))
+
 from flask import Flask, request, jsonify, send_from_directory
 from flask_migrate import Migrate
 from flask_swagger import swagger
@@ -9,6 +12,8 @@ from api.models import db
 from api.routes import api
 from api.admin import setup_admin
 from api.commands import setup_commands
+
+
 
 # Configuración del entorno
 ENV = os.getenv("FLASK_ENV", "development")
