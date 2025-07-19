@@ -1,15 +1,15 @@
 const webpack = require('webpack');
 const path = require('path');
-const HtmlWebpackPlugin = require('html-webpack-plugin');
 const Dotenv = require('dotenv-webpack');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
   entry: './src/front/js/index.js',
 
   output: {
     filename: 'bundle.js',
-    path: path.resolve(__dirname, 'dist'),
-    publicPath: '/',
+    path: path.resolve(__dirname, 'dist'), // asegúrate que sea dist si Render apunta ahí
+    publicPath: '/', // importante para rutas internas
   },
 
   mode: 'production',
@@ -17,7 +17,7 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /\.(js|jsx)$/,
+        test: /\.js$/,
         exclude: /node_modules/,
         use: {
           loader: 'babel-loader',
@@ -28,28 +28,24 @@ module.exports = {
         use: ['style-loader', 'css-loader'],
       },
       {
-        test: /\.(png|jpg|jpeg|gif|svg)$/i,
+        test: /\.(png|jpg|jpeg|gif|svg|ico|ttf|woff|woff2|eot)$/,
         type: 'asset/resource',
       },
     ],
-  },
-
-  resolve: {
-    extensions: ['.js', '.jsx'],
   },
 
   plugins: [
     new Dotenv({
       path: './.env',
       systemvars: true,
-      allowEmptyValues: true,
-    }),
-    new HtmlWebpackPlugin({
-      template: './public/index.html',
-      filename: 'index.html',
+      allowEmptyValues: true
     }),
     new webpack.DefinePlugin({
-      'process.env.NODE_ENV': JSON.stringify('process.env.BACKEND_URL'),
+      'process.env.BACKEND_URL': JSON.stringify(process.env.BACKEND_URL)
+    }),
+    new HtmlWebpackPlugin({
+      template: 'public/index.html',
+      filename: 'index.html',
     }),
   ],
 
