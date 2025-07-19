@@ -5,19 +5,24 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
   entry: './src/front/js/index.js',
-
   output: {
     filename: 'bundle.js',
-    path: path.resolve(__dirname, 'dist'), // asegúrate que sea dist si Render apunta ahí
-    publicPath: '/', // importante para rutas internas
+    path: path.resolve(__dirname, 'dist'),
+    publicPath: '/', // 👉 necesario para rutas internas en React
   },
-
   mode: 'production',
-
+  resolve: {
+    extensions: ['.js', '.jsx'], // 👉 para que reconozca .jsx
+  },
   module: {
     rules: [
       {
-        test: /\.js$/,
+        test: /\.(js|jsx)$/, // 👉 importante para JSX
+        exclude: /node_modules/,
+        use: 'babel-loader',
+      },
+      {
+          test: /\.(js|jsx)$/,
         exclude: /node_modules/,
         use: {
           loader: 'babel-loader',
@@ -28,26 +33,28 @@ module.exports = {
         use: ['style-loader', 'css-loader'],
       },
       {
-        test: /\.(png|jpg|jpeg|gif|svg|ico|ttf|woff|woff2|eot)$/,
-        type: 'asset/resource',
+        test: /\.(png|svg|jpg|gif|jpeg|webp)$/,
+        use: {
+          loader: 'file-loader',
+          options: { name: '[name].[ext]' }
+        }
       },
+      { test: /\.woff($|\?)|\.woff2($|\?)|\.ttf($|\?)|\.eot($|\?)|\.svg($|\?)/, use: ['file-loader'] }
     ],
   },
-
   plugins: [
     new Dotenv({
       path: './.env',
       systemvars: true,
-      allowEmptyValues: true
+      allowEmptyValues: true,
     }),
     new webpack.DefinePlugin({
-      'process.env.BACKEND_URL': JSON.stringify(process.env.BACKEND_URL)
+      'process.env.BACKEND_URL': JSON.stringify(process.env.BACKEND_URL || ''),
     }),
     new HtmlWebpackPlugin({
       template: 'public/index.html',
       filename: 'index.html',
     }),
   ],
-
   devtool: 'source-map',
 };

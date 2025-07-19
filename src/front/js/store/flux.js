@@ -9,11 +9,9 @@ const getState = ({ getStore, getActions, setStore }) => {
       proveedores: [],
       usuarios: [],
       empleados: [],
-      salidas: [],
       entradas: [],
       entradasProductos: [],
       salidasproductos: [],
-      historial_salidas: [],
       productosConStock: [],
     },
 
@@ -91,7 +89,7 @@ const getState = ({ getStore, getActions, setStore }) => {
       getUsuariosPorRol: async (rol, storeKey = "usuarios") => {
         try {
           const token = sessionStorage.getItem("token");
-          const resp = await fetch(process.env.BACKEND_URL + `/api/usuarios?rol=${rol}`, {
+          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/usuarios?rol=${rol}`, {
             method: "GET",
             headers: {
               Authorization: `Bearer ${token}`,
@@ -117,17 +115,16 @@ const getState = ({ getStore, getActions, setStore }) => {
           });
           if (!resp.ok) throw new Error("Error al obtener todos los usuarios");
           const data = await resp.json();
-          setStore({ empleados: data }); // o usa otra clave si prefieres
+          setStore({ empleados: data });
         } catch (error) {
           console.error("Error en getTodosLosUsuarios:", error);
         }
       },
 
-
       getEmpleados: async () => {
         try {
           const token = sessionStorage.getItem("token");
-          const resp = await fetch(`${process.env.BACKEND_URL}/api/usuarios?rol=empleado`, {
+          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/usuarios?rol=empleado`, {
             method: "GET",
             headers: {
               "Content-Type": "application/json",
@@ -142,8 +139,6 @@ const getState = ({ getStore, getActions, setStore }) => {
           console.error("Error en getEmpleados:", error);
         }
       },
-
-
 
       crearEmpleado: async (datos) => {
         try {
@@ -307,9 +302,10 @@ const getState = ({ getStore, getActions, setStore }) => {
           return false;
         }
       },
+
       getSalidasProductos: async () => {
         try {
-          const resp = await fetch(process.env.REACT_APP_BACKEND_URL + "/api/salidas", {
+          const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/salidas`, {
             method: "GET",
             headers: {
               Authorization: "Bearer " + sessionStorage.getItem("token")
@@ -323,11 +319,9 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
       },
 
-
-     obtenerHistorialSalidas: async (desde, hasta) => {
-        const store = getStore();
+      obtenerHistorialSalidas: async (desde, hasta) => {
         const token = sessionStorage.getItem("token");
-        let url = process.env.REACT_APP_BACKEND_URL + "/api/salidas";
+        let url = `${process.env.REACT_APP_BACKEND_URL}/api/salidas`;
 
         if (desde && hasta) {
           url += `?desde=${desde}&hasta=${hasta}`;
@@ -343,35 +337,11 @@ const getState = ({ getStore, getActions, setStore }) => {
           if (!resp.ok) throw new Error("Error al obtener historial de salidas");
 
           const data = await resp.json();
-          setStore({ historialSalidas: data });
+          setStore({ salidasproductos: data });
         } catch (error) {
           console.error("Error en obtenerHistorialSalidas:", error);
         }
       },
-
-historialSalidas: async () => {
-  const token = sessionStorage.getItem("token");
-  try {
-    const resp = await fetch(`${process.env.BACKEND_URL}/api/registro-salida`, {
-      headers: {
-        Authorization: "Bearer " + token,
-        "Content-Type": "application/json"
-      }
-    });
-
-    if (!resp.ok) throw new Error("Error al obtener historial de salidas");
-
-    const data = await resp.json();
-    console.log("Salidas recibidas:", data); // importante para depurar
-    setStore({ historial_salidas: data });
-  } catch (error) {
-    console.error("Error en historialSalidas:", error);
-  }
-},
-
-
-
-
 
       // --- PROVEEDORES ---
       getProveedores: async () => {
