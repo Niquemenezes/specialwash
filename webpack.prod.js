@@ -49,7 +49,7 @@ module.exports = {
       filename: 'index.html',
     }),
     new webpack.DefinePlugin({
-      'process.env.NODE_ENV': JSON.stringify('production'),
+      'process.env.NODE_ENV': JSON.stringify('process.env.BACKEND_URL'),
     }),
   ],
 
