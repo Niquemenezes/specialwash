@@ -1,0 +1,31 @@
+# DATOS DE CONEXIÓN FTP - IONOS
+# ================================
+
+Servidor/Host:  194.164.164.78
+Usuario:        root
+Contraseña:     cwtC7sJe
+Puerto:         21
+Protocolo:      FTP
+
+# INSTRUCCIONES:
+# 1. Abre FileZilla
+# 2. En la parte superior, rellena los campos:
+#    - Servidor: 194.164.164.78
+#    - Usuario: root
+#    - Contraseña: cwtC7sJe
+#    - Puerto: 21
+# 3. Haz clic en "Conexión rápida"
+
+# Si no conecta, prueba con:
+# - Puerto: 22 (SFTP)
+# - O deja el puerto vacío
+
+# CARPETAS COMUNES EN EL SERVIDOR:
+# - / (raíz)
+# - /httpdocs
+# - /public_html
+# - /www
+# - /html
+
+# Busca donde está el index.html actual (si existe)
+# Ahí es donde subirás los archivos.
