@@ -23,6 +23,7 @@ class Salida(db.Model):
         db.ForeignKey("producto.id"),
         nullable=False
     )
+    producto_nombre = db.Column(db.String(200))  # Guardar nombre del producto
 
     usuario_id = db.Column(
         db.Integer,
@@ -47,7 +48,7 @@ class Salida(db.Model):
             "id": self.id,
             "fecha": iso(dt),
             "producto_id": self.producto_id,
-            "producto_nombre": getattr(self.producto, "nombre", None),
+            "producto_nombre": self.producto_nombre or getattr(self.producto, "nombre", None),
             "usuario_id": self.usuario_id,
             "usuario_nombre": getattr(self.usuario, "nombre", None),
             "cantidad": self.cantidad,

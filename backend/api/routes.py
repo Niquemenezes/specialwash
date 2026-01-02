@@ -7,7 +7,7 @@ from functools import wraps
 from sqlalchemy import func, desc
 from datetime import datetime
 
-from models import db, User, Producto, Proveedor, Entrada, Salida, Maquinaria
+from models import db, User, Producto, Proveedor, Entrada, Salida, Maquinaria, Cliente, Coche, Servicio
 
 api = Blueprint("api", __name__)
 
@@ -283,21 +283,29 @@ def registrar_entrada():
     producto = Producto.query.get_or_404(producto_id)
     producto.stock_actual += cantidad
 
-    # Calcular precio unitario = precio_sin_iva / cantidad
+    # Calcular IVA automáticamente
     precio_sin_iva = float(data.get("precio_sin_iva") or 0)
+    porcentaje_iva = float(data.get("porcentaje_iva") or 21)  # IVA por defecto 21%
+    
+    # Cálculos de IVA
+    valor_iva = round(precio_sin_iva * (porcentaje_iva / 100), 2)
+    precio_con_iva = round(precio_sin_iva + valor_iva, 2)
+    
+    # Calcular precio unitario = precio_sin_iva / cantidad
     if precio_sin_iva > 0 and cantidad > 0:
         precio_unitario = precio_sin_iva / cantidad
         producto.precio_referencia = precio_unitario
 
     entrada = Entrada(
         producto_id=producto.id,
+        producto_nombre=producto.nombre,
         proveedor_id=data.get("proveedor_id"),
         cantidad=cantidad,
         numero_albaran=data.get("numero_albaran"),
-        precio_sin_iva=data.get("precio_sin_iva"),
-        porcentaje_iva=data.get("porcentaje_iva"),
-        valor_iva=data.get("valor_iva"),
-        precio_con_iva=data.get("precio_con_iva"),
+        precio_sin_iva=precio_sin_iva,
+        porcentaje_iva=porcentaje_iva,
+        valor_iva=valor_iva,
+        precio_con_iva=precio_con_iva,
     )
 
     db.session.add(entrada)
@@ -310,6 +318,70 @@ def registrar_entrada():
 @jwt_required()
 def entradas_list():
     return jsonify([e.to_dict() for e in Entrada.query.order_by(Entrada.fecha.desc()).all()])
+
+
+@api.route("/registro-entrada/<int:eid>", methods=["PUT"])
+@role_required("administrador")
+def entrada_update(eid):
+    entrada = Entrada.query.get_or_404(eid)
+    data = request.get_json() or {}
+    
+    # Actualizar producto y recalcular stock si cambió
+    nuevo_producto_id = data.get("producto_id")
+    nueva_cantidad = int(data.get("cantidad", entrada.cantidad))
+    
+    if nuevo_producto_id and nuevo_producto_id != entrada.producto_id:
+        # Revertir stock del producto anterior
+        producto_anterior = Producto.query.get(entrada.producto_id)
+        if producto_anterior:
+            producto_anterior.stock_actual -= entrada.cantidad
+        
+        # Actualizar nuevo producto
+        nuevo_producto = Producto.query.get_or_404(nuevo_producto_id)
+        nuevo_producto.stock_actual += nueva_cantidad
+        entrada.producto_id = nuevo_producto_id
+        entrada.producto_nombre = nuevo_producto.nombre
+    elif nueva_cantidad != entrada.cantidad:
+        # Solo cambió la cantidad
+        producto = Producto.query.get(entrada.producto_id)
+        if producto:
+            diferencia = nueva_cantidad - entrada.cantidad
+            producto.stock_actual += diferencia
+    
+    # Actualizar campos
+    entrada.proveedor_id = data.get("proveedor_id", entrada.proveedor_id)
+    entrada.cantidad = nueva_cantidad
+    entrada.numero_albaran = data.get("numero_albaran", entrada.numero_albaran)
+    
+    # Recalcular IVA si se proporcionan nuevos valores
+    if "precio_sin_iva" in data:
+        precio_sin_iva = float(data.get("precio_sin_iva") or 0)
+        porcentaje_iva = float(data.get("porcentaje_iva") or 21)
+        valor_iva = round(precio_sin_iva * (porcentaje_iva / 100), 2)
+        precio_con_iva = round(precio_sin_iva + valor_iva, 2)
+        
+        entrada.precio_sin_iva = precio_sin_iva
+        entrada.porcentaje_iva = porcentaje_iva
+        entrada.valor_iva = valor_iva
+        entrada.precio_con_iva = precio_con_iva
+    
+    db.session.commit()
+    return jsonify(entrada.to_dict()), 200
+
+
+@api.route("/registro-entrada/<int:eid>", methods=["DELETE"])
+@role_required("administrador")
+def entrada_delete(eid):
+    entrada = Entrada.query.get_or_404(eid)
+    
+    # Revertir el stock
+    producto = Producto.query.get(entrada.producto_id)
+    if producto:
+        producto.stock_actual -= entrada.cantidad
+    
+    db.session.delete(entrada)
+    db.session.commit()
+    return jsonify({"msg": "Entrada eliminada"}), 200
 
 
 # =====================================================
@@ -368,6 +440,7 @@ def registrar_salida():
 
     salida = Salida(
         producto_id=producto.id,
+        producto_nombre=producto.nombre,
         usuario_id=uid,
         cantidad=cantidad,
         observaciones=data.get("observaciones"),
@@ -389,6 +462,71 @@ def registrar_salida():
 @jwt_required()
 def salidas_list():
     return jsonify([s.to_dict() for s in Salida.query.order_by(Salida.fecha.desc()).all()])
+
+
+@api.route("/registro-salida/<int:sid>", methods=["PUT"])
+@role_required("administrador")
+def salida_update(sid):
+    salida = Salida.query.get_or_404(sid)
+    data = request.get_json() or {}
+    
+    # Actualizar producto y recalcular stock si cambió
+    nuevo_producto_id = data.get("producto_id")
+    nueva_cantidad = int(data.get("cantidad", salida.cantidad))
+    
+    if nuevo_producto_id and nuevo_producto_id != salida.producto_id:
+        # Revertir stock del producto anterior
+        producto_anterior = Producto.query.get(salida.producto_id)
+        if producto_anterior:
+            producto_anterior.stock_actual += salida.cantidad
+        
+        # Actualizar nuevo producto
+        nuevo_producto = Producto.query.get_or_404(nuevo_producto_id)
+        nuevo_producto.stock_actual -= nueva_cantidad
+        salida.producto_id = nuevo_producto_id
+        salida.producto_nombre = nuevo_producto.nombre
+    elif nueva_cantidad != salida.cantidad:
+        # Solo cambió la cantidad
+        producto = Producto.query.get(salida.producto_id)
+        if producto:
+            diferencia = salida.cantidad - nueva_cantidad
+            producto.stock_actual += diferencia
+    
+    # Actualizar campos
+    salida.cantidad = nueva_cantidad
+    salida.observaciones = data.get("observaciones", salida.observaciones)
+    
+    # Actualizar precio unitario si se proporciona
+    if "precio_unitario" in data:
+        precio_unit = data.get("precio_unitario")
+        if precio_unit is not None:
+            salida.precio_unitario = float(precio_unit)
+            salida.precio_total = round(salida.precio_unitario * nueva_cantidad, 2)
+        else:
+            # Si se pasa None, limpiar precios
+            salida.precio_unitario = None
+            salida.precio_total = None
+    elif nueva_cantidad != salida.cantidad and salida.precio_unitario:
+        # Solo recalcular si cambió la cantidad y hay precio unitario
+        salida.precio_total = round(salida.precio_unitario * nueva_cantidad, 2)
+    
+    db.session.commit()
+    return jsonify(salida.to_dict()), 200
+
+
+@api.route("/registro-salida/<int:sid>", methods=["DELETE"])
+@role_required("administrador")
+def salida_delete(sid):
+    salida = Salida.query.get_or_404(sid)
+    
+    # Revertir el stock
+    producto = Producto.query.get(salida.producto_id)
+    if producto:
+        producto.stock_actual += salida.cantidad
+    
+    db.session.delete(salida)
+    db.session.commit()
+    return jsonify({"msg": "Salida eliminada"}), 200
 
 
 # =====================================================
@@ -469,3 +607,298 @@ def resumen_mensual():
         }
         for r in data
     ])
+
+
+# =====================================================
+# CLIENTES
+# =====================================================
+
+@api.route("/clientes", methods=["GET"])
+@jwt_required()
+def clientes_list():
+    q = (request.args.get("q") or "").strip().lower()
+    query = Cliente.query
+    if q:
+        query = query.filter(
+            (Cliente.nombre.ilike(f"%{q}%")) |
+            (Cliente.telefono.ilike(f"%{q}%")) |
+            (Cliente.email.ilike(f"%{q}%"))
+        )
+    return jsonify([c.to_dict() for c in query.order_by(Cliente.nombre).all()])
+
+
+@api.route("/clientes", methods=["POST"])
+@role_required("administrador")
+def clientes_create():
+    data = request.get_json() or {}
+    c = Cliente(
+        nombre=data.get("nombre"),
+        cif=data.get("cif"),
+        telefono=data.get("telefono"),
+        email=data.get("email"),
+        direccion=data.get("direccion"),
+        notas=data.get("notas")
+    )
+    db.session.add(c)
+    db.session.commit()
+    return jsonify(c.to_dict()), 201
+
+
+@api.route("/clientes/<int:cid>", methods=["PUT"])
+@role_required("administrador")
+def clientes_update(cid):
+    c = Cliente.query.get_or_404(cid)
+    data = request.get_json() or {}
+    
+    c.nombre = data.get("nombre", c.nombre)
+    c.cif = data.get("cif", c.cif)
+    c.telefono = data.get("telefono", c.telefono)
+    c.email = data.get("email", c.email)
+    c.direccion = data.get("direccion", c.direccion)
+    c.notas = data.get("notas", c.notas)
+    
+    db.session.commit()
+    return jsonify(c.to_dict()), 200
+
+
+@api.route("/clientes/<int:cid>", methods=["DELETE"])
+@role_required("administrador")
+def clientes_delete(cid):
+    c = Cliente.query.get_or_404(cid)
+    # Verificar si tiene coches
+    if c.coches:
+        return jsonify({"error": "No se puede eliminar un cliente con coches registrados"}), 400
+    db.session.delete(c)
+    db.session.commit()
+    return jsonify({"msg": "Cliente eliminado"}), 200
+
+
+# =====================================================
+# COCHES
+# =====================================================
+
+@api.route("/coches", methods=["GET"])
+@jwt_required()
+def coches_list():
+    q = (request.args.get("q") or "").strip().lower()
+    query = Coche.query
+    if q:
+        query = query.filter(
+            (Coche.matricula.ilike(f"%{q}%")) |
+            (Coche.marca.ilike(f"%{q}%")) |
+            (Coche.modelo.ilike(f"%{q}%"))
+        )
+    return jsonify([c.to_dict() for c in query.order_by(Coche.matricula).all()])
+
+
+@api.route("/coches", methods=["POST"])
+@role_required("administrador")
+def coches_create():
+    data = request.get_json() or {}
+    
+    # Verificar que la matrícula no exista
+    matricula = data.get("matricula", "").strip().upper()
+    if Coche.query.filter_by(matricula=matricula).first():
+        return jsonify({"error": "Ya existe un coche con esa matrícula"}), 400
+    
+    c = Coche(
+        matricula=matricula,
+        marca=data.get("marca"),
+        modelo=data.get("modelo"),
+        color=data.get("color"),
+        cliente_id=int(data.get("cliente_id")),
+        notas=data.get("notas")
+    )
+    db.session.add(c)
+    db.session.commit()
+    return jsonify(c.to_dict()), 201
+
+
+@api.route("/coches/<int:cid>", methods=["PUT"])
+@role_required("administrador")
+def coches_update(cid):
+    c = Coche.query.get_or_404(cid)
+    data = request.get_json() or {}
+    
+    # Verificar matrícula si se cambia
+    if "matricula" in data:
+        nueva_matricula = data.get("matricula", "").strip().upper()
+        if nueva_matricula != c.matricula:
+            if Coche.query.filter_by(matricula=nueva_matricula).first():
+                return jsonify({"error": "Ya existe un coche con esa matrícula"}), 400
+            c.matricula = nueva_matricula
+    
+    c.marca = data.get("marca", c.marca)
+    c.modelo = data.get("modelo", c.modelo)
+    c.color = data.get("color", c.color)
+    if "cliente_id" in data:
+        c.cliente_id = int(data.get("cliente_id"))
+    c.notas = data.get("notas", c.notas)
+    
+    db.session.commit()
+    return jsonify(c.to_dict()), 200
+
+
+@api.route("/coches/<int:cid>", methods=["DELETE"])
+@role_required("administrador")
+def coches_delete(cid):
+    c = Coche.query.get_or_404(cid)
+    db.session.delete(c)
+    db.session.commit()
+    return jsonify({"msg": "Coche eliminado"}), 200
+
+
+# =====================================================
+# SERVICIOS
+# =====================================================
+
+@api.route("/servicios", methods=["GET"])
+@jwt_required()
+def servicios_list():
+    q = (request.args.get("q") or "").strip().lower()
+    coche_id = request.args.get("coche_id")
+    
+    query = Servicio.query
+    if coche_id:
+        query = query.filter_by(coche_id=int(coche_id))
+    if q:
+        query = query.join(Coche).filter(
+            (Coche.matricula.ilike(f"%{q}%")) |
+            (Servicio.tipo_servicio.ilike(f"%{q}%"))
+        )
+    return jsonify([s.to_dict() for s in query.order_by(Servicio.fecha.desc()).all()])
+
+
+@api.route("/servicios", methods=["POST"])
+@jwt_required()
+def servicios_create():
+    data = request.get_json() or {}
+    usuario_id = get_jwt_identity()
+    
+    s = Servicio(
+        coche_id=int(data.get("coche_id")),
+        tipo_servicio=data.get("tipo_servicio"),
+        precio=float(data.get("precio", 0)),
+        observaciones=data.get("observaciones"),
+        usuario_id=usuario_id
+    )
+    db.session.add(s)
+    db.session.commit()
+    return jsonify(s.to_dict()), 201
+
+
+@api.route("/servicios/<int:sid>", methods=["PUT"])
+@role_required("administrador")
+def servicios_update(sid):
+    s = Servicio.query.get_or_404(sid)
+    data = request.get_json() or {}
+    
+    if "coche_id" in data:
+        s.coche_id = int(data.get("coche_id"))
+    s.tipo_servicio = data.get("tipo_servicio", s.tipo_servicio)
+    if "precio" in data:
+        s.precio = float(data.get("precio"))
+    s.observaciones = data.get("observaciones", s.observaciones)
+    
+    db.session.commit()
+    return jsonify(s.to_dict()), 200
+
+
+@api.route("/servicios/<int:sid>", methods=["DELETE"])
+@role_required("administrador")
+def servicios_delete(sid):
+    s = Servicio.query.get_or_404(sid)
+    db.session.delete(s)
+    db.session.commit()
+    return jsonify({"msg": "Servicio eliminado"}), 200
+
+
+# =====================================================
+# REPORTES
+# =====================================================
+
+@api.route("/reportes/clientes", methods=["GET"])
+@jwt_required()
+def reporte_clientes():
+    """
+    Reporte de ingresos por cliente y coche en un período.
+    Parámetros: fecha_desde, fecha_hasta (opcional)
+    """
+    fecha_desde = request.args.get("fecha_desde")
+    fecha_hasta = request.args.get("fecha_hasta")
+    
+    query = db.session.query(
+        Cliente.id.label("cliente_id"),
+        Cliente.nombre.label("cliente_nombre"),
+        Cliente.cif.label("cliente_cif"),
+        Coche.id.label("coche_id"),
+        Coche.matricula.label("coche_matricula"),
+        Coche.marca.label("coche_marca"),
+        Coche.modelo.label("coche_modelo"),
+        func.count(Servicio.id).label("total_servicios"),
+        func.sum(Servicio.precio).label("total_pagado")
+    ).join(Coche, Cliente.id == Coche.cliente_id
+    ).join(Servicio, Coche.id == Servicio.coche_id)
+    
+    # Filtros de fecha
+    if fecha_desde:
+        try:
+            fecha_desde_dt = datetime.strptime(fecha_desde, "%Y-%m-%d")
+            query = query.filter(Servicio.fecha >= fecha_desde_dt)
+        except ValueError:
+            pass
+    
+    if fecha_hasta:
+        try:
+            fecha_hasta_dt = datetime.strptime(fecha_hasta, "%Y-%m-%d")
+            # Incluir todo el día hasta
+            from datetime import timedelta
+            fecha_hasta_dt = fecha_hasta_dt + timedelta(days=1)
+            query = query.filter(Servicio.fecha < fecha_hasta_dt)
+        except ValueError:
+            pass
+    
+    query = query.group_by(
+        Cliente.id, Cliente.nombre, Cliente.cif,
+        Coche.id, Coche.matricula, Coche.marca, Coche.modelo
+    ).order_by(Cliente.nombre, Coche.matricula)
+    
+    resultados = query.all()
+    
+    # Agrupar por cliente
+    clientes_dict = {}
+    for r in resultados:
+        cliente_id = r.cliente_id
+        if cliente_id not in clientes_dict:
+            clientes_dict[cliente_id] = {
+                "cliente_id": cliente_id,
+                "cliente_nombre": r.cliente_nombre,
+                "cliente_cif": r.cliente_cif,
+                "coches": [],
+                "total_cliente": 0
+            }
+        
+        coche_info = {
+            "coche_id": r.coche_id,
+            "matricula": r.coche_matricula,
+            "marca": r.coche_marca,
+            "modelo": r.coche_modelo,
+            "total_servicios": r.total_servicios,
+            "total_pagado": round(float(r.total_pagado or 0), 2)
+        }
+        
+        clientes_dict[cliente_id]["coches"].append(coche_info)
+        clientes_dict[cliente_id]["total_cliente"] += coche_info["total_pagado"]
+    
+    # Redondear totales de cliente
+    for cliente_id in clientes_dict:
+        clientes_dict[cliente_id]["total_cliente"] = round(clientes_dict[cliente_id]["total_cliente"], 2)
+    
+    return jsonify({
+        "clientes": list(clientes_dict.values()),
+        "fecha_desde": fecha_desde,
+        "fecha_hasta": fecha_hasta
+    }), 200
+
+
+

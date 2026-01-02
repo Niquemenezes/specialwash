@@ -2,7 +2,7 @@ import os
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 from wtforms.fields import PasswordField
-from models import db, User, Producto, Proveedor, Entrada, Salida, Maquinaria
+from models import db, User, Producto, Proveedor, Entrada, Salida, Maquinaria, Cliente, Coche, Servicio
 
 
 # === Clases personalizadas para mejorar apariencia y seguridad ===
@@ -44,9 +44,14 @@ class UserAdmin(SecureModelView):
 def setup_admin(app):
     # 🔐 Configuración básica
     app.secret_key = os.environ.get('FLASK_APP_KEY', 'sample_key')
-    app.config['FLASK_ADMIN_SWATCH'] = 'lux'   # 🌙 Tema oscuro elegante
+    app.config['FLASK_ADMIN_SWATCH'] = 'flatly'   # 🌙 Tema moderno y limpio
 
-    admin = Admin(app, name="SpecialWash Panel")
+    admin = Admin(
+        app, 
+        name="SpecialWash Admin", 
+        template_mode='bootstrap3',
+        base_template='admin/base.html'
+    )
 
     # === Secciones ===
     admin.add_view(UserAdmin(User, db.session, name="Usuarios"))
@@ -55,6 +60,11 @@ def setup_admin(app):
     admin.add_view(SecureModelView(Entrada, db.session, name="Entradas"))
     admin.add_view(SecureModelView(Salida, db.session, name="Salidas"))
     admin.add_view(SecureModelView(Maquinaria, db.session, name="Maquinaria"))
+    admin.add_view(SecureModelView(Cliente, db.session, name="Clientes"))
+    admin.add_view(SecureModelView(Coche, db.session, name="Coches"))
+    admin.add_view(SecureModelView(Servicio, db.session, name="Servicios"))
 
     # ⚠️ En producción, considera protegerlo con login o eliminarlo
     return admin
+
+    
