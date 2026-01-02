@@ -7,6 +7,7 @@ class Entrada(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     producto_id = db.Column(db.Integer, db.ForeignKey("producto.id"), nullable=False)
+    producto_nombre = db.Column(db.String(200))  # Guardar nombre del producto
     proveedor_id = db.Column(db.Integer, db.ForeignKey("proveedor.id"))
 
     fecha = db.Column(db.DateTime(timezone=True), default=now_madrid, nullable=False)
@@ -29,7 +30,7 @@ class Entrada(db.Model):
         return {
             "id": self.id,
             "producto_id": self.producto_id,
-            "producto_nombre": getattr(self.producto, "nombre", None),
+            "producto_nombre": self.producto_nombre or getattr(self.producto, "nombre", None),
             "proveedor_id": self.proveedor_id,
             "proveedor_nombre": getattr(self.proveedor, "nombre", None),
             "cantidad": self.cantidad,
