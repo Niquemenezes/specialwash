@@ -47,8 +47,9 @@ def setup_admin(app):
     app.config['FLASK_ADMIN_SWATCH'] = 'flatly'   # 🌙 Tema moderno y limpio
 
     admin = Admin(
-        app, 
-        name="SpecialWash Admin"
+        app,
+        name="SpecialWash Admin",
+        url="/admin"
     )
 
     # === Secciones ===

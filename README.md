@@ -1,14 +1,25 @@
 # 🚗 SpecialWash - Sistema de Gestión
 
-**Servidor:** http://194.164.164.78  
-**API:** http://194.164.164.78:5000  
-**Login:** m@m / m
+
+## 🌐 URLs de acceso
+
+### Codespaces
+- **Backend:** https://TU-CODESPACE-5000.app.github.dev
+- **Panel Admin:** https://TU-CODESPACE-5000.app.github.dev/admin/
+- **Frontend:** https://TU-CODESPACE-3000.app.github.dev
+
+### IONOS
+- **Servidor:** http://194.164.164.78
+- **API:** http://194.164.164.78:5000
+- **Frontend:** http://194.164.164.78:3000
+
+**Login demo:** m@m / m
 
 Sistema de gestión interna con inventario, entradas/salidas, clientes y servicios.
 
 ## 📦 Características
 
-- ✅ Productos con alertas de stock mínimo (137 productos)
+- ✅ Productos con alertas de stock mínimo 
 - ✅ Entradas con cálculo de IVA y descuentos
 - ✅ Salidas con trazabilidad por usuario
 - ✅ Usuarios con roles (Admin/Encargado/Empleado)
@@ -40,16 +51,35 @@ frontend/
   └── build/        # Build producción
 ```
 
-## 🚀 Deployment
 
-### Backend
+## 🚀 Cómo levantar el proyecto
+
+### En Codespaces
+#### Backend
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python app.py
+```
+
+#### Frontend
+```bash
+cd frontend
+npm install
+npm start
+```
+
+### En IONOS
+#### Backend
 ```bash
 cd /var/www/specialwash/backend
 source venv/bin/activate
 nohup python app.py > app.log 2>&1 &
 ```
 
-### Frontend
+#### Frontend
 ```bash
 # Nginx sirve desde: /var/www/specialwash/public_html
 systemctl reload nginx
@@ -80,6 +110,7 @@ cd frontend
 npm install
 npm start
 ```
+
 
 ---
 © 2026 Monique Menezes
