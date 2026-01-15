@@ -112,5 +112,16 @@ npm start
 ```
 
 
+## Despliegue
+- El backend corre en Flask (puerto 5000)
+- El frontend corre en React (puerto 3000)
+- Nginx puede usarse como proxy y servidor estático
+
+## Notas
+- Configura las variables de entorno según tu entorno
+- La base de datos SQLite se encuentra en `backend/specialwash.db`
+- Para producción, revisa la configuración de CORS y seguridad
+
 ---
-© 2026 Monique Menezes
+
+Cualquier duda, abre un issue en GitHub o contacta al autor.
