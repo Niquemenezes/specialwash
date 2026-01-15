@@ -31,7 +31,7 @@ def create_app():
           <body style='background-color:#111; color:#f5d76e; font-family:Arial; text-align:center; padding-top:50px'>
             <h1>🚗 SpecialWash Backend</h1>
             <p>Servidor Flask funcionando correctamente.</p>
-            <p><a href='/admin' style='color:#f5d76e; text-decoration:none;'>Ir al panel de administración</a></p>
+            <p><a href='/admin/' style='color:#f5d76e; text-decoration:none;'>Ir al panel de administración</a></p>
           </body>
         </html>
         """
@@ -42,4 +42,4 @@ def create_app():
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0', port=5000)
+  app.run(debug=True, host='0.0.0.0', port=5000)
