@@ -8,3 +8,4 @@ from .maquinaria import Maquinaria
 from .cliente import Cliente
 from .coche import Coche
 from .servicio import Servicio
+from .servicio_cliente import ServicioCliente

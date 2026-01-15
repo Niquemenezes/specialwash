@@ -33,9 +33,9 @@ class Salida(db.Model):
 
     cantidad = db.Column(db.Integer, nullable=False)
 
-    # 💰 CLAVE
-    precio_unitario = db.Column(db.Float, nullable=False)
-    precio_total = db.Column(db.Float, nullable=False)
+    # 💰 PRECIO (OPCIONAL - puede ser NULL si el producto no tiene entrada con precio)
+    precio_unitario = db.Column(db.Float, nullable=True)
+    precio_total = db.Column(db.Float, nullable=True)
 
     observaciones = db.Column(db.String(255))
 

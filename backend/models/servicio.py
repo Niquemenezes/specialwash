@@ -6,12 +6,14 @@ class Servicio(db.Model):
     __tablename__ = "servicios"
 
     id = db.Column(db.Integer, primary_key=True)
+    fecha = db.Column(db.DateTime, nullable=False)
     coche_id = db.Column(db.Integer, db.ForeignKey("coches.id"), nullable=False)
-    fecha = db.Column(db.DateTime, default=datetime.utcnow)
-    tipo_servicio = db.Column(db.String(100))  # Lavado, Encerado, Pulido, etc.
-    precio = db.Column(db.Float, default=0.0)
+    tipo_servicio = db.Column(db.String(100), nullable=False)
+    precio = db.Column(db.Float, nullable=False)
+    descripcion = db.Column(db.Text)
+    usuario_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     observaciones = db.Column(db.Text)
-    usuario_id = db.Column(db.Integer, db.ForeignKey("user.id"))
 
     # Relaciones
     coche = db.relationship("Coche", back_populates="servicios")
