@@ -1,6 +1,32 @@
-.env
-__pycache__/
+# Python
 *.pyc
-venv/
+__pycache__/
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+.env
+.venv/
+instance/
+.DS_Store
+
+# Node/React
 node_modules/
-dist/
+build/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# VSCode
+.vscode/
+
+# Otros
+*.log
+*.bak
+*.swp
+*.swo
+.idea/

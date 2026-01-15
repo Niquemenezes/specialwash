@@ -1,85 +1,52 @@
-# 🚗 SpecialWash - Sistema de Gestión
+# SpecialWash
 
-**Servidor:** http://194.164.164.78  
-**API:** http://194.164.164.78:5000  
-**Login:** m@m / m
+Sistema de gestión para lavaderos de coches.
 
-Sistema de gestión interna con inventario, entradas/salidas, clientes y servicios.
+## Estructura
+- **backend/**: API Flask, modelos y base de datos
+- **frontend/**: Aplicación React para la interfaz de usuario
 
-## 📦 Características
+## Instalación rápida
 
-- ✅ Productos con alertas de stock mínimo (137 productos)
-- ✅ Entradas con cálculo de IVA y descuentos
-- ✅ Salidas con trazabilidad por usuario
-- ✅ Usuarios con roles (Admin/Encargado/Empleado)
-- ✅ Maquinaria con control de garantías
-- ✅ Clientes, coches y servicios
-- ✅ Reportes e impresión optimizada
+### Backend (Flask)
+1. Instala Python 3.10+ y pip
+2. Crea y activa un entorno virtual:
+   ```
+   python -m venv .venv
+   .venv\Scripts\activate
+   ```
+3. Instala dependencias:
+   ```
+   pip install -r backend/requirements.txt
+   ```
+4. Ejecuta el backend:
+   ```
+   cd backend
+   python app.py
+   ```
 
-## 🛠️ Stack
+### Frontend (React)
+1. Instala Node.js y npm
+2. Instala dependencias:
+   ```
+   cd frontend
+   npm install
+   ```
+3. Ejecuta el frontend:
+   ```
+   npm start
+   ```
 
-- **Backend:** Python 3.12 + Flask + SQLite
-- **Frontend:** React 18 + Bootstrap 5
-- **Server:** Ubuntu 24.04 + Nginx
+## Despliegue
+- El backend corre en Flask (puerto 5000)
+- El frontend corre en React (puerto 3000)
+- Nginx puede usarse como proxy y servidor estático
 
-## 📁 Estructura
-
-```
-backend/
-  ├── api/          # Rutas API
-  ├── models/       # SQLAlchemy models
-  ├── instance/     # Base de datos
-  ├── app.py        # App principal
-  └── config.py     # Configuración
-
-frontend/
-  ├── src/
-  │   ├── pages/    # Vistas
-  │   ├── component/# Navbar, Footer
-  │   └── store/    # Estado global
-  └── build/        # Build producción
-```
-
-## 🚀 Deployment
-
-### Backend
-```bash
-cd /var/www/specialwash/backend
-source venv/bin/activate
-nohup python app.py > app.log 2>&1 &
-```
-
-### Frontend
-```bash
-# Nginx sirve desde: /var/www/specialwash/public_html
-systemctl reload nginx
-```
-
-## 🔐 Usuarios
-
-| Email | Password | Rol |
-|-------|----------|-----|
-| m@m | m | Admin |
-| c@c | c | Encargado |
-| a@a | a | Empleado |
-
-## 📝 Desarrollo Local
-
-**Backend:**
-```bash
-cd backend
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
-python app.py
-```
-
-**Frontend:**
-```bash
-cd frontend
-npm install
-npm start
-```
+## Notas
+- Configura las variables de entorno según tu entorno
+- La base de datos SQLite se encuentra en `backend/specialwash.db`
+- Para producción, revisa la configuración de CORS y seguridad
 
 ---
-© 2026 Monique Menezes
+
+Cualquier duda, abre un issue en GitHub o contacta al autor.
