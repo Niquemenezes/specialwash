@@ -50,3 +50,5 @@ Sistema de gestión para lavaderos de coches.
 ---
 
 Cualquier duda, abre un issue en GitHub o contacta al autor.
+
+(versión de GitHub)
