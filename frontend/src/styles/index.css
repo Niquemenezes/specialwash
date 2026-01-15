@@ -1,0 +1,446 @@
+/* ================================
+   IMPRESIÓN
+================================ */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .container, .container * {
+    visibility: visible;
+  }
+  .container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  .sidebar, .navbar, .btn, input, select {
+    display: none !important;
+  }
+
+  table {
+    font-size: 12px;
+  }
+}
+
+/* ================================
+   ESTRUCTURA GENERAL
+================================ */
+:root {
+  --sw-bg: #000000;
+  --sw-bg-2: #0a0a0a;
+  --sw-gold: #d4af37;
+  --sw-text: #ffffff;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: #050505;
+}
+
+/* Layout con footer siempre abajo */
+#root,
+.sw-app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.sw-main {
+  flex: 1 0 auto;
+  /* Esto hace que el main ocupe todo el espacio disponible */
+}
+
+/* Footer siempre abajo */
+.sw-footer {
+  flex-shrink: 0;
+  margin-top: auto;
+  padding: 1.5rem 0;
+  background: linear-gradient(90deg, #050505, #101010);
+  border-top: 1px solid rgba(212, 175, 55, 0.2);
+  color: #c0c0c0;
+}
+
+.sw-footer-brand {
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.12em;
+  color: #d4af37;
+  margin-right: 0.8rem;
+}
+
+.sw-footer-copy {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.sw-footer-muted {
+  font-size: 0.75rem;
+  color: #666;
+}
+
+/* INPUTS CÓMODOS EN MÓVIL */
+input,
+select,
+button {
+  font-size: 16px; /* evita zoom iOS */
+}
+
+/* ================================
+   TARJETAS / LISTAS
+================================ */
+
+/* Tarjetas con sombra suave */
+.card.hover-shadow {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.card.hover-shadow:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25);
+}
+
+/* TABLAS: versión “cards” en móvil */
+@media (max-width: 576px) {
+  .table-responsive {
+    display: none;
+  } /* oculta tabla pequeña */
+  .mobile-cards {
+    display: block;
+  }
+}
+@media (min-width: 577px) {
+  .mobile-cards {
+    display: none;
+  }
+}
+
+/* TAPS GRANDES EN MÓVIL */
+@media (max-width: 576px) {
+  .navbar .nav-link,
+  .navbar .btn {
+    min-height: 44px;
+  }
+}
+
+/* ================================
+   HOME SPECIALWASH
+================================ */
+
+.sw-home-wrapper {
+  min-height: calc(100vh - 56px);
+  background: radial-gradient(
+    circle at top,
+    #2b2b2b 0,
+    #050505 55%,
+    #000000 100%
+  );
+  color: #f5f5f5;
+}
+
+/* Tarjetas de módulos */
+.sw-home-card {
+  background: linear-gradient(
+    135deg,
+    rgba(12, 12, 12, 0.96),
+    rgba(30, 30, 30, 0.98)
+  );
+  border-radius: 18px;
+  border: 1px solid rgba(212, 175, 55, 0.2) !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+  transition: transform 0.18s ease-out, box-shadow 0.18s ease-out,
+    border-color 0.18s ease-out, background 0.18s ease-out;
+}
+
+.sw-home-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.7);
+  border-color: rgba(212, 175, 55, 0.5) !important;
+  background: linear-gradient(135deg, #111111, #202020);
+}
+
+.sw-home-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(
+    circle at top,
+    rgba(212, 175, 55, 0.12),
+    transparent 70%
+  );
+}
+
+.sw-home-icon {
+  font-size: 20px;
+  color: #f7d77a;
+}
+
+.sw-home-title {
+  color: #ffffff;
+  letter-spacing: 0.02em;
+}
+
+.sw-home-subtitle {
+  font-size: 0.88rem;
+  color: #c8c8c8;
+}
+
+.sw-home-cta {
+  font-size: 0.85rem;
+  color: #f3f3f3;
+  opacity: 0.85;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 0.4rem;
+}
+
+.sw-home-card:hover .sw-home-cta {
+  color: #fbe7a4;
+  opacity: 1;
+}
+
+/* Etiquetas cabecera home */
+.sw-home-tag {
+  min-width: 220px;
+}
+
+.sw-home-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid rgba(212, 175, 55, 0.6);
+  color: #f6f0d4;
+  background: radial-gradient(
+    circle at top,
+    rgba(212, 175, 55, 0.2),
+    rgba(0, 0, 0, 0.5)
+  );
+}
+
+/* ================================
+   NAVBAR SPECIALWASH (versión limpia)
+================================ */
+
+.sw-navbar {
+  background: linear-gradient(90deg, #050505, #101010);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.28);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+/* Logo un pelín más pequeño */
+.sw-logo-wrap {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(212, 175, 55, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sw-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Marca */
+.sw-brand {
+  color: #f5f5f5 !important;
+}
+
+.sw-brand-main {
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.sw-brand-sub {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #c9a94a;
+  opacity: 0.8;
+}
+
+/* Links del menú: más pequeños y discretos */
+.sw-navlink {
+  position: relative;
+  font-size: 0.8rem;                /* antes 0.88rem */
+  text-transform: uppercase;
+  letter-spacing: 0.09em;           /* mantiene un look “premium” pero sin gritar */
+  color: #cfcfcf !important;        /* gris más suave */
+  padding-inline: 0.7rem !important;/* menos ancho */
+  padding-block: 0.35rem !important;/* menos alto */
+  font-weight: 500;                 /* antes 600 */
+  transition: color 0.18s ease, opacity 0.18s ease;
+  opacity: 0.9;
+}
+
+.sw-navlink:hover {
+  color: #ffffff !important;
+  opacity: 1;
+}
+
+.sw-navlink.active {
+  color: #f5e19a !important;
+}
+
+/* Subrayado más fino y discreto */
+.sw-navlink.active::after,
+.sw-navlink:hover::after {
+  content: "";
+  position: absolute;
+  left: 0.7rem;
+  right: 0.7rem;
+  bottom: 0.05rem;
+  height: 1.5px;                   /* más fino */
+  background: linear-gradient(90deg, #f5e19a, #d4af37);
+  border-radius: 999px;
+}
+
+/* Botón dorado (logout / primario) más pequeño */
+.sw-btn-gold {
+  background: linear-gradient(135deg, #f5e19a, #d4af37);
+  border: none;
+  color: #111111 !important;
+  font-size: 0.78rem;               /* antes 0.85rem */
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;          /* menos “gordo” */
+  font-weight: 600;
+  box-shadow: 0 4px 10px rgba(212, 175, 55, 0.22);
+}
+
+.sw-btn-gold:hover {
+  filter: brightness(0.95);
+  color: #000000 !important;
+}
+
+/* Pill de rol más sutil */
+.sw-role-pill {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #e9e9e9;
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.45);
+}
+
+/* Toggler */
+.sw-navbar-toggler {
+  border-color: rgba(255, 255, 255, 0.32) !important;
+}
+
+
+/* ================================
+   AUTH (Login / Signup)
+================================ */
+
+.sw-auth-wrapper {
+  min-height: calc(100vh - 56px);
+  background: radial-gradient(
+    circle at top,
+    #2b2b2b 0,
+    #050505 55%,
+    #000000 100%
+  );
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.sw-auth-card {
+  max-width: 520px;
+  width: 100%;
+  border-radius: 22px;
+  background: radial-gradient(
+    circle at top,
+    rgba(212, 175, 55, 0.18),
+    rgba(10, 10, 10, 0.96)
+  );
+  border: 1px solid rgba(212, 175, 55, 0.45) !important;
+  color: #f8f8f8;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.78);
+}
+
+.sw-auth-title {
+  color: #ffffff;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 1.35rem;
+}
+
+.sw-auth-subtitle {
+  font-size: 0.9rem;
+  color: #d6d6d6;
+}
+
+.sw-auth-form .form-label.sw-auth-label {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #f2f2f2;
+}
+
+.sw-auth-input {
+  background-color: rgba(5, 5, 5, 0.82) !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  color: #f6f6f6 !important;
+  font-size: 0.92rem;
+}
+
+.sw-auth-input::placeholder {
+  color: #8b8b8b;
+}
+
+.sw-auth-input:focus {
+  border-color: rgba(212, 175, 55, 0.8) !important;
+  box-shadow: 0 0 0 0.15rem rgba(212, 175, 55, 0.25);
+}
+
+/* Textos auxiliares */
+.sw-auth-hint {
+  display: block;
+  font-size: 0.75rem;
+  color: #c7c7c7;
+  margin-top: 2px;
+}
+
+.sw-auth-subtext {
+  font-size: 0.82rem;
+  color: #d3d3d3;
+}
+
+.sw-auth-link {
+  color: #fbe7a4;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.sw-auth-link:hover {
+  text-decoration: underline;
+}
+
+/* Ajuste alerts en fondo oscuro */
+.sw-auth-card .alert {
+  border-radius: 12px;
+}
