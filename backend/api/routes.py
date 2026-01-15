@@ -7,7 +7,7 @@ from functools import wraps
 from sqlalchemy import func, desc
 from datetime import datetime
 
-from models import db, User, Producto, Proveedor, Entrada, Salida, Maquinaria, Cliente, Coche, Servicio
+from models import db, User, Producto, Proveedor, Entrada, Salida, Maquinaria, Cliente, Coche, Servicio, ServicioCliente
 
 api = Blueprint("api", __name__)
 
@@ -408,7 +408,7 @@ def registrar_salida():
 
     uid = int(data.get("usuario_id") or get_jwt_identity())
 
-    # 🔥 OBTENER ÚLTIMA ENTRADA REAL
+    # 🔥 OBTENER ÚLTIMA ENTRADA REAL (OPCIONAL)
     ultima_entrada = (
         Entrada.query
         .filter_by(producto_id=producto.id)
@@ -416,24 +416,16 @@ def registrar_salida():
         .first()
     )
 
-    if (
-        not ultima_entrada
-        or not ultima_entrada.precio_con_iva
-        or not ultima_entrada.cantidad
-        or ultima_entrada.cantidad <= 0
-    ):
-        return jsonify(
-            {"msg": "No hay una entrada válida con precio para este producto"},
-            400,
+    # ✅ CÁLCULO DE PRECIO (OPCIONAL - Si no hay entrada, se guarda NULL)
+    precio_unitario = None
+    precio_total = None
+    
+    if ultima_entrada and ultima_entrada.precio_con_iva and ultima_entrada.cantidad and ultima_entrada.cantidad > 0:
+        precio_unitario = round(
+            float(ultima_entrada.precio_con_iva) / float(ultima_entrada.cantidad),
+            4,
         )
-
-    # ✅ CÁLCULO CORRECTO
-    precio_unitario = round(
-        float(ultima_entrada.precio_con_iva) / float(ultima_entrada.cantidad),
-        4,
-    )
-
-    precio_total = round(precio_unitario * cantidad, 2)
+        precio_total = round(precio_unitario * cantidad, 2)
 
     # 🔥 ACTUALIZAR STOCK
     producto.stock_actual -= cantidad
@@ -809,6 +801,87 @@ def servicios_update(sid):
 def servicios_delete(sid):
     s = Servicio.query.get_or_404(sid)
     db.session.delete(s)
+    db.session.commit()
+    return jsonify({"msg": "Servicio eliminado"}), 200
+
+
+# =====================================================
+# SERVICIOS PERSONALIZADOS POR CLIENTE
+# =====================================================
+
+@api.route("/clientes/<int:cliente_id>/servicios", methods=["GET"])
+@jwt_required()
+def get_servicios_cliente(cliente_id):
+    """Obtener todos los servicios personalizados de un cliente"""
+    servicios = ServicioCliente.query.filter_by(cliente_id=cliente_id).all()
+    return jsonify([s.to_dict() for s in servicios]), 200
+
+
+@api.route("/clientes/<int:cliente_id>/servicios", methods=["POST"])
+@role_required("administrador")
+def create_servicio_cliente(cliente_id):
+    """Crear un servicio personalizado para un cliente"""
+    cliente = Cliente.query.get_or_404(cliente_id)
+    data = request.get_json() or {}
+    
+    nombre = data.get("nombre", "").strip()
+    precio = data.get("precio")
+    
+    if not nombre:
+        return jsonify({"msg": "El nombre del servicio es obligatorio"}), 400
+    
+    if precio is None or float(precio) < 0:
+        return jsonify({"msg": "El precio debe ser un valor válido"}), 400
+    
+    servicio = ServicioCliente(
+        cliente_id=cliente_id,
+        nombre=nombre,
+        precio=float(precio),
+        descripcion=data.get("descripcion", "").strip(),
+        activo=data.get("activo", True)
+    )
+    
+    db.session.add(servicio)
+    db.session.commit()
+    
+    return jsonify(servicio.to_dict()), 201
+
+
+@api.route("/clientes/<int:cliente_id>/servicios/<int:servicio_id>", methods=["PUT"])
+@role_required("administrador")
+def update_servicio_cliente(cliente_id, servicio_id):
+    """Actualizar un servicio personalizado de un cliente"""
+    servicio = ServicioCliente.query.filter_by(id=servicio_id, cliente_id=cliente_id).first_or_404()
+    data = request.get_json() or {}
+    
+    if "nombre" in data:
+        nombre = data["nombre"].strip()
+        if not nombre:
+            return jsonify({"msg": "El nombre no puede estar vacío"}), 400
+        servicio.nombre = nombre
+    
+    if "precio" in data:
+        precio = float(data["precio"])
+        if precio < 0:
+            return jsonify({"msg": "El precio debe ser mayor o igual a 0"}), 400
+        servicio.precio = precio
+    
+    if "descripcion" in data:
+        servicio.descripcion = data["descripcion"].strip()
+    
+    if "activo" in data:
+        servicio.activo = bool(data["activo"])
+    
+    db.session.commit()
+    return jsonify(servicio.to_dict()), 200
+
+
+@api.route("/clientes/<int:cliente_id>/servicios/<int:servicio_id>", methods=["DELETE"])
+@role_required("administrador")
+def delete_servicio_cliente(cliente_id, servicio_id):
+    """Eliminar un servicio personalizado de un cliente"""
+    servicio = ServicioCliente.query.filter_by(id=servicio_id, cliente_id=cliente_id).first_or_404()
+    db.session.delete(servicio)
     db.session.commit()
     return jsonify({"msg": "Servicio eliminado"}), 200
 
