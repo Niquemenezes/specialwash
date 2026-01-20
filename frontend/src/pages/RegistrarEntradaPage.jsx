@@ -41,12 +41,8 @@ const RegistrarEntradaPage = () => {
     cantidad: "",
     tipo_documento: "albaran",
     numero_documento: "",
-    precio_bruto_sin_iva: "",
-    descuento_porcentaje: "",
-    descuento_importe: "",
-    precio_sin_iva: "",
+    precio_unitario: "",
     iva_porcentaje: "21",
-    precio_con_iva: "",
   });
 
   const [saving, setSaving] = useState(false);
@@ -101,27 +97,13 @@ const RegistrarEntradaPage = () => {
      Cálculos precios
      (sin bucles)
   ====================== */
-  useEffect(() => {
-    const bruto = Number(form.precio_bruto_sin_iva) || 0;
-    const descPct = Number(form.descuento_porcentaje) || 0;
-    const ivaPct = Number(form.iva_porcentaje) || 0;
-
-    const descImp = +(bruto * (descPct / 100)).toFixed(2);
-    const neto = +(bruto - descImp).toFixed(2);
-    const conIva = +(neto * (1 + ivaPct / 100)).toFixed(2);
-
-    setForm((f) => ({
-      ...f,
-      descuento_importe: descImp || "",
-      precio_sin_iva: neto || "",
-      precio_con_iva: conIva || "",
-    }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    form.precio_bruto_sin_iva,
-    form.descuento_porcentaje,
-    form.iva_porcentaje,
-  ]);
+  // Cálculo de totales solo para mostrar
+  const cantidad = Number(form.cantidad) || 0;
+  const precioUnitario = Number(form.precio_unitario) || 0;
+  const ivaPct = Number(form.iva_porcentaje) || 0;
+  const totalSinIva = +(precioUnitario * cantidad).toFixed(2);
+  const totalIva = +(totalSinIva * (ivaPct / 100)).toFixed(2);
+  const totalConIva = +(totalSinIva + totalIva).toFixed(2);
 
   /* ======================
      Handlers
@@ -134,26 +116,19 @@ const RegistrarEntradaPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!form.producto_id || !form.cantidad) {
-      alert("Producto y cantidad son obligatorios");
+    if (!form.producto_id || !form.cantidad || !form.precio_unitario) {
+      alert("Producto, cantidad y precio unitario son obligatorios");
       return;
     }
 
     setSaving(true);
     try {
       const body = {
-        ...form,
         producto_id: Number(form.producto_id),
-        proveedor_id: form.proveedor_id
-          ? Number(form.proveedor_id)
-          : null,
+        proveedor_id: form.proveedor_id ? Number(form.proveedor_id) : null,
         cantidad: Number(form.cantidad),
-        precio_bruto_sin_iva: toNum(form.precio_bruto_sin_iva),
-        descuento_porcentaje: toNum(form.descuento_porcentaje),
-        descuento_importe: toNum(form.descuento_importe),
-        precio_sin_iva: toNum(form.precio_sin_iva),
-        iva_porcentaje: toNum(form.iva_porcentaje),
-        precio_con_iva: toNum(form.precio_con_iva),
+        precio_unitario: precioUnitario,
+        porcentaje_iva: ivaPct,
         numero_albaran: form.numero_documento || null,
       };
 
@@ -167,11 +142,7 @@ const RegistrarEntradaPage = () => {
         ...f,
         cantidad: "",
         numero_documento: "",
-        precio_bruto_sin_iva: "",
-        descuento_porcentaje: "",
-        descuento_importe: "",
-        precio_sin_iva: "",
-        precio_con_iva: "",
+        precio_unitario: "",
       }));
 
       actions.getEntradas();
@@ -238,6 +209,91 @@ const RegistrarEntradaPage = () => {
           + Nuevo producto
         </button>
       </div>
+
+      {/* Formulario de entrada */}
+      <form onSubmit={handleSubmit} className="mb-4 p-3 rounded shadow-sm bg-light">
+        <div className="row g-3 align-items-end">
+          <div className="col-md-4">
+            <label className="form-label">Producto</label>
+            <select
+              className="form-select"
+              name="producto_id"
+              value={form.producto_id}
+              onChange={handleChange}
+              required
+            >
+              <option value="">Seleccione...</option>
+              {productosFiltrados.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="col-md-2">
+            <label className="form-label">Cantidad</label>
+            <input
+              type="number"
+              className="form-control"
+              name="cantidad"
+              value={form.cantidad}
+              onChange={handleChange}
+              min={1}
+              required
+            />
+          </div>
+          <div className="col-md-2">
+            <label className="form-label">Precio unitario (€ sin IVA)</label>
+            <input
+              type="number"
+              className="form-control"
+              name="precio_unitario"
+              value={form.precio_unitario}
+              onChange={handleChange}
+              min={0}
+              step="0.01"
+              required
+            />
+          </div>
+          <div className="col-md-2">
+            <label className="form-label">IVA (%)</label>
+            <input
+              type="number"
+              className="form-control"
+              name="iva_porcentaje"
+              value={form.iva_porcentaje}
+              onChange={handleChange}
+              min={0}
+              step="0.01"
+              required
+            />
+          </div>
+          <div className="col-md-2">
+            <label className="form-label">Nº Albarán</label>
+            <input
+              type="text"
+              className="form-control"
+              name="numero_documento"
+              value={form.numero_documento}
+              onChange={handleChange}
+            />
+          </div>
+        </div>
+        <div className="row mt-3">
+          <div className="col-md-12">
+            <strong>Total sin IVA:</strong> {totalSinIva.toFixed(2)} € &nbsp; | &nbsp;
+            <strong>IVA:</strong> {totalIva.toFixed(2)} € &nbsp; | &nbsp;
+            <strong>Total con IVA:</strong> {totalConIva.toFixed(2)} €
+          </div>
+        </div>
+        <div className="row mt-3">
+          <div className="col-md-12 text-end">
+            <button className="btn btn-primary" type="submit" disabled={saving}>
+              Guardar entrada
+            </button>
+          </div>
+        </div>
+      </form>
 
       {/* BUSCADOR */}
       <div className="card mb-4 shadow-sm border-0">

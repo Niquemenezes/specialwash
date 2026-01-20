@@ -284,16 +284,16 @@ def registrar_entrada():
     producto.stock_actual += cantidad
 
     # Calcular IVA automáticamente
-    precio_sin_iva = float(data.get("precio_sin_iva") or 0)
+    precio_unitario = float(data.get("precio_unitario") or 0)
     porcentaje_iva = float(data.get("porcentaje_iva") or 21)  # IVA por defecto 21%
-    
-    # Cálculos de IVA
-    valor_iva = round(precio_sin_iva * (porcentaje_iva / 100), 2)
-    precio_con_iva = round(precio_sin_iva + valor_iva, 2)
-    
-    # Calcular precio unitario = precio_sin_iva / cantidad
-    if precio_sin_iva > 0 and cantidad > 0:
-        precio_unitario = precio_sin_iva / cantidad
+
+    # Calcular totales
+    precio_sin_iva_total = round(precio_unitario * cantidad, 2)
+    valor_iva_total = round(precio_sin_iva_total * (porcentaje_iva / 100), 2)
+    precio_con_iva_total = round(precio_sin_iva_total + valor_iva_total, 2)
+
+    # Guardar el precio de referencia unitario en el producto
+    if precio_unitario > 0:
         producto.precio_referencia = precio_unitario
 
     entrada = Entrada(
@@ -302,10 +302,10 @@ def registrar_entrada():
         proveedor_id=data.get("proveedor_id"),
         cantidad=cantidad,
         numero_albaran=data.get("numero_albaran"),
-        precio_sin_iva=precio_sin_iva,
+        precio_sin_iva=precio_sin_iva_total,
         porcentaje_iva=porcentaje_iva,
-        valor_iva=valor_iva,
-        precio_con_iva=precio_con_iva,
+        valor_iva=valor_iva_total,
+        precio_con_iva=precio_con_iva_total,
     )
 
     db.session.add(entrada)
@@ -768,6 +768,7 @@ def servicios_create():
     usuario_id = get_jwt_identity()
     
     s = Servicio(
+        fecha=datetime.utcnow(),  
         coche_id=int(data.get("coche_id")),
         tipo_servicio=data.get("tipo_servicio"),
         precio=float(data.get("precio", 0)),
