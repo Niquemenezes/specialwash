@@ -16,7 +16,7 @@ function getWarrantyInfo(m) {
   }
 
   const end = new Date(buy);
-  end.setFullYear(end.getFullYear() + 3);
+  end.setFullYear(end.getFullYear() + 2);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
