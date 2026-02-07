@@ -53,6 +53,10 @@ export default function Maquinaria() {
     ubicacion: "",
     estado: "",
     fecha_compra: "",
+    precio_sin_iva: "",
+    iva: "",
+    precio_con_iva: "",
+    cantidad: "",
     notas: "",
   });
 
@@ -98,6 +102,10 @@ export default function Maquinaria() {
       ubicacion: "",
       estado: "",
       fecha_compra: "",
+      precio_sin_iva: "",
+      iva: "",
+      precio_con_iva: "",
+      cantidad: "",
       notas: "",
     });
   };
@@ -113,6 +121,10 @@ export default function Maquinaria() {
       ubicacion: m.ubicacion || "",
       estado: m.estado || "",
       fecha_compra: (m.fecha_compra || "").slice(0, 10),
+      precio_sin_iva: m.precio_sin_iva ?? "",
+      iva: m.iva ?? "",
+      precio_con_iva: m.precio_con_iva ?? "",
+      cantidad: m.cantidad ?? "",
       notas: m.notas || "",
     });
   };
@@ -128,6 +140,10 @@ export default function Maquinaria() {
       ubicacion: "",
       estado: "",
       fecha_compra: "",
+      precio_sin_iva: "",
+      iva: "",
+      precio_con_iva: "",
+      cantidad: "",
       notas: "",
     });
   };
@@ -145,6 +161,10 @@ export default function Maquinaria() {
       ubicacion: form.ubicacion.trim() || undefined,
       estado: form.estado.trim() || undefined,
       fecha_compra: form.fecha_compra || undefined,
+      precio_sin_iva: form.precio_sin_iva !== "" ? parseFloat(form.precio_sin_iva) : 0,
+      iva: form.iva !== "" ? parseFloat(form.iva) : 0,
+      precio_con_iva: form.precio_con_iva !== "" ? parseFloat(form.precio_con_iva) : 0,
+      cantidad: form.cantidad !== "" ? parseInt(form.cantidad) : 1,
       notas: form.notas.trim() || undefined,
     };
 
@@ -167,8 +187,19 @@ export default function Maquinaria() {
     }
   };
 
-  const onChange = (e) =>
-    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+  const onChange = (e) => {
+    const { name, value } = e.target;
+    setForm((f) => {
+      const updated = { ...f, [name]: value };
+      // Cálculo automático del precio con IVA
+      if (name === "precio_sin_iva" || name === "iva") {
+        const base = parseFloat(name === "precio_sin_iva" ? value : updated.precio_sin_iva) || 0;
+        const ivaVal = parseFloat(name === "iva" ? value : updated.iva) || 0;
+        updated.precio_con_iva = (base + (base * ivaVal / 100)).toFixed(2);
+      }
+      return updated;
+    });
+  };
 
   // ---------------- UI ----------------
   return (
@@ -291,6 +322,62 @@ export default function Maquinaria() {
                 />
               </div>
 
+              <div className="col-md-3">
+                <label className="form-label">Precio sin IVA (€)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="form-control"
+                  name="precio_sin_iva"
+                  value={form.precio_sin_iva}
+                  onChange={onChange}
+                  style={{ borderRadius: "10px" }}
+                />
+              </div>
+
+              <div className="col-md-3">
+                <label className="form-label">IVA (%)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="form-control"
+                  name="iva"
+                  value={form.iva}
+                  onChange={onChange}
+                  style={{ borderRadius: "10px" }}
+                />
+              </div>
+
+              <div className="col-md-3">
+                <label className="form-label">Precio con IVA (€)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="form-control"
+                  name="precio_con_iva"
+                  value={form.precio_con_iva}
+                  readOnly
+                  style={{ borderRadius: "10px", backgroundColor: "#f0f0f0" }}
+                />
+              </div>
+
+              <div className="col-md-3">
+                <label className="form-label">Cantidad</label>
+                <input
+                  type="number"
+                  step="1"
+                  min="1"
+                  className="form-control"
+                  name="cantidad"
+                  value={form.cantidad}
+                  onChange={onChange}
+                  style={{ borderRadius: "10px" }}
+                />
+              </div>
+
               <div className="col-12">
                 <label className="form-label">Notas</label>
                 <textarea
@@ -354,6 +441,10 @@ export default function Maquinaria() {
                 <th>Modelo</th>
                 <th>Ubicación</th>
                 <th>Estado</th>
+                <th className="text-end">P. sin IVA</th>
+                <th className="text-end">IVA %</th>
+                <th className="text-end">P. con IVA</th>
+                <th className="text-center">Cant.</th>
                 <th>Garantía</th>
                 <th className="text-end">Acciones</th>
               </tr>
@@ -361,11 +452,11 @@ export default function Maquinaria() {
 
             <tbody>
               {loading && (
-                <tr><td colSpan="8" className="text-center py-4">Cargando…</td></tr>
+                <tr><td colSpan="12" className="text-center py-4">Cargando…</td></tr>
               )}
 
               {!loading && items.length === 0 && (
-                <tr><td colSpan="8" className="text-center text-muted py-4">Sin maquinaria</td></tr>
+                <tr><td colSpan="12" className="text-center text-muted py-4">Sin maquinaria</td></tr>
               )}
 
               {!loading &&
@@ -398,6 +489,10 @@ export default function Maquinaria() {
                       <td>{m.modelo || "-"}</td>
                       <td>{m.ubicacion || "-"}</td>
                       <td>{m.estado || "-"}</td>
+                      <td className="text-end">{(m.precio_sin_iva ?? 0).toFixed(2)} €</td>
+                      <td className="text-end">{(m.iva ?? 0).toFixed(2)}%</td>
+                      <td className="text-end">{(m.precio_con_iva ?? 0).toFixed(2)} €</td>
+                      <td className="text-center">{m.cantidad ?? 1}</td>
                       <td><span className={badgeClass}>{text}</span></td>
 
                       <td className="text-end">

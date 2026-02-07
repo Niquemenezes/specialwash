@@ -12,6 +12,10 @@ class Maquinaria(db.Model):
     ubicacion = db.Column(db.String(120))
     estado = db.Column(db.String(50))
     fecha_compra = db.Column(db.Date)
+    precio_sin_iva = db.Column(db.Float, default=0)
+    iva = db.Column(db.Float, default=0)
+    precio_con_iva = db.Column(db.Float, default=0)
+    cantidad = db.Column(db.Integer, default=1)
     notas = db.Column(db.Text)
 
     created_at = db.Column(db.DateTime(timezone=True), default=now_madrid, nullable=False)
@@ -27,6 +31,10 @@ class Maquinaria(db.Model):
             "ubicacion": self.ubicacion,
             "estado": self.estado,
             "fecha_compra": iso(self.fecha_compra),
+            "precio_sin_iva": self.precio_sin_iva,
+            "iva": self.iva,
+            "precio_con_iva": self.precio_con_iva,
+            "cantidad": self.cantidad,
             "notas": self.notas,
             "created_at": iso(self.created_at),
         }
