@@ -17,7 +17,7 @@ class Servicio(db.Model):
 
     # Relaciones
     coche = db.relationship("Coche", back_populates="servicios")
-    usuario = db.relationship("User")
+    usuario = db.relationship("User", back_populates="servicios")
 
     def to_dict(self):
         return {

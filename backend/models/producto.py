@@ -17,8 +17,8 @@ class Producto(db.Model):
         nullable=False,
     )
 
-    entradas = relationship("Entrada", back_populates="producto", lazy="selectin")
-    salidas = relationship("Salida", back_populates="producto", lazy="selectin")
+    entradas = relationship("Entrada", back_populates="producto", lazy="selectin", cascade="all, delete-orphan")
+    salidas = relationship("Salida", back_populates="producto", lazy="selectin", cascade="all, delete-orphan")
 
     def to_dict(self):
         return {

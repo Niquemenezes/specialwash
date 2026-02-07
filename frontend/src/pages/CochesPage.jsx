@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useContext } from "react";
 import { Context } from "../store/appContext";
 import { useNavigate } from "react-router-dom";
+import GoldSelect from "../component/GoldSelect.jsx";
 
 const CochesPage = () => {
   const { store, actions } = useContext(Context);
@@ -47,11 +48,20 @@ const CochesPage = () => {
   );
 
   return (
-    <div className="container mt-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>Coches</h2>
-        <button className="btn btn-primary" onClick={handleNuevo}>
-          <i className="fas fa-plus me-2"></i>Nuevo Coche
+    <div className="container py-4" style={{ maxWidth: "1000px" }}>
+      <div
+        className="d-flex justify-content-between align-items-center mb-4 p-3 rounded shadow-sm"
+        style={{ background: "#0f0f0f", color: "white" }}
+      >
+        <h2 className="fw-bold mb-0" style={{ color: "#d4af37" }}>
+          🚗 Coches
+        </h2>
+        <button
+          className="btn"
+          onClick={handleNuevo}
+          style={{ background: "#d4af37", color: "black", fontWeight: "600", borderRadius: "8px" }}
+        >
+          ➕ Nuevo Coche
         </button>
       </div>
 
@@ -87,25 +97,25 @@ const CochesPage = () => {
                 <td>{c.cliente_nombre || "-"}</td>
                 <td className="text-center">
                   <button
-                    className="btn btn-sm btn-outline-info me-2"
+                    className="btn btn-sm btn-outline-warning me-2"
                     onClick={() => handleVerServicios(c.id)}
                     title="Ver servicios"
                   >
-                    <i className="fas fa-history"></i>
+                    🕐
                   </button>
                   <button
-                    className="btn btn-sm btn-outline-primary me-2"
+                    className="btn btn-sm btn-outline-warning me-2"
                     onClick={() => handleEditar(c)}
                     title="Editar"
                   >
-                    <i className="fas fa-edit"></i>
+                    ✏️
                   </button>
                   <button
                     className="btn btn-sm btn-outline-danger"
                     onClick={() => handleEliminar(c.id)}
                     title="Eliminar"
                   >
-                    <i className="fas fa-trash"></i>
+                    🗑️
                   </button>
                 </td>
               </tr>
@@ -166,6 +176,10 @@ const CocheModal = ({ show, coche, clientes, onClose, onSaved }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.cliente_id) {
+      alert("Selecciona un cliente");
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -217,20 +231,15 @@ const CocheModal = ({ show, coche, clientes, onClose, onSaved }) => {
 
               <div className="mb-3">
                 <label className="form-label">Cliente *</label>
-                <select
-                  className="form-select"
-                  name="cliente_id"
+                <GoldSelect
                   value={form.cliente_id}
-                  onChange={handleChange}
-                  required
-                >
-                  <option value="">Seleccionar...</option>
-                  {clientes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nombre}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setForm((f) => ({ ...f, cliente_id: v }))}
+                  placeholder="Seleccionar..."
+                  options={clientes.map((c) => ({
+                    value: c.id,
+                    label: c.nombre,
+                  }))}
+                />
               </div>
 
               <div className="mb-3">
@@ -278,11 +287,21 @@ const CocheModal = ({ show, coche, clientes, onClose, onSaved }) => {
               </div>
             </div>
             <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" onClick={onClose}>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                onClick={onClose}
+                style={{ borderRadius: "8px" }}
+              >
                 Cancelar
               </button>
-              <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? "Guardando..." : "Guardar"}
+              <button
+                type="submit"
+                className="btn btn-sm"
+                disabled={saving}
+                style={{ background: "#d4af37", color: "black", fontWeight: "600", borderRadius: "8px" }}
+              >
+                {saving ? "⏳ Guardando..." : coche ? "💾 Guardar" : "✅ Crear"}
               </button>
             </div>
           </form>

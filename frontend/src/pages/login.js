@@ -32,6 +32,8 @@ export default function Login() {
       localStorage.setItem("rol", rol);
 
       navigate("/", { replace: true });
+    } catch (error) {
+      setErr("Error de conexión. Inténtelo de nuevo.");
     } finally {
       setLoading(false);
     }

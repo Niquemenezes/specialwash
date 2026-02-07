@@ -1,8 +1,9 @@
-import React, { useContext, useEffect, useMemo, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Context } from "../store/appContext";
 
 export default function Proveedores() {
   const { store, actions } = useContext(Context);
+  const formRef = useRef(null);
 
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("");
@@ -68,6 +69,7 @@ export default function Proveedores() {
       contacto: p.contacto || "",
       notas: p.notas || "",
     });
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
   };
 
   const cancel = () => {
@@ -150,8 +152,7 @@ export default function Proveedores() {
           }}
           onClick={startCreate}
         >
-          <i className="fa-solid fa-plus me-2" />
-          Nuevo proveedor
+          ➕ Nuevo proveedor
         </button>
       </div>
 
@@ -171,6 +172,7 @@ export default function Proveedores() {
       {/* Formulario */}
       {editing !== null && (
         <div
+          ref={formRef}
           className="card shadow-sm mb-4"
           style={{
             borderRadius: "12px",
@@ -265,7 +267,7 @@ export default function Proveedores() {
                     borderRadius: "10px",
                   }}
                 >
-                  <i className="fa-solid fa-floppy-disk me-2" /> Guardar
+                  💾 Guardar
                 </button>
 
                 <button
@@ -327,19 +329,18 @@ export default function Proveedores() {
 
                     <td className="text-end">
                       <button
-                        className="btn btn-sm me-2"
-                        style={{ borderRadius: "8px" }}
+                        className="btn btn-sm btn-outline-warning me-1"
                         onClick={() => startEdit(p)}
+                        title="Editar"
                       >
-                        <i className="fa-solid fa-pen-to-square" /> Editar
+                        ✏️
                       </button>
-
                       <button
                         className="btn btn-sm btn-outline-danger"
-                        style={{ borderRadius: "8px" }}
                         onClick={() => remove(p)}
+                        title="Eliminar"
                       >
-                        <i className="fa-solid fa-trash" /> Eliminar
+                        🗑️
                       </button>
                     </td>
                   </tr>

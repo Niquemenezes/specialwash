@@ -45,84 +45,84 @@ export default function Home() {
         to: "/productos",
         title: "Productos",
         subtitle: "Control de stock y mínimos",
-        icon: "fa-box-open",
+        emoji: "📦",
         roles: ["empleado", "administrador"],
       },
       {
         to: "/entradas",
         title: "Registrar Entrada",
         subtitle: "Compras y proveedores",
-        icon: "fa-arrow-down",
+        emoji: "📥",
         roles: ["administrador"],
       },
       {
         to: "/salidas",
         title: "Registrar Salida",
         subtitle: "Consumo diario de productos",
-        icon: "fa-arrow-up",
+        emoji: "📤",
         roles: ["empleado", "administrador"],
       },
       {
         to: "/clientes",
         title: "Clientes",
         subtitle: "Gestión de clientes y contactos",
-        icon: "fa-users",
+        emoji: "👥",
         roles: ["administrador"],
       },
       {
         to: "/coches",
         title: "Coches",
         subtitle: "Registro de vehículos",
-        icon: "fa-car",
+        emoji: "🚗",
         roles: ["administrador"],
       },
       {
         to: "/servicios",
         title: "Servicios",
         subtitle: "Historial de trabajos realizados",
-        icon: "fa-wrench",
+        emoji: "🔧",
         roles: ["empleado", "administrador"],
       },
       {
         to: "/resumen-clientes",
         title: "Resumen Clientes",
         subtitle: "Facturación por cliente y período",
-        icon: "fa-chart-line",
+        emoji: "📊",
         roles: ["administrador"],
       },
       {
         to: "/resumen-entradas",
         title: "Resumen Entradas",
         subtitle: "Informe económico de compras",
-        icon: "fa-file-invoice",
+        emoji: "🧾",
         roles: ["administrador"],
       },
       {
         to: "/historial-salidas",
         title: "Historial Salidas",
         subtitle: "Trazabilidad de uso por día/usuario",
-        icon: "fa-clock-rotate-left",
+        emoji: "🕐",
         roles: ["administrador"],
       },
       {
         to: "/proveedores",
         title: "Proveedores",
         subtitle: "Gestión de contactos y compras",
-        icon: "fa-handshake",
+        emoji: "🤝",
         roles: ["administrador"],
       },
       {
         to: "/usuarios",
         title: "Usuarios",
         subtitle: "Altas y gestión de personal",
-        icon: "fa-user-gear",
+        emoji: "👤",
         roles: ["administrador"],
       },
       {
         to: "/maquinaria",
         title: "Maquinaria",
         subtitle: "Control de equipos y garantías",
-        icon: "fa-gears",
+        emoji: "⚙️",
         roles: ["administrador"],
       },
     ],
@@ -185,14 +185,14 @@ export default function Home() {
                   <div className="card-body d-flex flex-column justify-content-between">
                     <div>
                       <div className="sw-home-icon-wrap mb-3">
-                        <i className={`fa-solid ${t.icon} sw-home-icon`} />
+                        <span className="sw-home-icon" style={{ fontSize: "2rem" }}>{t.emoji}</span>
                       </div>
                       <h5 className="sw-home-title mb-1">{t.title}</h5>
                       <p className="sw-home-subtitle mb-0">{t.subtitle}</p>
                     </div>
                     <div className="mt-3 sw-home-cta">
                       <span>Acceder al módulo</span>
-                      <i className="fa-solid fa-arrow-right-long ms-2" />
+                      <span className="ms-2">➡️</span>
                     </div>
                   </div>
                 </div>

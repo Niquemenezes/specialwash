@@ -49,16 +49,19 @@ def role_required(*roles):
 # =====================================================
 
 @api.route("/signup", methods=["POST"])
+@role_required("administrador")
 def signup():
     data = request.get_json() or {}
 
     nombre = (data.get("nombre") or "").strip()
     email = (data.get("email") or "").strip().lower()
-    password = data.get("password")
+    password = data.get("password") or ""
     rol = _normalize_role(data.get("rol", "empleado"))
 
     if not nombre or not email or not password:
-        return jsonify({"msg": "Faltan campos"}), 400
+        return jsonify({"msg": "Faltan campos (nombre, email, password)"}), 400
+    if len(password) < 6:
+        return jsonify({"msg": "La contraseña debe tener al menos 6 caracteres"}), 400
     if rol not in _ALLOWED_ROLES:
         return jsonify({"msg": "Rol inválido"}), 400
     if User.query.filter_by(email=email).first():
@@ -75,12 +78,7 @@ def signup():
     db.session.add(user)
     db.session.commit()
 
-    token = create_access_token(
-        identity=str(user.id),
-        additional_claims={"rol": user.rol, "email": user.email}
-    )
-
-    return jsonify({"user": user.to_dict(), "token": token}), 201
+    return jsonify({"user": user.to_dict()}), 201
 
 
 @api.route("/auth/login_json", methods=["POST"])
@@ -88,11 +86,17 @@ def login_json():
     data = request.get_json() or {}
 
     email = (data.get("email") or "").strip().lower()
-    password = data.get("password")
+    password = data.get("password") or ""
+
+    if not email or not password:
+        return jsonify({"msg": "Email y contraseña son obligatorios"}), 400
 
     user = User.query.filter_by(email=email).first()
-    if not user or not check_password_hash(user.password_hash, password):
+    if not user or not user.password_hash or not check_password_hash(user.password_hash, password):
         return jsonify({"msg": "Credenciales inválidas"}), 401
+
+    if not getattr(user, 'activo', True):
+        return jsonify({"msg": "Tu cuenta está desactivada. Contacta al administrador."}), 403
 
     token = create_access_token(
         identity=str(user.id),
@@ -107,7 +111,11 @@ def login_json():
 def me():
     uid = int(get_jwt_identity())
     user = User.query.get(uid)
-    return jsonify({"user": user.to_dict() if user else None}), 200
+    if not user:
+        return jsonify({"msg": "Usuario no encontrado"}), 401
+    if not getattr(user, 'activo', True):
+        return jsonify({"msg": "Cuenta desactivada"}), 403
+    return jsonify({"user": user.to_dict()}), 200
 
 
 # =====================================================
@@ -125,12 +133,26 @@ def usuarios_list():
 def usuarios_create():
     data = request.get_json() or {}
 
+    nombre = (data.get("nombre") or "").strip()
+    email = (data.get("email") or "").strip().lower()
+    password = data.get("password") or ""
+    rol = _normalize_role(data.get("rol", "empleado"))
+
+    if not nombre or not email or not password:
+        return jsonify({"msg": "Faltan campos obligatorios (nombre, email, password)"}), 400
+    if len(password) < 6:
+        return jsonify({"msg": "La contraseña debe tener al menos 6 caracteres"}), 400
+    if rol not in _ALLOWED_ROLES:
+        return jsonify({"msg": "Rol inválido"}), 400
+    if User.query.filter_by(email=email).first():
+        return jsonify({"msg": "Ya existe un usuario con ese email"}), 400
+
     user = User(
-        nombre=data.get("nombre"),
-        email=(data.get("email") or "").lower(),
-        rol=_normalize_role(data.get("rol", "empleado")),
+        nombre=nombre,
+        email=email,
+        rol=rol,
         activo=True,
-        password_hash=generate_password_hash(data.get("password"))
+        password_hash=generate_password_hash(password)
     )
 
     db.session.add(user)
@@ -161,8 +183,12 @@ def usuarios_update(uid):
 @role_required("administrador")
 def usuarios_delete(uid):
     u = User.query.get_or_404(uid)
-    db.session.delete(u)
-    db.session.commit()
+    try:
+        db.session.delete(u)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "No se puede eliminar: el usuario tiene registros asociados"}), 400
     return jsonify({"msg": "Usuario eliminado"}), 200
 
 
@@ -180,7 +206,10 @@ def proveedores_list():
 @role_required("administrador")
 def proveedores_create():
     data = request.get_json() or {}
-    p = Proveedor(nombre=data.get("nombre"))
+    nombre = (data.get("nombre") or "").strip()
+    if not nombre:
+        return jsonify({"error": "El nombre es obligatorio"}), 400
+    p = Proveedor(nombre=nombre)
     db.session.add(p)
     db.session.commit()
     return jsonify(p.to_dict()), 201
@@ -207,8 +236,12 @@ def proveedores_update(pid):
 @role_required("administrador")
 def proveedores_delete(pid):
     p = Proveedor.query.get_or_404(pid)
-    db.session.delete(p)
-    db.session.commit()
+    try:
+        db.session.delete(p)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "No se puede eliminar: el proveedor tiene entradas asociadas"}), 400
     return jsonify({"msg": "Proveedor eliminado"}), 200
 
 
@@ -260,8 +293,12 @@ def productos_update(pid):
 @role_required("administrador")
 def productos_delete(pid):
     p = Producto.query.get_or_404(pid)
-    db.session.delete(p)
-    db.session.commit()
+    try:
+        db.session.delete(p)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "No se puede eliminar: el producto tiene entradas o salidas asociadas"}), 400
     return jsonify({"msg": "Producto eliminado"}), 200
 
 
@@ -286,9 +323,12 @@ def registrar_entrada():
     # Calcular IVA automáticamente
     precio_unitario = float(data.get("precio_unitario") or 0)
     porcentaje_iva = float(data.get("porcentaje_iva") or 21)  # IVA por defecto 21%
+    descuento_pct = float(data.get("descuento_porcentaje") or 0)
 
-    # Calcular totales
-    precio_sin_iva_total = round(precio_unitario * cantidad, 2)
+    # Calcular totales: subtotal - descuento = base sin IVA
+    subtotal = round(precio_unitario * cantidad, 2)
+    importe_descuento = round(subtotal * (descuento_pct / 100), 2)
+    precio_sin_iva_total = round(subtotal - importe_descuento, 2)
     valor_iva_total = round(precio_sin_iva_total * (porcentaje_iva / 100), 2)
     precio_con_iva_total = round(precio_sin_iva_total + valor_iva_total, 2)
 
@@ -317,7 +357,38 @@ def registrar_entrada():
 @api.route("/registro-entrada", methods=["GET"])
 @jwt_required()
 def entradas_list():
-    return jsonify([e.to_dict() for e in Entrada.query.order_by(Entrada.fecha.desc()).all()])
+    query = Entrada.query
+
+    # Filtro por fecha "desde"
+    desde = request.args.get("desde")
+    if desde:
+        try:
+            fecha_desde = datetime.strptime(desde, "%Y-%m-%d")
+            query = query.filter(Entrada.fecha >= fecha_desde)
+        except ValueError:
+            pass
+
+    # Filtro por fecha "hasta" (incluye todo el día)
+    hasta = request.args.get("hasta")
+    if hasta:
+        try:
+            fecha_hasta = datetime.strptime(hasta, "%Y-%m-%d")
+            # Sumar 1 día para incluir todo el día seleccionado
+            from datetime import timedelta
+            fecha_hasta = fecha_hasta + timedelta(days=1)
+            query = query.filter(Entrada.fecha < fecha_hasta)
+        except ValueError:
+            pass
+
+    # Filtro por proveedor
+    proveedor_id = request.args.get("proveedor_id")
+    if proveedor_id:
+        try:
+            query = query.filter(Entrada.proveedor_id == int(proveedor_id))
+        except (ValueError, TypeError):
+            pass
+
+    return jsonify([e.to_dict() for e in query.order_by(Entrada.fecha.desc()).all()])
 
 
 @api.route("/registro-entrada/<int:eid>", methods=["PUT"])
@@ -353,13 +424,28 @@ def entrada_update(eid):
     entrada.cantidad = nueva_cantidad
     entrada.numero_albaran = data.get("numero_albaran", entrada.numero_albaran)
     
-    # Recalcular IVA si se proporcionan nuevos valores
-    if "precio_sin_iva" in data:
+    # Recalcular precios si se proporcionan nuevos valores
+    if "precio_unitario" in data:
+        precio_unitario = float(data.get("precio_unitario") or 0)
+        porcentaje_iva = float(data.get("porcentaje_iva") or 21)
+        descuento_pct = float(data.get("descuento_porcentaje") or 0)
+
+        subtotal = round(precio_unitario * nueva_cantidad, 2)
+        importe_descuento = round(subtotal * (descuento_pct / 100), 2)
+        precio_sin_iva = round(subtotal - importe_descuento, 2)
+        valor_iva = round(precio_sin_iva * (porcentaje_iva / 100), 2)
+        precio_con_iva = round(precio_sin_iva + valor_iva, 2)
+
+        entrada.precio_sin_iva = precio_sin_iva
+        entrada.porcentaje_iva = porcentaje_iva
+        entrada.valor_iva = valor_iva
+        entrada.precio_con_iva = precio_con_iva
+    elif "precio_sin_iva" in data:
         precio_sin_iva = float(data.get("precio_sin_iva") or 0)
         porcentaje_iva = float(data.get("porcentaje_iva") or 21)
         valor_iva = round(precio_sin_iva * (porcentaje_iva / 100), 2)
         precio_con_iva = round(precio_sin_iva + valor_iva, 2)
-        
+
         entrada.precio_sin_iva = precio_sin_iva
         entrada.porcentaje_iva = porcentaje_iva
         entrada.valor_iva = valor_iva
@@ -379,8 +465,12 @@ def entrada_delete(eid):
     if producto:
         producto.stock_actual -= entrada.cantidad
     
-    db.session.delete(entrada)
-    db.session.commit()
+    try:
+        db.session.delete(entrada)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "No se puede eliminar la entrada"}), 400
     return jsonify({"msg": "Entrada eliminada"}), 200
 
 
@@ -516,8 +606,12 @@ def salida_delete(sid):
     if producto:
         producto.stock_actual += salida.cantidad
     
-    db.session.delete(salida)
-    db.session.commit()
+    try:
+        db.session.delete(salida)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "No se puede eliminar la salida"}), 400
     return jsonify({"msg": "Salida eliminada"}), 200
 
 
@@ -535,7 +629,10 @@ def maquinaria_list():
 @role_required("administrador")
 def maquinaria_create():
     data = request.get_json() or {}
-    m = Maquinaria(nombre=data.get("nombre"))
+    nombre = (data.get("nombre") or "").strip()
+    if not nombre:
+        return jsonify({"error": "El nombre es obligatorio"}), 400
+    m = Maquinaria(nombre=nombre)
     db.session.add(m)
     db.session.commit()
     return jsonify(m.to_dict()), 201
@@ -562,8 +659,12 @@ def maquinaria_update(mid):
 @role_required("administrador")
 def maquinaria_delete(mid):
     m = Maquinaria.query.get_or_404(mid)
-    db.session.delete(m)
-    db.session.commit()
+    try:
+        db.session.delete(m)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "No se puede eliminar la maquinaria"}), 400
     return jsonify({"msg": "Maquinaria eliminada"}), 200
 
 
@@ -657,11 +758,12 @@ def clientes_update(cid):
 @role_required("administrador")
 def clientes_delete(cid):
     c = Cliente.query.get_or_404(cid)
-    # Verificar si tiene coches
-    if c.coches:
-        return jsonify({"error": "No se puede eliminar un cliente con coches registrados"}), 400
-    db.session.delete(c)
-    db.session.commit()
+    try:
+        db.session.delete(c)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "No se puede eliminar: el cliente tiene registros asociados"}), 400
     return jsonify({"msg": "Cliente eliminado"}), 200
 
 
@@ -735,8 +837,12 @@ def coches_update(cid):
 @role_required("administrador")
 def coches_delete(cid):
     c = Coche.query.get_or_404(cid)
-    db.session.delete(c)
-    db.session.commit()
+    try:
+        db.session.delete(c)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "No se puede eliminar: el coche tiene servicios asociados"}), 400
     return jsonify({"msg": "Coche eliminado"}), 200
 
 
@@ -801,8 +907,12 @@ def servicios_update(sid):
 @role_required("administrador")
 def servicios_delete(sid):
     s = Servicio.query.get_or_404(sid)
-    db.session.delete(s)
-    db.session.commit()
+    try:
+        db.session.delete(s)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "No se puede eliminar el servicio"}), 400
     return jsonify({"msg": "Servicio eliminado"}), 200
 
 
@@ -882,8 +992,12 @@ def update_servicio_cliente(cliente_id, servicio_id):
 def delete_servicio_cliente(cliente_id, servicio_id):
     """Eliminar un servicio personalizado de un cliente"""
     servicio = ServicioCliente.query.filter_by(id=servicio_id, cliente_id=cliente_id).first_or_404()
-    db.session.delete(servicio)
-    db.session.commit()
+    try:
+        db.session.delete(servicio)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "No se puede eliminar el servicio personalizado"}), 400
     return jsonify({"msg": "Servicio eliminado"}), 200
 
 

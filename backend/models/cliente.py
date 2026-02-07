@@ -15,7 +15,10 @@ class Cliente(db.Model):
     fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relación con coches
-    coches = db.relationship("Coche", back_populates="cliente", lazy=True)
+    coches = db.relationship("Coche", back_populates="cliente", lazy=True, cascade="all, delete-orphan")
+
+    # Relación con tarifas personalizadas
+    servicios_personalizados = db.relationship("ServicioCliente", back_populates="cliente", lazy=True, cascade="all, delete-orphan")
 
     def to_dict(self):
         return {

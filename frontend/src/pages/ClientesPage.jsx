@@ -46,11 +46,20 @@ const ClientesPage = () => {
   );
 
   return (
-    <div className="container mt-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>Clientes</h2>
-        <button className="btn btn-primary" onClick={handleNuevo}>
-          <i className="fas fa-plus me-2"></i>Nuevo Cliente
+    <div className="container py-4" style={{ maxWidth: "1000px" }}>
+      <div
+        className="d-flex justify-content-between align-items-center mb-4 p-3 rounded shadow-sm"
+        style={{ background: "#0f0f0f", color: "white" }}
+      >
+        <h2 className="fw-bold mb-0" style={{ color: "#d4af37" }}>
+          👥 Clientes
+        </h2>
+        <button
+          className="btn"
+          onClick={handleNuevo}
+          style={{ background: "#d4af37", color: "black", fontWeight: "600", borderRadius: "8px" }}
+        >
+          ➕ Nuevo Cliente
         </button>
       </div>
 
@@ -86,25 +95,25 @@ const ClientesPage = () => {
                 <td>{c.direccion || "-"}</td>
                 <td className="text-center">
                   <button
-                    className="btn btn-sm btn-outline-info me-2"
+                    className="btn btn-sm btn-outline-warning me-2"
                     onClick={() => handleGestionarServicios(c)}
                     title="Tarifas Personalizadas"
                   >
-                    <i className="fas fa-dollar-sign"></i>
+                    💲
                   </button>
                   <button
-                    className="btn btn-sm btn-outline-primary me-2"
+                    className="btn btn-sm btn-outline-warning me-2"
                     onClick={() => handleEditar(c)}
                     title="Editar"
                   >
-                    <i className="fas fa-edit"></i>
+                    ✏️
                   </button>
                   <button
                     className="btn btn-sm btn-outline-danger"
                     onClick={() => handleEliminar(c.id)}
                     title="Eliminar"
                   >
-                    <i className="fas fa-trash"></i>
+                    🗑️
                   </button>
                 </td>
               </tr>
@@ -274,11 +283,21 @@ const ClienteModal = ({ show, cliente, onClose, onSaved }) => {
               </div>
             </div>
             <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" onClick={onClose}>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                onClick={onClose}
+                style={{ borderRadius: "8px" }}
+              >
                 Cancelar
               </button>
-              <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? "Guardando..." : "Guardar"}
+              <button
+                type="submit"
+                className="btn btn-sm"
+                disabled={saving}
+                style={{ background: "#d4af37", color: "black", fontWeight: "600", borderRadius: "8px" }}
+              >
+                {saving ? "⏳ Guardando..." : cliente ? "💾 Guardar" : "✅ Crear"}
               </button>
             </div>
           </form>
@@ -350,8 +369,12 @@ const ServiciosClienteModal = ({ show, cliente, onClose }) => {
           </div>
           <div className="modal-body">
             <div className="d-flex justify-content-end mb-3">
-              <button className="btn btn-primary btn-sm" onClick={handleNuevo}>
-                <i className="fas fa-plus me-2"></i>Nueva Tarifa
+              <button
+                className="btn btn-sm"
+                onClick={handleNuevo}
+                style={{ background: "#d4af37", color: "black", fontWeight: "600", borderRadius: "8px" }}
+              >
+                ➕ Nueva Tarifa
               </button>
             </div>
 
@@ -391,18 +414,18 @@ const ServiciosClienteModal = ({ show, cliente, onClose }) => {
                         </td>
                         <td className="text-center">
                           <button
-                            className="btn btn-sm btn-outline-primary me-1"
+                            className="btn btn-sm btn-outline-warning me-1"
                             onClick={() => handleEditar(s)}
                             title="Editar"
                           >
-                            <i className="fas fa-edit"></i>
+                            ✏️
                           </button>
                           <button
                             className="btn btn-sm btn-outline-danger"
                             onClick={() => handleEliminar(s.id)}
                             title="Eliminar"
                           >
-                            <i className="fas fa-trash"></i>
+                            🗑️
                           </button>
                         </td>
                       </tr>
@@ -413,7 +436,12 @@ const ServiciosClienteModal = ({ show, cliente, onClose }) => {
             )}
           </div>
           <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-secondary"
+              onClick={onClose}
+              style={{ borderRadius: "8px" }}
+            >
               Cerrar
             </button>
           </div>
@@ -558,11 +586,21 @@ const FormServicioClienteModal = ({ show, cliente, servicio, onClose, onSaved })
               </div>
             </div>
             <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" onClick={onClose}>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                onClick={onClose}
+                style={{ borderRadius: "8px" }}
+              >
                 Cancelar
               </button>
-              <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? "Guardando..." : "Guardar"}
+              <button
+                type="submit"
+                className="btn btn-sm"
+                disabled={saving}
+                style={{ background: "#d4af37", color: "black", fontWeight: "600", borderRadius: "8px" }}
+              >
+                {saving ? "⏳ Guardando..." : servicio ? "💾 Guardar" : "✅ Crear"}
               </button>
             </div>
           </form>

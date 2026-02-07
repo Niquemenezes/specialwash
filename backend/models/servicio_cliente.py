@@ -15,7 +15,7 @@ class ServicioCliente(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relación
-    cliente = db.relationship("Cliente", backref="servicios_personalizados")
+    cliente = db.relationship("Cliente", back_populates="servicios_personalizados")
 
     def to_dict(self):
         return {

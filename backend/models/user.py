@@ -11,7 +11,8 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     activo = db.Column(db.Boolean, default=True, nullable=False)
 
-    salidas = relationship("Salida", back_populates="usuario", lazy="selectin")
+    salidas = relationship("Salida", back_populates="usuario", lazy="select", cascade="all, delete-orphan")
+    servicios = relationship("Servicio", back_populates="usuario", lazy="select", cascade="all, delete-orphan")
 
     def to_dict(self):
         return {

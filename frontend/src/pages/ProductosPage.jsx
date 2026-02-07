@@ -356,23 +356,20 @@ export default function ProductosPage() {
                       <td className="text-end">{p.stock_minimo ?? "—"}</td>
 
                       <td className="text-end no-print">
-                        <div className="btn-group">
-                          <button
-                            className="btn btn-sm btn-outline-secondary"
-                            onClick={() => openEditar(p)}
-                            style={{ borderRadius: "6px" }}
-                          >
-                            Editar
-                          </button>
-
-                          <button
-                            className="btn btn-sm btn-outline-danger"
-                            onClick={() => onDelete(p.id)}
-                            style={{ borderRadius: "6px" }}
-                          >
-                            Eliminar
-                          </button>
-                        </div>
+                        <button
+                          className="btn btn-sm btn-outline-primary me-1"
+                          onClick={() => openEditar(p)}
+                          title="Editar"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => onDelete(p.id)}
+                          title="Eliminar"
+                        >
+                          🗑️
+                        </button>
                       </td>
                     </tr>
                   );

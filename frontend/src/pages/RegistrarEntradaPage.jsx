@@ -6,6 +6,7 @@ import React, {
 } from "react";
 import { Context } from "../store/appContext";
 import ProductoFormModal from "../component/ProductoFormModal.jsx";
+import GoldSelect from "../component/GoldSelect.jsx";
 
 /* ======================
    Utils
@@ -21,19 +22,13 @@ const fmtDateTime = (v) => {
       });
 };
 
-const toNum = (v) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : "";
-};
-
 /* ======================
    Componente
 ====================== */
 const RegistrarEntradaPage = () => {
   const { store, actions } = useContext(Context);
 
-  const [filtro, setFiltro] = useState("");
-  const [productoId, setProductoId] = useState("");
+
 
   const [form, setForm] = useState({
     producto_id: "",
@@ -43,6 +38,7 @@ const RegistrarEntradaPage = () => {
     numero_documento: "",
     precio_unitario: "",
     iva_porcentaje: "21",
+    descuento_porcentaje: "0",
   });
 
   const [saving, setSaving] = useState(false);
@@ -60,38 +56,7 @@ const RegistrarEntradaPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ======================
-     Productos filtrados
-  ====================== */
-  const productosFiltrados = useMemo(() => {
-    const term = filtro.trim().toLowerCase();
-    const list = store.productos || [];
-    if (!term) return list;
-    return list.filter(
-      (p) =>
-        (p.nombre || "").toLowerCase().includes(term) ||
-        (p.categoria || "").toLowerCase().includes(term)
-    );
-  }, [store.productos, filtro]);
-
-  /* ======================
-     Autoselección producto
-  ====================== */
-  useEffect(() => {
-    if (!productoId && productosFiltrados.length > 0) {
-      setProductoId(String(productosFiltrados[0].id));
-    }
-  }, [productoId, productosFiltrados]);
-
-  /* ======================
-     Sync producto_id
-  ====================== */
-  useEffect(() => {
-    setForm((f) => ({
-      ...f,
-      producto_id: productoId ? Number(productoId) : "",
-    }));
-  }, [productoId]);
+  /* Autoselección eliminada: el usuario DEBE elegir producto manualmente */
 
   /* ======================
      Cálculos precios
@@ -101,7 +66,10 @@ const RegistrarEntradaPage = () => {
   const cantidad = Number(form.cantidad) || 0;
   const precioUnitario = Number(form.precio_unitario) || 0;
   const ivaPct = Number(form.iva_porcentaje) || 0;
-  const totalSinIva = +(precioUnitario * cantidad).toFixed(2);
+  const descuentoPct = Number(form.descuento_porcentaje) || 0;
+  const subtotal = precioUnitario * cantidad;
+  const descuento = +(subtotal * (descuentoPct / 100)).toFixed(2);
+  const totalSinIva = +(subtotal - descuento).toFixed(2);
   const totalIva = +(totalSinIva * (ivaPct / 100)).toFixed(2);
   const totalConIva = +(totalSinIva + totalIva).toFixed(2);
 
@@ -129,6 +97,7 @@ const RegistrarEntradaPage = () => {
         cantidad: Number(form.cantidad),
         precio_unitario: precioUnitario,
         porcentaje_iva: ivaPct,
+        descuento_porcentaje: descuentoPct,
         numero_albaran: form.numero_documento || null,
       };
 
@@ -188,62 +157,61 @@ const RegistrarEntradaPage = () => {
   ====================== */
   return (
     <div className="container py-4" style={{ maxWidth: "1000px" }}>
-      {/* CABECERA */}
-      <div
-        className="d-flex justify-content-between align-items-center mb-4 p-3 rounded shadow-sm"
-        style={{ background: "#0f0f0f", color: "white" }}
-      >
-        <h2 className="fw-bold mb-0" style={{ color: "#d4af37" }}>
-          📥 Registrar entrada
-        </h2>
-
-        <button
-          className="btn"
-          style={{
-            background: "#d4af37",
-            color: "#000",
-            fontWeight: "600",
-          }}
-          onClick={() => setShowNuevo(true)}
-        >
-          + Nuevo producto
-        </button>
-      </div>
-
-      {/* Formulario de entrada */}
       <form onSubmit={handleSubmit} className="mb-4 p-3 rounded shadow-sm bg-light">
         <div className="row g-3 align-items-end">
           <div className="col-md-4">
-            <label className="form-label">Producto</label>
-            <select
-              className="form-select"
-              name="producto_id"
+            <label className="form-label">Producto *</label>
+            <GoldSelect
+              className={!form.producto_id ? "border-warning" : ""}
               value={form.producto_id}
-              onChange={handleChange}
-              required
-            >
-              <option value="">Seleccione...</option>
-              {productosFiltrados.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nombre}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setForm((f) => ({ ...f, producto_id: v }))}
+              placeholder="-- Seleccione un producto --"
+              options={(store.productos || []).map((p) => ({
+                value: p.id,
+                label: p.nombre + (p.categoria ? ` — ${p.categoria}` : ""),
+              }))}
+            />
+            {!form.producto_id && (
+              <small className="text-danger">⚠ Debe seleccionar un producto</small>
+            )}
           </div>
-          <div className="col-md-2">
-            <label className="form-label">Cantidad</label>
+          <div className="col-md-4">
+            <label className="form-label fw-semibold">Proveedor</label>
+            <GoldSelect
+              value={form.proveedor_id || ""}
+              onChange={(v) => setForm((f) => ({ ...f, proveedor_id: v }))}
+              placeholder="—"
+              options={(store.proveedores || []).map((p) => ({
+                value: p.id,
+                label: p.nombre,
+              }))}
+            />
+          </div>
+          <div className="col-md-4">
+            <label className="form-label fw-semibold">Nº Albarán/Factura</label>
+            <input
+              className="form-control"
+              name="numero_documento"
+              value={form.numero_documento}
+              onChange={handleChange}
+              placeholder="Opcional"
+            />
+          </div>
+          <div className="col-md-4">
+            <label className="form-label fw-semibold">Cantidad *</label>
             <input
               type="number"
+              min="1"
               className="form-control"
               name="cantidad"
               value={form.cantidad}
               onChange={handleChange}
-              min={1}
               required
+              placeholder="Ingrese cantidad"
             />
           </div>
-          <div className="col-md-2">
-            <label className="form-label">Precio unitario (€ sin IVA)</label>
+          <div className="col-md-4">
+            <label className="form-label fw-semibold">Precio unitario (€ sin IVA) *</label>
             <input
               type="number"
               className="form-control"
@@ -255,8 +223,21 @@ const RegistrarEntradaPage = () => {
               required
             />
           </div>
-          <div className="col-md-2">
-            <label className="form-label">IVA (%)</label>
+          <div className="col-md-4">
+            <label className="form-label fw-semibold">% Descuento</label>
+            <input
+              type="number"
+              className="form-control"
+              name="descuento_porcentaje"
+              value={form.descuento_porcentaje}
+              onChange={handleChange}
+              min={0}
+              max={100}
+              step="0.01"
+            />
+          </div>
+          <div className="col-md-4">
+            <label className="form-label fw-semibold">% IVA *</label>
             <input
               type="number"
               className="form-control"
@@ -268,195 +249,27 @@ const RegistrarEntradaPage = () => {
               required
             />
           </div>
-          <div className="col-md-2">
-            <label className="form-label">Nº Albarán</label>
-            <input
-              type="text"
-              className="form-control"
-              name="numero_documento"
-              value={form.numero_documento}
-              onChange={handleChange}
-            />
-          </div>
-        </div>
-        <div className="row mt-3">
-          <div className="col-md-12">
-            <strong>Total sin IVA:</strong> {totalSinIva.toFixed(2)} € &nbsp; | &nbsp;
-            <strong>IVA:</strong> {totalIva.toFixed(2)} € &nbsp; | &nbsp;
-            <strong>Total con IVA:</strong> {totalConIva.toFixed(2)} €
-          </div>
-        </div>
-        <div className="row mt-3">
-          <div className="col-md-12 text-end">
-            <button className="btn btn-primary" type="submit" disabled={saving}>
-              Guardar entrada
-            </button>
-          </div>
-        </div>
-      </form>
-
-      {/* BUSCADOR */}
-      <div className="card mb-4 shadow-sm border-0">
-        <div className="card-body">
-          <label className="form-label fw-semibold">
-            Buscar producto
-          </label>
-          <input
-            className="form-control"
-            value={filtro}
-            onChange={(e) => setFiltro(e.target.value)}
-          />
-        </div>
-      </div>
-
-      {/* FORMULARIO */}
-      <form onSubmit={handleSubmit}>
-        <div className="card shadow-sm border-0 mb-4">
-          <div className="card-body">
-            <div className="row g-3">
-              <div className="col-md-6">
-                <label className="form-label fw-semibold">
-                  Producto
-                </label>
-                <select
-                  className="form-select"
-                  value={productoId}
-                  onChange={(e) =>
-                    setProductoId(e.target.value)
-                  }
-                  required
-                >
-                  {productosFiltrados.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre}
-                      {p.categoria ? ` — ${p.categoria}` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="col-md-6">
-                <label className="form-label fw-semibold">
-                  Proveedor
-                </label>
-                <select
-                  className="form-select"
-                  name="proveedor_id"
-                  value={form.proveedor_id || ""}
-                  onChange={handleChange}
-                >
-                  <option value="">—</option>
-                  {(store.proveedores || []).map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-               <div className="col-md-4">
-                <label className="form-label fw-semibold">
-                  Nº Albarán/Factura
-                </label>
-                <input
-                  className="form-control"
-                  name="numero_documento"
-                  value={form.numero_documento}
-                  onChange={handleChange}
-                  placeholder="Opcional"
-                />
-              </div>
-
-              <div className="col-md-4">
-                <label className="form-label fw-semibold">
-                  Cantidad *
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  className="form-control"
-                  name="cantidad"
-                  value={form.cantidad}
-                  onChange={handleChange}
-                  required
-                  placeholder="Ingrese cantidad"
-                />
-              </div>
-
-             
-
-              <div className="col-md-4">
-                <label className="form-label fw-semibold">
-                  Precio bruto sin IVA
-                </label>
-                <input
-                  className="form-control"
-                  name="precio_bruto_sin_iva"
-                  value={form.precio_bruto_sin_iva}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div className="col-md-4">
-                <label className="form-label fw-semibold">
-                  % Descuento
-                </label>
-                <input
-                  className="form-control"
-                  name="descuento_porcentaje"
-                  value={form.descuento_porcentaje}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div className="col-md-4">
-                <label className="form-label fw-semibold">
-                  Precio sin IVA
-                </label>
-                <input
-                  className="form-control"
-                  value={form.precio_sin_iva}
-                  readOnly
-                />
-              </div>
-
-              <div className="col-md-4">
-                <label className="form-label fw-semibold">
-                  % IVA
-                </label>
-                <input
-                  className="form-control"
-                  name="iva_porcentaje"
-                  value={form.iva_porcentaje}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div className="col-md-4">
-                <label className="form-label fw-semibold">
-                  Precio con IVA
-                </label>
-                <input
-                  className="form-control"
-                  value={form.precio_con_iva}
-                  readOnly
-                />
+          {/* Resumen de cálculos */}
+          {cantidad > 0 && precioUnitario > 0 && (
+            <div className="col-12">
+              <div className="alert alert-info py-2 mb-0 mt-2">
+                <strong>Subtotal:</strong> {subtotal.toFixed(2)} €
+                {descuento > 0 && <> | <strong>Descuento:</strong> -{descuento.toFixed(2)} €</>}
+                {" | "}<strong>Base (sin IVA):</strong> {totalSinIva.toFixed(2)} €
+                {" | "}<strong>IVA ({ivaPct}%):</strong> {totalIva.toFixed(2)} €
+                {" | "}<strong>Total con IVA:</strong> {totalConIva.toFixed(2)} €
               </div>
             </div>
-
-            <button
-              className="btn w-100 mt-4"
-              type="submit"
-              disabled={saving}
-              style={{
-                background: "#d4af37",
-                fontWeight: "600",
-              }}
-            >
-              {saving ? "Guardando..." : "Registrar entrada"}
-            </button>
-          </div>
+          )}
         </div>
+        <button
+          className="btn w-100 mt-4"
+          type="submit"
+          disabled={saving}
+          style={{ background: "#d4af37", fontWeight: "600" }}
+        >
+          {saving ? "Guardando..." : "Registrar entrada"}
+        </button>
       </form>
 
       {/* ÚLTIMAS ENTRADAS */}
@@ -469,120 +282,139 @@ const RegistrarEntradaPage = () => {
                 <th>Producto</th>
                 <th>Proveedor</th>
                 <th className="text-end">Cantidad</th>
-                <th className="text-end">Precio sin IVA</th>
-                <th className="text-end">Precio con IVA</th>
+                <th className="text-end">Total sin IVA</th>
+                <th className="text-end">Total con IVA</th>
                 <th>Nº Albarán</th>
-                <th className="text-center">Acciones</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              {entradasOrdenadas.map((e) => (
-                <tr key={e.id}>
-                  <td>{fmtDateTime(e.created_at || e.fecha)}</td>
-                  <td>
-                    {e.producto?.nombre ||
-                      e.producto_nombre ||
-                      `#${e.producto_id}`}
-                  </td>
-                  <td>{e.proveedor_nombre || "-"}</td>
-                  <td className="text-end">{e.cantidad}</td>
-                  <td className="text-end">
-                    {e.precio_sin_iva
-                      ? parseFloat(e.precio_sin_iva).toFixed(2) + " €"
-                      : "-"}
-                  </td>
-                  <td className="text-end">
-                    {e.precio_con_iva
-                      ? parseFloat(e.precio_con_iva).toFixed(2) + " €"
-                      : "-"}
-                  </td>
-                  <td>{e.numero_documento || "-"}</td>
-                  <td className="text-center">
-                    <button
-                      className="btn btn-sm btn-outline-primary me-2"
-                      onClick={() => handleEditar(e)}
-                      title="Editar"
-                    >
-                      <i className="fas fa-edit"></i>
-                    </button>
-                    <button
-                      className="btn btn-sm btn-outline-danger"
-                      onClick={() => handleEliminar(e.id)}
-                      title="Eliminar"
-                    >
-                      <i className="fas fa-trash"></i>
-                    </button>
+              {entradasOrdenadas.map((ent) => {
+                const prod = (store.productos || []).find((p) => p.id === ent.producto_id);
+                const prov = (store.proveedores || []).find((p) => p.id === ent.proveedor_id);
+                return (
+                  <tr key={ent.id}>
+                    <td>{fmtDateTime(ent.created_at || ent.fecha)}</td>
+                    <td>{prod?.nombre || ent.producto_nombre || ent.producto_id}</td>
+                    <td>{prov?.nombre || ent.proveedor_nombre || "—"}</td>
+                    <td className="text-end">{ent.cantidad}</td>
+                    <td className="text-end">
+                      {ent.precio_sin_iva != null && Number(ent.precio_sin_iva) > 0
+                        ? Number(ent.precio_sin_iva).toFixed(2) + " €"
+                        : "—"}
+                    </td>
+                    <td className="text-end">
+                      {ent.precio_con_iva != null && Number(ent.precio_con_iva) > 0
+                        ? Number(ent.precio_con_iva).toFixed(2) + " €"
+                        : "—"}
+                    </td>
+                    <td>{ent.numero_albaran || ent.numero_documento || "—"}</td>
+                    <td>
+                      <button
+                        className="btn btn-sm btn-outline-primary me-1"
+                        onClick={() => handleEditar(ent)}
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={() => handleEliminar(ent.id)}
+                      >
+                        🗑️
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {entradasOrdenadas.length === 0 && (
+                <tr>
+                  <td colSpan="8" className="text-center text-muted py-3">
+                    No hay entradas registradas
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {showNuevo && (
-        <ProductoFormModal
-          show={showNuevo}
-          onClose={() => setShowNuevo(false)}
-          onSaved={() => actions.getProductos()}
-        />
-      )}
-
-      {showEditModal && editando && (
+      {/* Modal editar */}
+      {editando && (
         <EditarEntradaModal
           show={showEditModal}
           entrada={editando}
-          productos={store.productos}
-          proveedores={store.proveedores}
+          productos={store.productos || []}
+          proveedores={store.proveedores || []}
           onClose={() => {
             setShowEditModal(false);
             setEditando(null);
           }}
           onSaved={() => {
-            actions.getEntradas();
-            actions.getProductos();
             setShowEditModal(false);
             setEditando(null);
+            actions.getEntradas();
+            actions.getProductos();
           }}
         />
       )}
+
+      {/* Modal nuevo producto */}
+      <ProductoFormModal
+        show={showNuevo}
+        onClose={() => setShowNuevo(false)}
+        onSaved={() => {
+          setShowNuevo(false);
+          actions.getProductos();
+        }}
+      />
     </div>
   );
 };
 
 /* ======================
-   Modal de Edición
+   Modal Editar Entrada
 ====================== */
 const EditarEntradaModal = ({ show, entrada, productos, proveedores, onClose, onSaved }) => {
   const { actions } = useContext(Context);
+
+  // Deducir precio unitario a partir de los datos guardados
+  const precioUnitarioInicial = entrada.cantidad > 0 && entrada.precio_sin_iva > 0
+    ? +(entrada.precio_sin_iva / entrada.cantidad).toFixed(4)
+    : "";
+
   const [form, setForm] = useState({
     producto_id: entrada.producto_id || "",
     proveedor_id: entrada.proveedor_id || "",
     cantidad: entrada.cantidad || "",
     numero_documento: entrada.numero_documento || "",
-    precio_sin_iva: entrada.precio_sin_iva || "",
-    porcentaje_iva: entrada.porcentaje_iva || "21",
-    precio_con_iva: entrada.precio_con_iva || "",
+    precio_unitario: precioUnitarioInicial,
+    descuento_porcentaje: "0",
+    iva_porcentaje: entrada.porcentaje_iva || "21",
   });
   const [saving, setSaving] = useState(false);
 
+  // Cálculos en tiempo real
+  const cantidad = Number(form.cantidad) || 0;
+  const precioUnitario = Number(form.precio_unitario) || 0;
+  const ivaPct = Number(form.iva_porcentaje) || 0;
+  const descuentoPct = Number(form.descuento_porcentaje) || 0;
+  const subtotal = precioUnitario * cantidad;
+  const descuento = +(subtotal * (descuentoPct / 100)).toFixed(2);
+  const totalSinIva = +(subtotal - descuento).toFixed(2);
+  const totalIva = +(totalSinIva * (ivaPct / 100)).toFixed(2);
+  const totalConIva = +(totalSinIva + totalIva).toFixed(2);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
-    // Si cambia precio_sin_iva o porcentaje_iva, recalcular
-    if (name === "precio_sin_iva" || name === "porcentaje_iva") {
-      const nuevoForm = { ...form, [name]: value };
-      const sinIva = Number(nuevoForm.precio_sin_iva) || 0;
-      const pctIva = Number(nuevoForm.porcentaje_iva) || 0;
-      const conIva = sinIva > 0 ? +(sinIva * (1 + pctIva / 100)).toFixed(2) : "";
-      setForm({ ...nuevoForm, precio_con_iva: conIva });
-    } else {
-      setForm((f) => ({ ...f, [name]: value }));
-    }
+    setForm((f) => ({ ...f, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.producto_id || !form.cantidad || !form.precio_unitario) {
+      alert("Producto, cantidad y precio unitario son obligatorios");
+      return;
+    }
     setSaving(true);
     try {
       await actions.actualizarEntrada(entrada.id, {
@@ -590,9 +422,9 @@ const EditarEntradaModal = ({ show, entrada, productos, proveedores, onClose, on
         proveedor_id: form.proveedor_id ? Number(form.proveedor_id) : null,
         cantidad: Number(form.cantidad),
         numero_albaran: form.numero_documento || null,
-        precio_sin_iva: toNum(form.precio_sin_iva),
-        porcentaje_iva: toNum(form.porcentaje_iva),
-        precio_con_iva: toNum(form.precio_con_iva),
+        precio_unitario: precioUnitario,
+        porcentaje_iva: ivaPct,
+        descuento_porcentaje: descuentoPct,
       });
       alert("Entrada actualizada");
       onSaved();
@@ -607,7 +439,7 @@ const EditarEntradaModal = ({ show, entrada, productos, proveedores, onClose, on
 
   return (
     <div className="modal d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
-      <div className="modal-dialog modal-dialog-centered">
+      <div className="modal-dialog modal-lg modal-dialog-centered">
         <div className="modal-content">
           <div className="modal-header">
             <h5 className="modal-title">Editar Entrada</h5>
@@ -615,104 +447,126 @@ const EditarEntradaModal = ({ show, entrada, productos, proveedores, onClose, on
           </div>
           <form onSubmit={handleSubmit}>
             <div className="modal-body">
-              <div className="mb-3">
-                <label className="form-label">Producto</label>
-                <select
-                  className="form-select"
-                  name="producto_id"
-                  value={form.producto_id}
-                  onChange={handleChange}
-                  required
-                >
-                  {productos.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <div className="row g-3">
+                <div className="col-md-6">
+                  <label className="form-label">Producto *</label>
+                  <GoldSelect
+                    value={form.producto_id}
+                    onChange={(v) => setForm((f) => ({ ...f, producto_id: v }))}
+                    placeholder="-- Seleccione --"
+                    options={productos.map((p) => ({
+                      value: p.id,
+                      label: p.nombre,
+                    }))}
+                  />
+                </div>
 
-              <div className="mb-3">
-                <label className="form-label">Proveedor</label>
-                <select
-                  className="form-select"
-                  name="proveedor_id"
-                  value={form.proveedor_id || ""}
-                  onChange={handleChange}
-                >
-                  <option value="">—</option>
-                  {proveedores.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                <div className="col-md-6">
+                  <label className="form-label">Proveedor</label>
+                  <GoldSelect
+                    value={form.proveedor_id || ""}
+                    onChange={(v) => setForm((f) => ({ ...f, proveedor_id: v }))}
+                    placeholder="—"
+                    options={proveedores.map((p) => ({
+                      value: p.id,
+                      label: p.nombre,
+                    }))}
+                  />
+                </div>
 
-              <div className="mb-3">
-                <label className="form-label">Cantidad</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  name="cantidad"
-                  value={form.cantidad}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label">Nº Albarán/Factura</label>
-                <input
-                  className="form-control"
-                  name="numero_documento"
-                  value={form.numero_documento}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div className="row">
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Precio sin IVA</label>
+                <div className="col-md-6">
+                  <label className="form-label">Nº Albarán/Factura</label>
                   <input
                     className="form-control"
-                    name="precio_sin_iva"
-                    value={form.precio_sin_iva}
+                    name="numero_documento"
+                    value={form.numero_documento}
                     onChange={handleChange}
                   />
                 </div>
 
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">% IVA</label>
+                <div className="col-md-6">
+                  <label className="form-label">Cantidad *</label>
                   <input
+                    type="number"
+                    min="1"
                     className="form-control"
-                    name="porcentaje_iva"
-                    value={form.porcentaje_iva}
+                    name="cantidad"
+                    value={form.cantidad}
                     onChange={handleChange}
+                    required
+                  />
+                </div>
+
+                <div className="col-md-4">
+                  <label className="form-label">Precio unitario (€ sin IVA) *</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    name="precio_unitario"
+                    value={form.precio_unitario}
+                    onChange={handleChange}
+                    min={0}
+                    step="0.01"
+                    required
+                  />
+                </div>
+
+                <div className="col-md-4">
+                  <label className="form-label">% Descuento</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    name="descuento_porcentaje"
+                    value={form.descuento_porcentaje}
+                    onChange={handleChange}
+                    min={0}
+                    max={100}
+                    step="0.01"
+                  />
+                </div>
+
+                <div className="col-md-4">
+                  <label className="form-label">% IVA *</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    name="iva_porcentaje"
+                    value={form.iva_porcentaje}
+                    onChange={handleChange}
+                    min={0}
+                    step="0.01"
+                    required
                   />
                 </div>
               </div>
 
-              <div className="mb-3">
-                <label className="form-label">Precio con IVA</label>
-                <input
-                  className="form-control"
-                  value={form.precio_con_iva}
-                  readOnly
-                />
-              </div>
+              {/* Resumen de cálculos */}
+              {cantidad > 0 && precioUnitario > 0 && (
+                <div className="alert alert-info py-2 mt-3 mb-0">
+                  <strong>Subtotal:</strong> {subtotal.toFixed(2)} €
+                  {descuento > 0 && <> | <strong>Desc:</strong> -{descuento.toFixed(2)} €</>}
+                  {" | "}<strong>Base sin IVA:</strong> {totalSinIva.toFixed(2)} €
+                  {" | "}<strong>IVA ({ivaPct}%):</strong> {totalIva.toFixed(2)} €
+                  {" | "}<strong>Total:</strong> {totalConIva.toFixed(2)} €
+                </div>
+              )}
             </div>
             <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" onClick={onClose}>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                onClick={onClose}
+                style={{ borderRadius: "8px" }}
+              >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="btn"
+                className="btn btn-sm"
                 disabled={saving}
-                style={{ background: "#d4af37", fontWeight: "600" }}
+                style={{ background: "#d4af37", color: "black", fontWeight: "600", borderRadius: "8px" }}
               >
-                {saving ? "Guardando..." : "Guardar cambios"}
+                {saving ? "⏳ Guardando..." : "💾 Guardar"}
               </button>
             </div>
           </form>

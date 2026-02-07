@@ -40,6 +40,149 @@ body {
   background-color: #050505;
 }
 
+/* ================================
+   FORMULARIOS – Foco dorado global
+================================ */
+
+/* Accent color dorado para selects, checkboxes, radios, etc. */
+*,
+*::before,
+*::after {
+  accent-color: #d4af37;
+}
+
+.form-select:focus,
+.form-control:focus {
+  border-color: #d4af37 !important;
+  box-shadow: 0 0 0 0.2rem rgba(212, 175, 55, 0.3) !important;
+  outline: none;
+}
+
+/* Flecha del select en dorado */
+.form-select {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23d4af37' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+}
+
+/* Opción seleccionada en el select nativo */
+.form-select option:checked,
+.form-select option:hover,
+.form-select option:focus {
+  background: #d4af37 linear-gradient(0deg, #d4af37 0%, #d4af37 100%) !important;
+  color: #000 !important;
+  -webkit-text-fill-color: #000;
+}
+
+/* Override Bootstrap blue para checks, radios, switches */
+.form-check-input:checked {
+  background-color: #d4af37 !important;
+  border-color: #d4af37 !important;
+}
+
+.form-check-input:focus {
+  border-color: #d4af37 !important;
+  box-shadow: 0 0 0 0.2rem rgba(212, 175, 55, 0.3) !important;
+}
+
+/* ================================
+   GOLD SELECT – Componente custom
+================================ */
+.gold-select {
+  position: relative;
+}
+
+.gold-select-trigger {
+  cursor: pointer;
+  text-align: left;
+}
+
+.gold-select-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1050;
+  background: #1a1a1a;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 8px;
+  margin-top: 2px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.gold-select-search {
+  width: 100%;
+  padding: 0.4rem 0.75rem;
+  border: none;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+  background: #111;
+  color: #fff;
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.gold-select-search::placeholder {
+  color: #888;
+}
+
+.gold-select-search:focus {
+  border-bottom-color: #d4af37;
+}
+
+.gold-select-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.gold-select-option {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+  color: #cfcfcf;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.gold-select-option:hover {
+  background: rgba(212, 175, 55, 0.18) !important;
+  color: #f5e19a !important;
+}
+
+.gold-select-option.selected {
+  background: rgba(212, 175, 55, 0.28);
+  color: #f5e19a;
+  font-weight: 600;
+}
+
+.gold-select-option.no-results {
+  color: #888;
+  font-style: italic;
+  cursor: default;
+}
+
+.gold-select-option.no-results:hover {
+  background: transparent !important;
+  color: #888 !important;
+}
+
+/* Scrollbar dorado */
+.gold-select-list::-webkit-scrollbar {
+  width: 6px;
+}
+.gold-select-list::-webkit-scrollbar-track {
+  background: #111;
+}
+.gold-select-list::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.4);
+  border-radius: 3px;
+}
+
+.gold-select.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 /* Layout con footer siempre abajo */
 #root,
 .sw-app {
@@ -341,6 +484,61 @@ button {
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(0, 0, 0, 0.45);
+}
+
+/* Dropdown del Navbar – tema oscuro / dorado */
+.sw-navbar .dropdown-menu {
+  --bs-dropdown-bg: #1a1a1a;
+  --bs-dropdown-link-color: #cfcfcf;
+  --bs-dropdown-link-hover-color: #f5e19a;
+  --bs-dropdown-link-hover-bg: rgba(212, 175, 55, 0.15);
+  --bs-dropdown-link-active-color: #f5e19a;
+  --bs-dropdown-link-active-bg: rgba(212, 175, 55, 0.25);
+  --bs-dropdown-divider-bg: rgba(255, 255, 255, 0.1);
+  --bs-dropdown-border-color: rgba(212, 175, 55, 0.3);
+  background: #1a1a1a;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 10px;
+  padding: 0.35rem 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+
+.sw-navbar .dropdown-menu .dropdown-item {
+  color: #cfcfcf;
+  font-size: 0.82rem;
+  padding: 0.45rem 1rem;
+  transition: background 0.15s, color 0.15s;
+  background: transparent;
+}
+
+.sw-navbar .dropdown-menu .dropdown-item:hover,
+.sw-navbar .dropdown-menu .dropdown-item:focus {
+  background: rgba(212, 175, 55, 0.15) !important;
+  color: #f5e19a !important;
+}
+
+.sw-navbar .dropdown-menu .dropdown-item.active,
+.sw-navbar .dropdown-menu .dropdown-item:active,
+.sw-navbar .dropdown-menu a.dropdown-item.active,
+.sw-navbar .dropdown-menu a.dropdown-item:active {
+  background: rgba(212, 175, 55, 0.25) !important;
+  color: #f5e19a !important;
+}
+
+.sw-navbar .dropdown-menu .dropdown-divider {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Dropdown toggle – quitar azul de btn-link focus/show */
+.sw-navbar .dropdown-toggle.btn-link,
+.sw-navbar .dropdown-toggle.btn-link:focus,
+.sw-navbar .dropdown-toggle.btn-link:active,
+.sw-navbar .dropdown-toggle.btn-link.show,
+.sw-navbar .nav-item.dropdown.show > .dropdown-toggle {
+  color: #f5e19a !important;
+  box-shadow: none !important;
+  text-decoration: none !important;
+  outline: none !important;
 }
 
 /* Toggler */

@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Context } from "../store/appContext";
+import GoldSelect from "../component/GoldSelect.jsx";
 
 // Conversión segura a número
 const toNumber = (v) => {
@@ -173,18 +174,15 @@ export default function HistorialSalidas() {
 
             <div className="col-md-3">
               <label className="form-label fw-semibold">Producto</label>
-              <select
-                className="form-select"
+              <GoldSelect
                 value={productoId}
-                onChange={(e) => setProductoId(e.target.value)}
-              >
-                <option value="">Todos</option>
-                {(store.productos || []).map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nombre}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setProductoId(v)}
+                placeholder="Todos"
+                options={(store.productos || []).map((p) => ({
+                  value: p.id,
+                  label: p.nombre,
+                }))}
+              />
             </div>
 
             <div className="col-md-6">

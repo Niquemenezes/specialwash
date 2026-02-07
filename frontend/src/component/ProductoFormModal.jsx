@@ -134,12 +134,17 @@ export default function ProductoFormModal({ show, onClose, onSaved, initial }) {
             </div>
 
             <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" onClick={onClose}>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                onClick={onClose}
+                style={{ borderRadius: "8px" }}
+              >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="btn"
+                className="btn btn-sm"
                 disabled={saving}
                 style={{
                   background: "#d4af37",
@@ -148,7 +153,7 @@ export default function ProductoFormModal({ show, onClose, onSaved, initial }) {
                   borderRadius: "8px",
                 }}
               >
-                {saving ? "Guardando..." : isEdit ? "Guardar cambios" : "Crear"}
+                {saving ? "Guardando..." : isEdit ? "💾 Guardar" : "✅ Crear"}
               </button>
             </div>
           </form>
