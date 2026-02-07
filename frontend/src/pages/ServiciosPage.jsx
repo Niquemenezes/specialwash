@@ -186,6 +186,7 @@ const ServicioModal = ({ show, servicio, coches, onClose, onSaved }) => {
   const [saving, setSaving] = useState(false);
   const [tarifasCliente, setTarifasCliente] = useState([]);
   const [loadingTarifas, setLoadingTarifas] = useState(false);
+  // eslint-disable-next-line no-unused-vars
   const [clienteId, setClienteId] = useState(null);
 
   const tiposServicio = [
