@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Context } from "../store/appContext";
+import GoldSelect from "../component/GoldSelect.jsx";
 
 const number = (v) =>
   v === null || v === undefined || v === "" ? 0 : Number(v) || 0;
@@ -96,17 +97,19 @@ export default function ResumenEntradas() {
               id: e.producto.id,
               nombre: e.producto.nombre,
             }
-          : e.producto_nombre
-          ? { nombre: e.producto_nombre }
-          : null,
+          : {
+              id: e.producto_id,
+              nombre: e.producto_nombre || "",
+            },
         proveedor: e.proveedor
           ? {
               id: e.proveedor.id,
               nombre: e.proveedor.nombre,
             }
-          : e.proveedor_nombre
-          ? { nombre: e.proveedor_nombre }
-          : null,
+          : {
+              id: e.proveedor_id,
+              nombre: e.proveedor_nombre || "",
+            },
       };
     });
   }, [store.entradas]);
@@ -244,8 +247,7 @@ export default function ResumenEntradas() {
             style={{background: "#d4af37", color: "black", fontWeight: "600", borderRadius: "8px"}}
               
           >
-            <i className="fa fa-filter me-1" />
-            Aplicar
+            🔍 Aplicar
           </button>
 
           <button
@@ -253,8 +255,7 @@ export default function ResumenEntradas() {
             className="btn btn-outline-light"
             style={{ borderColor: "#d4af37", color: "#d4af37" }}
           >
-            <i className="fa fa-eraser me-1" />
-            Limpiar
+            🧹 Limpiar
           </button>
 
           <button
@@ -262,7 +263,7 @@ export default function ResumenEntradas() {
             className="btn btn-success"
             style={{ borderRadius: "8px", fontWeight: "600" }}
           >
-            <i className="fa fa-file-csv me-1" /> CSV
+            📄 CSV
           </button>
         </div>
         <button
@@ -270,7 +271,7 @@ export default function ResumenEntradas() {
           className="btn btn-secondary"
           style={{ borderRadius: "8px", fontWeight: "600" }}
         >
-          <i className="fa fa-print me-1" /> Imprimir
+          🖨️ Imprimir
         </button>
       </div>
 
@@ -305,36 +306,28 @@ export default function ResumenEntradas() {
 
             <div className="col-md-3">
               <label className="form-label fw-semibold">Proveedor</label>
-              <select
-                className="form-select"
+              <GoldSelect
                 value={proveedorId}
-                onChange={(e) => setProveedorId(e.target.value)}
-                style={{ borderRadius: "10px" }}
-              >
-                <option value="">Todos</option>
-                {(store.proveedores || []).map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nombre}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setProveedorId(v)}
+                placeholder="Todos"
+                options={(store.proveedores || []).map((p) => ({
+                  value: p.id,
+                  label: p.nombre,
+                }))}
+              />
             </div>
 
             <div className="col-md-3">
               <label className="form-label fw-semibold">Producto</label>
-              <select
-                className="form-select"
+              <GoldSelect
                 value={productoId}
-                onChange={(e) => setProductoId(e.target.value)}
-                style={{ borderRadius: "10px" }}
-              >
-                <option value="">Todos</option>
-                {(store.productos || []).map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nombre}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setProductoId(v)}
+                placeholder="Todos"
+                options={(store.productos || []).map((p) => ({
+                  value: p.id,
+                  label: p.nombre,
+                }))}
+              />
             </div>
 
             <div className="col-md-6">
@@ -400,7 +393,7 @@ export default function ResumenEntradas() {
               {loading && (
                 <tr>
                   <td colSpan={9} className="text-center py-4 text-muted">
-                    <i className="fa fa-spinner fa-spin me-2" /> Cargando…
+                    ⏳ Cargando…
                   </td>
                 </tr>
               )}

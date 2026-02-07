@@ -159,7 +159,7 @@ export default function Usuarios() {
           style={{ borderColor: "#d4af37" }}
           onClick={startCreate}
         >
-          <i className="fa-solid fa-user-plus me-2" /> Nuevo usuario
+          👤➕ Nuevo usuario
         </button>
       </div>
 
@@ -264,8 +264,7 @@ export default function Usuarios() {
                   type="submit"
                   style={{ borderRadius: "8px" }}
                 >
-                  <i className="fa-solid fa-floppy-disk me-2" />
-                  Guardar
+                  💾 Guardar
                 </button>
 
                 <button
@@ -323,19 +322,18 @@ export default function Usuarios() {
 
                     <td className="text-end">
                       <button
-                        className="btn btn-sm me-2"
+                        className="btn btn-sm btn-outline-primary me-1"
                         onClick={() => startEdit(u)}
-                        style={{ borderRadius: "8px" }}
+                        title="Editar"
                       >
-                        <i className="fa-solid fa-pen-to-square" /> Editar
+                        ✏️
                       </button>
-
                       <button
-                        className="btn btn-outline-danger btn-sm"
+                        className="btn btn-sm btn-outline-danger"
                         onClick={() => remove(u)}
-                        style={{ borderRadius: "8px" }}
+                        title="Eliminar"
                       >
-                        <i className="fa-solid fa-trash" /> Eliminar
+                        🗑️
                       </button>
                     </td>
                   </tr>

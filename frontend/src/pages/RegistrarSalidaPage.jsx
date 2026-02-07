@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState, useContext } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import { Context } from "../store/appContext";
 import ProductoFormModal from "../component/ProductoFormModal.jsx";
+import GoldSelect from "../component/GoldSelect.jsx";
 
 const fmtDateTime = (s) => {
   if (!s) return "-";
@@ -21,7 +22,6 @@ const RegistrarSalidaPage = () => {
   const rol = getRolFromStorage();
   const isAdmin = isAdminRol(rol);
 
-  const [filtro, setFiltro] = useState("");
   const [productoId, setProductoId] = useState("");
 
   const [form, setForm] = useState({
@@ -44,23 +44,6 @@ const RegistrarSalidaPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
 
-  const productosFiltrados = useMemo(() => {
-    const term = filtro.trim().toLowerCase();
-    const list = store.productos || [];
-    if (!term) return list;
-    return list.filter(
-      (p) =>
-        (p.nombre || "").toLowerCase().includes(term) ||
-        (p.categoria || "").toLowerCase().includes(term)
-    );
-  }, [store.productos, filtro]);
-
-  useEffect(() => {
-    if (!productoId && productosFiltrados.length > 0) {
-      setProductoId(String(productosFiltrados[0].id));
-    }
-  }, [productoId, productosFiltrados]);
-
   useEffect(() => {
     setForm((f) => ({
       ...f,
@@ -79,8 +62,13 @@ const RegistrarSalidaPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!form.producto_id || !form.cantidad) {
-      alert("Producto y cantidad son obligatorios");
+    const pid = form.producto_id || (productoId ? Number(productoId) : "");
+    if (!pid) {
+      alert("Debes seleccionar un producto.");
+      return;
+    }
+    if (!form.cantidad) {
+      alert("La cantidad es obligatoria");
       return;
     }
     if (isAdmin && !form.usuario_id) {
@@ -91,7 +79,7 @@ const RegistrarSalidaPage = () => {
     setSaving(true);
     try {
       const payload = {
-        producto_id: Number(form.producto_id),
+        producto_id: Number(pid),
         cantidad: Number(form.cantidad),
         observaciones: form.observaciones,
       };
@@ -177,30 +165,19 @@ const RegistrarSalidaPage = () => {
       >
         <div className="row g-3">
           <div className="col-md-6">
-            <label className="form-label fw-semibold">Buscar producto</label>
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Nombre o categoría..."
-              value={filtro}
-              onChange={(e) => setFiltro(e.target.value)}
-            />
-          </div>
-
-          <div className="col-md-6">
-            <label className="form-label fw-semibold">Producto</label>
-            <select
-              className="form-select"
+            <label className="form-label fw-semibold">Producto *</label>
+            <GoldSelect
               value={productoId}
-              onChange={(e) => setProductoId(e.target.value)}
-              required
-            >
-              {productosFiltrados.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nombre}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setProductoId(v)}
+              placeholder="-- Seleccione un producto --"
+              options={(store.productos || []).map((p) => ({
+                value: String(p.id),
+                label: p.nombre + (p.categoria ? ` — ${p.categoria}` : ""),
+              }))}
+            />
+            {!productoId && (
+              <small className="text-danger">⚠ Debes seleccionar un producto antes de registrar.</small>
+            )}
           </div>
 
           <div className="col-md-3">
@@ -216,7 +193,7 @@ const RegistrarSalidaPage = () => {
               placeholder="Ingrese cantidad"
             />
             {productoId && (() => {
-              const producto = productosFiltrados.find(p => String(p.id) === String(productoId));
+              const producto = (store.productos || []).find(p => String(p.id) === String(productoId));
               return producto ? (
                 <small className="text-muted">
                   Stock disponible: <strong>{producto.stock_actual || 0}</strong> unidades
@@ -230,20 +207,15 @@ const RegistrarSalidaPage = () => {
               <label className="form-label fw-semibold">
                 Usuario que retira
               </label>
-              <select
-                className="form-select"
-                name="usuario_id"
+              <GoldSelect
                 value={form.usuario_id}
-                onChange={handleChange}
-                required
-              >
-                <option value="">Selecciona…</option>
-                {(store.usuarios || []).map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.nombre}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setForm((f) => ({ ...f, usuario_id: v }))}
+                placeholder="Selecciona…"
+                options={(store.usuarios || []).map((u) => ({
+                  value: u.id,
+                  label: u.nombre,
+                }))}
+              />
             </div>
           )}
 
@@ -287,10 +259,7 @@ const RegistrarSalidaPage = () => {
               </tr>
             </thead>
             <tbody>
-              {(() => {
-                console.log("🔍 SALIDAS EN STORE:", store.salidas);
-                console.log("🔍 CANTIDAD:", (store.salidas || []).length);
-                return (store.salidas || []).map((s) => (
+              {(store.salidas || []).map((s) => (
                 <tr key={s.id}>
                   <td>{fmtDateTime(s.fecha)}</td>
                   <td>{s.producto_nombre}</td>
@@ -298,22 +267,29 @@ const RegistrarSalidaPage = () => {
                   <td>{s.usuario_nombre}</td>
                   <td className="text-center">
                     <button
-                      className="btn btn-sm btn-outline-primary me-2"
+                      className="btn btn-sm btn-outline-primary me-1"
                       onClick={() => handleEditar(s)}
                       title="Editar"
                     >
-                      <i className="fas fa-edit"></i>
+                      ✏️
                     </button>
                     <button
                       className="btn btn-sm btn-outline-danger"
                       onClick={() => handleEliminar(s.id)}
                       title="Eliminar"
                     >
-                      <i className="fas fa-trash"></i>
+                      🗑️
                     </button>
                   </td>
                 </tr>
-              ))})()}
+              ))}
+              {(store.salidas || []).length === 0 && (
+                <tr>
+                  <td colSpan="5" className="text-center text-muted py-3">
+                    No hay salidas registradas
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -425,19 +401,15 @@ const EditarSalidaModal = ({ show, salida, productos, onClose, onSaved }) => {
             <div className="modal-body">
               <div className="mb-3">
                 <label className="form-label">Producto</label>
-                <select
-                  className="form-select"
-                  name="producto_id"
+                <GoldSelect
                   value={form.producto_id}
-                  onChange={handleChange}
-                  required
-                >
-                  {productos.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setForm((f) => ({ ...f, producto_id: v }))}
+                  placeholder="-- Seleccione --"
+                  options={productos.map((p) => ({
+                    value: p.id,
+                    label: p.nombre,
+                  }))}
+                />
               </div>
 
               <div className="mb-3">
@@ -492,16 +464,21 @@ const EditarSalidaModal = ({ show, salida, productos, onClose, onSaved }) => {
               </div>
             </div>
             <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" onClick={onClose}>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                onClick={onClose}
+                style={{ borderRadius: "8px" }}
+              >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="btn"
+                className="btn btn-sm"
                 disabled={saving}
-                style={{ background: "#d4af37", fontWeight: "600" }}
+                style={{ background: "#d4af37", color: "black", fontWeight: "600", borderRadius: "8px" }}
               >
-                {saving ? "Guardando..." : "Guardar cambios"}
+                {saving ? "⏳ Guardando..." : "💾 Guardar"}
               </button>
             </div>
           </form>

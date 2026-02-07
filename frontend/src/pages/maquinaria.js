@@ -195,8 +195,7 @@ export default function Maquinaria() {
             borderRadius: "8px",
           }}
         >
-          <i className="fa-solid fa-plus me-2" />
-          Nueva máquina
+          ➕ Nueva máquina
         </button>
       </div>
 
@@ -317,8 +316,7 @@ export default function Maquinaria() {
                     paddingRight: "1rem",
                   }}
                 >
-                  <i className="fa-solid fa-save me-2" />
-                  Guardar
+                  💾 Guardar
                 </button>
                 <button
                   className="btn"
@@ -404,34 +402,18 @@ export default function Maquinaria() {
 
                       <td className="text-end">
                         <button
-                          className="btn btn-sm me-2"
+                          className="btn btn-sm btn-outline-primary me-1"
                           onClick={() => startEdit(m)}
-                          style={{
-                            color: "#d4af37",
-                            borderColor: "#d4af37",
-                            background: "transparent",
-                            borderStyle: "solid",
-                            borderWidth: "1px",
-                            borderRadius: "8px",
-                            paddingLeft: "0.6rem",
-                            paddingRight: "0.6rem",
-                          }}
+                          title="Editar"
                         >
-                          Editar
+                          ✏️
                         </button>
-
                         <button
-                          className="btn btn-sm"
+                          className="btn btn-sm btn-outline-danger"
                           onClick={() => remove(m)}
-                          style={{
-                            color: "#fff",
-                            background: "#dc3545",
-                            borderRadius: "8px",
-                            paddingLeft: "0.6rem",
-                            paddingRight: "0.6rem",
-                          }}
+                          title="Eliminar"
                         >
-                          Eliminar
+                          🗑️
                         </button>
                       </td>
                     </tr>

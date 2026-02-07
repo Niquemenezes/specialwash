@@ -8,7 +8,7 @@ class Entrada(db.Model):
 
     producto_id = db.Column(db.Integer, db.ForeignKey("producto.id"), nullable=False)
     producto_nombre = db.Column(db.String(200))  # Guardar nombre del producto
-    proveedor_id = db.Column(db.Integer, db.ForeignKey("proveedor.id"))
+    proveedor_id = db.Column(db.Integer, db.ForeignKey("proveedor.id", ondelete="SET NULL"), nullable=True)
 
     fecha = db.Column(db.DateTime(timezone=True), default=now_madrid, nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=now_madrid, nullable=False)

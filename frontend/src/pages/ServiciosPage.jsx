@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useContext } from "react";
 import { Context } from "../store/appContext";
 import { useSearchParams } from "react-router-dom";
+import GoldSelect from "../component/GoldSelect.jsx";
 
 const fmtDateTime = (s) => {
   if (!s) return "-";
@@ -62,11 +63,20 @@ const ServiciosPage = () => {
   });
 
   return (
-    <div className="container mt-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>Servicios</h2>
-        <button className="btn btn-primary" onClick={handleNuevo}>
-          <i className="fas fa-plus me-2"></i>Nuevo Servicio
+    <div className="container py-4" style={{ maxWidth: "1000px" }}>
+      <div
+        className="d-flex justify-content-between align-items-center mb-4 p-3 rounded shadow-sm"
+        style={{ background: "#0f0f0f", color: "white" }}
+      >
+        <h2 className="fw-bold mb-0" style={{ color: "#d4af37" }}>
+          🔧 Servicios
+        </h2>
+        <button
+          className="btn"
+          onClick={handleNuevo}
+          style={{ background: "#d4af37", color: "black", fontWeight: "600", borderRadius: "8px" }}
+        >
+          ➕ Nuevo Servicio
         </button>
       </div>
 
@@ -81,18 +91,15 @@ const ServiciosPage = () => {
           />
         </div>
         <div className="col-md-4">
-          <select
-            className="form-select"
+          <GoldSelect
             value={cocheFilter}
-            onChange={(e) => setCocheFilter(e.target.value)}
-          >
-            <option value="">Todos los coches</option>
-            {(store.coches || []).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.matricula} - {c.cliente_nombre}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setCocheFilter(v)}
+            placeholder="Todos los coches"
+            options={(store.coches || []).map((c) => ({
+              value: c.id,
+              label: `${c.matricula} - ${c.cliente_nombre}`,
+            }))}
+          />
         </div>
       </div>
 
@@ -122,18 +129,18 @@ const ServiciosPage = () => {
                 <td>{s.usuario_nombre || "-"}</td>
                 <td className="text-center">
                   <button
-                    className="btn btn-sm btn-outline-primary me-2"
+                    className="btn btn-sm btn-outline-warning me-2"
                     onClick={() => handleEditar(s)}
                     title="Editar"
                   >
-                    <i className="fas fa-edit"></i>
+                    ✏️
                   </button>
                   <button
                     className="btn btn-sm btn-outline-danger"
                     onClick={() => handleEliminar(s.id)}
                     title="Eliminar"
                   >
-                    <i className="fas fa-trash"></i>
+                    🗑️
                   </button>
                 </td>
               </tr>
@@ -200,15 +207,21 @@ const ServicioModal = ({ show, servicio, coches, onClose, onSaved }) => {
         precio: servicio.precio || "",
         observaciones: servicio.observaciones || "",
       });
+      // Cargar tarifas si ya hay coche asignado
+      if (servicio.coche_id) {
+        const cocheSeleccionado = coches.find(c => c.id === Number(servicio.coche_id));
+        if (cocheSeleccionado && cocheSeleccionado.cliente_id) {
+          cargarTarifasCliente(cocheSeleccionado.cliente_id);
+          setClienteId(cocheSeleccionado.cliente_id);
+        }
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [servicio]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((f) => ({ ...f, [name]: value }));
-    
-    // Si cambia el coche, cargar las tarifas personalizadas del cliente
-    if (name === "coche_id" && value) {
+  const handleCocheChange = (value) => {
+    setForm((f) => ({ ...f, coche_id: value }));
+    if (value) {
       const cocheSeleccionado = coches.find(c => c.id === Number(value));
       if (cocheSeleccionado && cocheSeleccionado.cliente_id) {
         cargarTarifasCliente(cocheSeleccionado.cliente_id);
@@ -217,7 +230,15 @@ const ServicioModal = ({ show, servicio, coches, onClose, onSaved }) => {
         setTarifasCliente([]);
         setClienteId(null);
       }
+    } else {
+      setTarifasCliente([]);
+      setClienteId(null);
     }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((f) => ({ ...f, [name]: value }));
   };
 
   const cargarTarifasCliente = async (clienteId) => {
@@ -283,28 +304,22 @@ const ServicioModal = ({ show, servicio, coches, onClose, onSaved }) => {
             <div className="modal-body">
               <div className="mb-3">
                 <label className="form-label">Coche *</label>
-                <select
-                  className="form-select"
-                  name="coche_id"
+                <GoldSelect
                   value={form.coche_id}
-                  onChange={handleChange}
-                  required
-                >
-                  <option value="">Seleccionar...</option>
-                  {coches.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.matricula} - {c.marca} {c.modelo} ({c.cliente_nombre})
-                    </option>
-                  ))}
-                </select>
+                  onChange={handleCocheChange}
+                  placeholder="Seleccionar..."
+                  options={coches.map((c) => ({
+                    value: c.id,
+                    label: `${c.matricula} - ${c.marca} ${c.modelo} (${c.cliente_nombre})`,
+                  }))}
+                />
               </div>
 
               {/* Mostrar tarifas personalizadas del cliente */}
               {form.coche_id && tarifasCliente.length > 0 && (
                 <div className="mb-3">
                   <label className="form-label">
-                    <i className="fas fa-star text-warning me-2"></i>
-                    Tarifas Personalizadas del Cliente
+                    ⭐ Tarifas Personalizadas del Cliente
                   </label>
                   <div className="list-group">
                     {tarifasCliente.map((tarifa) => (
@@ -387,11 +402,21 @@ const ServicioModal = ({ show, servicio, coches, onClose, onSaved }) => {
               </div>
             </div>
             <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" onClick={onClose}>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                onClick={onClose}
+                style={{ borderRadius: "8px" }}
+              >
                 Cancelar
               </button>
-              <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? "Guardando..." : "Guardar"}
+              <button
+                type="submit"
+                className="btn btn-sm"
+                disabled={saving}
+                style={{ background: "#d4af37", color: "black", fontWeight: "600", borderRadius: "8px" }}
+              >
+                {saving ? "⏳ Guardando..." : servicio ? "💾 Guardar" : "✅ Crear"}
               </button>
             </div>
           </form>

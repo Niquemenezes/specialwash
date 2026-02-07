@@ -36,7 +36,7 @@ const ResumenClientesPage = () => {
       const data = await actions.getReporteClientes(desde, hasta);
       setReporte(data || { clientes: [], fecha_desde: desde, fecha_hasta: hasta });
     } catch (err) {
-      console.error("Error al cargar reporte:", err);
+      setReporte({ clientes: [], fecha_desde: desde, fecha_hasta: hasta });
     } finally {
       setLoading(false);
     }
@@ -96,7 +96,7 @@ const ResumenClientesPage = () => {
           onClick={handleImprimir}
           disabled={loading || reporte.clientes.length === 0}
         >
-          <i className="fas fa-print me-2"></i>Imprimir Resumen
+          🖨️ Imprimir Resumen
         </button>
       </div>
 
@@ -150,7 +150,7 @@ const ResumenClientesPage = () => {
           <div className="row g-3">
             <div className="col-md-12">
               <label className="form-label fw-bold">
-                <i className="fas fa-search me-2"></i>Buscar Cliente
+                🔍 Buscar Cliente
               </label>
               <input
                 type="text"

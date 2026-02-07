@@ -13,7 +13,7 @@ class Proveedor(db.Model):
     contacto = db.Column(db.String(120))
     notas = db.Column(db.Text)
 
-    entradas = relationship("Entrada", back_populates="proveedor", lazy="selectin")
+    entradas = relationship("Entrada", back_populates="proveedor", lazy="selectin", passive_deletes=True)
 
     def to_dict(self):
         return {
