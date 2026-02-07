@@ -13,7 +13,7 @@ class Config:
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))
     SQLALCHEMY_DATABASE_URI = os.getenv(
         "DATABASE_URL",
-        f"sqlite:///{os.path.join(BASE_DIR, 'specialwash.db')}"
+        f"sqlite:///{os.path.join(BASE_DIR, 'instance', 'specialwash.db')}"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
