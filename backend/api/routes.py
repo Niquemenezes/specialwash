@@ -641,6 +641,11 @@ def maquinaria_create():
     m.ubicacion = (data.get("ubicacion") or "").strip() or None
     m.estado = (data.get("estado") or "").strip() or None
     m.notas = (data.get("notas") or "").strip() or None
+    # Campos de precio y cantidad
+    m.precio_sin_iva = float(data.get("precio_sin_iva") or 0)
+    m.iva = float(data.get("iva") or 0)
+    m.precio_con_iva = float(data.get("precio_con_iva") or 0)
+    m.cantidad = int(data.get("cantidad") or 1)
     fc = (data.get("fecha_compra") or "").strip()
     if fc:
         try:
@@ -667,6 +672,15 @@ def maquinaria_update(mid):
     m.ubicacion = data.get("ubicacion", m.ubicacion)
     m.estado = data.get("estado", m.estado)
     m.notas = data.get("notas", m.notas)
+    # Campos de precio y cantidad
+    if "precio_sin_iva" in data:
+        m.precio_sin_iva = float(data.get("precio_sin_iva") or 0)
+    if "iva" in data:
+        m.iva = float(data.get("iva") or 0)
+    if "precio_con_iva" in data:
+        m.precio_con_iva = float(data.get("precio_con_iva") or 0)
+    if "cantidad" in data:
+        m.cantidad = int(data.get("cantidad") or 1)
     fc = data.get("fecha_compra")
     if fc is not None:
         fc = fc.strip() if isinstance(fc, str) else ""
