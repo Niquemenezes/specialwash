@@ -632,7 +632,21 @@ def maquinaria_create():
     nombre = (data.get("nombre") or "").strip()
     if not nombre:
         return jsonify({"error": "El nombre es obligatorio"}), 400
+    from datetime import date as dt_date
     m = Maquinaria(nombre=nombre)
+    m.tipo = (data.get("tipo") or "").strip() or None
+    m.marca = (data.get("marca") or "").strip() or None
+    m.modelo = (data.get("modelo") or "").strip() or None
+    m.numero_serie = (data.get("numero_serie") or "").strip() or None
+    m.ubicacion = (data.get("ubicacion") or "").strip() or None
+    m.estado = (data.get("estado") or "").strip() or None
+    m.notas = (data.get("notas") or "").strip() or None
+    fc = (data.get("fecha_compra") or "").strip()
+    if fc:
+        try:
+            m.fecha_compra = dt_date.fromisoformat(fc)
+        except ValueError:
+            pass
     db.session.add(m)
     db.session.commit()
     return jsonify(m.to_dict()), 201
@@ -644,12 +658,25 @@ def maquinaria_update(mid):
     m = Maquinaria.query.get_or_404(mid)
     data = request.get_json() or {}
 
+    from datetime import date as dt_date
     m.nombre = data.get("nombre", m.nombre)
     m.tipo = data.get("tipo", m.tipo)
     m.marca = data.get("marca", m.marca)
     m.modelo = data.get("modelo", m.modelo)
     m.numero_serie = data.get("numero_serie", m.numero_serie)
+    m.ubicacion = data.get("ubicacion", m.ubicacion)
     m.estado = data.get("estado", m.estado)
+    m.notas = data.get("notas", m.notas)
+    fc = data.get("fecha_compra")
+    if fc is not None:
+        fc = fc.strip() if isinstance(fc, str) else ""
+        if fc:
+            try:
+                m.fecha_compra = dt_date.fromisoformat(fc)
+            except ValueError:
+                pass
+        else:
+            m.fecha_compra = None
 
     db.session.commit()
     return jsonify(m.to_dict()), 200
