@@ -16,6 +16,7 @@ class Entrada(db.Model):
     cantidad = db.Column(db.Integer, nullable=False)
 
     numero_albaran = db.Column(db.String(120))
+    numero_documento = db.Column(db.String(120))
 
     precio_sin_iva = db.Column(db.Float)
     porcentaje_iva = db.Column(db.Float)
@@ -34,7 +35,8 @@ class Entrada(db.Model):
             "proveedor_id": self.proveedor_id,
             "proveedor_nombre": getattr(self.proveedor, "nombre", None),
             "cantidad": self.cantidad,
-            "numero_documento": self.numero_albaran,
+            "numero_albaran": self.numero_albaran,
+            "numero_documento": self.numero_documento,
             "precio_sin_iva": self.precio_sin_iva,
             "porcentaje_iva": self.porcentaje_iva,
             "valor_iva": self.valor_iva,

@@ -388,6 +388,29 @@ def entradas_list():
         except (ValueError, TypeError):
             pass
 
+    # Filtro por producto
+    producto_id = request.args.get("producto_id")
+    if producto_id:
+        try:
+            query = query.filter(Entrada.producto_id == int(producto_id))
+        except (ValueError, TypeError):
+            pass
+
+    # Filtro de búsqueda por texto (producto, proveedor, documento)
+    q = request.args.get("q")
+    if q:
+        search = f"%{q.strip()}%"
+        # Buscar IDs de productos y proveedores que coincidan
+        producto_ids = [p.id for p in Producto.query.filter(Producto.nombre.ilike(search)).all()]
+        proveedor_ids = [p.id for p in Proveedor.query.filter(Proveedor.nombre.ilike(search)).all()]
+        
+        query = query.filter(db.or_(
+            Entrada.producto_id.in_(producto_ids) if producto_ids else False,
+            Entrada.proveedor_id.in_(proveedor_ids) if proveedor_ids else False,
+            Entrada.numero_albaran.ilike(search),
+            Entrada.numero_documento.ilike(search)
+        ))
+
     return jsonify([e.to_dict() for e in query.order_by(Entrada.fecha.desc()).all()])
 
 
