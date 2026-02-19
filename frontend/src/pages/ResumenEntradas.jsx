@@ -41,6 +41,18 @@ export default function ResumenEntradas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Auto-filtrar cuando cambien los valores (con debounce para búsqueda)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (desde || hasta || proveedorId || productoId || q.trim()) {
+        aplicar();
+      }
+    }, q.trim() ? 500 : 0); // 500ms debounce para búsqueda de texto
+
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [desde, hasta, proveedorId, productoId, q]);
+
   // Aplicar filtros
   const aplicar = async () => {
     setLoading(true);
@@ -49,6 +61,8 @@ export default function ResumenEntradas() {
         desde: desde || undefined,
         hasta: hasta || undefined,
         proveedor_id: proveedorId || undefined,
+        producto_id: productoId || undefined,
+        q: q.trim() || undefined,
       });
     } finally {
       setLoading(false);
@@ -114,35 +128,12 @@ export default function ResumenEntradas() {
     });
   }, [store.entradas]);
 
-  // Filtro en cliente
+  // Filtro en cliente (ya no es necesario, todo se hace en backend)
   const filtradas = useMemo(() => {
-    let rows = entradas;
-
-    if (productoId)
-      rows = rows.filter(
-        (r) => String(r.producto?.id || "") === String(productoId)
-      );
-
-    if (q.trim()) {
-      const term = q.toLowerCase();
-      rows = rows.filter((r) => {
-        const campos = [
-          r.producto?.nombre,
-          r.proveedor?.nombre,
-          r.numero_albaran,
-          r.producto?.categoria,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        return campos.includes(term);
-      });
-    }
-
-    return [...rows].sort(
+    return [...entradas].sort(
       (a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0)
     );
-  }, [entradas, productoId, q]);
+  }, [entradas])
 
   // Totales
   const tot = useMemo(
