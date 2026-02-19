@@ -46,7 +46,7 @@ export default function Maquinaria() {
 
   const [form, setForm] = useState({
     nombre: "",
-    tipo: "",
+    descuento: "",
     marca: "",
     modelo: "",
     numero_serie: "",
@@ -114,7 +114,7 @@ export default function Maquinaria() {
     setEditing(m);
     setForm({
       nombre: m.nombre || "",
-      tipo: m.tipo || "",
+      descuento: m.descuento ?? "",
       marca: m.marca || "",
       modelo: m.modelo || "",
       numero_serie: m.numero_serie || "",
@@ -133,7 +133,7 @@ export default function Maquinaria() {
     setEditing(null);
     setForm({
       nombre: "",
-      tipo: "",
+      descuento: "",
       marca: "",
       modelo: "",
       numero_serie: "",
@@ -154,7 +154,7 @@ export default function Maquinaria() {
 
     const payload = {
       nombre: form.nombre.trim(),
-      tipo: form.tipo.trim() || undefined,
+      descuento: form.descuento !== "" ? parseFloat(form.descuento) : 0,
       marca: form.marca.trim() || undefined,
       modelo: form.modelo.trim() || undefined,
       numero_serie: form.numero_serie.trim() || undefined,
@@ -191,11 +191,13 @@ export default function Maquinaria() {
     const { name, value } = e.target;
     setForm((f) => {
       const updated = { ...f, [name]: value };
-      // Cálculo automático del precio con IVA
-      if (name === "precio_sin_iva" || name === "iva") {
+      // Cálculo automático del precio con IVA considerando descuento
+      if (["precio_sin_iva", "iva", "descuento"].includes(name)) {
         const base = parseFloat(name === "precio_sin_iva" ? value : updated.precio_sin_iva) || 0;
         const ivaVal = parseFloat(name === "iva" ? value : updated.iva) || 0;
-        updated.precio_con_iva = (base + (base * ivaVal / 100)).toFixed(2);
+        const desc = parseFloat(name === "descuento" ? value : updated.descuento) || 0;
+        const baseConDescuento = base * (1 - desc / 100);
+        updated.precio_con_iva = (baseConDescuento + (baseConDescuento * ivaVal / 100)).toFixed(2);
       }
       return updated;
     });
@@ -291,7 +293,6 @@ export default function Maquinaria() {
 
               {Object.entries({
                 nombre: "Nombre *",
-                tipo: "Tipo",
                 marca: "Marca",
                 modelo: "Modelo",
                 numero_serie: "Nº Serie",
@@ -310,6 +311,20 @@ export default function Maquinaria() {
                   />
                 </div>
               ))}
+
+              <div className="col-md-3">
+                <label className="form-label">Descuento (%)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="form-control"
+                  name="descuento"
+                  value={form.descuento}
+                  onChange={onChange}
+                  style={{ borderRadius: "10px" }}
+                />
+              </div>
 
               <div className="col-md-6">
                 <label className="form-label">Fecha compra</label>
@@ -436,7 +451,6 @@ export default function Maquinaria() {
             <thead className="table-light">
               <tr>
                 <th>Nombre</th>
-                <th>Tipo</th>
                 <th>Marca</th>
                 <th>Modelo</th>
                 <th>Ubicación</th>
@@ -484,7 +498,6 @@ export default function Maquinaria() {
                   return (
                     <tr key={m.id} className={rowClass}>
                       <td>{m.nombre}</td>
-                      <td>{m.tipo || "-"}</td>
                       <td>{m.marca || "-"}</td>
                       <td>{m.modelo || "-"}</td>
                       <td>{m.ubicacion || "-"}</td>
