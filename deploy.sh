@@ -59,7 +59,14 @@ if [ "$DEPLOY_TYPE" = "frontend" ] || [ "$DEPLOY_TYPE" = "all" ]; then
     echo -e "${YELLOW}📤 Sincronizando frontend al servidor...${NC}"
     rsync -avz --delete "$LOCAL_PATH/frontend/build/" "$SERVIDOR:$REMOTE_PATH/frontend/build/"
     
-    echo -e "${YELLOW}🔄 Recargando Nginx...${NC}"
+    echo -e "${YELLOW}� Ajustando permisos...${NC}"
+    ssh "$SERVIDOR" 'bash -s' << 'BASH_FIX'
+chmod +rx /root /root/specialwash /root/specialwash/frontend /root/specialwash/frontend/build
+chmod -R +r /root/specialwash/frontend/build/
+find /root/specialwash/frontend/build/ -type d -exec chmod +x {} \;
+BASH_FIX
+    
+    echo -e "${YELLOW}�🔄 Recargando Nginx...${NC}"
     ssh "$SERVIDOR" 'nginx -s reload && echo "Nginx reloaded"'
     
     echo -e "${GREEN}✅ Frontend desplegado correctamente${NC}"
