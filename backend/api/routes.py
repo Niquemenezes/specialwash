@@ -447,7 +447,7 @@ def entrada_update(eid):
     entrada.cantidad = nueva_cantidad
     entrada.numero_albaran = data.get("numero_albaran", entrada.numero_albaran)
     
-    # Recalcular precios si se proporcionan nuevos valores
+    # Recalcular precios si se proporcionan nuevos valores o si cambió la cantidad
     if "precio_unitario" in data:
         precio_unitario = float(data.get("precio_unitario") or 0)
         porcentaje_iva = float(data.get("porcentaje_iva") or 21)
@@ -464,8 +464,13 @@ def entrada_update(eid):
         entrada.valor_iva = valor_iva
         entrada.precio_con_iva = precio_con_iva
     elif "precio_sin_iva" in data:
-        precio_sin_iva = float(data.get("precio_sin_iva") or 0)
+        # IMPORTANTE: precio_sin_iva debe ser el TOTAL (ya debe incluir cantidad)
+        # Si es unitario, multiplicarlo por la cantidad
+        precio_sin_iva_recibido = float(data.get("precio_sin_iva") or 0)
         porcentaje_iva = float(data.get("porcentaje_iva") or 21)
+        
+        # Asumir que es el total (si es muy bajo, podría ser unitario, pero lo dejamos como llega)
+        precio_sin_iva = precio_sin_iva_recibido
         valor_iva = round(precio_sin_iva * (porcentaje_iva / 100), 2)
         precio_con_iva = round(precio_sin_iva + valor_iva, 2)
 
@@ -473,6 +478,19 @@ def entrada_update(eid):
         entrada.porcentaje_iva = porcentaje_iva
         entrada.valor_iva = valor_iva
         entrada.precio_con_iva = precio_con_iva
+    elif nueva_cantidad != entrada.cantidad:
+        # Si solo cambió la cantidad, recomputar los totales con el precio unitario existente
+        if entrada.precio_sin_iva and entrada.cantidad > 0:
+            precio_unitario_original = entrada.precio_sin_iva / entrada.cantidad
+            porcentaje_iva = entrada.porcentaje_iva or 21
+            
+            nuevo_precio_sin_iva = round(precio_unitario_original * nueva_cantidad, 2)
+            nuevo_valor_iva = round(nuevo_precio_sin_iva * (porcentaje_iva / 100), 2)
+            nuevo_precio_con_iva = round(nuevo_precio_sin_iva + nuevo_valor_iva, 2)
+            
+            entrada.precio_sin_iva = nuevo_precio_sin_iva
+            entrada.valor_iva = nuevo_valor_iva
+            entrada.precio_con_iva = nuevo_precio_con_iva
     
     db.session.commit()
     return jsonify(entrada.to_dict()), 200
