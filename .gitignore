@@ -3,12 +3,20 @@
 __pycache__/
 *.pyo
 *.pyd
-*.db
 *.sqlite3
 .env
 .venv/
-instance/
 .DS_Store
+
+# Database - ignorar archivos .db EXCEPTO specialwash.db
+*.db
+!backend/instance/specialwash.db
+
+# Instance folder - ignorar TODO excepto specialwash.db
+instance/*
+!instance/.gitkeep
+!backend/instance/
+!backend/instance/specialwash.db
 
 # Node/React
 node_modules/
