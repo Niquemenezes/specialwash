@@ -8,15 +8,14 @@ __pycache__/
 .venv/
 .DS_Store
 
-# Database - ignorar archivos .db EXCEPTO specialwash.db
-*.db
+# Database - permitir specialwash.db ANTES de ignorar
 !backend/instance/specialwash.db
+!backend/instance/
+*.db
 
-# Instance folder - ignorar TODO excepto specialwash.db
+# Instance folder
 instance/*
 !instance/.gitkeep
-!backend/instance/
-!backend/instance/specialwash.db
 
 # Node/React
 node_modules/
