@@ -23,6 +23,11 @@ import ClientesPage from "./pages/ClientesPage.jsx";
 import CochesPage from "./pages/CochesPage.jsx";
 import ServiciosPage from "./pages/ServiciosPage.jsx";
 import ResumenClientesPage from "./pages/ResumenClientesPage.jsx";
+import InspeccionRecepcionPage from "./pages/InspeccionRecepcionPage.jsx";
+import ActaEntregaView from "./pages/ActaEntregaView.jsx";
+import ActaEntregaDocumento from "./pages/ActaEntregaDocumento.jsx";
+import CochesPendientesEntrega from "./pages/CochesPendientesEntrega.jsx";
+import CochesEntregadosPage from "./pages/CochesEntregadosPage.jsx";
 
 const isLogged = () =>
   Boolean(sessionStorage.getItem("token") || localStorage.getItem("token"));
@@ -162,6 +167,47 @@ const App = () => {
               element={
                 <PrivateRoute allow={["administrador"]}>
                   <ResumenClientesPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/inspeccion-recepcion"
+              element={
+                <PrivateRoute allow={["administrador", "empleado", "encargado"]}>
+                  <InspeccionRecepcionPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/acta-entrega/:id"
+              element={
+                <PrivateRoute allow={["administrador", "empleado", "encargado"]}>
+                  <ActaEntregaView />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/acta-entrega-doc/:id"
+              element={<ActaEntregaDocumento />}
+            />
+
+            <Route
+              path="/pendientes-entrega"
+              element={
+                <PrivateRoute allow={["administrador", "empleado", "encargado"]}>
+                  <CochesPendientesEntrega />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/entregados"
+              element={
+                <PrivateRoute allow={["administrador", "empleado", "encargado"]}>
+                  <CochesEntregadosPage />
                 </PrivateRoute>
               }
             />

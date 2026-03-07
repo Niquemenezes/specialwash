@@ -1,129 +1,247 @@
-# 🚗 SpecialWash - Sistema de Gestión
+# 🚗 SpecialWash – Sistema de gestión interna
 
+Sistema interno desarrollado para la gestión completa de un **centro profesional de detailing automotriz**.
 
-## 🌐 URLs de acceso
+El objetivo del proyecto es digitalizar y organizar los procesos internos del negocio, permitiendo controlar:
 
-### Codespaces
-- **Backend:** https://TU-CODESPACE-5000.app.github.dev
-- **Panel Admin:** https://TU-CODESPACE-5000.app.github.dev/admin/
-- **Frontend:** https://TU-CODESPACE-3000.app.github.dev
+* empleados
+* productos
+* proveedores
+* maquinaria
+* entradas y salidas de stock
 
-### IONOS
-- **Servidor:** http://194.164.164.78
-- **API:** http://194.164.164.78:5000
-- **Frontend:** http://194.164.164.78:3000
-
-**Login demo:** m@m / m
-
-Sistema de gestión interna con inventario, entradas/salidas, clientes y servicios.
-
-## 📦 Características
-
-- ✅ Productos con alertas de stock mínimo 
-- ✅ Entradas con cálculo de IVA y descuentos
-- ✅ Salidas con trazabilidad por usuario
-- ✅ Usuarios con roles (Admin/Encargado/Empleado)
-- ✅ Maquinaria con control de garantías
-- ✅ Clientes, coches y servicios
-- ✅ Reportes e impresión optimizada
-
-## 🛠️ Stack
-
-- **Backend:** Python 3.12 + Flask + SQLite
-- **Frontend:** React 18 + Bootstrap 5
-- **Server:** Ubuntu 24.04 + Nginx
-
-## 📁 Estructura
-
-```
-backend/
-  ├── api/          # Rutas API
-  ├── models/       # SQLAlchemy models
-  ├── instance/     # Base de datos
-  ├── app.py        # App principal
-  └── config.py     # Configuración
-
-frontend/
-  ├── src/
-  │   ├── pages/    # Vistas
-  │   ├── component/# Navbar, Footer
-  │   └── store/    # Estado global
-  └── build/        # Build producción
-```
-
-
-## 🚀 Cómo levantar el proyecto
-
-### En Codespaces
-#### Backend
-```bash
-cd backend
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python app.py
-```
-
-#### Frontend
-```bash
-cd frontend
-npm install
-npm start
-```
-
-### En IONOS
-#### Backend
-```bash
-cd /var/www/specialwash/backend
-source venv/bin/activate
-nohup python app.py > app.log 2>&1 &
-```
-
-#### Frontend
-```bash
-# Nginx sirve desde: /var/www/specialwash/public_html
-systemctl reload nginx
-```
-
-## 🔐 Usuarios
-
-| Email | Password | Rol |
-|-------|----------|-----|
-| m@m | m | Admin |
-| c@c | c | Encargado |
-| a@a | a | Empleado |
-
-## 📝 Desarrollo Local
-
-**Backend:**
-```bash
-cd backend
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
-python app.py
-```
-
-**Frontend:**
-```bash
-cd frontend
-npm install
-npm start
-```
-
-
-## Despliegue
-- El backend corre en Flask (puerto 5000)
-- El frontend corre en React (puerto 3000)
-- Nginx puede usarse como proxy y servidor estático
-
-## Notas
-- Configura las variables de entorno según tu entorno
-- La base de datos SQLite se encuentra en `backend/specialwash.db`
-- Para producción, revisa la configuración de CORS y seguridad
+todo desde una única plataforma.
 
 ---
 
-Cualquier duda, abre un issue en GitHub o contacta al autor.
+# 📌 Características principales
 
-(versión de GitHub)
+## 👥 Gestión de empleados
+
+Permite administrar los usuarios del sistema.
+
+Funciones:
+
+* Crear empleados
+* Editar información
+* Eliminar usuarios
+* Control de roles
+
+---
+
+## 📦 Gestión de productos
+
+Registro de los productos utilizados en el centro.
+
+Información registrada:
+
+* Nombre del producto
+* Descripción
+* Categoría
+* Proveedor
+* Stock mínimo
+
+---
+
+## 🏢 Gestión de proveedores
+
+Permite controlar los proveedores que suministran productos o maquinaria.
+
+Funciones:
+
+* Crear proveedor
+* Editar proveedor
+* Eliminar proveedor
+
+---
+
+## 📊 Control de stock
+
+Sistema de control para conocer el inventario disponible.
+
+Incluye:
+
+* visualización del stock
+* control de inventario
+* alerta de bajo stock
+
+---
+
+## 📥 Registro de entradas de productos
+
+Permite registrar los productos que entran al almacén.
+
+Datos registrados:
+
+* producto
+* proveedor
+* número de factura o albarán
+* fecha de entrada
+* cantidad
+* precio sin IVA
+* IVA
+* descuento
+* precio final
+
+---
+
+## 📤 Registro de salidas de productos
+
+Permite registrar los productos utilizados por los empleados.
+
+Datos registrados:
+
+* producto
+* cantidad utilizada
+* fecha
+* usuario
+* observaciones
+
+---
+
+## 🛠 Gestión de maquinaria
+
+Registro de maquinaria utilizada en el negocio.
+
+Información registrada:
+
+* nombre de la máquina
+* proveedor
+* fecha de compra
+* garantía
+* observaciones
+
+---
+
+# 🧱 Arquitectura del sistema
+
+El proyecto está dividido en dos partes principales.
+
+## Backend
+
+API desarrollada con **Python y Flask**.
+
+Responsable de:
+
+* autenticación
+* control de usuarios
+* gestión de productos
+* control de stock
+* registro de movimientos
+* conexión con base de datos
+
+---
+
+## Frontend
+
+Interfaz web desarrollada con **React**.
+
+Permite:
+
+* gestionar información
+* visualizar datos
+* interactuar con la API
+
+---
+
+# ⚙️ Tecnologías utilizadas
+
+### Backend
+
+* Python
+* Flask
+* Flask-JWT-Extended
+* Flask-SQLAlchemy
+* Flask-CORS
+
+### Frontend
+
+* React
+* Bootstrap
+
+### Base de datos
+
+* MySQL
+
+### Control de versiones
+
+* Git
+* GitHub
+
+---
+
+# 📂 Estructura del proyecto
+
+```
+specialwash
+│
+├── backend
+│
+├── Interfaz
+│
+├── README.md
+├── DESPLIEGUE.md
+├── GUIA_ACTUALIZAR_BD.md
+└── .gitignore
+```
+
+---
+
+# 🚀 Instalación del proyecto
+
+## Clonar el repositorio
+
+```
+git clone https://github.com/Niquemenezes/specialwash
+```
+
+---
+
+## Instalar backend
+
+```
+cd backend
+pip install -r requirements.txt
+python app.py
+```
+
+---
+
+## Instalar frontend
+
+```
+cd Interfaz
+npm install
+npm start
+```
+
+---
+
+# 🌐 Despliegue
+
+El proyecto está desplegado en un servidor propio utilizando **IONOS**.
+
+La documentación de despliegue se encuentra en:
+
+```
+DESPLIEGUE.md
+```
+
+---
+
+# 📈 Estado del proyecto
+
+Proyecto en desarrollo activo.
+
+Actualmente se siguen implementando mejoras en:
+
+* optimización del backend
+* control avanzado de stock
+* mejoras en la interfaz
+* nuevas funcionalidades administrativas
+
+---
+
+# 👩‍💻 Autor
+
+**Monique Menezes**
