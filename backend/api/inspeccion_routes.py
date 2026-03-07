@@ -8,6 +8,8 @@ import os
 from urllib import request as urlrequest
 from urllib.error import HTTPError, URLError
 
+from sqlalchemy import or_
+
 from models import db
 from models.inspeccion_recepcion import InspeccionRecepcion
 from models.acta_entrega import ActaEntrega
@@ -21,6 +23,13 @@ inspeccion_bp = Blueprint('inspeccion', __name__, url_prefix='/api')
 
 def _telefono_digits(value):
     return "".join(ch for ch in (value or "") if ch.isdigit())
+
+
+def _jwt_user_id():
+    try:
+        return int(get_jwt_identity())
+    except (TypeError, ValueError):
+        return None
 
 # Configurar Cloudinary desde variables de entorno
 cloudinary.config(
@@ -181,7 +190,9 @@ def listar_inspecciones():
     - Admin: ve todas
     - Empleado: ve solo las suyas
     """
-    user_id = get_jwt_identity()
+    user_id = _jwt_user_id()
+    if user_id is None:
+        return jsonify({"msg": "Token inválido"}), 401
     user = User.query.get(user_id)
     
     try:
@@ -204,25 +215,63 @@ def listar_inspecciones():
         return jsonify({"msg": f"Error al listar inspecciones: {str(e)}"}), 500
 
 
+# ============ LISTAR PENDIENTES DE ENTREGA (OPERATIVO) ============
+@inspeccion_bp.route("/inspeccion-recepcion/pendientes-entrega", methods=["GET"])
+@role_required("administrador", "empleado", "encargado")
+def listar_pendientes_entrega():
+    """
+    Lista operativa para firma de entrega.
+    Puede verla admin, encargado y empleado.
+    """
+    try:
+        inspecciones = (
+            InspeccionRecepcion.query
+            .filter(
+                or_(
+                    InspeccionRecepcion.entregado.is_(False),
+                    InspeccionRecepcion.entregado.is_(None),
+                )
+            )
+            .order_by(InspeccionRecepcion.fecha_inspeccion.desc())
+            .all()
+        )
+        return jsonify([i.to_dict() for i in inspecciones]), 200
+    except Exception as e:
+        return jsonify({"msg": f"Error al listar pendientes de entrega: {str(e)}"}), 500
+
+
 # ============ VER INSPECCIÓN ============
 @inspeccion_bp.route("/inspeccion-recepcion/<int:inspeccion_id>", methods=["GET"])
 @jwt_required()
 def ver_inspeccion(inspeccion_id):
     """
     Ver una inspección específica.
-    - Admin: puede ver cualquiera
-    - Empleado: solo puede ver la suya
+    - Admin: puede ver cualquiera.
+    - Encargado/Empleado: puede ver inspecciones no entregadas para operativa de firma.
+    - Otros roles: solo su propia inspección.
     """
     inspeccion = InspeccionRecepcion.query.get(inspeccion_id)
     
     if not inspeccion:
         return jsonify({"msg": "Inspección no encontrada"}), 404
     
-    user_id = get_jwt_identity()
+    user_id = _jwt_user_id()
+    if user_id is None:
+        return jsonify({"msg": "Token inválido"}), 401
     user = User.query.get(user_id)
+    if not user:
+        return jsonify({"msg": "Usuario no encontrado"}), 401
     
-    # Validar permisos
-    if user.rol != "administrador" and inspeccion.usuario_id != user_id:
+    # Validar permisos por rol y operativa de entrega.
+    if user.rol == "administrador":
+        return jsonify(inspeccion.to_dict()), 200
+
+    if user.rol in ("empleado", "encargado"):
+        if inspeccion.entregado:
+            return jsonify({"msg": "No tienes permiso para ver esta inspección"}), 403
+        return jsonify(inspeccion.to_dict()), 200
+
+    if inspeccion.usuario_id != user_id:
         return jsonify({"msg": "No tienes permiso para ver esta inspección"}), 403
     
     return jsonify(inspeccion.to_dict()), 200

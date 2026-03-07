@@ -138,3 +138,6 @@ git push origin main
 💡 **CONSEJO:** Puedes automatizar esto con un script bash si lo haces frecuentemente.
 
 📅 **FRECUENCIA:** Haz esto cada vez que añadas productos importantes en producción que quieras tener en tu entorno de desarrollo local.
+
+
+kill -9 $(lsof -t -i:3000) 2>/dev/null; kill -9 $(lsof -t -i:5000) 2>/dev/null; cd backend && python app.py & cd ../frontend && npm start

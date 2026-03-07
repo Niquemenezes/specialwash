@@ -199,31 +199,31 @@ const NavbarSW = () => {
                       Registrar salida
                     </NavLink>
                   </li>
-                  <li className="nav-item">
-                    <NavLink to="/servicios" className="nav-link sw-navlink">
-                      Servicios
-                    </NavLink>
-                  </li>
+                  {rol === "encargado" && (
+                    <li className="nav-item">
+                      <NavLink to="/servicios" className="nav-link sw-navlink">
+                        Servicios
+                      </NavLink>
+                    </li>
+                  )}
                   <li className="nav-item">
                     <NavLink to="/inspeccion-recepcion" className="nav-link sw-navlink">
                       🚗 Inspección
                     </NavLink>
                   </li>
-                  <li className="nav-item">
-                    <NavLink to="/entregados" className="nav-link sw-navlink">
-                      ✅ Entregados
-                    </NavLink>
-                  </li>
+                  {rol === "encargado" && (
+                    <li className="nav-item">
+                      <NavLink to="/entregados" className="nav-link sw-navlink">
+                        ✅ Entregados
+                      </NavLink>
+                    </li>
+                  )}
                   <li className="nav-item">
                     <NavLink to="/firma-entrega" className="nav-link sw-navlink">
                       ✍️ Firma entrega
                     </NavLink>
                   </li>
-                  <li className="nav-item">
-                    <NavLink to="/mis-salidas" className="nav-link sw-navlink">
-                      Mis salidas
-                    </NavLink>
-                  </li>
+                 
                 </>
               )}
             </ul>
