@@ -1,6 +1,7 @@
 import React from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import logo from "../img/logospecialwash.jpg";
+import { buildApiUrl } from "../utils/apiBase";
 
 const getStored = (k) =>
   (typeof sessionStorage !== "undefined" && sessionStorage.getItem(k)) ||
@@ -19,10 +20,9 @@ const NavbarSW = () => {
   const navigate = useNavigate();
   const token = getStored("token");
   const rol = normalizeRol(getStored("rol"));
-
   const handleLogout = async () => {
     try {
-      await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/auth/logout`, {
+      await fetch(buildApiUrl("/api/auth/logout"), {
         method: "POST",
         credentials: "include",
       });

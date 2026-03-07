@@ -7,7 +7,7 @@ Esta guia define el deploy real de produccion en tu VPS de IONOS.
 - Servidor: `root@194.164.164.78`
 - Codigo remoto: `/root/specialwash`
 - Backend: Flask en `:5000`
-- Frontend: build estatico de React servido por Nginx
+- Frontend: build estatico de React servido por Nginx desde `/var/www/specialwash/public_html`
 
 ## Archivos Clave
 
@@ -60,8 +60,9 @@ SERVER="root@194.164.164.78" REMOTE_PATH="/root/specialwash" ./deploy.sh all
 ### `frontend`
 
 - Ejecuta `npm run build` en `frontend/`.
-- Sincroniza `frontend/build/` al servidor.
-- Ajusta permisos de lectura/ejecucion.
+- Sincroniza `frontend/build/` a `/var/www/specialwash/public_html`.
+- Copia `nginx-default.conf` a `/etc/nginx/sites-available/default`.
+- Ajusta permisos para que Nginx (`www-data`) pueda leer los archivos.
 - Valida y recarga Nginx (`nginx -t && nginx -s reload`).
 
 ### `all`
@@ -79,10 +80,10 @@ SERVER="root@194.164.164.78" REMOTE_PATH="/root/specialwash" ./deploy.sh all
       instance/
          specialwash.db
       venv/
-   frontend/
-      build/
-         index.html
-         static/
+
+/var/www/specialwash/public_html/
+   index.html
+   static/
 ```
 
 ## Politica de Base de Datos

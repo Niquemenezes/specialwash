@@ -6,6 +6,7 @@ from config import Config
 from extensions import db
 from routes import register_routes
 from admin import setup_admin
+from update_servicio_cliente_schema import ensure_servicio_cliente_schema
 
 
 load_dotenv()
@@ -22,6 +23,7 @@ def create_app():
     cors_origins = [
       "http://localhost:3000",
       "http://127.0.0.1:3000",
+      "http://194.164.164.78",
       r"https://.*-3000\.app\.github\.dev",
     ]
 
@@ -50,7 +52,9 @@ def create_app():
     register_routes(app)
 
     with app.app_context():
-        db.create_all()  # crea las tablas
+      # Mantiene compatibilidad con bases SQLite antiguas sin migraciones formales.
+      ensure_servicio_cliente_schema()
+      db.create_all()  # crea las tablas
 
     # === Página raíz ===
     @app.route("/")

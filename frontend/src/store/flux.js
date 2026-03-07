@@ -1,11 +1,7 @@
 // src/front/js/store/flux.js — SpecialWash (roles + módulos + candados anti-bucle)
+import { buildApiUrl } from "../utils/apiBase";
 
 const getState = ({ getStore, getActions, setStore }) => {
-const API = process.env.REACT_APP_BACKEND_URL || "http://194.164.164.78:5000";
-
-
-
-
   // ====== Candados simples para evitar múltiples fetch en StrictMode/re-montajes ======
   let _loadingUsuarios = false;
   let _loadingProveedores = false;
@@ -30,7 +26,7 @@ const API = process.env.REACT_APP_BACKEND_URL || "http://194.164.164.78:5000";
     } = {}
   ) {
     const store = getStore();
-    const url = path.startsWith("http") ? path : `${API}${path}`;
+    const url = buildApiUrl(path);
     const finalHeaders = { ...headers };
 
     if (json && !finalHeaders["Content-Type"] && method !== "GET" && method !== "HEAD") {
@@ -361,6 +357,23 @@ const API = process.env.REACT_APP_BACKEND_URL || "http://194.164.164.78:5000";
         } catch (err) { console.error("registrarEntrada:", err); throw err; }
       },
 
+      sugerirEntradaOCR: async (archivo) => {
+        try {
+          const formData = new FormData();
+          formData.append("file", archivo);
+          const data = await apiFetch("/api/registro-entrada/ocr-sugerencia", {
+            method: "POST",
+            body: formData,
+            json: false,
+            headers: {},
+          });
+          return data;
+        } catch (err) {
+          console.error("sugerirEntradaOCR:", err);
+          throw err;
+        }
+      },
+
       actualizarEntrada: async (id, payload) => {
         try {
           const updated = await apiFetch(`/api/registro-entrada/${id}`, { method: "PUT", body: payload });
@@ -494,6 +507,23 @@ const API = process.env.REACT_APP_BACKEND_URL || "http://194.164.164.78:5000";
           setStore({ maquinaria: [...maquinaria, created] });
           return created;
         } catch (err) { console.error("createMaquina:", err); throw err; }
+      },
+
+      sugerirMaquinariaOCR: async (archivo) => {
+        try {
+          const formData = new FormData();
+          formData.append("file", archivo);
+          const data = await apiFetch("/api/maquinaria/ocr-sugerencia", {
+            method: "POST",
+            body: formData,
+            json: false,
+            headers: {},
+          });
+          return data;
+        } catch (err) {
+          console.error("sugerirMaquinariaOCR:", err);
+          throw err;
+        }
       },
 
       updateMaquina: async (id, maquina) => {
