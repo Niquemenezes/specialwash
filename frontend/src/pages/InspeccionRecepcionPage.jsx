@@ -1,4 +1,5 @@
-import React, { useState, useContext, useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useState, useContext, useRef } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Context } from "../store/appContext";
 import SignaturePad from "../component/SignaturePad.jsx";
 
@@ -20,8 +21,21 @@ const FORMATOS_VIDEO_LABEL = "MP4, MOV, AVI, MKV, WEBM, 3GP, FLV";
 
 const formatFileSizeMB = (sizeInBytes) => (sizeInBytes / (1024 * 1024)).toFixed(2);
 
+const getStored = (k) =>
+  (typeof sessionStorage !== "undefined" && sessionStorage.getItem(k)) ||
+  (typeof localStorage !== "undefined" && localStorage.getItem(k)) || "";
+
+const normalizeRol = (r) => {
+  r = (r || "").toLowerCase().trim();
+  if (r === "admin" || r === "administrator") return "administrador";
+  if (r === "employee" || r === "staff") return "empleado";
+  if (r === "manager" || r === "responsable") return "encargado";
+  return r;
+};
+
 const InspeccionRecepcionPage = () => {
   const { actions } = useContext(Context);
+  const navigate = useNavigate();
   
   // Referencias para los inputs file
   const fotosCamaraRef = useRef(null);
@@ -36,22 +50,61 @@ const InspeccionRecepcionPage = () => {
   const [fotosPreview, setFotosPreview] = useState([]);
   const [videosPreview, setVideosPreview] = useState([]);
   const [guardando, setGuardando] = useState(false);
+  const [cargandoEdicion, setCargandoEdicion] = useState(false);
   const [inspeccionCreada, setInspeccionCreada] = useState(null);
-  const [misInspecciones, setMisInspecciones] = useState([]);
   const [inspeccionEditandoId, setInspeccionEditandoId] = useState(null);
-  const [showDetalleModal, setShowDetalleModal] = useState(false);
-  const [inspeccionDetalle, setInspeccionDetalle] = useState(null);
-
-  const cargarMisInspecciones = useCallback(async () => {
-    const inspecciones = await actions.getMisInspecciones();
-    if (inspecciones) {
-      setMisInspecciones(inspecciones);
-    }
-  }, [actions]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rol = normalizeRol(getStored("rol"));
+  const isAdmin = rol === "administrador";
 
   useEffect(() => {
-    cargarMisInspecciones();
-  }, [cargarMisInspecciones]);
+    let active = true;
+    const editIdRaw = searchParams.get("editId");
+
+    if (!editIdRaw) {
+      setInspeccionEditandoId(null);
+      return;
+    }
+
+    const editId = Number.parseInt(editIdRaw, 10);
+    if (!Number.isFinite(editId) || editId <= 0) {
+      return;
+    }
+
+    const cargarParaEdicion = async () => {
+      setCargandoEdicion(true);
+      try {
+        const inspeccion = await actions.getInspeccion(editId);
+        if (!active || !inspeccion) return;
+
+        setFormData({
+          cliente_nombre: inspeccion.cliente_nombre || "",
+          cliente_telefono: inspeccion.cliente_telefono || "",
+          coche_descripcion: inspeccion.coche_descripcion || "",
+          matricula: inspeccion.matricula || "",
+          kilometros: inspeccion.kilometros || "",
+          firma_cliente_recepcion: inspeccion.firma_cliente_recepcion || "",
+          firma_empleado_recepcion: inspeccion.firma_empleado_recepcion || "",
+          consentimiento_datos_recepcion: Boolean(inspeccion.consentimiento_datos_recepcion),
+          averias_notas: inspeccion.averias_notas || ""
+        });
+        setInspeccionEditandoId(inspeccion.id);
+        setFotos([]);
+        setVideos([]);
+        setFotosPreview([]);
+        setVideosPreview([]);
+      } catch (error) {
+        alert(`No se pudo cargar la inspección para editar: ${error.message}`);
+      } finally {
+        if (active) setCargandoEdicion(false);
+      }
+    };
+
+    cargarParaEdicion();
+    return () => {
+      active = false;
+    };
+  }, [actions, searchParams]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -190,48 +243,48 @@ const InspeccionRecepcionPage = () => {
         kilometros
       };
 
+      let inspeccion = null;
       if (inspeccionEditandoId) {
-        const inspeccionActualizada = await actions.actualizarInspeccion(inspeccionEditandoId, payload);
-        if (!inspeccionActualizada?.id) {
+        inspeccion = await actions.actualizarInspeccion(inspeccionEditandoId, payload);
+        if (!inspeccion?.id) {
           throw new Error("No se pudo actualizar la inspección");
         }
-        alert(`✅ Inspección #${inspeccionActualizada.id} actualizada correctamente`);
       } else {
-        // 1. Crear la inspección
-        const inspeccion = await actions.crearInspeccion(payload);
-
+        inspeccion = await actions.crearInspeccion(payload);
         if (!inspeccion || !inspeccion.id) {
           throw new Error("No se pudo crear la inspección");
         }
-
-        setInspeccionCreada(inspeccion);
-
-        const { subidos: fotosSubidas, fallidos: fotosFallidas } = await subirArchivos({
-          inspeccionId: inspeccion.id,
-          archivos: fotos,
-          subirArchivo: actions.subirFotoInspeccion
-        });
-
-        const { subidos: videosSubidos, fallidos: videosFallidos } = await subirArchivos({
-          inspeccionId: inspeccion.id,
-          archivos: videos,
-          subirArchivo: actions.subirVideoInspeccion,
-          validarAntes: (video) => {
-            if (video.size <= MAX_VIDEO_SIZE_BYTES) return null;
-            const videoSize = formatFileSizeMB(video.size);
-            return `⚠️ El video "${video.name}" es muy grande (${videoSize} MB). Máximo: 100 MB`;
-          }
-        });
-
-        // Mensaje de resultado
-        let mensaje = `✅ Inspección #${inspeccion.id} creada correctamente`;
-        if (fotosSubidas > 0) mensaje += `\n📸 ${fotosSubidas} foto(s) subida(s)`;
-        if (fotosFallidas > 0) mensaje += `\n⚠️ ${fotosFallidas} foto(s) fallaron`;
-        if (videosSubidos > 0) mensaje += `\n🎥 ${videosSubidos} video(s) subido(s)`;
-        if (videosFallidos > 0) mensaje += `\n⚠️ ${videosFallidos} video(s) fallaron`;
-
-        alert(mensaje);
       }
+
+      setInspeccionCreada(inspeccion);
+
+      const { subidos: fotosSubidas, fallidos: fotosFallidas } = await subirArchivos({
+        inspeccionId: inspeccion.id,
+        archivos: fotos,
+        subirArchivo: actions.subirFotoInspeccion
+      });
+
+      const { subidos: videosSubidos, fallidos: videosFallidos } = await subirArchivos({
+        inspeccionId: inspeccion.id,
+        archivos: videos,
+        subirArchivo: actions.subirVideoInspeccion,
+        validarAntes: (video) => {
+          if (video.size <= MAX_VIDEO_SIZE_BYTES) return null;
+          const videoSize = formatFileSizeMB(video.size);
+          return `⚠️ El video "${video.name}" es muy grande (${videoSize} MB). Máximo: 100 MB`;
+        }
+      });
+
+      // Mensaje de resultado
+      let mensaje = inspeccionEditandoId
+        ? `✅ Inspección #${inspeccion.id} actualizada correctamente`
+        : `✅ Inspección #${inspeccion.id} creada correctamente`;
+      if (fotosSubidas > 0) mensaje += `\n📸 ${fotosSubidas} foto(s) subida(s)`;
+      if (fotosFallidas > 0) mensaje += `\n⚠️ ${fotosFallidas} foto(s) fallaron`;
+      if (videosSubidos > 0) mensaje += `\n🎥 ${videosSubidos} video(s) subido(s)`;
+      if (videosFallidos > 0) mensaje += `\n⚠️ ${videosFallidos} video(s) fallaron`;
+
+      alert(mensaje);
       
       // Limpiar formulario
       setFormData(INITIAL_FORM_DATA);
@@ -239,10 +292,10 @@ const InspeccionRecepcionPage = () => {
       setVideos([]);
       setFotosPreview([]);
       setVideosPreview([]);
-      setInspeccionEditandoId(null);
-      
-      // Recargar lista
-      cargarMisInspecciones();
+      if (inspeccionEditandoId) {
+        setInspeccionEditandoId(null);
+        setSearchParams({});
+      }
       
     } catch (error) {
       const accion = inspeccionEditandoId ? "actualizar" : "crear";
@@ -253,66 +306,9 @@ const InspeccionRecepcionPage = () => {
     }
   };
 
-  const verInspeccion = async (inspeccion) => {
-    try {
-      // Cargar la inspección completa con todos los detalles
-      const inspeccionCompleta = await actions.getInspeccion(inspeccion.id);
-      setInspeccionDetalle(inspeccionCompleta);
-      setShowDetalleModal(true);
-    } catch (error) {
-      console.error("Error al cargar inspección:", error);
-      alert("❌ Error al cargar los detalles: " + error.message);
-    }
-  };
-
-  const cerrarDetalleModal = () => {
-    setShowDetalleModal(false);
-    setInspeccionDetalle(null);
-  };
-
-  const editarInspeccion = async (inspeccion) => {
-    if (inspeccion.entregado) {
-      alert("No se puede editar una inspección que ya fue entregada");
-      return;
-    }
-    // Cargar datos en el formulario
-    setFormData({
-      cliente_nombre: inspeccion.cliente_nombre || "",
-      cliente_telefono: inspeccion.cliente_telefono || "",
-      coche_descripcion: inspeccion.coche_descripcion || "",
-      matricula: inspeccion.matricula || "",
-      kilometros: inspeccion.kilometros || "",
-      firma_cliente_recepcion: inspeccion.firma_cliente_recepcion || "",
-      firma_empleado_recepcion: inspeccion.firma_empleado_recepcion || "",
-      consentimiento_datos_recepcion: inspeccion.consentimiento_datos_recepcion || false,
-      averias_notas: inspeccion.averias_notas || ""
-    });
-    setInspeccionEditandoId(inspeccion.id);
-    setFotos([]);
-    setVideos([]);
-    setFotosPreview([]);
-    setVideosPreview([]);
-    // Scroll al formulario
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    alert("Datos cargados en el formulario. Modifica lo necesario y pulsa Actualizar.");
-  };
-
-  const eliminarInspeccion = async (inspeccionId) => {
-    if (!window.confirm("¿Estás seguro de eliminar esta inspección? Esta acción no se puede deshacer.")) {
-      return;
-    }
-    try {
-      await actions.eliminarInspeccion(inspeccionId);
-      alert("Inspección eliminada correctamente");
-      await cargarMisInspecciones();
-    } catch (error) {
-      console.error("Error al eliminar:", error);
-      alert(`Error al eliminar la inspección: ${error.message}`);
-    }
-  };
-
   const cancelarEdicion = () => {
     setInspeccionEditandoId(null);
+    setSearchParams({});
     setFormData(INITIAL_FORM_DATA);
     setFotos([]);
     setVideos([]);
@@ -324,6 +320,14 @@ const InspeccionRecepcionPage = () => {
     inputRef.current?.click();
   };
 
+  const volver = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate("/", { replace: true });
+  };
+
   return (
     <div className="container py-4" style={{ maxWidth: "900px" }}>
       {/* Header - Responsive */}
@@ -331,16 +335,28 @@ const InspeccionRecepcionPage = () => {
         className="d-flex justify-content-center align-items-center mb-3 mb-md-4 p-3 rounded shadow-sm"
         style={{ background: "#0f0f0f", color: "white" }}
       >
-        <h2 className="fw-bold mb-0 fs-4 fs-md-3 text-center" style={{ color: "#d4af37" }}>
-          🚗 Inspección de Recepción
-        </h2>
+        <div className="w-100 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2">
+          <h2 className="fw-bold mb-0 fs-4 fs-md-3 text-center text-md-start" style={{ color: "#d4af37" }}>
+            {inspeccionEditandoId ? `✏️ Editar Inspección #${inspeccionEditandoId}` : "🚗 Inspección de Recepción"}
+          </h2>
+          <div className="d-flex gap-2">
+            <button type="button" className="btn btn-sm btn-outline-secondary" onClick={volver}>
+              Volver
+            </button>
+            {isAdmin && (
+              <Link to="/inspecciones-guardadas" className="btn btn-sm btn-outline-light">
+                Ver inspecciones guardadas
+              </Link>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Formulario */}
       <form onSubmit={handleSubmit} className="mb-5">
         <div className="card shadow-sm border-0">
           <div className="card-header py-3" style={{ background: "#d4af37", fontWeight: "600", fontSize: "1.1rem" }}>
-            {inspeccionEditandoId ? `Editar Inspección #${inspeccionEditandoId}` : "Nueva Inspección"}
+            {inspeccionEditandoId ? "Edición de Inspección" : "Nueva Inspección"}
           </div>
           <div className="card-body p-3 p-md-4">
             <div className="row">
@@ -644,7 +660,7 @@ const InspeccionRecepcionPage = () => {
                   type="button"
                   className="btn btn-outline-secondary btn-lg px-4 py-3"
                   onClick={cancelarEdicion}
-                  disabled={guardando}
+                  disabled={guardando || cargandoEdicion}
                 >
                   Cancelar edición
                 </button>
@@ -653,148 +669,20 @@ const InspeccionRecepcionPage = () => {
                 type="submit"
                 className="btn btn-lg w-100 w-md-auto px-5 py-3"
                 style={{ background: "#d4af37", color: "black", fontWeight: "600", fontSize: "1.1rem" }}
-                disabled={guardando}
+                disabled={guardando || cargandoEdicion}
               >
-                {guardando
-                  ? "⏳ Guardando..."
-                  : inspeccionEditandoId
-                    ? "💾 Actualizar Inspección"
-                    : "💾 Guardar Inspección"}
+                {cargandoEdicion
+                  ? "⏳ Cargando inspección..."
+                  : guardando
+                    ? "⏳ Guardando..."
+                    : inspeccionEditandoId
+                      ? "💾 Actualizar Inspección"
+                      : "💾 Guardar Inspección"}
               </button>
             </div>
           </div>
         </div>
       </form>
-
-      {/* Lista de Mis Inspecciones */}
-      <div className="card shadow-sm border-0">
-        <div className="card-header py-3" style={{ background: "#0f0f0f", color: "#d4af37", fontWeight: "600", fontSize: "1.1rem" }}>
-          Mis Inspecciones Recientes
-        </div>
-        <div className="card-body p-2 p-md-3">
-          {misInspecciones.length === 0 ? (
-            <p className="text-muted text-center">No tienes inspecciones registradas aún.</p>
-          ) : (
-            <>
-              {/* Vista de tabla para desktop */}
-              <div className="d-none d-md-block table-responsive">
-                <table className="table table-hover">
-                  <thead className="table-light">
-                    <tr>
-                      <th>Fecha</th>
-                      <th>Cliente</th>
-                      <th>Coche</th>
-                      <th>Matrícula</th>
-                      <th>Estado</th>
-                      <th>Fotos</th>
-                      <th>Videos</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {misInspecciones.map((insp) => (
-                      <tr key={insp.id}>
-                        <td>{new Date(insp.fecha_inspeccion).toLocaleDateString()}</td>
-                        <td>{insp.cliente_nombre}</td>
-                        <td>{insp.coche_descripcion}</td>
-                        <td><span className="badge bg-secondary">{insp.matricula}</span></td>
-                        <td>
-                          {insp.entregado ? (
-                            <span className="badge bg-success">Entregado</span>
-                          ) : (
-                            <span className="badge bg-warning text-dark">Pendiente</span>
-                          )}
-                        </td>
-                        <td>{insp.fotos_cloudinary?.length || 0}</td>
-                        <td>{insp.videos_cloudinary?.length || 0}</td>
-                        <td>
-                          <div className="btn-group" role="group">
-                            <button
-                              className="btn btn-sm btn-outline-primary"
-                              onClick={() => verInspeccion(insp)}
-                              title="Ver detalles"
-                            >
-                              👁️
-                            </button>
-                            <button
-                              className="btn btn-sm btn-outline-warning"
-                              onClick={() => editarInspeccion(insp)}
-                              title={insp.entregado ? "No editable: la inspección ya fue entregada" : "Editar"}
-                            >
-                              ✏️
-                            </button>
-                            <button
-                              className="btn btn-sm btn-outline-danger"
-                              onClick={() => eliminarInspeccion(insp.id)}
-                              title="Eliminar"
-                            >
-                              🗑️
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Vista de cards para móvil/tablet */}
-              <div className="d-md-none">
-                {misInspecciones.map((insp) => (
-                  <div key={insp.id} className="card mb-3 shadow-sm">
-                    <div className="card-body p-3">
-                      <div className="d-flex justify-content-between align-items-start mb-2">
-                        <h6 className="mb-0 fw-bold">{insp.coche_descripcion}</h6>
-                        <div className="d-flex gap-2">
-                          <span className="badge bg-dark">{insp.matricula}</span>
-                          {insp.entregado ? (
-                            <span className="badge bg-success">Entregado</span>
-                          ) : (
-                            <span className="badge bg-warning text-dark">Pendiente</span>
-                          )}
-                        </div>
-                      </div>
-                      <p className="mb-2 text-muted small">
-                        <strong>Cliente:</strong> {insp.cliente_nombre}
-                      </p>
-                      <p className="mb-2 text-muted small">
-                        <strong>Fecha:</strong> {new Date(insp.fecha_inspeccion).toLocaleDateString()}
-                      </p>
-                      <div className="d-flex justify-content-between align-items-center">
-                        <div>
-                          <span className="badge bg-primary me-2">📸 {insp.fotos_cloudinary?.length || 0}</span>
-                          <span className="badge bg-danger">🎥 {insp.videos_cloudinary?.length || 0}</span>
-                        </div>
-                        <div className="btn-group" role="group">
-                          <button
-                            className="btn btn-outline-primary btn-sm"
-                            onClick={() => verInspeccion(insp)}
-                          >
-                            👁️ Ver
-                          </button>
-                          <button
-                            className="btn btn-outline-warning btn-sm"
-                            onClick={() => editarInspeccion(insp)}
-                            title={insp.entregado ? "No editable: la inspección ya fue entregada" : "Editar"}
-                          >
-                            ✏️
-                          </button>
-                          <button
-                            className="btn btn-outline-danger btn-sm"
-                            onClick={() => eliminarInspeccion(insp.id)}
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
 
       {/* Mensaje de éxito */}
       {inspeccionCreada && (
@@ -803,229 +691,6 @@ const InspeccionRecepcionPage = () => {
         </div>
       )}
 
-      {/* Modal de Detalles de Inspección */}
-      {showDetalleModal && inspeccionDetalle && (
-        <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.8)" }}>
-          <div className="modal-dialog modal-xl modal-dialog-scrollable modal-fullscreen-md-down">
-            <div className="modal-content">
-              {/* Header */}
-              <div className="modal-header py-3" style={{ background: "#0f0f0f", color: "#d4af37" }}>
-                <h5 className="modal-title fw-bold fs-6 fs-md-5">
-                  🚗 #{inspeccionDetalle.id} - {inspeccionDetalle.matricula}
-                </h5>
-                <button
-                  type="button"
-                  className="btn-close btn-close-white"
-                  onClick={cerrarDetalleModal}
-                  aria-label="Cerrar"
-                ></button>
-              </div>
-
-              {/* Body */}
-              <div className="modal-body p-3">
-                {/* Información del Cliente */}
-                <div className="card mb-3">
-                  <div className="card-header py-2" style={{ background: "#d4af37", fontWeight: "600" }}>
-                    👤 Datos del Cliente
-                  </div>
-                  <div className="card-body p-3">
-                    <div className="row">
-                      <div className="col-12 col-md-6 mb-2 mb-md-0">
-                        <p className="mb-2">
-                          <strong>Nombre:</strong> {inspeccionDetalle.cliente_nombre}
-                        </p>
-                      </div>
-                      <div className="col-12 col-md-6">
-                        <p className="mb-2">
-                          <strong>Teléfono:</strong> {inspeccionDetalle.cliente_telefono}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Información del Vehículo */}
-                <div className="card mb-3">
-                  <div className="card-header py-2" style={{ background: "#d4af37", fontWeight: "600" }}>
-                    🚗 Datos del Vehículo
-                  </div>
-                  <div className="card-body p-3">
-                    <div className="row">
-                      <div className="col-12 col-md-6 mb-2">
-                        <p className="mb-2">
-                          <strong>Coche:</strong> {inspeccionDetalle.coche_descripcion}
-                        </p>
-                      </div>
-                      <div className="col-12 col-md-6 mb-2">
-                        <p className="mb-2">
-                          <strong>Matrícula:</strong>{" "}
-                          <span className="badge bg-dark">{inspeccionDetalle.matricula}</span>
-                        </p>
-                      </div>
-                      <div className="col-12 col-md-6 mb-2">
-                        <p className="mb-2">
-                          <strong>Kilómetros:</strong>{" "}
-                          {Number.isFinite(inspeccionDetalle.kilometros)
-                            ? inspeccionDetalle.kilometros.toLocaleString("es-ES")
-                            : "-"}
-                          {" "}km
-                        </p>
-                      </div>
-                      <div className="col-12">
-                        <p className="mb-0">
-                          <strong>Fecha de Inspección:</strong>{" "}
-                          {new Date(inspeccionDetalle.fecha_inspeccion).toLocaleString('es-ES')}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Firmas de recepción */}
-                {(inspeccionDetalle.firma_cliente_recepcion || inspeccionDetalle.firma_empleado_recepcion) && (
-                  <div className="card mb-3">
-                    <div className="card-header py-2" style={{ background: "#d4af37", fontWeight: "600" }}>
-                      ✍️ Firmas de Recepcion
-                    </div>
-                    <div className="card-body p-3">
-                      <div className="row g-3">
-                        {inspeccionDetalle.firma_cliente_recepcion && (
-                          <div className="col-12 col-md-6">
-                            <p className="mb-1 fw-bold">Cliente</p>
-                            <img
-                              src={inspeccionDetalle.firma_cliente_recepcion}
-                              alt="Firma cliente recepcion"
-                              className="img-fluid border rounded"
-                              style={{ background: "#fff", maxHeight: "180px", width: "100%", objectFit: "contain" }}
-                            />
-                          </div>
-                        )}
-                        {inspeccionDetalle.firma_empleado_recepcion && (
-                          <div className="col-12 col-md-6">
-                            <p className="mb-1 fw-bold">Empleado</p>
-                            <img
-                              src={inspeccionDetalle.firma_empleado_recepcion}
-                              alt="Firma empleado recepcion"
-                              className="img-fluid border rounded"
-                              style={{ background: "#fff", maxHeight: "180px", width: "100%", objectFit: "contain" }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Observaciones / Averías */}
-                {inspeccionDetalle.averias_notas && (
-                  <div className="card mb-3">
-                    <div className="card-header py-2" style={{ background: "#d4af37", fontWeight: "600" }}>
-                      🔧 Observaciones y Averías
-                    </div>
-                    <div className="card-body p-3">
-                      <p className="mb-0" style={{ whiteSpace: "pre-wrap" }}>
-                        {inspeccionDetalle.averias_notas}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Fotos */}
-                {inspeccionDetalle.fotos_cloudinary && inspeccionDetalle.fotos_cloudinary.length > 0 && (
-                  <div className="card mb-3">
-                    <div className="card-header py-2" style={{ background: "#d4af37", fontWeight: "600" }}>
-                      📸 Fotos del Vehículo ({inspeccionDetalle.fotos_cloudinary.length})
-                    </div>
-                    <div className="card-body p-2 p-md-3">
-                      <div className="row g-3">
-                        {inspeccionDetalle.fotos_cloudinary.map((foto, index) => (
-                          <div key={index} className="col-6 col-sm-6 col-md-4">
-                            <div className="border rounded p-2">
-                              <a
-                                href={typeof foto === 'string' ? foto : foto.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <img
-                                  src={typeof foto === 'string' ? foto : foto.url}
-                                  alt={`Foto ${index + 1}`}
-                                  className="img-fluid rounded"
-                                  style={{ width: "100%", height: "180px", objectFit: "cover", cursor: "pointer" }}
-                                />
-                              </a>
-                              <p className="text-center mt-2 mb-0 small text-muted d-none d-md-block">
-                                Foto #{index + 1} - Click para ampliar
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Videos */}
-                {inspeccionDetalle.videos_cloudinary && inspeccionDetalle.videos_cloudinary.length > 0 && (
-                  <div className="card mb-3">
-                    <div className="card-header py-2" style={{ background: "#d4af37", fontWeight: "600" }}>
-                      🎥 Videos del Vehículo ({inspeccionDetalle.videos_cloudinary.length})
-                    </div>
-                    <div className="card-body p-2 p-md-3">
-                      <div className="row g-3">
-                        {inspeccionDetalle.videos_cloudinary.map((video, index) => (
-                          <div key={index} className="col-12 col-sm-6">
-                            <div className="border rounded p-2">
-                              <video
-                                src={typeof video === 'string' ? video : video.url}
-                                controls
-                                className="w-100 rounded"
-                                style={{ maxHeight: "400px" }}
-                              >
-                                Tu navegador no soporta el elemento de video.
-                              </video>
-                              <p className="text-center mt-2 mb-0 small text-muted">
-                                Video #{index + 1}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Si no hay fotos ni videos */}
-                {(!inspeccionDetalle.fotos_cloudinary || inspeccionDetalle.fotos_cloudinary.length === 0) &&
-                 (!inspeccionDetalle.videos_cloudinary || inspeccionDetalle.videos_cloudinary.length === 0) && (
-                  <div className="alert alert-info">
-                    ℹ️ No hay fotos ni videos adjuntos en esta inspección.
-                  </div>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={cerrarDetalleModal}
-                >
-                  Cerrar
-                </button>
-                <a
-                  href={`https://wa.me/${inspeccionDetalle.cliente_telefono.replace(/\D/g, '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn"
-                  style={{ background: "#25D366", color: "white" }}
-                >
-                  📱 WhatsApp Cliente
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

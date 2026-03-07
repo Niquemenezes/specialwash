@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Context } from "../store/appContext";
 
 const formatFecha = (value) => {
@@ -107,14 +107,23 @@ const cleanSectionDraft = (text = "", title = "") => {
   return noNumeric.replace(titleRegex, "").trim() || raw;
 };
 
+const PREMIUM_TONE_RULES = [
+  "Usa un tono profesional premium, elegante y convincente.",
+  "Refuerza la percepcion de calidad, detalle y alto valor del servicio.",
+  "Destaca precision tecnica, cuidado experto y resultados de nivel superior.",
+  "Evita exageraciones vacias o promesas absolutas; debe sonar creible y solido.",
+].join(" ");
+
 const CochesPendientesEntrega = () => {
   const { actions } = useContext(Context);
+  const navigate = useNavigate();
   const [inspecciones, setInspecciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showActaModal, setShowActaModal] = useState(false);
   const [inspeccionActa, setInspeccionActa] = useState(null);
   const [observacionesActa, setObservacionesActa] = useState("");
   const [guardandoActa, setGuardandoActa] = useState(false);
+  const [aiObservacionesLoading, setAiObservacionesLoading] = useState(false);
   const [sections, setSections] = useState(() =>
     DEFAULT_SECTION_TITLES.map((title, idx) => ({ id: `sec-${idx + 1}`, title, content: "", fromInspection: false }))
   );
@@ -158,6 +167,7 @@ const CochesPendientesEntrega = () => {
     setInspeccionActa(null);
     setObservacionesActa("");
     setGuardandoActa(false);
+    setAiObservacionesLoading(false);
     setSections(DEFAULT_SECTION_TITLES.map((title, idx) => ({ id: `sec-${idx + 1}`, title, content: "", fromInspection: false })));
     setAiBySection({});
   };
@@ -188,7 +198,9 @@ const CochesPendientesEntrega = () => {
     try {
       const contextoActual = buildInformeTecnicoFromSections(sections);
       const promptSeccion = [
-        `Redacta en tono premium solo el punto ${index + 1}: ${section.title}.`,
+        `Redacta solo el punto ${index + 1}: ${section.title}.`,
+        PREMIUM_TONE_RULES,
+        "El texto debe transmitir que el cliente recibe un servicio de categoria superior por el que vale la pena pagar.",
         "No repitas todo el informe, responde solo con el texto del punto.",
         `Texto base del punto: ${section.content || "(vacio)"}`,
         "",
@@ -214,6 +226,46 @@ const CochesPendientesEntrega = () => {
       alert(`No se pudo generar esta seccion con AI: ${err.message}`);
     } finally {
       setAiBySection((prev) => ({ ...prev, [section.id]: false }));
+    }
+  };
+
+  const redactarObservacionesConAI = async () => {
+    if (!inspeccionActa) return;
+    setAiObservacionesLoading(true);
+    try {
+      const contextoActual = buildInformeTecnicoFromSections(sections);
+      const promptObservaciones = [
+        "Redacta solo el bloque 'Observaciones de entrega'.",
+        PREMIUM_TONE_RULES,
+        "Haz que el cierre refuerce confianza, excelencia del trabajo realizado y sensacion de inversion bien hecha.",
+        "No repitas todo el informe tecnico, responde unicamente con las observaciones finales.",
+        `Texto base actual: ${observacionesActa || "(vacio)"}`,
+        "",
+        "Contexto del informe tecnico:",
+        contextoActual,
+      ].join("\n");
+
+      const data = await actions.sugerirActaInspeccion(inspeccionActa.id, {
+        borrador: promptObservaciones,
+        averias_notas: inspeccionActa?.averias_notas || "",
+      });
+
+      const texto = String(data?.texto || "").trim();
+      if (!texto) {
+        alert("La AI no devolvio texto para las observaciones finales.");
+        return;
+      }
+
+      // Si el modelo devuelve prefijos o titulo, los limpiamos para guardar solo el contenido.
+      const cleaned = texto
+        .replace(/^\s*observaciones\s*(de\s*entrega)?\s*[:.-]?\s*/i, "")
+        .trim();
+
+      setObservacionesActa(cleaned || texto);
+    } catch (err) {
+      alert(`No se pudo generar observaciones con AI: ${err.message}`);
+    } finally {
+      setAiObservacionesLoading(false);
     }
   };
 
@@ -249,15 +301,31 @@ const CochesPendientesEntrega = () => {
     }
   };
 
+  const volver = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate("/", { replace: true });
+  };
+
   return (
     <div className="container py-4" style={{ maxWidth: "900px" }}>
       <div className="card shadow-sm border-0">
         <div className="card-header py-3" style={{ background: "#d4af37", fontWeight: 600 }}>
           <div className="d-flex justify-content-between align-items-center">
             <span>Coches Pendientes de Entrega</span>
-            <Link className="btn btn-outline-dark btn-sm" to="/entregados">
-              Ver entregados
-            </Link>
+            <div className="d-flex gap-2">
+              <button type="button" className="btn btn-outline-secondary btn-sm" onClick={volver}>
+                Volver
+              </button>
+              <Link className="btn btn-outline-success btn-sm" to="/firma-entrega">
+                Firma de entrega
+              </Link>
+              <Link className="btn btn-outline-dark btn-sm" to="/entregados">
+                Ver entregados
+              </Link>
+            </div>
           </div>
         </div>
         <div className="card-body p-4">
@@ -331,9 +399,6 @@ const CochesPendientesEntrega = () => {
                           >
                             Preparar acta
                           </button>
-                          <Link className="btn btn-outline-success btn-sm" to={`/acta-entrega/${inspeccion.id}`}>
-                            Firma entrega
-                          </Link>
                         </div>
                       </td>
                     </tr>
@@ -411,7 +476,7 @@ const CochesPendientesEntrega = () => {
                       rows="3"
                       value={section.content}
                       onChange={(e) => actualizarSeccion(section.id, { content: e.target.value })}
-                      placeholder="Describe este punto de forma clara y profesional..."
+                      placeholder="Describe este punto en lenguaje tecnico y valor percibido premium..."
                       style={section.fromInspection ? { backgroundColor: "#f8f9fa" } : undefined}
                     />
                     {section.fromInspection && (
@@ -421,13 +486,23 @@ const CochesPendientesEntrega = () => {
                 ))}
 
                 <div className="mb-3">
-                  <label className="form-label fw-bold">Observaciones de entrega</label>
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <label className="form-label fw-bold mb-0">Observaciones de entrega</label>
+                    <button
+                      type="button"
+                      className="btn btn-dark btn-sm"
+                      onClick={redactarObservacionesConAI}
+                      disabled={aiObservacionesLoading || guardandoActa}
+                    >
+                      {aiObservacionesLoading ? "AI..." : "AI observaciones"}
+                    </button>
+                  </div>
                   <textarea
                     className="form-control"
                     rows="3"
                     value={observacionesActa}
                     onChange={(e) => setObservacionesActa(e.target.value)}
-                    placeholder="Observaciones adicionales de entrega..."
+                    placeholder="Cierre profesional premium: valor entregado, nivel de detalle y confianza al cliente..."
                   />
                 </div>
               </div>

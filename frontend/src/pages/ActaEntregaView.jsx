@@ -81,6 +81,18 @@ const normalizeTechnicalContent = (contenido = "") => {
   return cleaned || original;
 };
 
+const getStored = (k) =>
+  (typeof sessionStorage !== "undefined" && sessionStorage.getItem(k)) ||
+  (typeof localStorage !== "undefined" && localStorage.getItem(k)) || "";
+
+const normalizeRol = (r) => {
+  r = (r || "").toLowerCase().trim();
+  if (r === "admin" || r === "administrator") return "administrador";
+  if (r === "employee" || r === "staff") return "empleado";
+  if (r === "manager" || r === "responsable") return "encargado";
+  return r;
+};
+
 const ActaEntregaView = () => {
   const { id } = useParams();
   const location = useLocation();
@@ -142,13 +154,18 @@ const ActaEntregaView = () => {
   }, [inspeccion?.entrega_observaciones, acta.observaciones]);
   const contenidoTecnico = useMemo(() => normalizeTechnicalContent(acta.contenido), [acta.contenido]);
   const isEntregado = Boolean(inspeccion?.entregado);
+  const rol = normalizeRol(getStored("rol"));
 
   const volver = () => {
     if (window.history.length > 1) {
       navigate(-1);
       return;
     }
-    navigate(isEntregado ? "/entregados" : "/pendientes-entrega", { replace: true });
+    if (isEntregado) {
+      navigate("/entregados", { replace: true });
+      return;
+    }
+    navigate(rol === "empleado" ? "/firma-entrega" : "/pendientes-entrega", { replace: true });
   };
 
   useEffect(() => {

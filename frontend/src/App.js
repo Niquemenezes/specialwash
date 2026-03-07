@@ -28,6 +28,8 @@ import ActaEntregaView from "./pages/ActaEntregaView.jsx";
 import ActaEntregaDocumento from "./pages/ActaEntregaDocumento.jsx";
 import CochesPendientesEntrega from "./pages/CochesPendientesEntrega.jsx";
 import CochesEntregadosPage from "./pages/CochesEntregadosPage.jsx";
+import InspeccionesGuardadasPage from "./pages/InspeccionesGuardadasPage.jsx";
+import FirmaEntregaPage from "./pages/FirmaEntregaPage.jsx";
 
 const isLogged = () =>
   Boolean(sessionStorage.getItem("token") || localStorage.getItem("token"));
@@ -181,6 +183,15 @@ const App = () => {
             />
 
             <Route
+              path="/inspecciones-guardadas"
+              element={
+                <PrivateRoute allow={["administrador"]}>
+                  <InspeccionesGuardadasPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
               path="/acta-entrega/:id"
               element={
                 <PrivateRoute allow={["administrador", "empleado", "encargado"]}>
@@ -197,8 +208,17 @@ const App = () => {
             <Route
               path="/pendientes-entrega"
               element={
-                <PrivateRoute allow={["administrador", "empleado", "encargado"]}>
+                <PrivateRoute allow={["administrador", "encargado"]}>
                   <CochesPendientesEntrega />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/firma-entrega"
+              element={
+                <PrivateRoute allow={["administrador", "empleado", "encargado"]}>
+                  <FirmaEntregaPage />
                 </PrivateRoute>
               }
             />

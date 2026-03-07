@@ -39,97 +39,141 @@ export default function Home() {
     }
   }, [token, store.user, actions]);
 
-  const tiles = useMemo(
+  const sections = useMemo(
     () => [
       {
-        to: "/productos",
-        title: "Productos",
-        subtitle: "Control de stock y mínimos",
+        id: "inventario",
+        title: "Productos e Inventario",
+        subtitle: "Flujo completo de producto y stock",
         emoji: "📦",
-        roles: ["empleado", "administrador"],
+        items: [
+          {
+            to: "/productos",
+            label: "Crear y gestionar productos",
+            detail: "Catálogo, precios y stock mínimo",
+            roles: ["administrador"],
+          },
+          {
+            to: "/entradas",
+            label: "Registrar entrada",
+            detail: "Compras y abastecimiento",
+            roles: ["administrador"],
+          },
+          {
+            to: "/salidas",
+            label: "Registrar salida",
+            detail: "Consumo de taller y operaciones",
+            roles: ["administrador", "empleado", "encargado"],
+          },
+          {
+            to: "/resumen-entradas",
+            label: "Historial de entradas",
+            detail: "Resumen económico y compras",
+            roles: ["administrador"],
+          },
+          {
+            to: "/historial-salidas",
+            label: "Historial de salidas",
+            detail: "Trazabilidad por fecha y usuario",
+            roles: ["administrador"],
+          },
+        ],
       },
       {
-        to: "/entradas",
-        title: "Registrar Entrada",
-        subtitle: "Compras y proveedores",
-        emoji: "📥",
-        roles: ["administrador"],
-      },
-      {
-        to: "/salidas",
-        title: "Registrar Salida",
-        subtitle: "Consumo diario de productos",
-        emoji: "📤",
-        roles: ["empleado", "administrador"],
-      },
-      {
-        to: "/clientes",
-        title: "Clientes",
-        subtitle: "Gestión de clientes y contactos",
-        emoji: "👥",
-        roles: ["administrador"],
-      },
-      {
-        to: "/coches",
-        title: "Coches",
-        subtitle: "Registro de vehículos",
+        id: "clientes",
+        title: "Clientes y Vehículos",
+        subtitle: "Recepción, servicio y entrega",
         emoji: "🚗",
-        roles: ["administrador"],
+        items: [
+          {
+            to: "/clientes",
+            label: "Gestión de clientes",
+            detail: "Ficha y datos de contacto",
+            roles: ["administrador"],
+          },
+          {
+            to: "/coches",
+            label: "Coches",
+            detail: "Registro de vehículos",
+            roles: ["administrador"],
+          },
+          {
+            to: "/servicios",
+            label: "Servicios",
+            detail: "Trabajos realizados",
+            roles: ["administrador", "empleado", "encargado"],
+          },
+          {
+            to: "/inspeccion-recepcion",
+            label: "Inspección de recepción",
+            detail: "Estado inicial y firmas",
+            roles: ["administrador", "empleado", "encargado"],
+          },
+          {
+            to: "/pendientes-entrega",
+            label: "Pendientes de entrega",
+            detail: "Preparación de acta y cierre",
+            roles: ["administrador", "encargado"],
+          },
+          {
+            to: "/firma-entrega",
+            label: "Firma de entrega",
+            detail: "Firma cliente y cierre final",
+            roles: ["administrador", "empleado", "encargado"],
+          },
+          {
+            to: "/entregados",
+            label: "Coches entregados",
+            detail: "Historial de entregas",
+            roles: ["administrador", "empleado", "encargado"],
+          },
+          {
+            to: "/resumen-clientes",
+            label: "Resumen de clientes",
+            detail: "Facturación y períodos",
+            roles: ["administrador"],
+          },
+        ],
       },
       {
-        to: "/servicios",
-        title: "Servicios",
-        subtitle: "Historial de trabajos realizados",
-        emoji: "🔧",
-        roles: ["empleado", "administrador"],
-      },
-      {
-        to: "/resumen-clientes",
-        title: "Resumen Clientes",
-        subtitle: "Facturación por cliente y período",
-        emoji: "📊",
-        roles: ["administrador"],
-      },
-      {
-        to: "/resumen-entradas",
-        title: "Resumen Entradas",
-        subtitle: "Informe económico de compras",
-        emoji: "🧾",
-        roles: ["administrador"],
-      },
-      {
-        to: "/historial-salidas",
-        title: "Historial Salidas",
-        subtitle: "Trazabilidad de uso por día/usuario",
-        emoji: "🕐",
-        roles: ["administrador"],
-      },
-      {
-        to: "/proveedores",
-        title: "Proveedores",
-        subtitle: "Gestión de contactos y compras",
-        emoji: "🤝",
-        roles: ["administrador"],
-      },
-      {
-        to: "/usuarios",
-        title: "Usuarios",
-        subtitle: "Altas y gestión de personal",
-        emoji: "👤",
-        roles: ["administrador"],
-      },
-      {
-        to: "/maquinaria",
-        title: "Maquinaria",
-        subtitle: "Control de equipos y garantías",
-        emoji: "⚙️",
-        roles: ["administrador"],
+        id: "admin",
+        title: "Administración",
+        subtitle: "Estructura interna y recursos",
+        emoji: "🧩",
+        items: [
+          {
+            to: "/proveedores",
+            label: "Proveedores",
+            detail: "Contactos y compras",
+            roles: ["administrador"],
+          },
+          {
+            to: "/maquinaria",
+            label: "Maquinaria",
+            detail: "Control y garantías",
+            roles: ["administrador"],
+          },
+          {
+            to: "/usuarios",
+            label: "Usuarios",
+            detail: "Permisos y personal",
+            roles: ["administrador"],
+          },
+        ],
       },
     ],
     []
   );
 
-  const visibles = !token ? tiles : tiles.filter((t) => t.roles.includes(rol));
+  const visibleSections = !token
+    ? sections
+    : sections
+        .map((section) => ({
+          ...section,
+          items: section.items.filter((item) => item.roles.includes(rol)),
+        }))
+        .filter((section) => section.items.length > 0);
+
   const greeting = getGreeting();
 
   return (
@@ -176,27 +220,38 @@ export default function Home() {
           )}
         </div>
 
-        {/* Grid de módulos */}
-        <div className="sw-home-grid row g-3 g-md-4">
-          {visibles.map((t) => (
-            <div className="col-12 col-sm-6 col-lg-3" key={t.to}>
-              <Link to={t.to} className="text-decoration-none">
-                <div className="sw-home-card card h-100 border-0">
-                  <div className="card-body d-flex flex-column justify-content-between">
-                    <div>
-                      <div className="sw-home-icon-wrap mb-3">
-                        <span className="sw-home-icon" style={{ fontSize: "2rem" }}>{t.emoji}</span>
-                      </div>
-                      <h5 className="sw-home-title mb-1">{t.title}</h5>
-                      <p className="sw-home-subtitle mb-0">{t.subtitle}</p>
-                    </div>
-                    <div className="mt-3 sw-home-cta">
-                      <span>Acceder al módulo</span>
-                      <span className="ms-2">➡️</span>
-                    </div>
+        {/* Módulos por bloques */}
+        <div className="row g-3 g-lg-4">
+          {visibleSections.map((section) => (
+            <div className="col-12 col-xl-4" key={section.id}>
+              <div className="sw-home-section h-100">
+                <div className="sw-home-section-head">
+                  <div className="sw-home-icon-wrap">
+                    <span className="sw-home-icon" style={{ fontSize: "1.7rem" }}>
+                      {section.emoji}
+                    </span>
+                  </div>
+                  <div>
+                    <h4 className="sw-home-section-title mb-1">{section.title}</h4>
+                    <p className="sw-home-section-subtitle mb-0">{section.subtitle}</p>
                   </div>
                 </div>
-              </Link>
+
+                <div className="sw-home-links">
+                  {token ? (
+                    section.items.map((item) => (
+                      <Link key={item.to} to={item.to} className="sw-home-link-item text-decoration-none">
+                        <div className="sw-home-link-main">{item.label}</div>
+                        <div className="sw-home-link-detail">{item.detail}</div>
+                      </Link>
+                    ))
+                  ) : (
+                    <div className="sw-home-locked">
+                      Inicia sesión para ver y usar los accesos de este bloque.
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           ))}
         </div>

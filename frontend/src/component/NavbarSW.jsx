@@ -148,8 +148,18 @@ const NavbarSW = () => {
                         </NavLink>
                       </li>
                       <li>
+                        <NavLink to="/inspecciones-guardadas" className="dropdown-item">
+                          🔒 Inspecciones Guardadas (Admin)
+                        </NavLink>
+                      </li>
+                      <li>
                         <NavLink to="/pendientes-entrega" className="dropdown-item">
                           🚙 Coches Pendientes de Entrega
+                        </NavLink>
+                      </li>
+                      <li>
+                        <NavLink to="/firma-entrega" className="dropdown-item">
+                          ✍️ Firma de Entrega
                         </NavLink>
                       </li>
                       <li>
@@ -202,6 +212,11 @@ const NavbarSW = () => {
                   <li className="nav-item">
                     <NavLink to="/entregados" className="nav-link sw-navlink">
                       ✅ Entregados
+                    </NavLink>
+                  </li>
+                  <li className="nav-item">
+                    <NavLink to="/firma-entrega" className="nav-link sw-navlink">
+                      ✍️ Firma entrega
                     </NavLink>
                   </li>
                   <li className="nav-item">
