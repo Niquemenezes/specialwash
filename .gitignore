@@ -12,6 +12,7 @@ __pycache__/
 !backend/instance/specialwash.db
 !backend/instance/
 *.db
+/backend/specialwash.db
 
 # Instance folder
 instance/*
@@ -37,3 +38,7 @@ yarn-error.log*
 *.swp
 *.swo
 .idea/
+
+# Evitar artefactos locales accidentales
+/backend/backend/
+/package-lock.json

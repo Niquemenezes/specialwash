@@ -1,247 +1,131 @@
-# 🚗 SpecialWash – Sistema de gestión interna
+# SpecialWash
 
-Sistema interno desarrollado para la gestión completa de un **centro profesional de detailing automotriz**.
+Plataforma interna para la gestion operativa de un centro profesional de detailing automotriz.
 
-El objetivo del proyecto es digitalizar y organizar los procesos internos del negocio, permitiendo controlar:
+El sistema centraliza procesos de negocio en una unica aplicacion web:
 
-* empleados
-* productos
-* proveedores
-* maquinaria
-* entradas y salidas de stock
+- gestion de usuarios y roles
+- clientes y vehiculos
+- inspeccion de recepcion y entrega
+- productos, proveedores y stock
+- entradas y salidas de almacen
+- trazabilidad operativa para equipo y administracion
 
-todo desde una única plataforma.
+## Objetivo
 
----
+Digitalizar operaciones clave del taller para reducir errores manuales, mejorar el control de stock y profesionalizar la experiencia de entrega al cliente.
 
-# 📌 Características principales
-
-## 👥 Gestión de empleados
-
-Permite administrar los usuarios del sistema.
-
-Funciones:
-
-* Crear empleados
-* Editar información
-* Eliminar usuarios
-* Control de roles
-
----
-
-## 📦 Gestión de productos
-
-Registro de los productos utilizados en el centro.
-
-Información registrada:
-
-* Nombre del producto
-* Descripción
-* Categoría
-* Proveedor
-* Stock mínimo
-
----
-
-## 🏢 Gestión de proveedores
-
-Permite controlar los proveedores que suministran productos o maquinaria.
-
-Funciones:
-
-* Crear proveedor
-* Editar proveedor
-* Eliminar proveedor
-
----
-
-## 📊 Control de stock
-
-Sistema de control para conocer el inventario disponible.
-
-Incluye:
-
-* visualización del stock
-* control de inventario
-* alerta de bajo stock
-
----
-
-## 📥 Registro de entradas de productos
-
-Permite registrar los productos que entran al almacén.
-
-Datos registrados:
-
-* producto
-* proveedor
-* número de factura o albarán
-* fecha de entrada
-* cantidad
-* precio sin IVA
-* IVA
-* descuento
-* precio final
-
----
-
-## 📤 Registro de salidas de productos
-
-Permite registrar los productos utilizados por los empleados.
-
-Datos registrados:
-
-* producto
-* cantidad utilizada
-* fecha
-* usuario
-* observaciones
-
----
-
-## 🛠 Gestión de maquinaria
-
-Registro de maquinaria utilizada en el negocio.
-
-Información registrada:
-
-* nombre de la máquina
-* proveedor
-* fecha de compra
-* garantía
-* observaciones
-
----
-
-# 🧱 Arquitectura del sistema
-
-El proyecto está dividido en dos partes principales.
-
-## Backend
-
-API desarrollada con **Python y Flask**.
-
-Responsable de:
-
-* autenticación
-* control de usuarios
-* gestión de productos
-* control de stock
-* registro de movimientos
-* conexión con base de datos
-
----
-
-## Frontend
-
-Interfaz web desarrollada con **React**.
-
-Permite:
-
-* gestionar información
-* visualizar datos
-* interactuar con la API
-
----
-
-# ⚙️ Tecnologías utilizadas
+## Stack Tecnologico
 
 ### Backend
 
-* Python
-* Flask
-* Flask-JWT-Extended
-* Flask-SQLAlchemy
-* Flask-CORS
+- Python
+- Flask
+- Flask-JWT-Extended
+- Flask-SQLAlchemy
+- Flask-CORS
 
 ### Frontend
 
-* React
-* Bootstrap
+- React
+- React Router
+- Bootstrap
 
-### Base de datos
+### Base de Datos
 
-* MySQL
+- SQLite (entorno actual)
 
-### Control de versiones
+## Estructura del Proyecto
 
-* Git
-* GitHub
-
----
-
-# 📂 Estructura del proyecto
-
+```text
+specialwash/
+	backend/
+		app.py
+		config.py
+		api/
+		models/
+		routes/
+		services/
+		utils/
+	frontend/
+		package.json
+		public/
+		src/
+	DEPLOY.md
+	GUIA_ACTUALIZAR_BD.md
+	deploy.sh
 ```
-specialwash
-│
-├── backend
-│
-├── Interfaz
-│
-├── README.md
-├── DESPLIEGUE.md
-├── GUIA_ACTUALIZAR_BD.md
-└── .gitignore
-```
 
----
+## Requisitos
 
-# 🚀 Instalación del proyecto
+- Python 3.10+
+- Node.js 18+
+- npm
 
-## Clonar el repositorio
+## Puesta en Marcha (Local)
 
-```
+### 1. Clonar repositorio
+
+```bash
 git clone https://github.com/Niquemenezes/specialwash
+cd specialwash
 ```
 
----
+### 2. Backend
 
-## Instalar backend
-
-```
+```bash
 cd backend
+python -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
 python app.py
 ```
 
----
+Backend disponible en `http://localhost:5000`.
 
-## Instalar frontend
+### 3. Frontend
 
-```
-cd Interfaz
+En otra terminal:
+
+```bash
+cd frontend
 npm install
 npm start
 ```
 
----
+Frontend disponible en `http://localhost:3000`.
 
-# 🌐 Despliegue
+## Deploy en Produccion (IONOS)
 
-El proyecto está desplegado en un servidor propio utilizando **IONOS**.
+Este proyecto se despliega en VPS de IONOS.
 
-La documentación de despliegue se encuentra en:
+Comandos principales:
 
+```bash
+./deploy.sh backend
+./deploy.sh frontend
+./deploy.sh all
 ```
-DESPLIEGUE.md
-```
 
----
+Documentacion completa de despliegue:
 
-# 📈 Estado del proyecto
+- `DEPLOY.md`
 
-Proyecto en desarrollo activo.
+## Seguridad y Configuracion
 
-Actualmente se siguen implementando mejoras en:
+- Variables de entorno sensibles no deben versionarse (`.env`).
+- La base de datos productiva no debe sobrescribirse en deploy de codigo.
+- Para cambios de esquema, seguir `GUIA_ACTUALIZAR_BD.md`.
 
-* optimización del backend
-* control avanzado de stock
-* mejoras en la interfaz
-* nuevas funcionalidades administrativas
+## Estado del Proyecto
 
----
+Proyecto en evolucion continua con foco en:
 
-# 👩‍💻 Autor
+- mantenibilidad de arquitectura
+- modularizacion del backend
+- robustez del flujo inspeccion/entrega
+- calidad de experiencia de usuario en frontend
 
-**Monique Menezes**
+## Autor
+
+Monique Menezes
