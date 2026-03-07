@@ -17,5 +17,10 @@ class Config:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
-    # CORS - Permitir el dominio del frontend
-    CORS_ORIGINS = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    # CORS - Lista separada por comas. Ejemplo:
+    # FRONTEND_URLS=http://localhost:3000,https://mi-codespace-3000.app.github.dev
+    CORS_ORIGINS = os.getenv("FRONTEND_URLS") or os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+    # OpenAI (asistente de redaccion premium de actas)
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
