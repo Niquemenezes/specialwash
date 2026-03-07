@@ -26,13 +26,19 @@ const ClientesPage = () => {
     setShowModal(true);
   };
 
-  const handleEliminar = async (id) => {
-    if (!window.confirm("¿Eliminar este cliente?")) return;
+  const handleEliminar = async (cliente) => {
+    const nombre = cliente?.nombre || "este cliente";
+    const confirmado = window.confirm(
+      `Vas a eliminar a "${nombre}".\n\n¿Seguro que deseas continuar? Esta accion no se puede deshacer.`
+    );
+    if (!confirmado) return;
+
     try {
-      await actions.eliminarCliente(id);
+      await actions.eliminarCliente(cliente.id);
+      alert(`Cliente "${nombre}" eliminado correctamente.`);
       actions.getClientes();
     } catch (err) {
-      alert("Error al eliminar el cliente");
+      alert(err?.message || "No se pudo eliminar el cliente");
     }
   };
 
@@ -126,7 +132,7 @@ const ClientesPage = () => {
                   </button>
                   <button
                     className="btn btn-sm btn-outline-danger"
-                    onClick={() => handleEliminar(c.id)}
+                    onClick={() => handleEliminar(c)}
                     title="Eliminar"
                   >
                     🗑️

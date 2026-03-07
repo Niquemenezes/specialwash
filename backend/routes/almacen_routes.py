@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import re
 
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
@@ -16,6 +17,63 @@ from services.stock_service import (
 from utils.auth_utils import role_required
 
 almacen_bp = Blueprint("almacen_routes", __name__)
+
+try:
+    from PIL import Image
+    import pytesseract
+except Exception:  # pragma: no cover - optional dependency
+    Image = None
+    pytesseract = None
+
+
+def _parse_decimal(value):
+    if value is None:
+        return None
+    candidate = value.strip().replace(" ", "")
+    if not candidate:
+        return None
+    if "," in candidate and "." in candidate:
+        candidate = candidate.replace(".", "").replace(",", ".")
+    else:
+        candidate = candidate.replace(",", ".")
+    try:
+        return round(float(candidate), 2)
+    except ValueError:
+        return None
+
+
+def _extract_ocr_fields(raw_text):
+    text = raw_text or ""
+    compact = " ".join(text.split())
+
+    def first_match(patterns):
+        for pattern in patterns:
+            match = re.search(pattern, compact, flags=re.IGNORECASE)
+            if match:
+                return match.group(1)
+        return None
+
+    numero_doc = first_match([
+        r"(?:albaran|albarán|factura|num(?:ero)?\.?|n[ºo])\s*[:#-]?\s*([A-Z0-9\-/]{3,})",
+    ])
+    cantidad_raw = first_match([
+        r"(?:cantidad|uds?|unidades)\s*[:#-]?\s*(\d{1,6})",
+    ])
+    iva_raw = first_match([
+        r"(?:iva|i\.v\.a\.)\s*[:#-]?\s*(\d{1,2}(?:[\.,]\d{1,2})?)\s*%",
+    ])
+    precio_raw = first_match([
+        r"(?:precio\s*unit(?:ario)?|p\.?u\.?)\s*[:#-]?\s*(\d{1,8}(?:[\.,]\d{1,4})?)",
+        r"(?:€/ud|eur/ud)\s*[:#-]?\s*(\d{1,8}(?:[\.,]\d{1,4})?)",
+    ])
+
+    return {
+        "numero_albaran": numero_doc,
+        "cantidad": int(cantidad_raw) if cantidad_raw else None,
+        "porcentaje_iva": _parse_decimal(iva_raw),
+        "precio_unitario": _parse_decimal(precio_raw),
+        "texto_ocr": text[:4000],
+    }
 
 
 @almacen_bp.route("/registro-entrada", methods=["POST"])
@@ -56,6 +114,27 @@ def registrar_entrada():
     db.session.commit()
 
     return jsonify({"msg": "Entrada registrada", "producto": producto.to_dict()}), 201
+
+
+@almacen_bp.route("/registro-entrada/ocr-sugerencia", methods=["POST"])
+@role_required("administrador")
+def ocr_sugerencia_entrada():
+    if pytesseract is None or Image is None:
+        return jsonify({"msg": "OCR no disponible en el servidor"}), 503
+
+    file = request.files.get("file")
+    if not file:
+        return jsonify({"msg": "Debe adjuntar una imagen"}), 400
+
+    try:
+        image = Image.open(file.stream)
+        text = pytesseract.image_to_string(image, lang="spa+eng")
+        sugerencia = _extract_ocr_fields(text)
+        return jsonify(sugerencia), 200
+    except pytesseract.TesseractNotFoundError:
+        return jsonify({"msg": "Tesseract OCR no esta instalado en el servidor"}), 503
+    except Exception:
+        return jsonify({"msg": "No se pudo procesar el documento OCR"}), 400
 
 
 @almacen_bp.route("/registro-entrada", methods=["GET"])

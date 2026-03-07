@@ -4,12 +4,93 @@ from flask_jwt_extended import (
 )
 from sqlalchemy import func, desc
 from datetime import datetime, timedelta
+import re
 
-from models import db, User, Producto, Proveedor, Entrada, Salida, Maquinaria, Cliente, Coche, Servicio, ServicioCliente, GastoEmpresa
+from models import db, User, Producto, Proveedor, Entrada, Salida, Maquinaria, Cliente, Coche, Servicio, ServicioCliente, InspeccionRecepcion, GastoEmpresa
 from models.base import now_madrid
 from utils.auth_utils import role_required
 
 api = Blueprint("api", __name__)
+
+try:
+    from PIL import Image
+    import pytesseract
+except Exception:  # pragma: no cover - optional dependency
+    Image = None
+    pytesseract = None
+
+
+def _parse_decimal(value):
+    if value is None:
+        return None
+    candidate = value.strip().replace(" ", "")
+    if not candidate:
+        return None
+    if "," in candidate and "." in candidate:
+        candidate = candidate.replace(".", "").replace(",", ".")
+    else:
+        candidate = candidate.replace(",", ".")
+    try:
+        return round(float(candidate), 2)
+    except ValueError:
+        return None
+
+
+def _extract_maquinaria_ocr_fields(raw_text):
+    text = raw_text or ""
+    compact = " ".join(text.split())
+
+    def first_match(patterns):
+        for pattern in patterns:
+            match = re.search(pattern, compact, flags=re.IGNORECASE)
+            if match:
+                return match.group(1).strip()
+        return None
+
+    nombre = first_match([
+        r"(?:maquina|maquinaria|equipo|nombre)\s*[:#-]?\s*([A-Z0-9][A-Z0-9\s\-_/]{2,80})",
+    ])
+    marca = first_match([
+        r"(?:marca)\s*[:#-]?\s*([A-Z0-9\-]{2,40})",
+    ])
+    modelo = first_match([
+        r"(?:modelo)\s*[:#-]?\s*([A-Z0-9\-_/]{2,40})",
+    ])
+    numero_serie = first_match([
+        r"(?:n(?:um(?:ero)?)?\s*(?:de\s*)?serie|s\/n|serial)\s*[:#-]?\s*([A-Z0-9\-/]{3,60})",
+    ])
+    fecha_compra = first_match([
+        r"(?:fecha\s*(?:de\s*)?(?:compra|factura)|f\.)\s*[:#-]?\s*(\d{4}-\d{2}-\d{2})",
+        r"(?:fecha\s*(?:de\s*)?(?:compra|factura)|f\.)\s*[:#-]?\s*(\d{2}[\/\-]\d{2}[\/\-]\d{4})",
+    ])
+    precio_sin_iva_raw = first_match([
+        r"(?:precio\s*sin\s*iva|base\s*imponible|subtotal)\s*[:#-]?\s*(\d{1,10}(?:[\.,]\d{1,4})?)",
+    ])
+    iva_raw = first_match([
+        r"(?:iva|i\.v\.a\.)\s*[:#-]?\s*(\d{1,2}(?:[\.,]\d{1,2})?)\s*%",
+    ])
+    cantidad_raw = first_match([
+        r"(?:cantidad|uds?|unidades)\s*[:#-]?\s*(\d{1,5})",
+    ])
+
+    if fecha_compra and "/" in fecha_compra:
+        dd, mm, yyyy = fecha_compra.split("/")
+        fecha_compra = f"{yyyy}-{mm}-{dd}"
+    elif fecha_compra and re.match(r"\d{2}-\d{2}-\d{4}", fecha_compra):
+        dd, mm, yyyy = fecha_compra.split("-")
+        fecha_compra = f"{yyyy}-{mm}-{dd}"
+
+    return {
+        "nombre": nombre,
+        "marca": marca,
+        "modelo": modelo,
+        "numero_serie": numero_serie,
+        "fecha_compra": fecha_compra,
+        "precio_sin_iva": _parse_decimal(precio_sin_iva_raw),
+        "iva": _parse_decimal(iva_raw),
+        "cantidad": int(cantidad_raw) if cantidad_raw else None,
+        "texto_ocr": text[:4000],
+    }
 
 # =====================================================
 # MAQUINARIA
@@ -51,6 +132,26 @@ def maquinaria_create():
     db.session.add(m)
     db.session.commit()
     return jsonify(m.to_dict()), 201
+
+
+@api.route("/maquinaria/ocr-sugerencia", methods=["POST"])
+@role_required("administrador")
+def maquinaria_ocr_sugerencia():
+    if pytesseract is None or Image is None:
+        return jsonify({"msg": "OCR no disponible en el servidor"}), 503
+
+    file = request.files.get("file")
+    if not file:
+        return jsonify({"msg": "Debe adjuntar una imagen"}), 400
+
+    try:
+        image = Image.open(file.stream)
+        text = pytesseract.image_to_string(image, lang="spa+eng")
+        return jsonify(_extract_maquinaria_ocr_fields(text)), 200
+    except pytesseract.TesseractNotFoundError:
+        return jsonify({"msg": "Tesseract OCR no esta instalado en el servidor"}), 503
+    except Exception:
+        return jsonify({"msg": "No se pudo procesar el documento OCR"}), 400
 
 
 @api.route("/maquinaria/<int:mid>", methods=["PUT"])
@@ -177,12 +278,27 @@ def clientes_update(cid):
 @role_required("administrador")
 def clientes_delete(cid):
     c = Cliente.query.get_or_404(cid)
+
+    # Guardamos IDs de coches antes del borrado en cascada para poder desvincular inspecciones.
+    coche_ids = [car.id for car in (c.coches or [])]
+
     try:
+        inspecciones = InspeccionRecepcion.query.filter(
+            (InspeccionRecepcion.cliente_id == cid) |
+            (InspeccionRecepcion.coche_id.in_(coche_ids) if coche_ids else False)
+        ).all()
+
+        for insp in inspecciones:
+            if insp.cliente_id == cid:
+                insp.cliente_id = None
+            if insp.coche_id in coche_ids:
+                insp.coche_id = None
+
         db.session.delete(c)
         db.session.commit()
-    except Exception:
+    except Exception as exc:
         db.session.rollback()
-        return jsonify({"error": "No se puede eliminar: el cliente tiene registros asociados"}), 400
+        return jsonify({"error": f"No se puede eliminar el cliente: {str(exc)}"}), 400
     return jsonify({"msg": "Cliente eliminado"}), 200
 
 

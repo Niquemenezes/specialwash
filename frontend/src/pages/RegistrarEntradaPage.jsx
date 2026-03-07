@@ -42,6 +42,9 @@ const RegistrarEntradaPage = () => {
   });
 
   const [saving, setSaving] = useState(false);
+  const [ocrFile, setOcrFile] = useState(null);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrMsg, setOcrMsg] = useState("");
   const [showNuevo, setShowNuevo] = useState(false);
   const [editando, setEditando] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -123,6 +126,41 @@ const RegistrarEntradaPage = () => {
     }
   };
 
+  const aplicarSugerenciaOCR = async () => {
+    if (!ocrFile) {
+      setOcrMsg("Selecciona primero una imagen de albaran/factura.");
+      return;
+    }
+
+    setOcrLoading(true);
+    setOcrMsg("");
+    try {
+      const sugerencia = await actions.sugerirEntradaOCR(ocrFile);
+      setForm((prev) => ({
+        ...prev,
+        cantidad:
+          sugerencia?.cantidad != null && Number.isFinite(Number(sugerencia.cantidad))
+            ? String(sugerencia.cantidad)
+            : prev.cantidad,
+        precio_unitario:
+          sugerencia?.precio_unitario != null && Number.isFinite(Number(sugerencia.precio_unitario))
+            ? String(sugerencia.precio_unitario)
+            : prev.precio_unitario,
+        iva_porcentaje:
+          sugerencia?.porcentaje_iva != null && Number.isFinite(Number(sugerencia.porcentaje_iva))
+            ? String(sugerencia.porcentaje_iva)
+            : prev.iva_porcentaje,
+        numero_documento: sugerencia?.numero_albaran || prev.numero_documento,
+      }));
+
+      setOcrMsg("Sugerencias OCR aplicadas. Revisa y confirma antes de guardar.");
+    } catch (err) {
+      setOcrMsg(err?.message || "No se pudo leer el documento con OCR.");
+    } finally {
+      setOcrLoading(false);
+    }
+  };
+
   const handleEditar = (entrada) => {
     setEditando(entrada);
     setShowEditModal(true);
@@ -159,6 +197,36 @@ const RegistrarEntradaPage = () => {
     <div className="container py-4" style={{ maxWidth: "1000px" }}>
       <form onSubmit={handleSubmit} className="mb-4 p-3 rounded shadow-sm bg-light">
         <div className="row g-3 align-items-end">
+          <div className="col-12">
+            <label className="form-label fw-semibold">Carga manual u OCR de factura/albaran (opcional)</label>
+            <div className="d-flex gap-2 flex-wrap">
+              <input
+                type="file"
+                className="form-control"
+                style={{ maxWidth: "420px" }}
+                accept="image/*"
+                onChange={(e) => {
+                  setOcrFile(e.target.files?.[0] || null);
+                  setOcrMsg("");
+                }}
+              />
+              <button
+                type="button"
+                className="btn btn-outline-dark"
+                onClick={aplicarSugerenciaOCR}
+                disabled={ocrLoading}
+              >
+                {ocrLoading ? "Leyendo..." : "Escanear OCR"}
+              </button>
+            </div>
+            {!ocrMsg && (
+              <small className="text-muted d-block mt-1">
+                Puedes rellenar todo manualmente o usar OCR para sugerir precio, cantidad, IVA y numero de documento.
+              </small>
+            )}
+            {ocrMsg && <small className="text-muted d-block mt-1">{ocrMsg}</small>}
+          </div>
+
           <div className="col-md-4">
             <label className="form-label">Producto *</label>
             <GoldSelect

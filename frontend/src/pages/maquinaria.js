@@ -43,6 +43,9 @@ export default function Maquinaria() {
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("");
   const [editing, setEditing] = useState(null);
+  const [ocrFile, setOcrFile] = useState(null);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrMsg, setOcrMsg] = useState("");
 
   const [form, setForm] = useState({
     nombre: "",
@@ -93,6 +96,8 @@ export default function Maquinaria() {
   // ---------------- FORM HANDLERS ----------------
   const startCreate = () => {
     setEditing({});
+    setOcrFile(null);
+    setOcrMsg("");
     setForm({
       nombre: "",
       tipo: "",
@@ -112,6 +117,8 @@ export default function Maquinaria() {
 
   const startEdit = (m) => {
     setEditing(m);
+    setOcrFile(null);
+    setOcrMsg("");
     setForm({
       nombre: m.nombre || "",
       descuento: m.descuento ?? "",
@@ -131,6 +138,8 @@ export default function Maquinaria() {
 
   const cancel = () => {
     setEditing(null);
+    setOcrFile(null);
+    setOcrMsg("");
     setForm({
       nombre: "",
       descuento: "",
@@ -201,6 +210,54 @@ export default function Maquinaria() {
       }
       return updated;
     });
+  };
+
+  const aplicarSugerenciaOCR = async () => {
+    if (!ocrFile) {
+      setOcrMsg("Selecciona una imagen de factura/albaran para escanear.");
+      return;
+    }
+
+    setOcrLoading(true);
+    setOcrMsg("");
+    try {
+      const data = await actions.sugerirMaquinariaOCR(ocrFile);
+      setForm((prev) => {
+        const next = {
+          ...prev,
+          nombre: data?.nombre || prev.nombre,
+          marca: data?.marca || prev.marca,
+          modelo: data?.modelo || prev.modelo,
+          numero_serie: data?.numero_serie || prev.numero_serie,
+          fecha_compra: data?.fecha_compra || prev.fecha_compra,
+          precio_sin_iva:
+            data?.precio_sin_iva != null && Number.isFinite(Number(data.precio_sin_iva))
+              ? String(data.precio_sin_iva)
+              : prev.precio_sin_iva,
+          iva:
+            data?.iva != null && Number.isFinite(Number(data.iva))
+              ? String(data.iva)
+              : prev.iva,
+          cantidad:
+            data?.cantidad != null && Number.isFinite(Number(data.cantidad))
+              ? String(data.cantidad)
+              : prev.cantidad,
+        };
+
+        const base = parseFloat(next.precio_sin_iva) || 0;
+        const ivaVal = parseFloat(next.iva) || 0;
+        const desc = parseFloat(next.descuento) || 0;
+        const baseConDescuento = base * (1 - desc / 100);
+        next.precio_con_iva = (baseConDescuento + (baseConDescuento * ivaVal / 100)).toFixed(2);
+
+        return next;
+      });
+      setOcrMsg("Sugerencias OCR aplicadas. Puedes ajustar cualquier campo manualmente.");
+    } catch (err) {
+      setOcrMsg(err?.message || "No se pudo leer el documento con OCR.");
+    } finally {
+      setOcrLoading(false);
+    }
   };
 
   // ---------------- UI ----------------
@@ -290,6 +347,35 @@ export default function Maquinaria() {
             </h5>
 
             <form onSubmit={save} className="row g-3">
+              <div className="col-12">
+                <label className="form-label fw-semibold">Carga manual u OCR (opcional)</label>
+                <div className="d-flex gap-2 flex-wrap">
+                  <input
+                    type="file"
+                    className="form-control"
+                    style={{ maxWidth: "420px" }}
+                    accept="image/*"
+                    onChange={(e) => {
+                      setOcrFile(e.target.files?.[0] || null);
+                      setOcrMsg("");
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-outline-dark"
+                    disabled={ocrLoading}
+                    onClick={aplicarSugerenciaOCR}
+                  >
+                    {ocrLoading ? "Leyendo..." : "Escanear OCR"}
+                  </button>
+                </div>
+                {!ocrMsg && (
+                  <small className="text-muted d-block mt-1">
+                    OCR sugiere nombre, marca, modelo, serie, fecha, precio, IVA y cantidad. Puedes editar todo manualmente.
+                  </small>
+                )}
+                {ocrMsg && <small className="text-muted d-block mt-1">{ocrMsg}</small>}
+              </div>
 
               {Object.entries({
                 nombre: "Nombre *",

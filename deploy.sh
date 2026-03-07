@@ -7,13 +7,15 @@
 #   ./deploy.sh all
 #
 # Variables opcionales:
-#   SERVER="root@x.x.x.x" REMOTE_PATH="/root/specialwash" LOCAL_PATH="/workspaces/specialwash" ./deploy.sh all
+#   SERVER="root@x.x.x.x" REMOTE_PATH="/root/specialwash" LOCAL_PATH="/ruta/local/al/repo" ./deploy.sh all
 
 set -euo pipefail
 
 SERVER="${SERVER:-root@194.164.164.78}"
 REMOTE_PATH="${REMOTE_PATH:-/root/specialwash}"
-LOCAL_PATH="${LOCAL_PATH:-/workspaces/specialwash}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOCAL_PATH="${LOCAL_PATH:-$SCRIPT_DIR}"
+NGINX_WEB_ROOT="${NGINX_WEB_ROOT:-/var/www/specialwash/public_html}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -60,6 +62,7 @@ fi
 echo -e "${YELLOW}=== SPECIALWASH DEPLOY (IONOS) ===${NC}"
 echo "Server: $SERVER"
 echo "Remote path: $REMOTE_PATH"
+echo "Nginx web root: $NGINX_WEB_ROOT"
 
 deploy_backend() {
     echo -e "${YELLOW}[backend] Sincronizando codigo...${NC}"
@@ -102,18 +105,26 @@ BASH_BACKEND
 deploy_frontend() {
     echo -e "${YELLOW}[frontend] Construyendo build...${NC}"
     cd "$LOCAL_PATH/frontend"
-    npm run build
+    # Forzar API same-origin en produccion para evitar llamadas a Codespaces.
+    REACT_APP_BACKEND_URL=/api npm run build
 
-    echo -e "${YELLOW}[frontend] Sincronizando build...${NC}"
-    rsync -azv --delete "$LOCAL_PATH/frontend/build/" "$SERVER:$REMOTE_PATH/frontend/build/"
+    echo -e "${YELLOW}[frontend] Sincronizando build a Nginx web root...${NC}"
+    rsync -azv --delete "$LOCAL_PATH/frontend/build/" "$SERVER:$NGINX_WEB_ROOT/"
 
-    echo -e "${YELLOW}[frontend] Ajustando permisos y recargando nginx...${NC}"
+    echo -e "${YELLOW}[frontend] Publicando config Nginx, permisos y recarga...${NC}"
     ssh "$SERVER" 'bash -s' <<'BASH_FRONTEND'
 set -euo pipefail
 
-chmod +rx /root /root/specialwash /root/specialwash/frontend /root/specialwash/frontend/build
-chmod -R +r /root/specialwash/frontend/build/
-find /root/specialwash/frontend/build/ -type d -exec chmod +x {} \;
+# Publicar configuracion Nginx desde el repo (si existe).
+if [[ -f /root/specialwash/nginx-default.conf ]]; then
+    cp /root/specialwash/nginx-default.conf /etc/nginx/sites-available/default
+fi
+
+# Crear carpeta web si no existe y ajustar permisos para www-data.
+mkdir -p /var/www/specialwash/public_html
+chown -R www-data:www-data /var/www/specialwash
+find /var/www/specialwash -type d -exec chmod 755 {} \;
+find /var/www/specialwash -type f -exec chmod 644 {} \;
 
 nginx -t
 nginx -s reload
