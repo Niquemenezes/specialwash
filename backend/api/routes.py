@@ -7,7 +7,8 @@ from functools import wraps
 from sqlalchemy import func, desc
 from datetime import datetime
 
-from models import db, User, Producto, Proveedor, Entrada, Salida, Maquinaria, Cliente, Coche, Servicio, ServicioCliente
+from models import db, User, Producto, Proveedor, Entrada, Salida, Maquinaria, Cliente, Coche, Servicio, ServicioCliente, GastoEmpresa
+from models.base import now_madrid
 
 api = Blueprint("api", __name__)
 
@@ -799,7 +800,14 @@ def clientes_list():
             (Cliente.telefono.ilike(f"%{q}%")) |
             (Cliente.email.ilike(f"%{q}%"))
         )
-    return jsonify([c.to_dict() for c in query.order_by(Cliente.nombre).all()])
+    clientes = query.order_by(Cliente.nombre).all()
+    return jsonify([
+        {
+            **c.to_dict(),
+            "total_coches": len(c.coches or [])
+        }
+        for c in clientes
+    ])
 
 
 @api.route("/clientes", methods=["POST"])
@@ -1003,7 +1011,7 @@ def servicios_delete(sid):
 # =====================================================
 
 @api.route("/clientes/<int:cliente_id>/servicios", methods=["GET"])
-@jwt_required()
+@role_required("administrador")
 def get_servicios_cliente(cliente_id):
     """Obtener todos los servicios personalizados de un cliente"""
     servicios = ServicioCliente.query.filter_by(cliente_id=cliente_id).all()
@@ -1019,17 +1027,22 @@ def create_servicio_cliente(cliente_id):
     
     nombre = data.get("nombre", "").strip()
     precio = data.get("precio")
+    descuento_porcentaje = float(data.get("descuento_porcentaje") or 0)
     
     if not nombre:
         return jsonify({"msg": "El nombre del servicio es obligatorio"}), 400
     
     if precio is None or float(precio) < 0:
         return jsonify({"msg": "El precio debe ser un valor válido"}), 400
+
+    if descuento_porcentaje < 0 or descuento_porcentaje > 100:
+        return jsonify({"msg": "El descuento debe estar entre 0 y 100"}), 400
     
     servicio = ServicioCliente(
         cliente_id=cliente_id,
         nombre=nombre,
         precio=float(precio),
+        descuento_porcentaje=descuento_porcentaje,
         descripcion=data.get("descripcion", "").strip(),
         activo=data.get("activo", True)
     )
@@ -1058,6 +1071,12 @@ def update_servicio_cliente(cliente_id, servicio_id):
         if precio < 0:
             return jsonify({"msg": "El precio debe ser mayor o igual a 0"}), 400
         servicio.precio = precio
+
+    if "descuento_porcentaje" in data:
+        descuento = float(data["descuento_porcentaje"])
+        if descuento < 0 or descuento > 100:
+            return jsonify({"msg": "El descuento debe estar entre 0 y 100"}), 400
+        servicio.descuento_porcentaje = descuento
     
     if "descripcion" in data:
         servicio.descripcion = data["descripcion"].strip()
@@ -1081,6 +1100,154 @@ def delete_servicio_cliente(cliente_id, servicio_id):
         db.session.rollback()
         return jsonify({"error": "No se puede eliminar el servicio personalizado"}), 400
     return jsonify({"msg": "Servicio eliminado"}), 200
+
+
+# =====================================================
+# GASTOS EMPRESA (SOLO ADMIN)
+# =====================================================
+
+@api.route("/gastos-empresa", methods=["GET"])
+@role_required("administrador")
+def gastos_empresa_list():
+    desde = request.args.get("desde")
+    hasta = request.args.get("hasta")
+    categoria = (request.args.get("categoria") or "").strip().lower()
+    q = (request.args.get("q") or "").strip().lower()
+
+    query = GastoEmpresa.query
+
+    if desde:
+        try:
+            fecha_desde_dt = datetime.strptime(desde, "%Y-%m-%d")
+            query = query.filter(GastoEmpresa.fecha >= fecha_desde_dt)
+        except ValueError:
+            pass
+
+    if hasta:
+        try:
+            from datetime import timedelta
+            fecha_hasta_dt = datetime.strptime(hasta, "%Y-%m-%d") + timedelta(days=1)
+            query = query.filter(GastoEmpresa.fecha < fecha_hasta_dt)
+        except ValueError:
+            pass
+
+    if categoria:
+        query = query.filter(func.lower(GastoEmpresa.categoria) == categoria)
+
+    if q:
+        query = query.filter(
+            (GastoEmpresa.concepto.ilike(f"%{q}%")) |
+            (GastoEmpresa.proveedor.ilike(f"%{q}%")) |
+            (GastoEmpresa.observaciones.ilike(f"%{q}%"))
+        )
+
+    items = query.order_by(GastoEmpresa.fecha.desc()).all()
+    total = round(sum(float(i.importe or 0) for i in items), 2)
+
+    return jsonify({
+        "items": [i.to_dict() for i in items],
+        "total": total,
+        "count": len(items),
+        "desde": desde,
+        "hasta": hasta,
+        "categoria": categoria or None,
+        "q": q or None,
+    }), 200
+
+
+@api.route("/gastos-empresa", methods=["POST"])
+@role_required("administrador")
+def gastos_empresa_create():
+    data = request.get_json() or {}
+
+    concepto = (data.get("concepto") or "").strip()
+    categoria = (data.get("categoria") or "general").strip().lower()
+    proveedor = (data.get("proveedor") or "").strip() or None
+    observaciones = (data.get("observaciones") or "").strip() or None
+
+    if not concepto:
+        return jsonify({"msg": "El concepto es obligatorio"}), 400
+
+    try:
+        importe = float(data.get("importe"))
+        if importe < 0:
+            return jsonify({"msg": "El importe debe ser mayor o igual a 0"}), 400
+    except (TypeError, ValueError):
+        return jsonify({"msg": "El importe debe ser un numero valido"}), 400
+
+    fecha = now_madrid()
+    fecha_raw = data.get("fecha")
+    if fecha_raw:
+        try:
+            fecha = datetime.strptime(fecha_raw, "%Y-%m-%d")
+        except ValueError:
+            return jsonify({"msg": "Formato de fecha invalido. Usa YYYY-MM-DD"}), 400
+
+    gasto = GastoEmpresa(
+        fecha=fecha,
+        concepto=concepto,
+        categoria=categoria,
+        importe=importe,
+        proveedor=proveedor,
+        observaciones=observaciones,
+    )
+
+    db.session.add(gasto)
+    db.session.commit()
+    return jsonify(gasto.to_dict()), 201
+
+
+@api.route("/gastos-empresa/<int:gid>", methods=["PUT"])
+@role_required("administrador")
+def gastos_empresa_update(gid):
+    gasto = GastoEmpresa.query.get_or_404(gid)
+    data = request.get_json() or {}
+
+    if "concepto" in data:
+        concepto = (data.get("concepto") or "").strip()
+        if not concepto:
+            return jsonify({"msg": "El concepto no puede estar vacio"}), 400
+        gasto.concepto = concepto
+
+    if "categoria" in data:
+        gasto.categoria = (data.get("categoria") or "general").strip().lower()
+
+    if "importe" in data:
+        try:
+            importe = float(data.get("importe"))
+            if importe < 0:
+                return jsonify({"msg": "El importe debe ser mayor o igual a 0"}), 400
+            gasto.importe = importe
+        except (TypeError, ValueError):
+            return jsonify({"msg": "El importe debe ser un numero valido"}), 400
+
+    if "fecha" in data:
+        fecha_raw = (data.get("fecha") or "").strip()
+        if not fecha_raw:
+            gasto.fecha = now_madrid()
+        else:
+            try:
+                gasto.fecha = datetime.strptime(fecha_raw, "%Y-%m-%d")
+            except ValueError:
+                return jsonify({"msg": "Formato de fecha invalido. Usa YYYY-MM-DD"}), 400
+
+    if "proveedor" in data:
+        gasto.proveedor = (data.get("proveedor") or "").strip() or None
+
+    if "observaciones" in data:
+        gasto.observaciones = (data.get("observaciones") or "").strip() or None
+
+    db.session.commit()
+    return jsonify(gasto.to_dict()), 200
+
+
+@api.route("/gastos-empresa/<int:gid>", methods=["DELETE"])
+@role_required("administrador")
+def gastos_empresa_delete(gid):
+    gasto = GastoEmpresa.query.get_or_404(gid)
+    db.session.delete(gasto)
+    db.session.commit()
+    return jsonify({"msg": "Gasto eliminado"}), 200
 
 
 # =====================================================

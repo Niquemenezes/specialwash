@@ -9,3 +9,6 @@ from .cliente import Cliente
 from .coche import Coche
 from .servicio import Servicio
 from .servicio_cliente import ServicioCliente
+from .inspeccion_recepcion import InspeccionRecepcion
+from .gasto_empresa import GastoEmpresa
+from .acta_entrega import ActaEntrega

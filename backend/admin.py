@@ -2,7 +2,7 @@ import os
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 from wtforms.fields import PasswordField
-from models import db, User, Producto, Proveedor, Entrada, Salida, Maquinaria, Cliente, Coche, Servicio, ServicioCliente
+from models import db, User, Producto, Proveedor, Entrada, Salida, Maquinaria, Cliente, Coche, Servicio, ServicioCliente, InspeccionRecepcion, GastoEmpresa, ActaEntrega
 
 
 # === Clases personalizadas para mejorar apariencia y seguridad ===
@@ -63,6 +63,9 @@ def setup_admin(app):
     admin.add_view(SecureModelView(Coche, db.session, name="Coches"))
     admin.add_view(SecureModelView(Servicio, db.session, name="Servicios"))
     admin.add_view(SecureModelView(ServicioCliente, db.session, name="Tarifas Personalizadas"))
+    admin.add_view(SecureModelView(InspeccionRecepcion, db.session, name="🚗 Inspecciones"))
+    admin.add_view(SecureModelView(GastoEmpresa, db.session, name="💸 Gastos Empresa"))
+    admin.add_view(SecureModelView(ActaEntrega, db.session, name="📄 Actas Entrega"))
 
     # ⚠️ En producción, considera protegerlo con login o eliminarlo
     return admin

@@ -26,6 +26,9 @@ from models.maquinaria import Maquinaria
 from models.cliente import Cliente
 from models.coche import Coche
 from models.servicio import Servicio
+from models.inspeccion_recepcion import InspeccionRecepcion
+from models.gasto_empresa import GastoEmpresa
+from models.acta_entrega import ActaEntrega
 
 # Crear aplicación
 app = Flask(__name__)

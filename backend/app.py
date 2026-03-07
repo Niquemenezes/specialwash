@@ -1,23 +1,55 @@
 from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
+from dotenv import load_dotenv
 from config import Config
 from api.routes import api
+from api.inspeccion_routes import inspeccion_bp
 from models import db
 from admin import setup_admin
+
+
+load_dotenv()
 
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    
+    # Aumentar límite de subida de archivos a 200MB (para videos)
+    app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # 200 MB
 
-    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+    # CORS para frontend local y Codespaces. Con credenciales no debe usarse "*".
+    cors_origins = [
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+      r"https://.*-3000\.app\.github\.dev",
+    ]
+
+    # Permite sobreescribir/añadir orígenes desde FRONTEND_URLS o FRONTEND_URL.
+    configured_origins = getattr(Config, "CORS_ORIGINS", None)
+    if configured_origins:
+      if isinstance(configured_origins, str):
+        cors_origins.extend(
+          [o.strip() for o in configured_origins.split(",") if o.strip()]
+        )
+      elif isinstance(configured_origins, (list, tuple, set)):
+        cors_origins.extend([str(o).strip() for o in configured_origins if str(o).strip()])
+
+    CORS(
+      app,
+      resources={r"/api/*": {"origins": cors_origins}},
+      supports_credentials=True,
+      methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allow_headers=["Content-Type", "Authorization"],
+    )
     JWTManager(app)
 
     db.init_app(app)
     setup_admin(app)
 
     app.register_blueprint(api, url_prefix="/api")
+    app.register_blueprint(inspeccion_bp)
 
     with app.app_context():
         db.create_all()  # crea las tablas
