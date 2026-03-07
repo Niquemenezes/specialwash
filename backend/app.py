@@ -3,9 +3,8 @@ from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
 from config import Config
-from api.routes import api
-from api.inspeccion_routes import inspeccion_bp
-from models import db
+from extensions import db
+from routes import register_routes
 from admin import setup_admin
 
 
@@ -48,8 +47,7 @@ def create_app():
     db.init_app(app)
     setup_admin(app)
 
-    app.register_blueprint(api, url_prefix="/api")
-    app.register_blueprint(inspeccion_bp)
+    register_routes(app)
 
     with app.app_context():
         db.create_all()  # crea las tablas

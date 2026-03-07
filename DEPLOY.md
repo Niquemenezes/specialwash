@@ -1,192 +1,134 @@
-# 🚀 Sistema de Deploy Automático - Specialwash
+# SpecialWash Deploy Guide (IONOS)
 
-## Descripción de la Solución
+Esta guia define el deploy real de produccion en tu VPS de IONOS.
 
-El sistema de frontend ha sido **unificado y simplificado**:
+## Alcance
 
-- **Antes**: Nginx servía `/var/www/specialwash/public_html/` (frontend antiguo, desactualizado)
-- **Ahora**: Nginx apunta con symlink a `/root/specialwash/frontend/build/` (siempre el frontend actual)
+- Servidor: `root@194.164.164.78`
+- Codigo remoto: `/root/specialwash`
+- Backend: Flask en `:5000`
+- Frontend: build estatico de React servido por Nginx
 
-### Ventajas
+## Archivos Clave
 
-✅ Una sola fuente de verdad para el frontend  
-✅ Actualizaciones automáticas cuando haces deploy  
-✅ No hay duplicados ni conflictos  
-✅ Sistema limpio y mantenible  
+- Script de deploy: `deploy.sh`
+- Config Nginx: `nginx-default.conf`
+- Guia de cambios de BD: `GUIA_ACTUALIZAR_BD.md`
 
----
+## Requisitos Locales
 
-## 📋 Cómo Usar el Script de Deploy
+En tu entorno local (desde donde ejecutas deploy):
 
-### Instalación de Dependencias
+```bash
+which ssh
+which rsync
+which npm
+```
 
-Antes de usar el script, asegúrate de tener `rsync` instalado:
+Si falta `rsync`:
 
 ```bash
 apt-get update && apt-get install -y rsync
 ```
 
-### Comandos de Deploy
+## Uso del Script
 
-Desde la raíz del proyecto (`/workspaces/specialwash`):
-
-#### 1️⃣ Desplegar solo Backend (código Python)
+Desde la raiz del repositorio:
 
 ```bash
 ./deploy.sh backend
-```
-
-✅ Sincroniza cambios en `backend/`  
-✅ Reinicia el servidor Flask  
-✅ Preserva la base de datos
-
-#### 2️⃣ Desplegar solo Frontend (React)
-
-```bash
 ./deploy.sh frontend
-```
-
-✅ Construye el frontend con `npm run build`  
-✅ Sincroniza al servidor  
-✅ Recarga Nginx automáticamente  
-
-#### 3️⃣ Desplegar Todo (Backend + Frontend)
-
-```bash
 ./deploy.sh all
 ```
 
-✅ Ejecuta ambos procesos  
+Puedes sobreescribir destino sin editar script:
 
----
-
-## 🔄 Flujo de Actualización Típico
-
-```
-1. Haces cambios en local (backend/ y/o src/)
-2. Commits a GitHub → git push
-3. Ejecutas el deploy:
-   ./deploy.sh all
-4. El script:
-   - Sincroniza backend/ a /root/specialwash/backend/
-   - Construye frontend (npm run build)
-   - Syncroniza build/ a /root/specialwash/frontend/build/
-   - Reinicia Flask y Nginx
-5. Los cambios están en vivo en http://194.164.164.78
+```bash
+SERVER="root@194.164.164.78" REMOTE_PATH="/root/specialwash" ./deploy.sh all
 ```
 
----
+## Que Hace Cada Modo
 
-## 🛠️ Estructura en Producción
+### `backend`
 
-```
+- Sincroniza `backend/` con `rsync`.
+- Excluye artefactos locales: `venv`, `__pycache__`, `app.log`, `.env`, DB local.
+- Reinicia backend:
+   - Primero intenta `systemd` si existe `specialwash-backend.service`.
+   - Si no existe, usa fallback con `nohup ... python app.py`.
+
+### `frontend`
+
+- Ejecuta `npm run build` en `frontend/`.
+- Sincroniza `frontend/build/` al servidor.
+- Ajusta permisos de lectura/ejecucion.
+- Valida y recarga Nginx (`nginx -t && nginx -s reload`).
+
+### `all`
+
+- Ejecuta `backend` y `frontend` en ese orden.
+
+## Estructura Esperada en IONOS
+
+```text
 /root/specialwash/
-├── backend/               ← Código Python
-│   ├── api/
-│   ├── models/
-│   ├── instance/
-│   │   └── specialwash.db  ⚠️ NO SE TOCA EN DEPLOY (preserve)
-│   ├── venv/
-│   └── app.py
-│
-└── frontend/
-    └── build/            ← Frontend compilado
-        ├── index.html
-        ├── static/
-        └── ...
-
-/var/www/specialwash/
-└── public_html → /root/specialwash/frontend/build/ (symlink)
+   backend/
+      app.py
+      api/
+      models/
+      instance/
+         specialwash.db
+      venv/
+   frontend/
+      build/
+         index.html
+         static/
 ```
 
----
+## Politica de Base de Datos
 
-## ⚠️ Notas Importantes
+- La BD productiva no se pisa en deploy de codigo.
+- Ubicacion esperada: `/root/specialwash/backend/instance/specialwash.db`.
+- Si hay cambios de esquema, seguir `GUIA_ACTUALIZAR_BD.md`.
 
-### La Base de Datos
+## Verificaciones Rapidas Post-Deploy
 
-- **NUNCA se toca en deploy**
-- Se preserva en `/root/specialwash/backend/instance/specialwash.db`
-- Para actualizarla, usa [GUIA_ACTUALIZAR_BD.md](./GUIA_ACTUALIZAR_BD.md)
-
-### Caché del Navegador
-
-Si ves cambios del frontend pero el navegador muestra código antiguo:
-
-```
-Presiona: Ctrl + Shift + R (hard refresh)
-O: Ctrl + F5 (en algunos navegadores)
-```
-
-### Logs para Debugging
-
-**Backend Flask**:
 ```bash
+ssh root@194.164.164.78 "lsof -i tcp:5000 | cat"
 ssh root@194.164.164.78 "tail -50 /root/specialwash/backend/app.log"
+ssh root@194.164.164.78 "nginx -t"
 ```
 
-**Nginx**:
+Luego validar en navegador:
+
+- `http://194.164.164.78`
+- Hard refresh: `Ctrl + Shift + R`
+
+## Troubleshooting
+
+### Backend no responde
+
 ```bash
-ssh root@194.164.164.78 "tail -30 /var/log/nginx/error.log"
+ssh root@194.164.164.78 "tail -100 /root/specialwash/backend/app.log"
+ssh root@194.164.164.78 "fuser -k 5000/tcp || true"
+ssh root@194.164.164.78 "cd /root/specialwash/backend && nohup /root/specialwash/backend/venv/bin/python app.py > app.log 2>&1 < /dev/null &"
 ```
 
----
-
-## 📝 Ejemplo: Actualizar Cálculos de Entrada
+### Nginx no recarga
 
 ```bash
-# 1. Haces cambios en backend/api/routes.py
-nano backend/api/routes.py
-
-# 2. Pruebas localmente
-cd backend && python app.py
-
-# 3. Una vez funciona, haces commit
-git add .
-git commit -m "Fix: Corregir cálculos de entrada"
-git push
-
-# 4. Despliegas a producción
-./deploy.sh backend
-
-# 5. Verifica en http://194.164.164.78
+ssh root@194.164.164.78 "nginx -t"
+ssh root@194.164.164.78 "tail -50 /var/log/nginx/error.log"
 ```
 
----
-
-## 🆘 Troubleshooting
-
-### El frontend no actualiza
+### Error SSH/rsync
 
 ```bash
-# Hard refresh del navegador
-Ctrl + Shift + R
-
-# Verifica que el symlink existe
-ssh root@194.164.164.78 "ls -lh /var/www/specialwash/public_html"
-```
-
-### El backend no reinicia
-
-```bash
-# Ver logs
-ssh root@194.164.164.78 "tail -50 /root/specialwash/backend/app.log"
-
-# Matar procesos y reiniciar manualmente
-ssh root@194.164.164.78 "fuser -k 5000/tcp && cd /root/specialwash/backend && /root/specialwash/backend/venv/bin/python app.py"
-```
-
-### Error de permisos en rsync
-
-```bash
-# Verifica que tienes acceso SSH configurado sin contraseña
 ssh-keygen -t rsa
 ssh-copy-id root@194.164.164.78
 ```
 
----
+## Recomendacion de Produccion
 
-## 📚 Documentación Relacionada
-
-- [GUIA_ACTUALIZAR_BD.md](./GUIA_ACTUALIZAR_BD.md) - Cómo sincronizar la base de datos
-- [README.md](./README.md) - Documentación general del proyecto
+Si aun no lo tienes, conviene migrar backend a un servicio `systemd` dedicado
+(`specialwash-backend.service`) para reinicios mas fiables tras reboot.
