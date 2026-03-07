@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Context } from "../store/appContext";
 
 const toDateInputValue = (date) => {
@@ -24,6 +24,7 @@ const parseKm = (value) => {
 
 const CochesEntregadosPage = () => {
   const { actions } = useContext(Context);
+  const navigate = useNavigate();
   const [inspecciones, setInspecciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -100,10 +101,23 @@ const CochesEntregadosPage = () => {
     setFechaHasta(toDateInputValue(hoy));
   };
 
+  const volver = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate("/", { replace: true });
+  };
+
   return (
     <div className="container py-4" style={{ maxWidth: "1000px" }}>
       <div className="d-flex justify-content-center align-items-center mb-4 p-3 rounded shadow-sm" style={{ background: "#0f0f0f", color: "#d4af37" }}>
-        <h2 className="fw-bold mb-0 text-center">Coches Entregados</h2>
+        <div className="w-100 d-flex justify-content-between align-items-center gap-2">
+          <h2 className="fw-bold mb-0 text-center">Coches Entregados</h2>
+          <button type="button" className="btn btn-outline-light btn-sm" onClick={volver}>
+            Volver
+          </button>
+        </div>
       </div>
 
       <div className="card shadow-sm border-0 mb-4">
