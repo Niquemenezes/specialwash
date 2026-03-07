@@ -737,6 +737,16 @@ const API = process.env.REACT_APP_BACKEND_URL || "http://194.164.164.78:5000";
         }
       },
 
+      getPendientesEntrega: async () => {
+        try {
+          const data = await apiFetch("/api/inspeccion-recepcion/pendientes-entrega");
+          return Array.isArray(data) ? data : [];
+        } catch (err) {
+          console.error("getPendientesEntrega:", err);
+          return [];
+        }
+      },
+
       getInspeccion: async (id) => {
         try {
           const data = await apiFetch(`/api/inspeccion-recepcion/${id}`);

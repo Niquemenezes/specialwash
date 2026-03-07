@@ -18,7 +18,7 @@ const FirmaEntregaPage = () => {
   const cargarPendientes = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await actions.getMisInspecciones();
+      const data = await actions.getPendientesEntrega();
       setInspecciones(Array.isArray(data) ? data : []);
     } finally {
       setLoading(false);
@@ -31,7 +31,6 @@ const FirmaEntregaPage = () => {
 
   const pendientes = useMemo(() => {
     return inspecciones
-      .filter((item) => !item.entregado)
       .sort((a, b) => new Date(b.fecha_inspeccion || 0) - new Date(a.fecha_inspeccion || 0));
   }, [inspecciones]);
 

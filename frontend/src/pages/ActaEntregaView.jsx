@@ -209,7 +209,7 @@ const ActaEntregaView = () => {
         conformidad_revision_entrega: conformidad,
       });
       alert("Entrega finalizada correctamente");
-      navigate("/entregados", { replace: true });
+      navigate(rol === "empleado" ? "/" : "/entregados", { replace: true });
     } catch (err) {
       alert(`Error al finalizar entrega: ${err.message}`);
     } finally {

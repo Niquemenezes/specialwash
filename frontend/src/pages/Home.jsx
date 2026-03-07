@@ -101,7 +101,7 @@ export default function Home() {
             to: "/servicios",
             label: "Servicios",
             detail: "Trabajos realizados",
-            roles: ["administrador", "empleado", "encargado"],
+            roles: ["administrador", "encargado"],
           },
           {
             to: "/inspeccion-recepcion",
@@ -125,7 +125,7 @@ export default function Home() {
             to: "/entregados",
             label: "Coches entregados",
             detail: "Historial de entregas",
-            roles: ["administrador", "empleado", "encargado"],
+            roles: ["administrador", "encargado"],
           },
           {
             to: "/resumen-clientes",
