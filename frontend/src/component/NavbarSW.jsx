@@ -142,6 +142,21 @@ const NavbarSW = () => {
                           Servicios
                         </NavLink>
                       </li>
+                      <li>
+                        <NavLink to="/inspeccion-recepcion" className="dropdown-item">
+                          🚗 Inspección Recepción
+                        </NavLink>
+                      </li>
+                      <li>
+                        <NavLink to="/pendientes-entrega" className="dropdown-item">
+                          🚙 Coches Pendientes de Entrega
+                        </NavLink>
+                      </li>
+                      <li>
+                        <NavLink to="/entregados" className="dropdown-item">
+                          ✅ Coches Entregados
+                        </NavLink>
+                      </li>
                       <li><hr className="dropdown-divider" /></li>
                       <li>
                         <NavLink to="/resumen-clientes" className="dropdown-item">
@@ -177,6 +192,16 @@ const NavbarSW = () => {
                   <li className="nav-item">
                     <NavLink to="/servicios" className="nav-link sw-navlink">
                       Servicios
+                    </NavLink>
+                  </li>
+                  <li className="nav-item">
+                    <NavLink to="/inspeccion-recepcion" className="nav-link sw-navlink">
+                      🚗 Inspección
+                    </NavLink>
+                  </li>
+                  <li className="nav-item">
+                    <NavLink to="/entregados" className="nav-link sw-navlink">
+                      ✅ Entregados
                     </NavLink>
                   </li>
                   <li className="nav-item">

@@ -33,7 +33,7 @@ DEPLOY_TYPE="$1"
 # ============ BACKEND ============
 if [ "$DEPLOY_TYPE" = "backend" ] || [ "$DEPLOY_TYPE" = "all" ]; then
     echo -e "${YELLOW}📦 Sincronizando código backend...${NC}"
-    rsync -avz --exclude='node_modules' --exclude='venv' --exclude='.git' --exclude='__pycache__' --exclude='*.pyc' --exclude='build' --exclude='instance/specialwash.db' \
+    rsync -avz --exclude='.env' --exclude='node_modules' --exclude='venv' --exclude='.git' --exclude='__pycache__' --exclude='*.pyc' --exclude='build' --exclude='instance/specialwash.db' \
         "$LOCAL_PATH/backend/" "$SERVIDOR:$REMOTE_PATH/backend/"
     
     echo -e "${YELLOW}🔄 Reiniciando servidor Flask...${NC}"

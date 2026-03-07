@@ -705,17 +705,31 @@ def upload_video(inspeccion_id):
         return jsonify({"msg": f"Error al subir video: {str(e)}"}), 500
 
 
-# ============ ELIMINAR INSPECCIÓN (SOLO ADMIN) ============
+# ============ ELIMINAR INSPECCIÓN ============
 @inspeccion_bp.route("/inspeccion-recepcion/<int:inspeccion_id>", methods=["DELETE"])
-@role_required("administrador")
+@jwt_required()
 def eliminar_inspeccion(inspeccion_id):
     """
-    Eliminar una inspección (solo admin).
+    Eliminar una inspección.
+    - Admin: puede eliminar cualquiera.
+    - Empleado: solo puede eliminar la suya y si no esta entregada.
     """
     inspeccion = InspeccionRecepcion.query.get(inspeccion_id)
     
     if not inspeccion:
         return jsonify({"msg": "Inspección no encontrada"}), 404
+
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({"msg": "Usuario no encontrado"}), 401
+
+    if user.rol != "administrador":
+        if inspeccion.usuario_id != user_id:
+            return jsonify({"msg": "No tienes permiso para eliminar esta inspección"}), 403
+        if inspeccion.entregado:
+            return jsonify({"msg": "No se puede eliminar una inspección ya entregada"}), 400
     
     try:
         db.session.delete(inspeccion)
