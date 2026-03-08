@@ -7,6 +7,7 @@ from extensions import db
 from routes import register_routes
 from admin import setup_admin
 from update_servicio_cliente_schema import ensure_servicio_cliente_schema
+from update_user_schema import ensure_user_schema
 
 
 load_dotenv()
@@ -54,6 +55,7 @@ def create_app():
     with app.app_context():
       # Mantiene compatibilidad con bases SQLite antiguas sin migraciones formales.
       ensure_servicio_cliente_schema()
+      ensure_user_schema()
       db.create_all()  # crea las tablas
 
     # === Página raíz ===

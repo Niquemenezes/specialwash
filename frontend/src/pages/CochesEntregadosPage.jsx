@@ -109,6 +109,25 @@ const CochesEntregadosPage = () => {
     navigate("/", { replace: true });
   };
 
+  const editarInspeccion = (id) => {
+    navigate(`/inspeccion-recepcion?editId=${id}`);
+  };
+
+  const eliminarInspeccion = async (item) => {
+    const confirmado = window.confirm(
+      `Vas a eliminar la inspeccion #${item.id} de ${item.cliente_nombre || "cliente"}.\n\nEsta accion no se puede deshacer.\n\n¿Deseas continuar?`
+    );
+    if (!confirmado) return;
+
+    try {
+      await actions.eliminarInspeccion(item.id);
+      await cargarInspecciones();
+      alert("Inspeccion eliminada correctamente.");
+    } catch (err) {
+      alert(err?.message || "No se pudo eliminar la inspeccion.");
+    }
+  };
+
   return (
     <div className="container py-4" style={{ maxWidth: "1000px" }}>
       <div className="d-flex justify-content-center align-items-center mb-4 p-3 rounded shadow-sm" style={{ background: "#0f0f0f", color: "#d4af37" }}>
@@ -219,7 +238,7 @@ const CochesEntregadosPage = () => {
                     <th>Coche</th>
                     <th>Matrícula</th>
                     <th>Kilómetros</th>
-                    <th></th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -244,6 +263,20 @@ const CochesEntregadosPage = () => {
                           >
                             Descargar PDF
                           </a>
+                          <button
+                            type="button"
+                            className="btn btn-outline-primary btn-sm"
+                            onClick={() => editarInspeccion(item.id)}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-outline-danger btn-sm"
+                            onClick={() => eliminarInspeccion(item)}
+                          >
+                            Eliminar
+                          </button>
                         </div>
                       </td>
                     </tr>

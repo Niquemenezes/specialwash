@@ -14,6 +14,7 @@ export default function Usuarios() {
   const { store, actions } = useContext(Context);
 
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [filter, setFilter] = useState("");
   const [editing, setEditing] = useState(null);
 
@@ -32,8 +33,11 @@ export default function Usuarios() {
     let alive = true;
     (async () => {
       setLoading(true);
+      setError("");
       try {
         await actions.getUsuarios();
+      } catch (err) {
+        if (alive) setError(err?.message || "No se pudieron cargar los usuarios");
       } finally {
         if (alive) setLoading(false);
       }
@@ -284,6 +288,11 @@ export default function Usuarios() {
       {/* TABLA */}
       <div className="card shadow-sm" style={{ borderRadius: "12px" }}>
         <div className="table-responsive">
+          {error && (
+            <div className="alert alert-danger m-3 mb-0">
+              {error}
+            </div>
+          )}
           <table className="table table-sm align-middle">
             <thead className="table-light">
               <tr>
