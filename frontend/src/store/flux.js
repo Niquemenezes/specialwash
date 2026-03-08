@@ -195,7 +195,7 @@ const getState = ({ getStore, getActions, setStore }) => {
           return getStore().usuarios;
         } catch (e) {
           console.error("getUsuarios:", e);
-          return [];
+          throw e;
         } finally {
           _loadingUsuarios = false;
         }

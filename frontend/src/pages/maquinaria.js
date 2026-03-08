@@ -266,7 +266,7 @@ export default function Maquinaria() {
       
       {/* HEADER PREMIUM */}
       <div
-        className="d-flex justify-content-between align-items-center p-3 mb-4 shadow-sm"
+        className="d-flex justify-content-between align-items-center p-3 mb-4 shadow-sm sw-machinery-header"
         style={{
           background: "#0f0f0f",
           borderRadius: "12px",
@@ -290,7 +290,7 @@ export default function Maquinaria() {
       </div>
 
       {/* BADGES RESUMEN */}
-      <div className="d-flex gap-3 mb-3">
+      <div className="d-flex gap-3 mb-3 sw-machinery-summary">
         <span className="badge text-bg-secondary fs-6 px-3 py-2">
           Total: {items.length}
         </span>
@@ -532,7 +532,7 @@ export default function Maquinaria() {
 
       {/* TABLA */}
       <div className="card shadow-sm" style={{ borderRadius: "14px" }}>
-        <div className="table-responsive">
+        <div className="table-responsive sw-machinery-table-responsive">
           <table className="table align-middle">
             <thead className="table-light">
               <tr>

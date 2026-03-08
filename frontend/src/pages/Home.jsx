@@ -1,14 +1,7 @@
 import React, { useContext, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Context } from "../store/appContext";
-
-// Normaliza nombres de rol
-const normalizeRol = (r) => {
-  r = (r || "").toString().toLowerCase().trim();
-  if (r === "admin" || r === "administrator") return "administrador";
-  if (r === "employee" || r === "staff") return "empleado";
-  return r;
-};
+import { getStoredRol, getStoredToken, normalizeRol } from "../utils/authSession";
 
 const getGreeting = () => {
   const h = new Date().getHours();
@@ -20,16 +13,10 @@ const getGreeting = () => {
 export default function Home() {
   const { store, actions } = useContext(Context);
 
-  const token =
-    (typeof sessionStorage !== "undefined" && sessionStorage.getItem("token")) ||
-    (typeof localStorage !== "undefined" && localStorage.getItem("token")) ||
-    null;
+  const token = getStoredToken() || null;
 
   const rolFromUser = normalizeRol(store?.user?.rol);
-  const rolFromStorage = normalizeRol(
-    (typeof sessionStorage !== "undefined" && sessionStorage.getItem("rol")) ||
-      (typeof localStorage !== "undefined" && localStorage.getItem("rol"))
-  );
+  const rolFromStorage = normalizeRol(getStoredRol());
 
   const rol = rolFromUser || rolFromStorage || "empleado";
 

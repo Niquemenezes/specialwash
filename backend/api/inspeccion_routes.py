@@ -17,6 +17,7 @@ from models.user import User
 from models.coche import Coche
 from models.cliente import Cliente
 from models.base import now_madrid
+from utils.auth_utils import normalize_role
 
 inspeccion_bp = Blueprint('inspeccion', __name__, url_prefix='/api')
 
@@ -44,9 +45,11 @@ def role_required(*roles):
         @wraps(fn)
         @jwt_required()
         def wrapper(*args, **kwargs):
-            current_user_id = get_jwt_identity()
+            current_user_id = _jwt_user_id()
             user = User.query.get(current_user_id)
-            if not user or user.rol not in roles:
+            allowed_roles = {normalize_role(r) for r in roles}
+            user_role = normalize_role(getattr(user, "rol", "")) if user else ""
+            if not user or user_role not in allowed_roles:
                 return jsonify({"msg": "No tienes permiso para esta acción"}), 403
             return fn(*args, **kwargs)
         return wrapper
@@ -55,7 +58,7 @@ def role_required(*roles):
 
 # ============ CREAR INSPECCIÓN ============
 @inspeccion_bp.route("/inspeccion-recepcion", methods=["POST"])
-@role_required("administrador", "empleado")
+@role_required("administrador", "empleado", "encargado")
 def crear_inspeccion():
     """
     Crear una nueva inspección de recepción.
@@ -69,7 +72,7 @@ def crear_inspeccion():
     - firma_empleado_recepcion (base64)
     - averias_notas (str, opcional)
     """
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     user_id = get_jwt_identity()
     
     try:

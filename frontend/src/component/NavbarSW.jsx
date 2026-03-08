@@ -2,24 +2,12 @@ import React from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import logo from "../img/logospecialwash.jpg";
 import { buildApiUrl } from "../utils/apiBase";
-
-const getStored = (k) =>
-  (typeof sessionStorage !== "undefined" && sessionStorage.getItem(k)) ||
-  (typeof localStorage !== "undefined" && localStorage.getItem(k)) ||
-  "";
-
-const normalizeRol = (r) => {
-  r = (r || "").toLowerCase().trim();
-  if (r === "admin" || r === "administrator") return "administrador";
-  if (r === "employee" || r === "staff") return "empleado";
-  if (r === "manager" || r === "responsable") return "encargado";
-  return r;
-};
+import { getStoredRol, getStoredToken } from "../utils/authSession";
 
 const NavbarSW = () => {
   const navigate = useNavigate();
-  const token = getStored("token");
-  const rol = normalizeRol(getStored("rol"));
+  const token = getStoredToken();
+  const rol = getStoredRol();
   const handleLogout = async () => {
     try {
       await fetch(buildApiUrl("/api/auth/logout"), {

@@ -244,11 +244,18 @@ button {
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25);
 }
 
-/* TABLAS: versión “cards” en móvil */
+/* TABLAS en móvil: mantener visibles con scroll horizontal */
 @media (max-width: 576px) {
   .table-responsive {
-    display: none;
-  } /* oculta tabla pequeña */
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-responsive table {
+    min-width: 760px;
+  }
+
   .mobile-cards {
     display: block;
   }
@@ -256,6 +263,30 @@ button {
 @media (min-width: 577px) {
   .mobile-cards {
     display: none;
+  }
+}
+
+/* Maquinaria: mantener tabla visible en movil y mejorar cabecera */
+@media (max-width: 576px) {
+  .sw-machinery-header {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .sw-machinery-header .btn {
+    width: 100%;
+  }
+
+  .sw-machinery-summary {
+    flex-wrap: wrap;
+  }
+
+  .sw-machinery-table-responsive {
+    display: block !important;
+  }
+
+  .sw-machinery-table-responsive table {
+    min-width: 980px;
   }
 }
 
