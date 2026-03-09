@@ -27,6 +27,8 @@ def create_app():
       "http://localhost:3000",
       "http://127.0.0.1:3000",
       "http://194.164.164.78",
+      "capacitor://localhost",
+      "ionic://localhost",
       r"https://.*-3000\.app\.github\.dev",
     ]
 

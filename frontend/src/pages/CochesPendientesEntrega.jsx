@@ -108,10 +108,10 @@ const cleanSectionDraft = (text = "", title = "") => {
 };
 
 const PREMIUM_TONE_RULES = [
-  "Usa un tono profesional premium, elegante y convincente.",
-  "Refuerza la percepcion de calidad, detalle y alto valor del servicio.",
-  "Destaca precision tecnica, cuidado experto y resultados de nivel superior.",
-  "Evita exageraciones vacias o promesas absolutas; debe sonar creible y solido.",
+  "Usa un tono profesional, tecnico y objetivo.",
+  "Escribe frases cortas, directas y verificables.",
+  "Evita lenguaje comercial o adjetivos grandilocuentes.",
+  "Sin exageraciones, sin promesas y sin florituras.",
 ].join(" ");
 
 const CochesPendientesEntrega = () => {
@@ -200,7 +200,7 @@ const CochesPendientesEntrega = () => {
       const promptSeccion = [
         `Redacta solo el punto ${index + 1}: ${section.title}.`,
         PREMIUM_TONE_RULES,
-        "El texto debe transmitir que el cliente recibe un servicio de categoria superior por el que vale la pena pagar.",
+        "Maximo 70 palabras. Solo hechos tecnicos y resultados observables.",
         "No repitas todo el informe, responde solo con el texto del punto.",
         `Texto base del punto: ${section.content || "(vacio)"}`,
         "",
@@ -237,7 +237,7 @@ const CochesPendientesEntrega = () => {
       const promptObservaciones = [
         "Redacta solo el bloque 'Observaciones de entrega'.",
         PREMIUM_TONE_RULES,
-        "Haz que el cierre refuerce confianza, excelencia del trabajo realizado y sensacion de inversion bien hecha.",
+        "Maximo 45 palabras. Cierre sobrio, tecnico y sin promocion.",
         "No repitas todo el informe tecnico, responde unicamente con las observaciones finales.",
         `Texto base actual: ${observacionesActa || "(vacio)"}`,
         "",
