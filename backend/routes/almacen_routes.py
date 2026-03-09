@@ -5,7 +5,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy import desc, func
 
-from models import Entrada, Producto, Proveedor, Salida, db
+from models import Entrada, Producto, ProductoCodigoBarras, Proveedor, Salida, db
 from services.stock_service import (
     actualizar_stock_entrada,
     actualizar_stock_salida,
@@ -66,12 +66,58 @@ def _extract_ocr_fields(raw_text):
         r"(?:precio\s*unit(?:ario)?|p\.?u\.?)\s*[:#-]?\s*(\d{1,8}(?:[\.,]\d{1,4})?)",
         r"(?:€/ud|eur/ud)\s*[:#-]?\s*(\d{1,8}(?:[\.,]\d{1,4})?)",
     ])
+    descuento_raw = first_match([
+        r"(?:dto|dcto|descuento)\s*[:#-]?\s*(\d{1,2}(?:[\.,]\d{1,2})?)\s*%",
+        # En muchos albaranes aparece columna Dto sin el símbolo %
+        r"(?:dto|dcto|descuento)\s*[:#-]?\s*(\d{1,2}(?:[\.,]\d{1,2})?)",
+    ])
+
+    # Heurística para tablas de albarán tipo: CANTIDAD | PRECIO | DTO | IMPORTE
+    # Ejemplo OCR frecuente: "... CANTIDAD PRECIO DTO IMPORTE 1,00 53,50 35 34,77 ..."
+    row_match = re.search(
+        r"(?:cantidad\s+precio\s+dto\s+importe|cantidad\s+precio\s+importe)\s+"
+        r"(\d{1,4}(?:[\.,]\d{1,2})?)\s+"
+        r"(\d{1,8}(?:[\.,]\d{1,4})?)"
+        r"(?:\s+(\d{1,2}(?:[\.,]\d{1,2})?))?",
+        compact,
+        flags=re.IGNORECASE,
+    )
+
+    cantidad_from_row = None
+    precio_from_row = None
+    descuento_from_row = None
+    if row_match:
+        cantidad_from_row = _parse_decimal(row_match.group(1))
+        precio_from_row = _parse_decimal(row_match.group(2))
+        descuento_from_row = _parse_decimal(row_match.group(3)) if row_match.group(3) else None
+
+    # Inferir IVA cuando no aparezca porcentaje explícito (p.ej. base imponible + cuota IVA)
+    base_raw = first_match([
+        r"(?:base\s+imponible|subtotal|base)\s*(\d{1,10}(?:[\.,]\d{1,4})?)",
+    ])
+    cuota_iva_raw = first_match([
+        r"(?:i\.?v\.?a\.?|iva)\s*(\d{1,10}(?:[\.,]\d{1,4})?)",
+    ])
+
+    base_val = _parse_decimal(base_raw)
+    cuota_iva_val = _parse_decimal(cuota_iva_raw)
+    iva_inferido = None
+    if base_val and cuota_iva_val and base_val > 0:
+        iva_inferido = round((cuota_iva_val / base_val) * 100, 2)
+
+    # Heurística simple para detectar si el OCR parece tener varias líneas de artículo.
+    # Si detectamos varias referencias/códigos de producto, avisamos al frontend.
+    posibles_referencias = re.findall(r"\b[A-Z0-9]{2,}[\-/]?[A-Z0-9]{2,}\b", compact)
+    codigos_filtrados = [c for c in posibles_referencias if any(ch.isdigit() for ch in c) and len(c) >= 6]
+    multiple_items_detected = len(set(codigos_filtrados)) >= 2
 
     return {
         "numero_albaran": numero_doc,
-        "cantidad": int(cantidad_raw) if cantidad_raw else None,
-        "porcentaje_iva": _parse_decimal(iva_raw),
-        "precio_unitario": _parse_decimal(precio_raw),
+        "cantidad": int(float(cantidad_from_row)) if cantidad_from_row is not None else (int(cantidad_raw) if cantidad_raw else None),
+        "porcentaje_iva": _parse_decimal(iva_raw) or iva_inferido,
+        "precio_unitario": precio_from_row or _parse_decimal(precio_raw),
+        "descuento_porcentaje": descuento_from_row or _parse_decimal(descuento_raw),
+        "multiple_items_detected": multiple_items_detected,
         "texto_ocr": text[:4000],
     }
 
@@ -126,14 +172,63 @@ def ocr_sugerencia_entrada():
     if not file:
         return jsonify({"msg": "Debe adjuntar una imagen"}), 400
 
+    filename = (file.filename or "").lower()
+    if filename.endswith(".heic") or filename.endswith(".heif"):
+        return jsonify({"msg": "Formato HEIC/HEIF no compatible. Usa JPG o PNG."}), 400
+
     try:
-        image = Image.open(file.stream)
-        text = pytesseract.image_to_string(image, lang="spa+eng")
-        sugerencia = _extract_ocr_fields(text)
-        return jsonify(sugerencia), 200
+        image = Image.open(file.stream).convert("RGB")
+
+        gray = ImageOps.grayscale(image) if ImageOps else image
+        sharpen = gray.filter(ImageFilter.SHARPEN) if ImageFilter else gray
+        bw = sharpen.point(lambda x: 0 if x < 165 else 255, mode="1")
+
+        variants = [image, gray, sharpen, bw]
+        configs = [
+            "--oem 3 --psm 6",
+            "--oem 3 --psm 4",
+            "--oem 3 --psm 11",
+        ]
+
+        best = None
+        best_score = -1
+        first_error = None
+
+        for variant in variants:
+            for cfg in configs:
+                try:
+                    text = pytesseract.image_to_string(variant, lang="spa+eng", config=cfg)
+                    sugerencia = _extract_ocr_fields(text)
+                    score = int(sugerencia.get("detected_count") or 0)
+
+                    if sugerencia.get("numero_albaran"):
+                        score += 1
+                    if sugerencia.get("multiple_items_detected"):
+                        score += 1
+
+                    if score > best_score:
+                        best_score = score
+                        best = sugerencia
+                except Exception as iter_err:
+                    if first_error is None:
+                        first_error = iter_err
+                    continue
+
+        if not best:
+            if first_error is not None:
+                error_type = first_error.__class__.__name__
+                return jsonify({"msg": f"No se pudo procesar el documento OCR ({error_type})."}), 400
+            return jsonify({"msg": "No se pudo procesar el documento OCR"}), 400
+
+        return jsonify(best), 200
     except pytesseract.TesseractNotFoundError:
         return jsonify({"msg": "Tesseract OCR no esta instalado en el servidor"}), 503
-    except Exception:
+    except Exception as e:
+        error_text = str(e).lower()
+        if "cannot identify image file" in error_text or "cannot identify" in error_text:
+            return jsonify({"msg": "Formato de imagen no compatible. Usa JPG o PNG."}), 400
+        if "decompressionbomb" in error_text:
+            return jsonify({"msg": "Imagen demasiado grande. Intenta una foto con menor resolución."}), 400
         return jsonify({"msg": "No se pudo procesar el documento OCR"}), 400
 
 
@@ -279,12 +374,22 @@ def registrar_salida():
     data = request.get_json() or {}
 
     producto_id = data.get("producto_id")
+    codigo_barras = (data.get("codigo_barras") or "").strip()
     cantidad = int(data.get("cantidad", 0))
 
-    if not producto_id or cantidad <= 0:
+    if (not producto_id and not codigo_barras) or cantidad <= 0:
         return jsonify({"msg": "Datos inválidos"}), 400
 
-    producto = Producto.query.get(producto_id)
+    producto = None
+    if producto_id:
+        producto = Producto.query.get(producto_id)
+    elif codigo_barras:
+        producto = Producto.query.filter_by(codigo_barras=codigo_barras).first()
+        if not producto:
+            match = ProductoCodigoBarras.query.filter_by(codigo_barras=codigo_barras).first()
+            if match:
+                producto = Producto.query.get(match.producto_id)
+
     if not producto:
         return jsonify({"msg": "Producto no encontrado"}), 404
 

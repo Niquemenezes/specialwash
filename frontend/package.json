@@ -21,6 +21,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "build:android": "REACT_APP_BACKEND_URL=https://194.164.164.78 react-scripts build && npx cap sync android",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

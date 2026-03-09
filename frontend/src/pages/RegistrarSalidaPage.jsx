@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useRef, useState, useContext } from "react";
 import { Context } from "../store/appContext";
 import ProductoFormModal from "../component/ProductoFormModal.jsx";
 import GoldSelect from "../component/GoldSelect.jsx";
+import { detectBarcodeFromFile } from "../utils/barcode";
 
 const fmtDateTime = (s) => {
   if (!s) return "-";
@@ -23,6 +24,11 @@ const RegistrarSalidaPage = () => {
   const isAdmin = isAdminRol(rol);
 
   const [productoId, setProductoId] = useState("");
+  const [codigoBarras, setCodigoBarras] = useState("");
+  const [barcodeLoading, setBarcodeLoading] = useState(false);
+  const [barcodeMsg, setBarcodeMsg] = useState("");
+  const cameraScanRef = useRef(null);
+  const galleryScanRef = useRef(null);
 
   const [form, setForm] = useState({
     producto_id: "",
@@ -109,6 +115,48 @@ const RegistrarSalidaPage = () => {
     }
   };
 
+  const buscarProductoPorCodigo = async (forcedCode = "") => {
+    const codigo = String(forcedCode || codigoBarras || "").trim();
+    if (!codigo) {
+      alert("Introduce o escanea un codigo de barras.");
+      return;
+    }
+
+    setBarcodeLoading(true);
+    setBarcodeMsg("");
+    try {
+      const producto = await actions.getProductoPorCodigoBarras(codigo);
+      if (!producto?.id) {
+        setBarcodeMsg("No hay producto vinculado a ese codigo. Registra la salida de forma manual seleccionando el producto.");
+        return;
+      }
+      setProductoId(String(producto.id));
+      setForm((f) => ({ ...f, producto_id: Number(producto.id) }));
+      setCodigoBarras(codigo);
+      setBarcodeMsg(`Producto detectado: ${producto.nombre}.`);
+    } catch (err) {
+      setBarcodeMsg("No hay producto vinculado a ese codigo. Registra la salida de forma manual seleccionando el producto.");
+    } finally {
+      setBarcodeLoading(false);
+    }
+  };
+
+  const escanearDesdeArchivo = async (file) => {
+    if (!file) return;
+
+    setBarcodeLoading(true);
+    setBarcodeMsg("");
+    try {
+      const codigo = await detectBarcodeFromFile(file);
+      setCodigoBarras(codigo);
+      await buscarProductoPorCodigo(codigo);
+    } catch (err) {
+      setBarcodeMsg(err?.message || "No se pudo escanear el código.");
+    } finally {
+      setBarcodeLoading(false);
+    }
+  };
+
   const handleEditar = (salida) => {
     setEditando(salida);
     setShowEditModal(true);
@@ -164,6 +212,75 @@ const RegistrarSalidaPage = () => {
         onSubmit={handleSubmit}
       >
         <div className="row g-3">
+          <div className="col-12">
+            <label className="form-label fw-semibold">Codigo de barras (opcional)</label>
+            <input
+              ref={cameraScanRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              style={{ display: "none" }}
+              onChange={(e) => escanearDesdeArchivo(e.target.files?.[0])}
+            />
+            <input
+              ref={galleryScanRef}
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={(e) => escanearDesdeArchivo(e.target.files?.[0])}
+            />
+            <div className="d-flex gap-2 flex-wrap">
+              <input
+                className="form-control"
+                style={{ maxWidth: "420px" }}
+                value={codigoBarras}
+                onChange={(e) => setCodigoBarras(e.target.value)}
+                placeholder="Escanea o escribe el codigo"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    buscarProductoPorCodigo();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="btn btn-outline-dark"
+                onClick={buscarProductoPorCodigo}
+                disabled={barcodeLoading}
+              >
+                {barcodeLoading ? "Buscando..." : "Buscar por codigo"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={barcodeLoading}
+                onClick={() => cameraScanRef.current?.click()}
+              >
+                {barcodeLoading ? "Escaneando..." : "Escanear camara"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline-primary"
+                disabled={barcodeLoading}
+                onClick={() => galleryScanRef.current?.click()}
+              >
+                Desde foto
+              </button>
+            </div>
+            <small className="text-muted d-block mt-1">
+              Puedes registrar salida por codigo de barras o seleccionar manualmente el producto.
+            </small>
+            {barcodeMsg && (
+              <small
+                className={`d-block mt-1 ${barcodeMsg.startsWith("Producto detectado") ? "text-success" : "text-warning"}`}
+                style={{ fontWeight: 600 }}
+              >
+                {barcodeMsg}
+              </small>
+            )}
+          </div>
+
           <div className="col-md-6">
             <label className="form-label fw-semibold">Producto *</label>
             <GoldSelect

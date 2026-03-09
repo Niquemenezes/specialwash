@@ -83,8 +83,18 @@ set -euo pipefail
 
 cd /root/specialwash/backend
 
+# Aplicar ajustes de esquema no destructivos en SQLite.
+if [[ -f /root/specialwash/backend/venv/bin/python ]]; then
+    /root/specialwash/backend/venv/bin/python update_user_schema.py || true
+    /root/specialwash/backend/venv/bin/python update_producto_schema.py || true
+    /root/specialwash/backend/venv/bin/python update_producto_codigos_schema.py || true
+fi
+
 # Si existe un servicio systemd, usarlo (mas robusto para produccion).
 if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files | grep -q '^specialwash-backend\.service'; then
+    # Evitar colision con procesos legacy (nohup) que ocupen el puerto 5000.
+    fuser -k 5000/tcp 2>/dev/null || true
+    sleep 1
     systemctl restart specialwash-backend
     systemctl --no-pager --full status specialwash-backend | head -n 20 || true
     exit 0
@@ -115,9 +125,14 @@ deploy_frontend() {
     ssh "$SERVER" 'bash -s' <<'BASH_FRONTEND'
 set -euo pipefail
 
-# Publicar configuracion Nginx desde el repo (si existe).
-if [[ -f /root/specialwash/nginx-default.conf ]]; then
+# Publicar configuracion Nginx desde el repo.
+# Prioridad: HTTPS si existe, sino HTTP normal.
+if [[ -f /root/specialwash/nginx-default-https.conf ]]; then
+    cp /root/specialwash/nginx-default-https.conf /etc/nginx/sites-available/default
+    echo "✓ Usando configuración HTTPS"
+elif [[ -f /root/specialwash/nginx-default.conf ]]; then
     cp /root/specialwash/nginx-default.conf /etc/nginx/sites-available/default
+    echo "✓ Usando configuración HTTP"
 fi
 
 # Crear carpeta web si no existe y ajustar permisos para www-data.
@@ -142,4 +157,10 @@ if [[ "$DEPLOY_TYPE" == "frontend" || "$DEPLOY_TYPE" == "all" ]]; then
 fi
 
 echo -e "${GREEN}Deploy completado exitosamente${NC}"
-echo "Verificar en: http://194.164.164.78"
+echo ""
+echo "Verificar en:"
+echo "  HTTPS: https://194.164.164.78 (recomendado)"
+echo "  HTTP:  http://194.164.164.78"
+echo ""
+echo "💡 Si aún no configuraste HTTPS, ejecuta: ./deploy-https-setup.sh"
+
