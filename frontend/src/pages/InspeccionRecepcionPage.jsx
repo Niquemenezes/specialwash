@@ -316,10 +316,6 @@ const InspeccionRecepcionPage = () => {
     setVideosPreview([]);
   };
 
-  const abrirSelectorArchivo = (inputRef) => {
-    inputRef.current?.click();
-  };
-
   const volver = () => {
     if (window.history.length > 1) {
       navigate(-1);
@@ -447,17 +443,20 @@ const InspeccionRecepcionPage = () => {
               <div className="col-12 mb-3">
                 <label className="form-label fw-bold">📸 Fotos del Vehículo</label>
                 
-                {/* Inputs ocultos */}
+                {/* Input para cámara */}
                 <input
                   ref={fotosCamaraRef}
+                  id="input-fotos-camara"
                   type="file"
                   accept="image/*"
                   capture="environment"
                   onChange={handleFotosChange}
                   style={{ display: 'none' }}
                 />
+                {/* Input para galería (sin capture, permite múltiples) */}
                 <input
                   ref={fotosGaleriaRef}
+                  id="input-fotos-galeria"
                   type="file"
                   accept="image/*"
                   multiple
@@ -465,22 +464,22 @@ const InspeccionRecepcionPage = () => {
                   style={{ display: 'none' }}
                 />
                 
-                {/* Botones de acción */}
+                {/* Labels como botones - funcionan mejor en móviles */}
                 <div className="d-grid gap-2 d-sm-flex mb-2">
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-lg flex-sm-fill"
-                    onClick={() => abrirSelectorArchivo(fotosCamaraRef)}
+                  <label 
+                    htmlFor="input-fotos-camara"
+                    className="btn btn-primary btn-lg flex-sm-fill mb-0"
+                    style={{ cursor: 'pointer' }}
                   >
                     📷 Tomar Foto
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-outline-primary btn-lg flex-sm-fill"
-                    onClick={() => abrirSelectorArchivo(fotosGaleriaRef)}
+                  </label>
+                  <label 
+                    htmlFor="input-fotos-galeria"
+                    className="btn btn-outline-primary btn-lg flex-sm-fill mb-0"
+                    style={{ cursor: 'pointer' }}
                   >
                     🖼️ Galería
-                  </button>
+                  </label>
                 </div>
                 <small className="text-muted d-block" style={{ fontSize: "0.85rem" }}>
                   📱 "Tomar Foto" abre la cámara • "Galería" permite seleccionar múltiples fotos
@@ -517,43 +516,46 @@ const InspeccionRecepcionPage = () => {
               <div className="col-12 mb-3">
                 <label className="form-label fw-bold">🎥 Videos del Vehículo</label>
                 
-                {/* Inputs ocultos */}
+                {/* Input para grabar video */}
                 <input
                   ref={videosCamaraRef}
+                  id="input-videos-camara"
                   type="file"
                   accept="video/*"
                   capture="environment"
                   onChange={handleVideosChange}
                   style={{ display: 'none' }}
                 />
+                {/* Input para galería de videos (sin capture, permite múltiples) */}
                 <input
                   ref={videosGaleriaRef}
+                  id="input-videos-galeria"
                   type="file"
-                  accept="video/mp4,video/mov,video/avi,video/quicktime,video/x-msvideo"
+                  accept="video/*,video/mp4,video/mov,video/avi,video/quicktime,video/x-msvideo"
                   multiple
                   onChange={handleVideosChange}
                   style={{ display: 'none' }}
                 />
                 
-                {/* Botones de acción */}
+                {/* Labels como botones - funcionan mejor en móviles */}
                 <div className="d-grid gap-2 d-sm-flex mb-2">
-                  <button
-                    type="button"
-                    className="btn btn-danger btn-lg flex-sm-fill"
-                    onClick={() => abrirSelectorArchivo(videosCamaraRef)}
+                  <label
+                    htmlFor="input-videos-camara"
+                    className="btn btn-danger btn-lg flex-sm-fill mb-0"
+                    style={{ cursor: 'pointer' }}
                   >
                     🎬 Grabar Video
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-outline-danger btn-lg flex-sm-fill"
-                    onClick={() => abrirSelectorArchivo(videosGaleriaRef)}
+                  </label>
+                  <label
+                    htmlFor="input-videos-galeria"
+                    className="btn btn-outline-danger btn-lg flex-sm-fill mb-0"
+                    style={{ cursor: 'pointer' }}
                   >
-                    📁 Seleccionar
-                  </button>
+                    📹 Galería
+                  </label>
                 </div>
                 <small className="text-muted d-block" style={{ fontSize: "0.85rem" }}>
-                  📱 "Grabar Video" abre la cámara • "Seleccionar" permite elegir videos (máx. 100MB)
+                  🎬 Máx {FORMATOS_VIDEO_LABEL} • Tamaño máx: 100MB por video
                 </small>
                 
                 {/* Preview de videos */}

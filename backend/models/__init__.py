@@ -1,6 +1,7 @@
 from .base import db
 from .user import User
 from .producto import Producto
+from .producto_codigo_barras import ProductoCodigoBarras
 from .proveedor import Proveedor
 from .entrada import Entrada
 from .salida import Salida

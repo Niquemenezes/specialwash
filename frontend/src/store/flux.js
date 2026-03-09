@@ -297,6 +297,18 @@ const getState = ({ getStore, getActions, setStore }) => {
         return getActions().getProductos();
       },
 
+      getProductoPorCodigoBarras: async (codigoBarras) => {
+        try {
+          const codigo = encodeURIComponent(String(codigoBarras || "").trim());
+          if (!codigo) throw new Error("Codigo de barras vacio");
+          const data = await apiFetch(`/api/productos/barcode/${codigo}`);
+          return data;
+        } catch (err) {
+          console.error("getProductoPorCodigoBarras:", err);
+          throw err;
+        }
+      },
+
       createProducto: async (producto) => {
         try {
           const created = await apiFetch("/api/productos", { method: "POST", body: producto });

@@ -126,41 +126,6 @@ const RegistrarEntradaPage = () => {
     }
   };
 
-  const aplicarSugerenciaOCR = async () => {
-    if (!ocrFile) {
-      setOcrMsg("Selecciona primero una imagen de albaran/factura.");
-      return;
-    }
-
-    setOcrLoading(true);
-    setOcrMsg("");
-    try {
-      const sugerencia = await actions.sugerirEntradaOCR(ocrFile);
-      setForm((prev) => ({
-        ...prev,
-        cantidad:
-          sugerencia?.cantidad != null && Number.isFinite(Number(sugerencia.cantidad))
-            ? String(sugerencia.cantidad)
-            : prev.cantidad,
-        precio_unitario:
-          sugerencia?.precio_unitario != null && Number.isFinite(Number(sugerencia.precio_unitario))
-            ? String(sugerencia.precio_unitario)
-            : prev.precio_unitario,
-        iva_porcentaje:
-          sugerencia?.porcentaje_iva != null && Number.isFinite(Number(sugerencia.porcentaje_iva))
-            ? String(sugerencia.porcentaje_iva)
-            : prev.iva_porcentaje,
-        numero_documento: sugerencia?.numero_albaran || prev.numero_documento,
-      }));
-
-      setOcrMsg("Sugerencias OCR aplicadas. Revisa y confirma antes de guardar.");
-    } catch (err) {
-      setOcrMsg(err?.message || "No se pudo leer el documento con OCR.");
-    } finally {
-      setOcrLoading(false);
-    }
-  };
-
   const handleEditar = (entrada) => {
     setEditando(entrada);
     setShowEditModal(true);
@@ -176,6 +141,47 @@ const RegistrarEntradaPage = () => {
       actions.getProductos();
     } catch (err) {
       alert("Error al eliminar la entrada");
+    }
+  };
+
+  const procesarOcrArchivo = async (file) => {
+    if (!file) return;
+
+    setOcrFile(file);
+    setOcrMsg("");
+    setOcrLoading(true);
+    try {
+      const sugerencia = await actions.sugerirEntradaOCR(file);
+
+      const hasCantidad = sugerencia?.cantidad != null && Number.isFinite(Number(sugerencia.cantidad));
+      const hasPrecio = sugerencia?.precio_unitario != null && Number.isFinite(Number(sugerencia.precio_unitario));
+      const hasIva = sugerencia?.porcentaje_iva != null && Number.isFinite(Number(sugerencia.porcentaje_iva));
+      const hasDescuento = sugerencia?.descuento_porcentaje != null && Number.isFinite(Number(sugerencia.descuento_porcentaje));
+      const hasNumero = Boolean((sugerencia?.numero_albaran || "").trim());
+
+      setForm((prev) => ({
+        ...prev,
+        cantidad: hasCantidad ? String(sugerencia.cantidad) : prev.cantidad,
+        precio_unitario: hasPrecio ? String(sugerencia.precio_unitario) : prev.precio_unitario,
+        iva_porcentaje: hasIva ? String(sugerencia.porcentaje_iva) : prev.iva_porcentaje,
+        descuento_porcentaje: hasDescuento ? String(sugerencia.descuento_porcentaje) : prev.descuento_porcentaje,
+        numero_documento: sugerencia?.numero_albaran || prev.numero_documento,
+      }));
+
+      const detectedUseful = [hasCantidad, hasPrecio, hasIva, hasDescuento].filter(Boolean).length;
+      if (detectedUseful === 0 && !hasNumero) {
+        setOcrMsg("⚠️ Se pudo leer la foto, pero no se detectaron cantidad/precio/IVA. Intenta otra foto más cerca, con mejor luz y encuadrando solo la tabla del albarán.");
+      } else if (sugerencia?.multiple_items_detected) {
+        setOcrMsg("⚠️ OCR parcial: se detectaron varios artículos. Se aplicó una sugerencia inicial, revisa los campos antes de guardar.");
+      } else {
+        setOcrMsg("✅ Datos detectados y completados. Revisa y confirma antes de guardar.");
+      }
+    } catch (err) {
+      const errorMsg = err?.message || "No se pudo leer el documento.";
+      setOcrMsg("❌ " + errorMsg);
+      console.error("Error OCR:", err);
+    } finally {
+      setOcrLoading(false);
     }
   };
 
@@ -198,33 +204,53 @@ const RegistrarEntradaPage = () => {
       <form onSubmit={handleSubmit} className="mb-4 p-3 rounded shadow-sm bg-light">
         <div className="row g-3 align-items-end">
           <div className="col-12">
-            <label className="form-label fw-semibold">Carga manual u OCR de factura/albaran (opcional)</label>
-            <div className="d-flex gap-2 flex-wrap">
-              <input
-                type="file"
-                className="form-control"
-                style={{ maxWidth: "420px" }}
-                accept="image/*"
-                onChange={(e) => {
-                  setOcrFile(e.target.files?.[0] || null);
-                  setOcrMsg("");
-                }}
-              />
-              <button
-                type="button"
-                className="btn btn-outline-dark"
-                onClick={aplicarSugerenciaOCR}
-                disabled={ocrLoading}
+            <label className="form-label fw-semibold">📄 OCR de factura/albarán (opcional)</label>
+            
+            <input
+              id="ocr-file-input-camera"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              style={{ display: 'none' }}
+              onChange={(e) => procesarOcrArchivo(e.target.files?.[0])}
+            />
+
+            <input
+              id="ocr-file-input-gallery"
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={(e) => procesarOcrArchivo(e.target.files?.[0])}
+            />
+            
+            <div className="d-grid gap-2 d-sm-flex mb-2">
+              <label 
+                htmlFor="ocr-file-input-camera"
+                className="btn btn-primary btn-lg flex-sm-fill mb-0"
+                style={{ cursor: ocrLoading ? 'not-allowed' : 'pointer', opacity: ocrLoading ? 0.6 : 1 }}
               >
-                {ocrLoading ? "Leyendo..." : "Escanear OCR"}
-              </button>
+                {ocrLoading ? "📄 Escaneando..." : "📷 Escanear Factura/Albarán"}
+              </label>
+              <label
+                htmlFor="ocr-file-input-gallery"
+                className="btn btn-outline-primary btn-lg flex-sm-fill mb-0"
+                style={{ cursor: ocrLoading ? 'not-allowed' : 'pointer', opacity: ocrLoading ? 0.6 : 1 }}
+              >
+                🖼️ Seleccionar Archivo
+              </label>
             </div>
-            {!ocrMsg && (
+            
+            {ocrFile && !ocrLoading && !ocrMsg && (
               <small className="text-muted d-block mt-1">
-                Puedes rellenar todo manualmente o usar OCR para sugerir precio, cantidad, IVA y numero de documento.
+                📎 {ocrFile.name} ({(ocrFile.size / 1024).toFixed(0)} KB)
               </small>
             )}
-            {ocrMsg && <small className="text-muted d-block mt-1">{ocrMsg}</small>}
+            {!ocrMsg && !ocrFile && (
+              <small className="text-muted d-block mt-1">
+                💡 Toma una foto de la factura/albarán o selecciona una imagen para extraer precio, cantidad e IVA.
+              </small>
+            )}
+            {ocrMsg && <small className={ocrMsg.includes("❌") || ocrMsg.includes("Error") || ocrMsg.includes("No se pudo") ? "text-danger d-block mt-1" : ocrMsg.includes("⚠️") ? "text-warning d-block mt-1" : "text-success d-block mt-1"} style={{ fontWeight: '500' }}><strong>{ocrMsg}</strong></small>}
           </div>
 
           <div className="col-md-4">

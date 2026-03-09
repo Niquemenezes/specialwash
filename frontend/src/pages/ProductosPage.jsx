@@ -58,7 +58,8 @@ export default function ProductosPage() {
       list = list.filter(
         (p) =>
           (p?.nombre || "").toLowerCase().includes(term) ||
-          (p?.categoria || "").toLowerCase().includes(term)
+          (p?.categoria || "").toLowerCase().includes(term) ||
+          (p?.codigo_barras || "").toLowerCase().includes(term)
       );
     }
 
@@ -194,7 +195,7 @@ export default function ProductosPage() {
     <input
       className="form-control"
       style={{ minWidth: "260px", borderRadius: "10px" }}
-      placeholder="Buscar por nombre o categoría…"
+      placeholder="Buscar por nombre, categoría o código…"
       value={filtro}
       onChange={(e) => setFiltro(e.target.value)}
     />
@@ -296,6 +297,7 @@ export default function ProductosPage() {
                 <th style={{ width: 48 }}>#</th>
                 <th>Producto</th>
                 <th>Categoría</th>
+                <th>Código barras</th>
                 <th className="text-end" style={{ width: 140 }}>
                   Stock
                 </th>
@@ -311,7 +313,7 @@ export default function ProductosPage() {
             <tbody>
               {loading && (
                 <tr>
-                  <td colSpan={6} className="text-center py-4">
+                  <td colSpan={7} className="text-center py-4">
                     Cargando…
                   </td>
                 </tr>
@@ -319,7 +321,7 @@ export default function ProductosPage() {
 
               {!loading && productosFiltrados.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-muted text-center py-4">
+                  <td colSpan={7} className="text-muted text-center py-4">
                     No hay productos
                     {filtro || soloBajoStock
                       ? " que coincidan con los filtros."
@@ -352,6 +354,20 @@ export default function ProductosPage() {
                       </td>
 
                       <td>{p.categoria || "—"}</td>
+                      <td>
+                        {(() => {
+                          const codigos = Array.from(
+                            new Set(
+                              [
+                                p.codigo_barras,
+                                ...((p.codigos_barras || []).map((c) => c?.codigo_barras)),
+                              ].filter(Boolean)
+                            )
+                          );
+                          if (!codigos.length) return "—";
+                          return codigos.slice(0, 2).join(", ") + (codigos.length > 2 ? ` (+${codigos.length - 2})` : "");
+                        })()}
+                      </td>
                       <td className="text-end">{p.stock_actual ?? 0}</td>
                       <td className="text-end">{p.stock_minimo ?? "—"}</td>
 

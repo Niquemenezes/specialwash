@@ -6,6 +6,8 @@ from config import Config
 from extensions import db
 from routes import register_routes
 from admin import setup_admin
+from update_producto_schema import ensure_producto_schema
+from update_producto_codigos_schema import ensure_producto_codigos_schema
 from update_servicio_cliente_schema import ensure_servicio_cliente_schema
 from update_user_schema import ensure_user_schema
 
@@ -53,6 +55,9 @@ def create_app():
     register_routes(app)
 
     with app.app_context():
+      # Mantiene compatibilidad con cambios de esquema en Producto.
+      ensure_producto_schema()
+      ensure_producto_codigos_schema()
       # Mantiene compatibilidad con bases SQLite antiguas sin migraciones formales.
       ensure_servicio_cliente_schema()
       ensure_user_schema()
