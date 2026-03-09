@@ -18,6 +18,7 @@ from models.coche import Coche
 from models.cliente import Cliente
 from models.base import now_madrid
 from utils.auth_utils import normalize_role
+from services.openai_service import get_openai_service
 
 inspeccion_bp = Blueprint('inspeccion', __name__, url_prefix='/api')
 
@@ -485,69 +486,27 @@ def sugerir_acta_premium(inspeccion_id):
     if not inspeccion:
         return jsonify({"msg": "Inspección no encontrada"}), 404
 
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return jsonify({"msg": "Falta configurar OPENAI_API_KEY en el backend"}), 500
-
-    model = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
-    data = request.get_json() or {}
-    borrador = (data.get("borrador") or "").strip()
-    averias = (data.get("averias_notas") or inspeccion.averias_notas or "").strip()
-
-    system_prompt = (
-        "Eres redactor profesional de taller automotriz en espanol de Espana. "
-        "Redacta un acta de entrega clara, formal y premium, sin inventar datos. "
-        "Incluye: contexto, trabajos realizados, estado final y conformidad de cliente."
-    )
-    user_prompt = (
-        f"Cliente: {inspeccion.cliente_nombre}\\n"
-        f"Vehiculo: {inspeccion.coche_descripcion}\\n"
-        f"Matricula: {inspeccion.matricula}\\n"
-        f"Kilometros: {inspeccion.kilometros or '-'}\\n"
-        f"Observaciones recepcion: {averias or 'Sin observaciones'}\\n"
-        f"Borrador de trabajos: {borrador or 'No aportado'}\\n\\n"
-        "Devuelve solo el texto final del acta, listo para imprimir."
-    )
-
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        "temperature": 0.5,
-    }
-
-    req = urlrequest.Request(
-        "https://api.openai.com/v1/chat/completions",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}",
-        },
-        method="POST",
-    )
-
     try:
-        with urlrequest.urlopen(req, timeout=30) as response:
-            body = json.loads(response.read().decode("utf-8"))
-        contenido = (
-            body.get("choices", [{}])[0]
-            .get("message", {})
-            .get("content", "")
-            .strip()
+        openai_service = get_openai_service()
+        if not openai_service.is_configured():
+            return jsonify({"msg": "Falta configurar OPENAI_API_KEY en el backend"}), 500
+
+        data = request.get_json() or {}
+        borrador = (data.get("borrador") or "").strip()
+        averias = (data.get("averias_notas") or inspeccion.averias_notas or "").strip()
+
+        result = openai_service.generate_acta_completa(
+            cliente_nombre=inspeccion.cliente_nombre or "-",
+            coche_descripcion=inspeccion.coche_descripcion or "-",
+            matricula=inspeccion.matricula or "-",
+            kilometros=inspeccion.kilometros or "-",
+            averias=averias,
+            borrador=borrador,
         )
-        if not contenido:
-            return jsonify({"msg": "No se pudo generar el texto del acta"}), 502
-        return jsonify({"texto": contenido, "model": model}), 200
-    except HTTPError as e:
-        try:
-            error_body = e.read().decode("utf-8")
-        except Exception:
-            error_body = str(e)
-        return jsonify({"msg": f"Error OpenAI: {error_body}"}), 502
-    except URLError as e:
-        return jsonify({"msg": f"No se pudo conectar con OpenAI: {str(e)}"}), 502
+        return jsonify(result), 200
+
+    except ValueError as e:
+        return jsonify({"msg": str(e)}), 502
     except Exception as e:
         return jsonify({"msg": f"Error al generar acta: {str(e)}"}), 500
 
