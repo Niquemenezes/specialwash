@@ -27,7 +27,8 @@ class Cita(db.Model):
     notas = db.Column(db.Text)
 
     # Estado
-    estado = db.Column(db.Enum(EstadoCita), default=EstadoCita.pendiente, nullable=False)
+    # Guardamos como texto para ser tolerantes con datos legados en SQLite.
+    estado = db.Column(db.String(20), default=EstadoCita.pendiente.value, nullable=False)
 
     # Registro
     creada_en = db.Column(db.DateTime, default=datetime.utcnow)
@@ -39,6 +40,8 @@ class Cita(db.Model):
     creada_por = db.relationship("User", foreign_keys=[creada_por_id])
 
     def to_dict(self):
+        estado_raw = self.estado.value if isinstance(self.estado, EstadoCita) else str(self.estado or "").strip().lower()
+        estado_value = estado_raw if estado_raw in {e.value for e in EstadoCita} else EstadoCita.pendiente.value
         return {
             "id": self.id,
             "cliente_id": self.cliente_id,
@@ -53,7 +56,7 @@ class Cita(db.Model):
             "fecha_hora": self.fecha_hora.isoformat() if self.fecha_hora else None,
             "motivo": self.motivo,
             "notas": self.notas,
-            "estado": self.estado.value,
+            "estado": estado_value,
             "creada_en": self.creada_en.isoformat() if self.creada_en else None,
             "creada_por_nombre": self.creada_por.nombre if self.creada_por else None,
         }
