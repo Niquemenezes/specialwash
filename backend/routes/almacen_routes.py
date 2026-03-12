@@ -2,10 +2,10 @@ from datetime import datetime, timedelta
 import re
 
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
 from sqlalchemy import desc, func
 
-from models import Entrada, Producto, ProductoCodigoBarras, Proveedor, Salida, db
+from models import Entrada, Producto, ProductoCodigoBarras, Proveedor, Salida, User, db
 from services.stock_service import (
     actualizar_stock_entrada,
     actualizar_stock_salida,
@@ -14,7 +14,7 @@ from services.stock_service import (
     revertir_stock_entrada,
     revertir_stock_salida,
 )
-from utils.auth_utils import role_required
+from utils.auth_utils import normalize_role, role_required
 
 almacen_bp = Blueprint("almacen_routes", __name__)
 
@@ -375,7 +375,10 @@ def registrar_salida():
 
     producto_id = data.get("producto_id")
     codigo_barras = (data.get("codigo_barras") or "").strip()
-    cantidad = int(data.get("cantidad", 0))
+    try:
+        cantidad = int(data.get("cantidad", 0))
+    except (TypeError, ValueError):
+        return jsonify({"msg": "La cantidad debe ser un numero entero"}), 400
 
     if (not producto_id and not codigo_barras) or cantidad <= 0:
         return jsonify({"msg": "Datos inválidos"}), 400
@@ -396,7 +399,19 @@ def registrar_salida():
     if producto.stock_actual < cantidad:
         return jsonify({"msg": "Stock insuficiente"}), 400
 
-    uid = int(data.get("usuario_id") or get_jwt_identity())
+    current_uid = int(get_jwt_identity())
+    current_role = normalize_role((get_jwt() or {}).get("rol"))
+
+    # Solo administradores pueden imputar la salida a otro usuario.
+    uid = current_uid
+    if current_role == "administrador" and data.get("usuario_id") is not None:
+        try:
+            uid = int(data.get("usuario_id"))
+        except (TypeError, ValueError):
+            return jsonify({"msg": "usuario_id invalido"}), 400
+        if not User.query.get(uid):
+            return jsonify({"msg": "Usuario no encontrado"}), 404
+
     precio_unitario = calcular_precio_salida_desde_ultima_entrada(producto.id)
     precio_total = round(precio_unitario * cantidad, 2) if precio_unitario is not None else None
 

@@ -114,12 +114,19 @@ def listar_partes_trabajo():
         except ValueError:
             return jsonify({'msg': f"Estado inválido: {estado}"}), 400
     if empleado_id:
-        empleado_id_int = int(empleado_id)
+        try:
+            empleado_id_int = int(empleado_id)
+        except (TypeError, ValueError):
+            return jsonify({'msg': 'empleado_id inválido'}), 400
         if not _can_manage_all_partes() and empleado_id_int != int(get_jwt_identity()):
             return jsonify({'msg': 'Acceso denegado'}), 403
         query = query.filter(ParteTrabajo.empleado_id == empleado_id_int)
     if coche_id:
-        query = query.filter(ParteTrabajo.coche_id == int(coche_id))
+        try:
+            coche_id_int = int(coche_id)
+        except (TypeError, ValueError):
+            return jsonify({'msg': 'coche_id inválido'}), 400
+        query = query.filter(ParteTrabajo.coche_id == coche_id_int)
     partes = query.all()
     return jsonify([_serialize_parte(p) for p in partes])
 

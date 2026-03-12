@@ -35,12 +35,22 @@ def _jwt_user_id():
     except (TypeError, ValueError):
         return None
 
-# Configurar Cloudinary desde variables de entorno
-cloudinary.config(
-    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME", "djndjvnlx"),
-    api_key=os.getenv("CLOUDINARY_API_KEY", "221471564217412"),
-    api_secret=os.getenv("CLOUDINARY_API_SECRET", "tNDupOBrbVEXuPQmffp9c_3dufo")
-)
+CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME", "").strip()
+CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY", "").strip()
+CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET", "").strip()
+
+
+def _cloudinary_configured():
+    return bool(CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET)
+
+
+# Configurar Cloudinary solo si existen variables de entorno seguras.
+if _cloudinary_configured():
+    cloudinary.config(
+        cloud_name=CLOUDINARY_CLOUD_NAME,
+        api_key=CLOUDINARY_API_KEY,
+        api_secret=CLOUDINARY_API_SECRET,
+    )
 
 # Decorador para validar rol
 def role_required(*roles):
@@ -660,6 +670,9 @@ def upload_foto(inspeccion_id):
     """
     Subir una foto a Cloudinary y vincularla a la inspección.
     """
+    if not _cloudinary_configured():
+        return jsonify({"msg": "Cloudinary no está configurado en el servidor"}), 503
+
     inspeccion = InspeccionRecepcion.query.get(inspeccion_id)
     
     if not inspeccion:
@@ -717,6 +730,9 @@ def upload_video(inspeccion_id):
     """
     Subir un video a Cloudinary y vincularlo a la inspección.
     """
+    if not _cloudinary_configured():
+        return jsonify({"msg": "Cloudinary no está configurado en el servidor"}), 503
+
     inspeccion = InspeccionRecepcion.query.get(inspeccion_id)
     
     if not inspeccion:

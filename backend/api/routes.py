@@ -438,12 +438,35 @@ def servicios_list():
 def servicios_create():
     data = request.get_json() or {}
     usuario_id = int(get_jwt_identity())
-    
+
+    coche_id = data.get("coche_id")
+    tipo_servicio = (data.get("tipo_servicio") or "").strip()
+
+    if not coche_id:
+        return jsonify({"msg": "coche_id es obligatorio"}), 400
+    if not tipo_servicio:
+        return jsonify({"msg": "tipo_servicio es obligatorio"}), 400
+
+    try:
+        coche_id = int(coche_id)
+    except (TypeError, ValueError):
+        return jsonify({"msg": "coche_id invalido"}), 400
+
+    try:
+        precio = float(data.get("precio", 0))
+    except (TypeError, ValueError):
+        return jsonify({"msg": "precio invalido"}), 400
+    if precio < 0:
+        return jsonify({"msg": "precio debe ser mayor o igual a 0"}), 400
+
+    if not Coche.query.get(coche_id):
+        return jsonify({"msg": "Coche no encontrado"}), 404
+
     s = Servicio(
-        fecha=datetime.utcnow(),  
-        coche_id=int(data.get("coche_id")),
-        tipo_servicio=data.get("tipo_servicio"),
-        precio=float(data.get("precio", 0)),
+        fecha=datetime.utcnow(),
+        coche_id=coche_id,
+        tipo_servicio=tipo_servicio,
+        precio=precio,
         observaciones=data.get("observaciones"),
         usuario_id=usuario_id
     )
@@ -457,14 +480,26 @@ def servicios_create():
 def servicios_update(sid):
     s = Servicio.query.get_or_404(sid)
     data = request.get_json() or {}
-    
+
     if "coche_id" in data:
-        s.coche_id = int(data.get("coche_id"))
+        try:
+            coche_id = int(data.get("coche_id"))
+        except (TypeError, ValueError):
+            return jsonify({"msg": "coche_id invalido"}), 400
+        if not Coche.query.get(coche_id):
+            return jsonify({"msg": "Coche no encontrado"}), 404
+        s.coche_id = coche_id
     s.tipo_servicio = data.get("tipo_servicio", s.tipo_servicio)
     if "precio" in data:
-        s.precio = float(data.get("precio"))
+        try:
+            precio = float(data.get("precio"))
+        except (TypeError, ValueError):
+            return jsonify({"msg": "precio invalido"}), 400
+        if precio < 0:
+            return jsonify({"msg": "precio debe ser mayor o igual a 0"}), 400
+        s.precio = precio
     s.observaciones = data.get("observaciones", s.observaciones)
-    
+
     db.session.commit()
     return jsonify(s.to_dict()), 200
 
