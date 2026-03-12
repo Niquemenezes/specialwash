@@ -52,13 +52,35 @@ def usuarios_update(uid):
     u = User.query.get_or_404(uid)
     data = request.get_json() or {}
 
-    u.nombre = data.get("nombre", u.nombre)
-    u.email = (data.get("email") or u.email).lower()
+    # Nombre
+    nombre = (data.get("nombre") or "").strip()
+    if nombre:
+        u.nombre = nombre
 
-    if data.get("password"):
-        u.password_hash = generate_password_hash(data["password"])
+    # Email: validar que no esté en uso por otro usuario
+    email_raw = (data.get("email") or "").strip().lower()
+    if email_raw and email_raw != u.email:
+        if User.query.filter(User.email == email_raw, User.id != uid).first():
+            return jsonify({"msg": "Ya existe un usuario con ese email"}), 400
+        u.email = email_raw
 
-    u.rol = normalize_role(data.get("rol", u.rol))
+    # Contraseña: mínimo 6 caracteres si se envía
+    password = data.get("password") or ""
+    if password:
+        if len(password) < 6:
+            return jsonify({"msg": "La contraseña debe tener al menos 6 caracteres"}), 400
+        u.password_hash = generate_password_hash(password)
+
+    # Rol: validar que sea un rol permitido
+    if "rol" in data:
+        nuevo_rol = normalize_role(data["rol"])
+        if nuevo_rol not in ALLOWED_ROLES:
+            return jsonify({"msg": f"Rol inválido. Opciones: {', '.join(sorted(ALLOWED_ROLES))}"}), 400
+        u.rol = nuevo_rol
+
+    # Estado activo
+    if "activo" in data:
+        u.activo = bool(data["activo"])
 
     db.session.commit()
     return jsonify(u.to_dict()), 200

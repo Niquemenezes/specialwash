@@ -5,8 +5,22 @@ __pycache__/
 *.pyd
 *.sqlite3
 .env
+.env.production
+.env.local
+.env.*.local
 .venv/
 .DS_Store
+
+# Virtual environments - NUNCA versionar
+venv/
+env/
+backend/venv/
+backend/env/
+*.egg-info/
+
+# Logs - pueden exponer datos internos
+*.log
+backend/app.log
 
 # Database - permitir specialwash.db ANTES de ignorar
 !backend/instance/specialwash.db
@@ -33,7 +47,6 @@ yarn-error.log*
 .vscode/
 
 # Otros
-*.log
 *.bak
 *.swp
 *.swo
