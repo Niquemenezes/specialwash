@@ -86,6 +86,11 @@ cd /root/specialwash/backend
 # Mantener la base de datos productiva intacta durante este despliegue.
 export ENABLE_DB_BOOTSTRAP=0
 
+# Aplicar ajustes de esquema no destructivos requeridos por nuevas tablas.
+if [[ -f /root/specialwash/backend/venv/bin/python ]]; then
+    /root/specialwash/backend/venv/bin/python update_cita_schema.py || true
+fi
+
 # Si existe un servicio systemd, usarlo (mas robusto para produccion).
 if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files | grep -q '^specialwash-backend\.service'; then
     # Evitar colision con procesos legacy (nohup) que ocupen el puerto 5000.

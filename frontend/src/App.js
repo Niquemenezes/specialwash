@@ -200,40 +200,6 @@ const App = () => {
             />
 
             <Route
-              path="/resumen-clientes"
-                element={
-                  <PrivateRoute allow={["administrador", "encargado", "tecnico_comercial"]}>
-                    <CitasPage />
-                  </PrivateRoute>
-                }
-              />
-
-              <Route
-                path="/resumen-clientes"
-              element={
-                <PrivateRoute allow={["administrador"]}>
-                  <ResumenClientesPage />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/citas"
-              element={
-                <PrivateRoute allow={["administrador", "encargado", "tecnico_comercial"]}>
-                  <CitasPage />
-                </PrivateRoute>
-              }
-            />
-
-            <Route
-              path="/resumen-clientes"
-              element={
-                <PrivateRoute allow={["administrador"]}>
-                  <ResumenClientesPage />
-                </PrivateRoute>
-              }
-            />
-            <Route
               path="/citas"
               element={
                 <PrivateRoute allow={["administrador", "encargado", "tecnico_comercial"]}>

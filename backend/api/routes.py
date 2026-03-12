@@ -241,16 +241,19 @@ def clientes_list():
 
 
 @api.route("/clientes", methods=["POST"])
-@role_required("administrador")
+@role_required("administrador", "encargado", "tecnico_comercial")
 def clientes_create():
     data = request.get_json() or {}
+    nombre = (data.get("nombre") or "").strip()
+    if not nombre:
+        return jsonify({"error": "El nombre es obligatorio"}), 400
     c = Cliente(
-        nombre=data.get("nombre"),
-        cif=data.get("cif"),
-        telefono=data.get("telefono"),
-        email=data.get("email"),
-        direccion=data.get("direccion"),
-        notas=data.get("notas")
+        nombre=nombre,
+        cif=(data.get("cif") or "").strip() or None,
+        telefono=(data.get("telefono") or "").strip() or None,
+        email=(data.get("email") or "").strip() or None,
+        direccion=(data.get("direccion") or "").strip() or None,
+        notas=(data.get("notas") or "").strip() or None,
     )
     db.session.add(c)
     db.session.commit()
@@ -258,17 +261,26 @@ def clientes_create():
 
 
 @api.route("/clientes/<int:cid>", methods=["PUT"])
-@role_required("administrador")
+@role_required("administrador", "encargado", "tecnico_comercial")
 def clientes_update(cid):
     c = Cliente.query.get_or_404(cid)
     data = request.get_json() or {}
     
-    c.nombre = data.get("nombre", c.nombre)
-    c.cif = data.get("cif", c.cif)
-    c.telefono = data.get("telefono", c.telefono)
-    c.email = data.get("email", c.email)
-    c.direccion = data.get("direccion", c.direccion)
-    c.notas = data.get("notas", c.notas)
+    if "nombre" in data:
+        nombre = (data.get("nombre") or "").strip()
+        if not nombre:
+            return jsonify({"error": "El nombre es obligatorio"}), 400
+        c.nombre = nombre
+    if "cif" in data:
+        c.cif = (data.get("cif") or "").strip() or None
+    if "telefono" in data:
+        c.telefono = (data.get("telefono") or "").strip() or None
+    if "email" in data:
+        c.email = (data.get("email") or "").strip() or None
+    if "direccion" in data:
+        c.direccion = (data.get("direccion") or "").strip() or None
+    if "notas" in data:
+        c.notas = (data.get("notas") or "").strip() or None
     
     db.session.commit()
     return jsonify(c.to_dict()), 200
@@ -310,7 +322,13 @@ def clientes_delete(cid):
 @jwt_required()
 def coches_list():
     q = (request.args.get("q") or "").strip().lower()
+    cliente_id = (request.args.get("cliente_id") or "").strip()
     query = Coche.query
+    if cliente_id:
+        try:
+            query = query.filter(Coche.cliente_id == int(cliente_id))
+        except ValueError:
+            return jsonify({"error": "cliente_id inválido"}), 400
     if q:
         query = query.filter(
             (Coche.matricula.ilike(f"%{q}%")) |
@@ -321,22 +339,28 @@ def coches_list():
 
 
 @api.route("/coches", methods=["POST"])
-@role_required("administrador")
+@role_required("administrador", "encargado", "tecnico_comercial")
 def coches_create():
     data = request.get_json() or {}
     
     # Verificar que la matrícula no exista
     matricula = data.get("matricula", "").strip().upper()
+    if not matricula:
+        return jsonify({"error": "La matrícula es obligatoria"}), 400
     if Coche.query.filter_by(matricula=matricula).first():
         return jsonify({"error": "Ya existe un coche con esa matrícula"}), 400
+    cliente_id = data.get("cliente_id")
+    cliente = Cliente.query.get(cliente_id) if cliente_id else None
+    if not cliente:
+        return jsonify({"error": "Cliente no encontrado"}), 404
     
     c = Coche(
         matricula=matricula,
-        marca=data.get("marca"),
-        modelo=data.get("modelo"),
-        color=data.get("color"),
-        cliente_id=int(data.get("cliente_id")),
-        notas=data.get("notas")
+        marca=(data.get("marca") or "").strip() or None,
+        modelo=(data.get("modelo") or "").strip() or None,
+        color=(data.get("color") or "").strip() or None,
+        cliente_id=int(cliente_id),
+        notas=(data.get("notas") or "").strip() or None,
     )
     db.session.add(c)
     db.session.commit()
@@ -344,7 +368,7 @@ def coches_create():
 
 
 @api.route("/coches/<int:cid>", methods=["PUT"])
-@role_required("administrador")
+@role_required("administrador", "encargado", "tecnico_comercial")
 def coches_update(cid):
     c = Coche.query.get_or_404(cid)
     data = request.get_json() or {}
@@ -357,12 +381,19 @@ def coches_update(cid):
                 return jsonify({"error": "Ya existe un coche con esa matrícula"}), 400
             c.matricula = nueva_matricula
     
-    c.marca = data.get("marca", c.marca)
-    c.modelo = data.get("modelo", c.modelo)
-    c.color = data.get("color", c.color)
+    if "marca" in data:
+        c.marca = (data.get("marca") or "").strip() or None
+    if "modelo" in data:
+        c.modelo = (data.get("modelo") or "").strip() or None
+    if "color" in data:
+        c.color = (data.get("color") or "").strip() or None
     if "cliente_id" in data:
+        cliente = Cliente.query.get(data.get("cliente_id"))
+        if not cliente:
+            return jsonify({"error": "Cliente no encontrado"}), 404
         c.cliente_id = int(data.get("cliente_id"))
-    c.notas = data.get("notas", c.notas)
+    if "notas" in data:
+        c.notas = (data.get("notas") or "").strip() or None
     
     db.session.commit()
     return jsonify(c.to_dict()), 200
