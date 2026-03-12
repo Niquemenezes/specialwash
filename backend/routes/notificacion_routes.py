@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required
+from sqlalchemy.exc import OperationalError
 from models import db
 from models.notificacion import Notificacion
 from utils.decorators import role_required
@@ -11,12 +12,16 @@ notificaciones_bp = Blueprint("notificaciones", __name__)
 @role_required("administrador", "encargado")
 def listar_notificaciones():
     """Devuelve las últimas 50 notificaciones (no leídas primero)."""
-    items = (
-        Notificacion.query
-        .order_by(Notificacion.leida.asc(), Notificacion.created_at.desc())
-        .limit(50)
-        .all()
-    )
+    try:
+        items = (
+            Notificacion.query
+            .order_by(Notificacion.leida.asc(), Notificacion.created_at.desc())
+            .limit(50)
+            .all()
+        )
+    except OperationalError:
+        # Producción puede arrancar sin tabla de notificaciones por decisión operativa.
+        return jsonify([]), 200
     return jsonify([n.to_dict() for n in items]), 200
 
 
@@ -24,7 +29,10 @@ def listar_notificaciones():
 @role_required("administrador", "encargado")
 def contar_no_leidas():
     """Devuelve solo el contador de notificaciones no leídas."""
-    count = Notificacion.query.filter_by(leida=False).count()
+    try:
+        count = Notificacion.query.filter_by(leida=False).count()
+    except OperationalError:
+        return jsonify({"count": 0}), 200
     return jsonify({"count": count}), 200
 
 
