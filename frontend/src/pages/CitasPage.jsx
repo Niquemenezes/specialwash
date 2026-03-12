@@ -15,7 +15,7 @@ async function apiFetch(path, options = {}) {
   const raw = await res.text();
   let data = null;
   try { data = raw ? JSON.parse(raw) : null; } catch { data = raw; }
-  if (!res.ok) throw new Error((data && (data.msg || data.message)) || `HTTP ${res.status}`);
+  if (!res.ok) throw new Error((data && (data.msg || data.message || data.error)) || `HTTP ${res.status}`);
   return data;
 }
 
@@ -46,6 +46,23 @@ const EMPTY_FORM = {
   notas: "",
 };
 
+const EMPTY_CLIENTE_FORM = {
+  nombre: "",
+  telefono: "",
+  email: "",
+  cif: "",
+  direccion: "",
+  notas: "",
+};
+
+const EMPTY_COCHE_FORM = {
+  matricula: "",
+  marca: "",
+  modelo: "",
+  color: "",
+  notas: "",
+};
+
 export default function CitasPage() {
   const [citas, setCitas] = useState([]);
   const [clientes, setClientes] = useState([]);
@@ -60,6 +77,11 @@ export default function CitasPage() {
   const [filtroEstado, setFiltroEstado] = useState("");
   const [filtroFecha, setFiltroFecha] = useState("");
   const [soloProximas, setSoloProximas] = useState(false);
+  const [clienteModo, setClienteModo] = useState("existente");
+  const [clienteForm, setClienteForm] = useState(EMPTY_CLIENTE_FORM);
+  const [actualizarClienteExistente, setActualizarClienteExistente] = useState(false);
+  const [cocheModo, setCocheModo] = useState("existente");
+  const [cocheForm, setCocheForm] = useState(EMPTY_COCHE_FORM);
 
   // ── Cargar citas ────────────────────────────────────────────────────────────
   const cargarCitas = useCallback(async () => {
@@ -101,10 +123,33 @@ export default function CitasPage() {
       .catch(() => setCochesCliente([]));
   }, [form.cliente_id]);
 
+  // Prefill de datos de cliente cuando se selecciona cliente existente
+  useEffect(() => {
+    if (clienteModo !== "existente" || !form.cliente_id) {
+      setClienteForm(EMPTY_CLIENTE_FORM);
+      return;
+    }
+    const seleccionado = clientes.find((c) => Number(c.id) === Number(form.cliente_id));
+    if (!seleccionado) return;
+    setClienteForm({
+      nombre: seleccionado.nombre || "",
+      telefono: seleccionado.telefono || "",
+      email: seleccionado.email || "",
+      cif: seleccionado.cif || "",
+      direccion: seleccionado.direccion || "",
+      notas: seleccionado.notas || "",
+    });
+  }, [clienteModo, form.cliente_id, clientes]);
+
   // ── Abrir modal ─────────────────────────────────────────────────────────────
   const abrirCrear = () => {
     setEditandoId(null);
     setForm(EMPTY_FORM);
+    setClienteModo("existente");
+    setClienteForm(EMPTY_CLIENTE_FORM);
+    setActualizarClienteExistente(false);
+    setCocheModo("existente");
+    setCocheForm(EMPTY_COCHE_FORM);
     setModalError("");
     setShowModal(true);
   };
@@ -121,6 +166,10 @@ export default function CitasPage() {
       motivo: cita.motivo || "",
       notas: cita.notas || "",
     });
+    setClienteModo("existente");
+    setActualizarClienteExistente(false);
+    setCocheModo("existente");
+    setCocheForm(EMPTY_COCHE_FORM);
     setModalError("");
     setShowModal(true);
   };
@@ -129,23 +178,89 @@ export default function CitasPage() {
     setShowModal(false);
     setEditandoId(null);
     setForm(EMPTY_FORM);
+    setClienteModo("existente");
+    setClienteForm(EMPTY_CLIENTE_FORM);
+    setActualizarClienteExistente(false);
+    setCocheModo("existente");
+    setCocheForm(EMPTY_COCHE_FORM);
     setModalError("");
   };
 
   // ── Guardar ─────────────────────────────────────────────────────────────────
   const guardar = async (e) => {
     e.preventDefault();
-    if (!form.cliente_id) { setModalError("Debes seleccionar un cliente."); return; }
     if (!form.fecha_hora) { setModalError("Debes indicar fecha y hora."); return; }
     if (!form.motivo.trim()) { setModalError("El motivo es obligatorio."); return; }
 
     setSaving(true);
     setModalError("");
     try {
+      let clienteIdFinal = form.cliente_id ? Number(form.cliente_id) : null;
+      let cocheIdFinal = form.coche_id ? Number(form.coche_id) : null;
+
+      // 1) Resolver cliente
+      if (!editandoId && clienteModo === "nuevo") {
+        if (!clienteForm.nombre.trim()) {
+          throw new Error("Debes indicar el nombre del cliente nuevo.");
+        }
+        const nuevoCliente = await apiFetch("/api/clientes", {
+          method: "POST",
+          body: JSON.stringify({
+            nombre: clienteForm.nombre.trim(),
+            telefono: clienteForm.telefono.trim() || null,
+            email: clienteForm.email.trim() || null,
+            cif: clienteForm.cif.trim() || null,
+            direccion: clienteForm.direccion.trim() || null,
+            notas: clienteForm.notas.trim() || null,
+          }),
+        });
+        clienteIdFinal = Number(nuevoCliente.id);
+      } else {
+        if (!clienteIdFinal) {
+          throw new Error("Debes seleccionar un cliente.");
+        }
+        if (actualizarClienteExistente && !editandoId) {
+          if (!clienteForm.nombre.trim()) {
+            throw new Error("El nombre del cliente no puede estar vacío.");
+          }
+          await apiFetch(`/api/clientes/${clienteIdFinal}`, {
+            method: "PUT",
+            body: JSON.stringify({
+              nombre: clienteForm.nombre.trim(),
+              telefono: clienteForm.telefono.trim() || null,
+              email: clienteForm.email.trim() || null,
+              cif: clienteForm.cif.trim() || null,
+              direccion: clienteForm.direccion.trim() || null,
+              notas: clienteForm.notas.trim() || null,
+            }),
+          });
+        }
+      }
+
+      // 2) Resolver coche (opcional)
+      if (!editandoId && cocheModo === "nuevo") {
+        if (!cocheForm.matricula.trim()) {
+          throw new Error("Para registrar coche nuevo debes indicar matrícula.");
+        }
+        const nuevoCoche = await apiFetch("/api/coches", {
+          method: "POST",
+          body: JSON.stringify({
+            cliente_id: clienteIdFinal,
+            matricula: cocheForm.matricula.trim().toUpperCase(),
+            marca: cocheForm.marca.trim() || null,
+            modelo: cocheForm.modelo.trim() || null,
+            color: cocheForm.color.trim() || null,
+            notas: cocheForm.notas.trim() || null,
+          }),
+        });
+        cocheIdFinal = Number(nuevoCoche.id);
+      }
+
       const payload = {
-        cliente_id: Number(form.cliente_id),
-        coche_id: form.coche_id ? Number(form.coche_id) : null,
-        fecha_hora: new Date(form.fecha_hora).toISOString(),
+        cliente_id: Number(clienteIdFinal),
+        coche_id: cocheIdFinal || null,
+        // Enviar el valor local del input datetime-local para evitar desfases UTC.
+        fecha_hora: form.fecha_hora,
         motivo: form.motivo.trim(),
         notas: form.notas.trim() || null,
       };
@@ -154,6 +269,7 @@ export default function CitasPage() {
       } else {
         await apiFetch("/api/citas", { method: "POST", body: JSON.stringify(payload) });
       }
+      await cargarClientes();
       await cargarCitas();
       cerrarModal();
     } catch (e) {
@@ -416,49 +532,263 @@ export default function CitasPage() {
           style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
         >
           <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
-            <div className="modal-content" style={{ borderRadius: "12px" }}>
+            <div
+              className="modal-content"
+              style={{
+                borderRadius: "12px",
+                maxHeight: "94vh",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
               <div className="modal-header" style={{ background: "#0f0f0f", borderRadius: "12px 12px 0 0" }}>
                 <h5 className="modal-title fw-bold" style={{ color: "#d4af37" }}>
                   {editandoId ? "✏️ Editar cita" : "➕ Nueva cita"}
                 </h5>
                 <button type="button" className="btn-close btn-close-white" onClick={cerrarModal} />
               </div>
-              <form onSubmit={guardar}>
-                <div className="modal-body">
+              <form onSubmit={guardar} style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+                <div
+                  className="modal-body"
+                  style={{
+                    overflowY: "auto",
+                    WebkitOverflowScrolling: "touch",
+                    overscrollBehavior: "contain",
+                    maxHeight: "calc(94vh - 140px)",
+                  }}
+                >
                   {modalError && (
                     <div className="alert alert-danger py-2" style={{ borderRadius: "8px" }}>{modalError}</div>
                   )}
 
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold">Cliente *</label>
-                    <select
-                      className="form-select"
-                      value={form.cliente_id}
-                      onChange={(e) => setForm({ ...form, cliente_id: e.target.value, coche_id: "" })}
-                      required
-                    >
-                      <option value="">Selecciona cliente...</option>
-                      {clientes.map((c) => (
-                        <option key={c.id} value={c.id}>{c.nombre}{c.telefono ? ` · ${c.telefono}` : ""}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {!editandoId && (
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">Tipo de cliente</label>
+                      <div className="d-flex gap-3 flex-wrap">
+                        <div className="form-check">
+                          <input
+                            className="form-check-input"
+                            type="radio"
+                            name="clienteModo"
+                            id="clienteExistente"
+                            checked={clienteModo === "existente"}
+                            onChange={() => {
+                              setClienteModo("existente");
+                              setForm((prev) => ({ ...prev, cliente_id: "", coche_id: "" }));
+                            }}
+                          />
+                          <label className="form-check-label" htmlFor="clienteExistente">Cliente existente</label>
+                        </div>
+                        <div className="form-check">
+                          <input
+                            className="form-check-input"
+                            type="radio"
+                            name="clienteModo"
+                            id="clienteNuevo"
+                            checked={clienteModo === "nuevo"}
+                            onChange={() => {
+                              setClienteModo("nuevo");
+                              setForm((prev) => ({ ...prev, cliente_id: "", coche_id: "" }));
+                              setClienteForm(EMPTY_CLIENTE_FORM);
+                            }}
+                          />
+                          <label className="form-check-label" htmlFor="clienteNuevo">Cliente nuevo</label>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {(editandoId || clienteModo === "existente") && (
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">Cliente *</label>
+                      <select
+                        className="form-select"
+                        value={form.cliente_id}
+                        onChange={(e) => setForm({ ...form, cliente_id: e.target.value, coche_id: "" })}
+                        required
+                      >
+                        <option value="">Selecciona cliente...</option>
+                        {clientes.map((c) => (
+                          <option key={c.id} value={c.id}>{c.nombre}{c.telefono ? ` · ${c.telefono}` : ""}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {(!editandoId && clienteModo === "existente" && form.cliente_id) && (
+                    <div className="mb-3 border rounded p-2" style={{ background: "#fafafa" }}>
+                      <div className="form-check mb-2">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          id="actualizarCliente"
+                          checked={actualizarClienteExistente}
+                          onChange={(e) => setActualizarClienteExistente(e.target.checked)}
+                        />
+                        <label className="form-check-label" htmlFor="actualizarCliente">
+                          Actualizar datos del cliente seleccionado
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
+                  {(clienteModo === "nuevo" || actualizarClienteExistente) && (
+                    <div className="mb-3 border rounded p-3" style={{ background: "#fafafa" }}>
+                      <h6 className="fw-semibold mb-3">👤 Datos del cliente</h6>
+                      <div className="row g-2">
+                        <div className="col-md-6">
+                          <label className="form-label small">Nombre *</label>
+                          <input
+                            className="form-control"
+                            value={clienteForm.nombre}
+                            onChange={(e) => setClienteForm((p) => ({ ...p, nombre: e.target.value }))}
+                            required={clienteModo === "nuevo"}
+                          />
+                        </div>
+                        <div className="col-md-6">
+                          <label className="form-label small">Teléfono</label>
+                          <input
+                            className="form-control"
+                            value={clienteForm.telefono}
+                            onChange={(e) => setClienteForm((p) => ({ ...p, telefono: e.target.value }))}
+                          />
+                        </div>
+                        <div className="col-md-6">
+                          <label className="form-label small">Email</label>
+                          <input
+                            className="form-control"
+                            type="email"
+                            value={clienteForm.email}
+                            onChange={(e) => setClienteForm((p) => ({ ...p, email: e.target.value }))}
+                          />
+                        </div>
+                        <div className="col-md-6">
+                          <label className="form-label small">CIF</label>
+                          <input
+                            className="form-control"
+                            value={clienteForm.cif}
+                            onChange={(e) => setClienteForm((p) => ({ ...p, cif: e.target.value }))}
+                          />
+                        </div>
+                        <div className="col-12">
+                          <label className="form-label small">Dirección</label>
+                          <input
+                            className="form-control"
+                            value={clienteForm.direccion}
+                            onChange={(e) => setClienteForm((p) => ({ ...p, direccion: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {!editandoId && (
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">Vehículo para la cita</label>
+                      <div className="d-flex gap-3 flex-wrap">
+                        <div className="form-check">
+                          <input
+                            className="form-check-input"
+                            type="radio"
+                            name="cocheModo"
+                            id="cocheExistente"
+                            checked={cocheModo === "existente"}
+                            onChange={() => setCocheModo("existente")}
+                          />
+                          <label className="form-check-label" htmlFor="cocheExistente">Coche existente</label>
+                        </div>
+                        <div className="form-check">
+                          <input
+                            className="form-check-input"
+                            type="radio"
+                            name="cocheModo"
+                            id="cocheNuevo"
+                            checked={cocheModo === "nuevo"}
+                            onChange={() => {
+                              setCocheModo("nuevo");
+                              setForm((prev) => ({ ...prev, coche_id: "" }));
+                            }}
+                          />
+                          <label className="form-check-label" htmlFor="cocheNuevo">Registrar coche nuevo</label>
+                        </div>
+                        <div className="form-check">
+                          <input
+                            className="form-check-input"
+                            type="radio"
+                            name="cocheModo"
+                            id="sinCoche"
+                            checked={cocheModo === "sin"}
+                            onChange={() => {
+                              setCocheModo("sin");
+                              setForm((prev) => ({ ...prev, coche_id: "" }));
+                            }}
+                          />
+                          <label className="form-check-label" htmlFor="sinCoche">Sin coche específico</label>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="mb-3">
-                    <label className="form-label fw-semibold">Coche (opcional)</label>
-                    <select
-                      className="form-select"
-                      value={form.coche_id}
-                      onChange={(e) => setForm({ ...form, coche_id: e.target.value })}
-                      disabled={!form.cliente_id}
-                    >
-                      <option value="">Sin coche específico</option>
-                      {cochesCliente.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.matricula}{c.marca ? ` · ${c.marca}` : ""}{c.modelo ? ` ${c.modelo}` : ""}
-                        </option>
-                      ))}
-                    </select>
+                    {(editandoId || cocheModo === "existente") && (
+                      <>
+                        <label className="form-label fw-semibold">Coche (opcional)</label>
+                        <select
+                          className="form-select"
+                          value={form.coche_id}
+                          onChange={(e) => setForm({ ...form, coche_id: e.target.value })}
+                          disabled={!form.cliente_id}
+                        >
+                          <option value="">Sin coche específico</option>
+                          {cochesCliente.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.matricula}{c.marca ? ` · ${c.marca}` : ""}{c.modelo ? ` ${c.modelo}` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+
+                    {!editandoId && cocheModo === "nuevo" && (
+                      <div className="border rounded p-3" style={{ background: "#fafafa" }}>
+                        <h6 className="fw-semibold mb-3">🚗 Nuevo coche</h6>
+                        <div className="row g-2">
+                          <div className="col-md-6">
+                            <label className="form-label small">Matrícula *</label>
+                            <input
+                              className="form-control"
+                              value={cocheForm.matricula}
+                              onChange={(e) => setCocheForm((p) => ({ ...p, matricula: e.target.value.toUpperCase() }))}
+                              required={cocheModo === "nuevo"}
+                            />
+                          </div>
+                          <div className="col-md-6">
+                            <label className="form-label small">Marca</label>
+                            <input
+                              className="form-control"
+                              value={cocheForm.marca}
+                              onChange={(e) => setCocheForm((p) => ({ ...p, marca: e.target.value }))}
+                            />
+                          </div>
+                          <div className="col-md-6">
+                            <label className="form-label small">Modelo</label>
+                            <input
+                              className="form-control"
+                              value={cocheForm.modelo}
+                              onChange={(e) => setCocheForm((p) => ({ ...p, modelo: e.target.value }))}
+                            />
+                          </div>
+                          <div className="col-md-6">
+                            <label className="form-label small">Color</label>
+                            <input
+                              className="form-control"
+                              value={cocheForm.color}
+                              onChange={(e) => setCocheForm((p) => ({ ...p, color: e.target.value }))}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="mb-3">

@@ -156,11 +156,6 @@ const NavbarSW = () => {
                           Resumen Clientes
                         </NavLink>
                       </li>
-                      <li>
-                        <NavLink to="/citas" className="dropdown-item">
-                          📅 Citas
-                        </NavLink>
-                      </li>
                     </ul>
                   </li>
 
@@ -261,6 +256,13 @@ const NavbarSW = () => {
               </>
             ) : (
               <>
+                {(rol === "administrador" || rol === "encargado" || rol === "tecnico_comercial") && (
+                  <li className="nav-item">
+                    <NavLink to="/citas" className="nav-link sw-navlink">
+                      📅 Citas
+                    </NavLink>
+                  </li>
+                )}
                 <li className="nav-item d-flex align-items-center">
                   <span className="sw-role-pill">
                     Rol:&nbsp;

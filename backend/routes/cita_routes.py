@@ -15,6 +15,22 @@ citas_bp = Blueprint("citas", __name__)
 ESTADOS_VALIDOS = {e.value for e in EstadoCita}
 
 
+def _parse_datetime_flexible(raw_value):
+    """Acepta datetime-local (YYYY-MM-DDTHH:MM), ISO con segundos y con sufijo Z."""
+    value = str(raw_value or "").strip()
+    if not value:
+        return None
+
+    # Compatibilidad con strings ISO que terminan en Z (UTC)
+    if value.endswith("Z"):
+        value = value[:-1]
+
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
 def _current_role():
     claims = get_jwt() or {}
     return normalize_role(claims.get("rol", ""))
@@ -103,13 +119,9 @@ def crear_cita():
     if not cliente:
         return jsonify({"msg": "Cliente no encontrado"}), 404
 
-    try:
-        fecha_hora = datetime.fromisoformat(fecha_hora_raw)
-    except ValueError:
+    fecha_hora = _parse_datetime_flexible(fecha_hora_raw)
+    if not fecha_hora:
         return jsonify({"msg": "Formato de fecha_hora inválido, usa ISO 8601 (YYYY-MM-DDTHH:MM:SS)"}), 400
-
-    if fecha_hora < datetime.utcnow():
-        return jsonify({"msg": "No puedes crear una cita en el pasado"}), 400
 
     coche_id = data.get("coche_id")
     if coche_id:
@@ -145,10 +157,10 @@ def editar_cita(cita_id):
         cita.cliente_id = data["cliente_id"]
 
     if "fecha_hora" in data:
-        try:
-            cita.fecha_hora = datetime.fromisoformat(data["fecha_hora"])
-        except ValueError:
+        parsed = _parse_datetime_flexible(data["fecha_hora"])
+        if not parsed:
             return jsonify({"msg": "Formato de fecha_hora inválido"}), 400
+        cita.fecha_hora = parsed
 
     if "motivo" in data:
         motivo = (data["motivo"] or "").strip()
