@@ -541,37 +541,42 @@ button {
 /* Links del menú: más pequeños y discretos */
 .sw-navlink {
   position: relative;
-  font-size: 0.74rem;               /* un poco más pequeño */
+  font-size: 0.68rem;               /* un poco más pequeño */
   text-transform: uppercase;
   letter-spacing: 0.09em;           /* mantiene un look “premium” pero sin gritar */
   color: #cfcfcf !important;        /* gris más suave */
   padding-inline: 0.62rem !important;/* menos ancho */
   padding-block: 0.3rem !important; /* menos alto */
   font-weight: 500;                 /* antes 600 */
-  transition: color 0.18s ease, opacity 0.18s ease;
-  opacity: 0.9;
+  transition: none;
+  text-decoration: none !important;
+  opacity: 1;
 }
 
 .sw-navlink:hover {
-  color: #ffffff !important;
+  color: #cfcfcf !important;
   opacity: 1;
+  text-decoration: none !important;
 }
 
 .sw-navlink.active {
   color: #f5e19a !important;
 }
 
-/* Subrayado más fino y discreto */
+.sw-navlink::after {
+  content: none;
+}
+
 .sw-navlink.active::after,
 .sw-navlink:hover::after {
-  content: "";
-  position: absolute;
-  left: 0.7rem;
-  right: 0.7rem;
-  bottom: 0.05rem;
-  height: 1.5px;                   /* más fino */
-  background: linear-gradient(90deg, #f5e19a, #d4af37);
-  border-radius: 999px;
+  content: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sw-navlink,
+  .sw-navlink::after {
+    transition: none !important;
+  }
 }
 
 /* Botón dorado (logout / primario) más pequeño */

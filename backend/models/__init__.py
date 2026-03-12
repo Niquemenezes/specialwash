@@ -16,3 +16,4 @@ from .acta_entrega import ActaEntrega
 from .parte_trabajo import ParteTrabajo, EstadoParte
 from .servicio_catalogo import ServicioCatalogo
 from .cita import Cita, EstadoCita
+from .notificacion import Notificacion

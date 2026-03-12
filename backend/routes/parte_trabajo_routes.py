@@ -3,6 +3,7 @@ from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
 from models.parte_trabajo import ParteTrabajo, EstadoParte
 from models.coche import Coche
 from models.user import User
+from models.notificacion import Notificacion
 from extensions import db
 from datetime import datetime
 import json
@@ -173,6 +174,20 @@ def cambiar_estado_parte(parte_id):
                     break
             parte.pausas = json.dumps(pausas)
         parte.finalizar_trabajo()
+        try:
+            coche = Coche.query.get(parte.coche_id)
+            empleado = User.query.get(parte.empleado_id)
+            matricula = coche.matricula if coche else f"coche #{parte.coche_id}"
+            nombre_empleado = empleado.nombre if empleado else "Empleado"
+            notif = Notificacion(
+                tipo="parte_finalizado",
+                titulo=f"Parte finalizado: {matricula}",
+                cuerpo=f"Empleado: {nombre_empleado} · Vehículo: {matricula}",
+                ref_id=parte.id,
+            )
+            db.session.add(notif)
+        except Exception:
+            pass
     elif nuevo_estado == 'en_pausa':
         inicio_pausa = datetime.now().isoformat()
         # Guardar pausa

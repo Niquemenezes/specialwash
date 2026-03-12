@@ -1,5 +1,5 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Context } from "../store/appContext";
 
 const getMediaUrl = (item) => (typeof item === "string" ? item : item?.url || "");
@@ -8,9 +8,11 @@ const phoneToDigits = (value) => (value || "").replace(/\D/g, "");
 const InspeccionesGuardadasPage = () => {
   const { actions } = useContext(Context);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [inspecciones, setInspecciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [detalle, setDetalle] = useState(null);
+  const focoAbiertoRef = useRef(null);
 
   const cargarInspecciones = useCallback(async () => {
     setLoading(true);
@@ -29,7 +31,7 @@ const InspeccionesGuardadasPage = () => {
     cargarInspecciones();
   }, [cargarInspecciones]);
 
-  const verDetalle = async (id) => {
+  const verDetalle = useCallback(async (id) => {
     try {
       const data = await actions.getInspeccion(id);
       setDetalle(data || null);
@@ -37,7 +39,26 @@ const InspeccionesGuardadasPage = () => {
       console.error("Error al cargar detalle:", error);
       alert(`No se pudo cargar el detalle: ${error.message}`);
     }
-  };
+  }, [actions]);
+
+  useEffect(() => {
+    if (loading) return;
+
+    const focusIdRaw = searchParams.get("focusId");
+    const focusId = Number(focusIdRaw);
+    if (!Number.isInteger(focusId) || focusId <= 0) return;
+    if (focoAbiertoRef.current === focusId) return;
+
+    const existe = inspecciones.some((insp) => insp.id === focusId);
+    if (!existe) return;
+
+    focoAbiertoRef.current = focusId;
+    void verDetalle(focusId);
+
+    const next = new URLSearchParams(searchParams);
+    next.delete("focusId");
+    setSearchParams(next, { replace: true });
+  }, [loading, inspecciones, searchParams, setSearchParams, verDetalle]);
 
   const eliminarInspeccion = async (id) => {
     if (!window.confirm("¿Seguro que quieres eliminar esta inspección?")) return;
@@ -131,6 +152,18 @@ const InspeccionesGuardadasPage = () => {
                           <button className="btn btn-outline-warning" onClick={() => irAEditar(insp.id)} title="Editar">
                             ✏️
                           </button>
+                          {phoneToDigits(insp.cliente_telefono) && (
+                            <a
+                              href={`https://wa.me/${phoneToDigits(insp.cliente_telefono)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-sm"
+                              style={{ background: "#25D366", color: "white", border: "none" }}
+                              title={`WhatsApp ${insp.cliente_nombre}`}
+                            >
+                              📱
+                            </a>
+                          )}
                           <button className="btn btn-outline-danger" onClick={() => eliminarInspeccion(insp.id)} title="Eliminar">
                             🗑️
                           </button>
