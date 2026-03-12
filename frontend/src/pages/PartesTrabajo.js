@@ -46,11 +46,10 @@ export function AdminPartesTrabajo() {
   const [loadingRecursos, setLoadingRecursos] = useState(true);
   const [editandoId, setEditandoId] = useState(null);
   const [editEmpleadoId, setEditEmpleadoId] = useState("");
-  const [editObservaciones, setEditObservaciones] = useState("");
+  const [editServicioId, setEditServicioId] = useState("");
   const [editLoading, setEditLoading] = useState(false);
   const [serviciosCatalogo, setServiciosCatalogo] = useState([]);
-  const [serviciosSeleccionados, setServiciosSeleccionados] = useState([]);
-  const [servicioManual, setServicioManual] = useState("");
+  const [nuevoServicioId, setNuevoServicioId] = useState("");
 
   const empleadoNombrePorId = useCallback(
     (id) => {
@@ -143,19 +142,16 @@ export function AdminPartesTrabajo() {
       return;
     }
 
-    // Combinar servicios del catálogo + texto manual
-    const partesCatalogo = serviciosSeleccionados
-      .map((id) => {
-        const s = serviciosCatalogo.find((x) => x.id === id);
-        return s ? s.nombre : null;
-      })
-      .filter(Boolean);
-    const manual = String(servicioManual || "").trim();
+    if (!nuevoServicioId) {
+      setMensajeCreacion("Debes seleccionar un servicio.");
+      return;
+    }
 
-    const trabajoFinal = [...partesCatalogo, ...(manual ? [manual] : [])].join(" + ");
+    const servicioElegido = serviciosCatalogo.find((s) => Number(s.id) === Number(nuevoServicioId));
+    const trabajoFinal = servicioElegido?.nombre || "";
 
     if (!trabajoFinal) {
-      setMensajeCreacion("Debes indicar al menos un trabajo a realizar.");
+      setMensajeCreacion("Servicio no válido. Selecciona uno de la lista.");
       return;
     }
 
@@ -171,8 +167,7 @@ export function AdminPartesTrabajo() {
       setNuevoCocheId("");
       setNuevoEmpleadoId("");
       setNuevoTrabajoARealizar("");
-      setServiciosSeleccionados([]);
-      setServicioManual("");
+      setNuevoServicioId("");
       await Promise.all([cargarPartes(), cargarRecursos()]);
     } catch (e) {
       setMensajeCreacion(e?.message || "Error al crear el parte.");
@@ -202,13 +197,17 @@ export function AdminPartesTrabajo() {
   const onAbrirEditar = (parte) => {
     setEditandoId(parte.id);
     setEditEmpleadoId(parte.empleado_id || "");
-    setEditObservaciones(parte.observaciones || "");
+    const observacionActual = String(parte.observaciones || "").trim().toLowerCase();
+    const servicioActual = serviciosCatalogo.find(
+      (s) => String(s.nombre || "").trim().toLowerCase() === observacionActual
+    );
+    setEditServicioId(servicioActual ? String(servicioActual.id) : "");
   };
 
   const onCancelarEditar = () => {
     setEditandoId(null);
     setEditEmpleadoId("");
-    setEditObservaciones("");
+    setEditServicioId("");
   };
 
   const onGuardarEdicion = async () => {
@@ -217,9 +216,15 @@ export function AdminPartesTrabajo() {
       return;
     }
 
-    const trabajo = String(editObservaciones || "").trim();
+    if (!editServicioId) {
+      setError("Debes seleccionar un servicio.");
+      return;
+    }
+
+    const servicioElegido = serviciosCatalogo.find((s) => Number(s.id) === Number(editServicioId));
+    const trabajo = String(servicioElegido?.nombre || "").trim();
     if (!trabajo) {
-      setError("Debes indicar qué trabajo se va a realizar.");
+      setError("Servicio no válido. Selecciona uno de la lista.");
       return;
     }
 
@@ -337,47 +342,27 @@ export function AdminPartesTrabajo() {
             </div>
 
             <div className="col-12">
-              <label className="form-label">Servicios del catálogo (selección múltiple)</label>
+              <label className="form-label">Servicio *</label>
               {serviciosCatalogo.length === 0 ? (
                 <p className="text-muted">
                   No hay servicios en el catálogo. <a href="/catalogo-servicios" target="_blank" rel="noopener noreferrer">Crear servicios</a>
                 </p>
               ) : (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+                <select
+                  className="form-select"
+                  value={nuevoServicioId}
+                  onChange={(e) => setNuevoServicioId(e.target.value)}
+                  required
+                  style={{ borderRadius: "8px" }}
+                >
+                  <option value="">Selecciona servicio...</option>
                   {serviciosCatalogo.map((s) => (
-                    <div key={s.id} className="form-check">
-                      <input
-                        className="form-check-input"
-                        type="checkbox"
-                        id={`servicio-${s.id}`}
-                        checked={serviciosSeleccionados.includes(s.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setServiciosSeleccionados((prev) => [...prev, s.id]);
-                          } else {
-                            setServiciosSeleccionados((prev) => prev.filter((x) => x !== s.id));
-                          }
-                        }}
-                      />
-                      <label className="form-check-label" htmlFor={`servicio-${s.id}`}>
-                        {s.nombre} {s.precio_base != null ? `(${Number(s.precio_base).toFixed(2)}€)` : ""}
-                      </label>
-                    </div>
+                    <option key={s.id} value={s.id}>
+                      {s.nombre} {s.precio_base != null ? `(${Number(s.precio_base).toFixed(2)}€)` : ""}
+                    </option>
                   ))}
-                </div>
+                </select>
               )}
-            </div>
-
-            <div className="col-12">
-              <label className="form-label">Trabajo adicional / manual (opcional)</label>
-              <textarea
-                className="form-control"
-                value={servicioManual}
-                onChange={(e) => setServicioManual(e.target.value)}
-                rows={2}
-                placeholder="Ej.: Revisión de niveles + limpieza de rines especiales"
-                style={{ borderRadius: "8px" }}
-              />
             </div>
 
             <div className="col-12">
@@ -533,15 +518,26 @@ export function AdminPartesTrabajo() {
                 </div>
 
                 <div className="mb-3">
-                  <label className="form-label">Trabajo a realizar</label>
-                  <textarea
-                    className="form-control"
-                    value={editObservaciones}
-                    onChange={(e) => setEditObservaciones(e.target.value)}
-                    rows={3}
+                  <label className="form-label">Servicio *</label>
+                  <select
+                    className="form-select"
+                    value={editServicioId}
+                    onChange={(e) => setEditServicioId(e.target.value)}
                     disabled={editLoading}
                     style={{ borderRadius: "8px" }}
-                  />
+                  >
+                    <option value="">Selecciona servicio...</option>
+                    {serviciosCatalogo.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.nombre} {s.precio_base != null ? `(${Number(s.precio_base).toFixed(2)}€)` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {serviciosCatalogo.length === 0 && (
+                    <div className="form-text text-muted">
+                      No hay servicios en el catálogo. Crea servicios antes de editar el parte.
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="modal-footer">

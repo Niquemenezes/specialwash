@@ -1,9 +1,168 @@
-import React from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import logo from "../img/logospecialwash.jpg";
 import { buildApiUrl } from "../utils/apiBase";
 import { getStoredRol, getStoredToken } from "../utils/authSession";
 
+// ─── Campana de notificaciones ───────────────────────────────────────────────
+const CampanaNotificaciones = ({ token }) => {
+  const [count, setCount] = useState(0);
+  const [lista, setLista] = useState([]);
+  const [abierto, setAbierto] = useState(false);
+  const ref = useRef(null);
+  const navigate = useNavigate();
+
+  const cargar = useCallback(async () => {
+    if (!token) return;
+    try {
+      const t = sessionStorage.getItem("token") || localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${t}` };
+      const [rCount, rLista] = await Promise.all([
+        fetch(buildApiUrl("/api/notificaciones/no-leidas"), { headers }),
+        fetch(buildApiUrl("/api/notificaciones"), { headers }),
+      ]);
+      if (rCount.ok) { const d = await rCount.json(); setCount(d.count ?? 0); }
+      if (rLista.ok) { setLista(await rLista.json()); }
+    } catch { /* silencioso */ }
+  }, [token]);
+
+  // Polling cada 30 s
+  useEffect(() => {
+    cargar();
+    const id = setInterval(cargar, 30000);
+    return () => clearInterval(id);
+  }, [cargar]);
+
+  // Cerrar al hacer clic fuera
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setAbierto(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const marcarLeida = async (id) => {
+    try {
+      const t = sessionStorage.getItem("token") || localStorage.getItem("token");
+      await fetch(buildApiUrl(`/api/notificaciones/${id}/leida`), {
+        method: "PATCH", headers: { Authorization: `Bearer ${t}` }
+      });
+      await cargar();
+    } catch { /* silencioso */ }
+  };
+
+  const marcarTodas = async () => {
+    try {
+      const t = sessionStorage.getItem("token") || localStorage.getItem("token");
+      await fetch(buildApiUrl("/api/notificaciones/marcar-todas"), {
+        method: "PATCH", headers: { Authorization: `Bearer ${t}` }
+      });
+      await cargar();
+    } catch { /* silencioso */ }
+  };
+
+  const getDestinoNotificacion = (n) => {
+    if (!n) return null;
+    if (n.tipo === "inspeccion") {
+      return n.ref_id ? `/inspecciones-guardadas?focusId=${n.ref_id}` : "/inspecciones-guardadas";
+    }
+    if (n.tipo === "parte_finalizado") return "/partes-trabajo-finalizados";
+    if (n.tipo === "entrega") return "/entregados";
+    if (n.tipo === "cita") return "/citas";
+    return null;
+  };
+
+  const getIconoNotificacion = (tipo) => {
+    if (tipo === "inspeccion") return "🚗";
+    if (tipo === "parte_finalizado") return "🧰";
+    if (tipo === "entrega") return "✅";
+    if (tipo === "cita") return "📅";
+    return "📋";
+  };
+
+  const onClickNotificacion = async (n) => {
+    await marcarLeida(n.id);
+    const destino = getDestinoNotificacion(n);
+    if (destino) {
+      setAbierto(false);
+      navigate(destino);
+    }
+  };
+
+  const formatHora = (iso) => {
+    if (!iso) return "";
+    try { return new Date(iso).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); }
+    catch { return ""; }
+  };
+
+  return (
+    <li className="nav-item position-relative" ref={ref}>
+      <button
+        className="btn p-0 sw-campana"
+        onClick={() => { setAbierto(o => !o); if (!abierto) cargar(); }}
+        title="Notificaciones"
+        style={{ background: "none", border: "none", color: "#cfcfcf", fontSize: "1.1rem", lineHeight: 1, position: "relative" }}
+      >
+        🔔
+        {count > 0 && (
+          <span style={{
+            position: "absolute", top: -4, right: -6,
+            background: "#e63946", color: "#fff", borderRadius: "50%",
+            fontSize: "0.6rem", fontWeight: 700, minWidth: 16, height: 16,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "0 3px", lineHeight: 1,
+          }}>
+            {count > 99 ? "99+" : count}
+          </span>
+        )}
+      </button>
+
+      {abierto && (
+        <div style={{
+          position: "absolute", right: 0, top: "calc(100% + 8px)",
+          width: 320, maxHeight: 420, overflowY: "auto",
+          background: "#1e2128", border: "1px solid #2e3340",
+          borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.45)",
+          zIndex: 9999,
+        }}>
+          <div style={{ padding: "10px 14px", borderBottom: "1px solid #2e3340", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ color: "#e2c97e", fontWeight: 700, fontSize: "0.78rem" }}>Notificaciones</span>
+            {count > 0 && (
+              <button onClick={marcarTodas} style={{ background: "none", border: "none", color: "#aaa", fontSize: "0.68rem", cursor: "pointer", padding: 0 }}>
+                Marcar todas leídas
+              </button>
+            )}
+          </div>
+          {lista.length === 0 ? (
+            <div style={{ padding: 16, color: "#888", fontSize: "0.75rem", textAlign: "center" }}>Sin notificaciones</div>
+          ) : lista.map(n => (
+            <div
+              key={n.id}
+              onClick={() => onClickNotificacion(n)}
+              style={{
+                padding: "10px 14px",
+                borderBottom: "1px solid #2a2d36",
+                cursor: "pointer",
+                background: n.leida ? "transparent" : "rgba(226,201,126,0.07)",
+                transition: "background 0.15s",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 6 }}>
+                <span style={{ color: n.leida ? "#888" : "#e2e2e2", fontSize: "0.74rem", fontWeight: n.leida ? 400 : 600 }}>
+                  {getIconoNotificacion(n.tipo)} {n.titulo}
+                </span>
+                {!n.leida && <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#e63946", flexShrink: 0, marginTop: 3 }} />}
+              </div>
+              {n.cuerpo && <div style={{ color: "#888", fontSize: "0.67rem", marginTop: 2 }}>{n.cuerpo}</div>}
+              <div style={{ color: "#555", fontSize: "0.63rem", marginTop: 3 }}>{formatHora(n.created_at)}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </li>
+  );
+};
+
+// ─── Navbar principal ─────────────────────────────────────────────────────────
 const NavbarSW = () => {
   const navigate = useNavigate();
   const token = getStoredToken();
@@ -168,7 +327,7 @@ const NavbarSW = () => {
                       data-bs-toggle="dropdown"
                       aria-expanded="false"
                     >
-                      Partes de trabajo
+                      Partes
                     </button>
                     <ul className="dropdown-menu" aria-labelledby="navPartes">
                       <li>
@@ -259,9 +418,13 @@ const NavbarSW = () => {
                 {(rol === "administrador" || rol === "encargado" || rol === "tecnico_comercial") && (
                   <li className="nav-item">
                     <NavLink to="/citas" className="nav-link sw-navlink">
-                      📅 Citas
+                      Citas
                     </NavLink>
                   </li>
+                )}
+                {/* Campana: solo admin y encargado */}
+                {(rol === "administrador" || rol === "encargado") && (
+                  <CampanaNotificaciones token={token} />
                 )}
                 <li className="nav-item d-flex align-items-center">
                   <span className="sw-role-pill">

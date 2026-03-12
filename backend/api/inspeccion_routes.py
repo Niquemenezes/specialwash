@@ -18,6 +18,8 @@ from models.coche import Coche
 from models.cliente import Cliente
 from models.base import now_madrid
 from utils.auth_utils import normalize_role
+from services.whatsapp_service import enviar_notificacion_inspeccion
+from models.notificacion import Notificacion
 from services.openai_service import get_openai_service
 
 inspeccion_bp = Blueprint('inspeccion', __name__, url_prefix='/api')
@@ -176,8 +178,43 @@ def crear_inspeccion():
         )
         
         db.session.add(inspeccion)
+
+        # Notificación interna en sistema
+        try:
+            from models.base import now_madrid as _now
+            hora_str = _now().strftime("%d/%m/%Y %H:%M")
+            notif = Notificacion(
+                tipo="inspeccion",
+                titulo=f"Nueva recepción: {matricula}",
+                cuerpo=f"Cliente: {cliente_nombre} · Tel: {cliente_telefono} · {hora_str}",
+                ref_id=None,  # se actualiza tras commit
+            )
+            db.session.add(notif)
+        except Exception:
+            pass
+
         db.session.commit()
-        
+
+        # Actualizar ref_id con el id real de la inspección
+        try:
+            notif.ref_id = inspeccion.id
+            db.session.commit()
+        except Exception:
+            pass
+
+        # Notificación WhatsApp al administrador (no bloquea la respuesta si falla)
+        try:
+            from models.base import now_madrid as _now
+            hora_str = _now().strftime("%d/%m/%Y %H:%M")
+            enviar_notificacion_inspeccion(
+                cliente_nombre=cliente_nombre,
+                matricula=matricula,
+                cliente_telefono=cliente_telefono,
+                fecha_hora=hora_str,
+            )
+        except Exception:
+            pass
+
         return jsonify(inspeccion.to_dict()), 201
     
     except Exception as e:
@@ -424,6 +461,20 @@ def registrar_entrega(inspeccion_id):
         inspeccion.conformidad_revision_entrega = conformidad_revision_entrega
         inspeccion.entregado = True
         inspeccion.fecha_entrega = now_madrid()
+
+        # Notificación interna al admin/encargado
+        try:
+            from models.base import now_madrid as _now
+            hora_str = _now().strftime("%d/%m/%Y %H:%M")
+            notif_entrega = Notificacion(
+                tipo="entrega",
+                titulo=f"Coche entregado: {inspeccion.matricula}",
+                cuerpo=f"Cliente: {inspeccion.cliente_nombre} · {hora_str}",
+                ref_id=inspeccion.id,
+            )
+            db.session.add(notif_entrega)
+        except Exception:
+            pass
 
         # Crear/actualizar snapshot de acta final entregada con firmas.
         acta = ActaEntrega.query.filter_by(inspeccion_id=inspeccion.id).first()

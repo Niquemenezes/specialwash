@@ -50,3 +50,11 @@ class Config:
     # OpenAI (asistente de redaccion premium de actas)
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
     OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+
+    # WhatsApp Cloud API (notificaciones internas al administrador)
+    # Configurar en producción vía variables de entorno del servidor.
+    WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN", "")
+    WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
+    WHATSAPP_RECIPIENT = os.getenv("WHATSAPP_RECIPIENT", "34645811313")
+    WHATSAPP_TEMPLATE_NAME = os.getenv("WHATSAPP_TEMPLATE_NAME", "nueva_inspeccion")
+    WHATSAPP_TEMPLATE_LANG = os.getenv("WHATSAPP_TEMPLATE_LANG", "es")

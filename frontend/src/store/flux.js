@@ -820,6 +820,29 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
       },
 
+      // ============ NOTIFICACIONES INTERNAS ============
+      getNotificaciones: async () => {
+        try {
+          return await apiFetch("/api/notificaciones");
+        } catch { return []; }
+      },
+      contarNoLeidas: async () => {
+        try {
+          const data = await apiFetch("/api/notificaciones/no-leidas");
+          return data?.count ?? 0;
+        } catch { return 0; }
+      },
+      marcarNotificacionLeida: async (id) => {
+        try {
+          return await apiFetch(`/api/notificaciones/${id}/leida`, { method: "PATCH" });
+        } catch { return null; }
+      },
+      marcarTodasLeidas: async () => {
+        try {
+          return await apiFetch("/api/notificaciones/marcar-todas", { method: "PATCH" });
+        } catch { return null; }
+      },
+
       subirFotoInspeccion: async (inspeccionId, archivo) => {
         try {
           const formData = new FormData();
