@@ -2,6 +2,7 @@ from datetime import datetime
 
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
+from sqlalchemy.exc import OperationalError
 
 from extensions import db
 from models.cita import Cita, EstadoCita
@@ -78,7 +79,12 @@ def listar_citas():
             Cita.estado.in_([EstadoCita.pendiente.value, EstadoCita.confirmada.value]),
         )
 
-    citas = q.order_by(Cita.fecha_hora.asc()).all()
+    try:
+        citas = q.order_by(Cita.fecha_hora.asc()).all()
+    except OperationalError as exc:
+        if "no such table: citas" in str(exc).lower():
+            return jsonify([]), 200
+        raise
     return jsonify([c.to_dict() for c in citas])
 
 
