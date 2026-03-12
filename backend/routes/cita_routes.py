@@ -55,10 +55,10 @@ def listar_citas():
 
     estado = request.args.get("estado")
     if estado:
-        try:
-            q = q.filter(Cita.estado == EstadoCita(estado))
-        except ValueError:
+        estado_normalizado = str(estado).strip().lower()
+        if estado_normalizado not in ESTADOS_VALIDOS:
             return jsonify({"msg": f"Estado inválido: {estado}"}), 400
+        q = q.filter(Cita.estado == estado_normalizado)
 
     fecha = request.args.get("fecha")
     if fecha:
@@ -75,7 +75,7 @@ def listar_citas():
     if proximas:
         q = q.filter(
             Cita.fecha_hora >= datetime.utcnow(),
-            Cita.estado.in_([EstadoCita.pendiente, EstadoCita.confirmada]),
+            Cita.estado.in_([EstadoCita.pendiente.value, EstadoCita.confirmada.value]),
         )
 
     citas = q.order_by(Cita.fecha_hora.asc()).all()
@@ -138,7 +138,7 @@ def crear_cita():
         fecha_hora=fecha_hora,
         motivo=motivo,
         notas=(data.get("notas") or "").strip() or None,
-        estado=EstadoCita.pendiente,
+        estado=EstadoCita.pendiente.value,
         creada_por_id=int(get_jwt_identity()),
     )
     db.session.add(cita)
@@ -183,10 +183,10 @@ def editar_cita(cita_id):
         cita.coche_id = coche_id or None
 
     if "estado" in data:
-        try:
-            cita.estado = EstadoCita(data["estado"])
-        except ValueError:
+        estado = str(data["estado"] or "").strip().lower()
+        if estado not in ESTADOS_VALIDOS:
             return jsonify({"msg": f"Estado inválido. Opciones: {', '.join(ESTADOS_VALIDOS)}"}), 400
+        cita.estado = estado
 
     db.session.commit()
     return jsonify(cita.to_dict())
@@ -201,7 +201,7 @@ def cambiar_estado_cita(cita_id):
     estado = (data.get("estado") or "").strip()
     if estado not in ESTADOS_VALIDOS:
         return jsonify({"msg": f"Estado inválido. Opciones: {', '.join(sorted(ESTADOS_VALIDOS))}"}), 400
-    cita.estado = EstadoCita(estado)
+    cita.estado = estado
     db.session.commit()
     return jsonify(cita.to_dict())
 
