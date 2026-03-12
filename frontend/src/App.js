@@ -32,6 +32,7 @@ import FirmaEntregaPage from "./pages/FirmaEntregaPage.jsx";
 import { AdminPartesTrabajo, EmpleadoPartesTrabajo } from "./pages/PartesTrabajo";
 import { AdminPartesTrabajoFinalizados } from "./pages/PartesTrabajoFinalizados";
 import CatalogoServiciosPage from "./pages/CatalogoServiciosPage";
+import CitasPage from "./pages/CitasPage";
 
 const isLogged = () =>
   Boolean(sessionStorage.getItem("token") || localStorage.getItem("token"));
@@ -194,6 +195,49 @@ const App = () => {
               element={
                 <PrivateRoute allow={["administrador"]}>
                   <CatalogoServiciosPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/resumen-clientes"
+                element={
+                  <PrivateRoute allow={["administrador", "encargado", "tecnico_comercial"]}>
+                    <CitasPage />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/resumen-clientes"
+              element={
+                <PrivateRoute allow={["administrador"]}>
+                  <ResumenClientesPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/citas"
+              element={
+                <PrivateRoute allow={["administrador", "encargado", "tecnico_comercial"]}>
+                  <CitasPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/resumen-clientes"
+              element={
+                <PrivateRoute allow={["administrador"]}>
+                  <ResumenClientesPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/citas"
+              element={
+                <PrivateRoute allow={["administrador", "encargado", "tecnico_comercial"]}>
+                  <CitasPage />
                 </PrivateRoute>
               }
             />

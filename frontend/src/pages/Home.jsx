@@ -114,6 +114,12 @@ export default function Home() {
             detail: "Facturación y períodos",
             roles: ["administrador"],
           },
+          {
+            to: "/citas",
+            label: "📅 Citas",
+            detail: "Agenda y gestión de citas",
+            roles: ["administrador", "encargado", "tecnico_comercial"],
+          },
         ],
       },
       {

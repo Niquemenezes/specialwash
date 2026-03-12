@@ -156,6 +156,11 @@ const NavbarSW = () => {
                           Resumen Clientes
                         </NavLink>
                       </li>
+                      <li>
+                        <NavLink to="/citas" className="dropdown-item">
+                          📅 Citas
+                        </NavLink>
+                      </li>
                     </ul>
                   </li>
 
