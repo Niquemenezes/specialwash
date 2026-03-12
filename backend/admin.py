@@ -5,7 +5,7 @@ from wtforms.fields import PasswordField
 from models import (
     db, User, Producto, ProductoCodigoBarras, Proveedor, Entrada, Salida, 
     Maquinaria, Cliente, Coche, Servicio, ServicioCatalogo, ServicioCliente, 
-    InspeccionRecepcion, GastoEmpresa, ActaEntrega, ParteTrabajo
+    InspeccionRecepcion, GastoEmpresa, ActaEntrega, ParteTrabajo, Cita
 )
 
 
@@ -76,6 +76,7 @@ def setup_admin(app):
     # CLIENTES Y COCHES
     admin.add_view(SecureModelView(Cliente, db.session, name="👥 Clientes"))
     admin.add_view(SecureModelView(Coche, db.session, name="🚗 Coches"))
+    admin.add_view(SecureModelView(Cita, db.session, name="📅 Citas"))
     
     # SERVICIOS
     admin.add_view(SecureModelView(ServicioCatalogo, db.session, name="📋 Catálogo Servicios"))
