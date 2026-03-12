@@ -38,6 +38,15 @@ function formatFechaHora(iso) {
   return d.toLocaleString("es-ES", { dateStyle: "medium", timeStyle: "short" });
 }
 
+function startOfWeekMonday(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay(); // 0 domingo, 1 lunes...
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
 const EMPTY_FORM = {
   cliente_id: "",
   coche_id: "",
@@ -66,6 +75,7 @@ const EMPTY_COCHE_FORM = {
 export default function CitasPage() {
   const [citas, setCitas] = useState([]);
   const [clientes, setClientes] = useState([]);
+  const [serviciosCatalogo, setServiciosCatalogo] = useState([]);
   const [cochesCliente, setCochesCliente] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -112,8 +122,18 @@ export default function CitasPage() {
     }
   }, []);
 
+  const cargarServiciosCatalogo = useCallback(async () => {
+    try {
+      const data = await apiFetch("/api/servicios_catalogo?activos=true");
+      setServiciosCatalogo(Array.isArray(data) ? data : []);
+    } catch {
+      setServiciosCatalogo([]);
+    }
+  }, []);
+
   useEffect(() => { cargarCitas(); }, [cargarCitas]);
   useEffect(() => { cargarClientes(); }, [cargarClientes]);
+  useEffect(() => { cargarServiciosCatalogo(); }, [cargarServiciosCatalogo]);
 
   // Cargar coches cuando cambia el cliente en el form
   useEffect(() => {
@@ -321,6 +341,32 @@ export default function CitasPage() {
     const hoy = new Date().toDateString();
     return new Date(c.fecha_hora).toDateString() === hoy;
   }).length;
+  const inicioSemana = startOfWeekMonday(new Date());
+  const finSemana = new Date(inicioSemana);
+  finSemana.setDate(finSemana.getDate() + 7);
+  const nombresDias = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+
+  const citasSemana = citas
+    .filter((c) => {
+      if (!c.fecha_hora) return false;
+      const fecha = new Date(c.fecha_hora);
+      return !Number.isNaN(fecha.getTime()) && fecha >= inicioSemana && fecha < finSemana;
+    })
+    .sort((a, b) => new Date(a.fecha_hora) - new Date(b.fecha_hora));
+
+  const semanaResumen = Array.from({ length: 7 }, (_, idx) => {
+    const dia = new Date(inicioSemana);
+    dia.setDate(inicioSemana.getDate() + idx);
+    const diaStr = dia.toDateString();
+    const diaCitas = citasSemana.filter((c) => new Date(c.fecha_hora).toDateString() === diaStr);
+    return {
+      key: dia.toISOString(),
+      nombre: nombresDias[idx],
+      diaNumero: dia.getDate(),
+      total: diaCitas.length,
+    };
+  });
+  const servicioSeleccionadoId = serviciosCatalogo.find((s) => s.nombre === form.motivo)?.id || "";
 
   return (
     <div className="container py-4" style={{ maxWidth: "1100px" }}>
@@ -360,6 +406,62 @@ export default function CitasPage() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* SEMANA */}
+      <div className="card shadow-sm mb-4" style={{ borderRadius: "12px" }}>
+        <div className="card-body">
+          <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
+            <h6 className="fw-semibold mb-0">🗓️ Citas de esta semana</h6>
+            <span className="badge text-bg-light border">
+              {inicioSemana.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit" })}
+              {" - "}
+              {new Date(finSemana.getTime() - 1).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit" })}
+            </span>
+            <span className="badge" style={{ background: "#d4af37", color: "#000" }}>
+              Total: {citasSemana.length}
+            </span>
+          </div>
+
+          <div className="row g-2 mb-3">
+            {semanaResumen.map((dia) => (
+              <div className="col-6 col-md" key={dia.key}>
+                <div
+                  className="border rounded p-2 h-100 text-center"
+                  style={{ background: dia.total > 0 ? "#fff9e7" : "#f8f9fa" }}
+                >
+                  <div className="small text-muted">{dia.nombre}</div>
+                  <div className="fw-semibold">{dia.diaNumero}</div>
+                  <div className="fw-bold" style={{ color: dia.total > 0 ? "#b38700" : "#6c757d" }}>
+                    {dia.total}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {citasSemana.length === 0 ? (
+            <div className="text-muted small">No hay citas programadas para esta semana.</div>
+          ) : (
+            <div className="small">
+              {citasSemana.slice(0, 5).map((cita) => (
+                <div key={cita.id} className="d-flex justify-content-between border-top py-2">
+                  <span>
+                    <strong>{new Date(cita.fecha_hora).toLocaleDateString("es-ES", { weekday: "short", day: "2-digit" })}</strong>
+                    {" · "}
+                    {new Date(cita.fecha_hora).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+                    {" · "}
+                    {cita.cliente_nombre || "Cliente"}
+                  </span>
+                  <EstadoBadge estado={cita.estado} />
+                </div>
+              ))}
+              {citasSemana.length > 5 && (
+                <div className="text-muted pt-2">+ {citasSemana.length - 5} citas más esta semana</div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* FILTROS */}
@@ -800,6 +902,28 @@ export default function CitasPage() {
                       onChange={(e) => setForm({ ...form, fecha_hora: e.target.value })}
                       required
                     />
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold">Servicio del catálogo (opcional)</label>
+                    <select
+                      className="form-select"
+                      value={servicioSeleccionadoId}
+                      onChange={(e) => {
+                        const selected = serviciosCatalogo.find((s) => String(s.id) === e.target.value);
+                        setForm((prev) => ({
+                          ...prev,
+                          motivo: selected ? selected.nombre : "",
+                        }));
+                      }}
+                    >
+                      <option value="">Selecciona un servicio...</option>
+                      {serviciosCatalogo.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.nombre}{typeof s.precio_base === "number" ? ` · ${s.precio_base.toFixed(2)}€` : ""}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="mb-3">
