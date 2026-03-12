@@ -69,6 +69,10 @@ const getState = ({ getStore, getActions, setStore }) => {
       const rol = (user.rol || user.role || "empleado").toLowerCase();
       if (typeof sessionStorage !== "undefined") sessionStorage.setItem("rol", rol);
       if (typeof localStorage !== "undefined") localStorage.setItem("rol", rol);
+       if (user.id) {
+         if (typeof sessionStorage !== "undefined") sessionStorage.setItem("userId", user.id);
+         if (typeof localStorage !== "undefined") localStorage.setItem("userId", user.id);
+       }
     }
     return { token: t, user };
   };
@@ -172,6 +176,10 @@ const getState = ({ getStore, getActions, setStore }) => {
             const rol = (user.rol || user.role || "empleado").toLowerCase();
             sessionStorage.setItem("rol", rol);
             localStorage.setItem("rol", rol);
+             if (user.id) {
+               sessionStorage.setItem("userId", user.id);
+               localStorage.setItem("userId", user.id);
+             }
           }
           setStore({ auth: true, user });
           return user;
@@ -182,6 +190,8 @@ const getState = ({ getStore, getActions, setStore }) => {
         try { await apiFetch("/api/auth/logout", { method: "POST", auth: false }); } catch { /* no-op */ }
         localStorage.removeItem("token"); localStorage.removeItem("rol");
         sessionStorage.removeItem("token"); sessionStorage.removeItem("rol");
+         localStorage.removeItem("userId");
+         sessionStorage.removeItem("userId");
         setStore({ auth: false, token: null, user: null });
       },
 
@@ -738,6 +748,17 @@ const getState = ({ getStore, getActions, setStore }) => {
         } catch (err) {
           console.error("deleteServicioCliente:", err);
           throw err;
+        }
+      },
+
+      getServiciosCatalogo: async (soloActivos = true) => {
+        try {
+          const suffix = soloActivos ? "?activos=true" : "";
+          const data = await apiFetch(`/api/servicios_catalogo${suffix}`);
+          return Array.isArray(data) ? data : [];
+        } catch (err) {
+          console.error("getServiciosCatalogo:", err);
+          return [];
         }
       },
 

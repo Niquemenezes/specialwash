@@ -227,6 +227,7 @@ export default function Usuarios() {
                   <option value="empleado">Empleado</option>
                   <option value="administrador">Administrador</option>
                   <option value="encargado">Encargado</option>
+                  <option value="tecnico_comercial">Técnico Comercial</option>
                 </select>
               </div>
 

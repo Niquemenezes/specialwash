@@ -2,6 +2,7 @@ from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
+import os
 from config import Config
 from extensions import db
 from routes import register_routes
@@ -13,6 +14,11 @@ from update_user_schema import ensure_user_schema
 
 
 load_dotenv()
+
+
+def _db_bootstrap_enabled():
+  raw = str(os.getenv("ENABLE_DB_BOOTSTRAP", "1")).strip().lower()
+  return raw in {"1", "true", "yes", "on"}
 
 
 def create_app():
@@ -57,13 +63,14 @@ def create_app():
     register_routes(app)
 
     with app.app_context():
-      # Mantiene compatibilidad con cambios de esquema en Producto.
-      ensure_producto_schema()
-      ensure_producto_codigos_schema()
-      # Mantiene compatibilidad con bases SQLite antiguas sin migraciones formales.
-      ensure_servicio_cliente_schema()
-      ensure_user_schema()
-      db.create_all()  # crea las tablas
+      if _db_bootstrap_enabled():
+        # Mantiene compatibilidad con cambios de esquema en Producto.
+        ensure_producto_schema()
+        ensure_producto_codigos_schema()
+        # Mantiene compatibilidad con bases SQLite antiguas sin migraciones formales.
+        ensure_servicio_cliente_schema()
+        ensure_user_schema()
+        db.create_all()  # crea las tablas
 
     # === Página raíz ===
     @app.route("/")

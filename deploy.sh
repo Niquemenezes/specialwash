@@ -83,18 +83,20 @@ set -euo pipefail
 
 cd /root/specialwash/backend
 
-# Aplicar ajustes de esquema no destructivos en SQLite.
-if [[ -f /root/specialwash/backend/venv/bin/python ]]; then
-    /root/specialwash/backend/venv/bin/python update_user_schema.py || true
-    /root/specialwash/backend/venv/bin/python update_producto_schema.py || true
-    /root/specialwash/backend/venv/bin/python update_producto_codigos_schema.py || true
-fi
+# Mantener la base de datos productiva intacta durante este despliegue.
+export ENABLE_DB_BOOTSTRAP=0
 
 # Si existe un servicio systemd, usarlo (mas robusto para produccion).
 if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files | grep -q '^specialwash-backend\.service'; then
     # Evitar colision con procesos legacy (nohup) que ocupen el puerto 5000.
     fuser -k 5000/tcp 2>/dev/null || true
     sleep 1
+    mkdir -p /etc/systemd/system/specialwash-backend.service.d
+    cat >/etc/systemd/system/specialwash-backend.service.d/override.conf <<'EOF'
+[Service]
+Environment=ENABLE_DB_BOOTSTRAP=0
+EOF
+    systemctl daemon-reload
     systemctl restart specialwash-backend
     systemctl --no-pager --full status specialwash-backend | head -n 20 || true
     exit 0
@@ -103,7 +105,7 @@ fi
 # Fallback: proceso con nohup.
 fuser -k 5000/tcp 2>/dev/null || true
 sleep 1
-nohup /root/specialwash/backend/venv/bin/python app.py > app.log 2>&1 < /dev/null &
+nohup env ENABLE_DB_BOOTSTRAP=0 /root/specialwash/backend/venv/bin/python app.py > app.log 2>&1 < /dev/null &
 sleep 2
 echo "PIDs backend app.py:"
 ps aux | grep 'python.*app.py' | grep -v grep | awk '{print $2}' || true

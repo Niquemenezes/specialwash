@@ -5,6 +5,8 @@ from routes.auth_routes import auth_bp
 from routes.producto_routes import productos_bp
 from routes.proveedor_routes import proveedores_bp
 from routes.usuario_routes import usuarios_bp
+from routes.parte_trabajo_routes import bp as parte_trabajo_bp
+from routes.servicio_catalogo_routes import servicio_catalogo_bp
 
 
 def register_routes(app):
@@ -16,3 +18,5 @@ def register_routes(app):
     app.register_blueprint(almacen_bp, url_prefix="/api")
     app.register_blueprint(core_api_bp, url_prefix="/api")
     app.register_blueprint(inspeccion_bp)
+    app.register_blueprint(parte_trabajo_bp, url_prefix="/api")
+    app.register_blueprint(servicio_catalogo_bp, url_prefix="/api")
