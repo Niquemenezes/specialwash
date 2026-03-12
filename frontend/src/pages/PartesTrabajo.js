@@ -1,0 +1,762 @@
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  listarPartesTrabajo,
+  cambiarEstadoParte,
+  quitarPausa,
+  crearParteTrabajo,
+  editarParteTrabajo,
+  listarCochesParaCrearParte,
+  listarCochesCatalogo,
+  listarEmpleadosDisponibles,
+  listarServiciosCatalogo,
+} from "../utils/parteTrabajoApi";
+
+function EstadoBadge({ estado }) {
+  const config = {
+    pendiente: { label: "Pendiente", color: "danger" },
+    en_proceso: { label: "En proceso", color: "warning" },
+    en_pausa: { label: "En pausa", color: "info" },
+    finalizado: { label: "Finalizado", color: "success" },
+  };
+
+  const { label, color } = config[estado] || { label: estado, color: "secondary" };
+  return <span className={`badge bg-${color}`}>{label}</span>;
+}
+
+function formatDate(value) {
+  if (!value) return "-";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleString();
+}
+
+export function AdminPartesTrabajo() {
+  const [partes, setPartes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [empleadoFiltro, setEmpleadoFiltro] = useState("");
+  const [cocheFiltro, setCocheFiltro] = useState("");
+  const [nuevoCocheId, setNuevoCocheId] = useState("");
+  const [nuevoEmpleadoId, setNuevoEmpleadoId] = useState("");
+  const [nuevoTrabajoARealizar, setNuevoTrabajoARealizar] = useState("");
+  const [mensajeCreacion, setMensajeCreacion] = useState("");
+  const [cochesDisponibles, setCochesDisponibles] = useState([]);
+  const [cochesCatalogo, setCochesCatalogo] = useState([]);
+  const [empleadosDisponibles, setEmpleadosDisponibles] = useState([]);
+  const [loadingRecursos, setLoadingRecursos] = useState(true);
+  const [editandoId, setEditandoId] = useState(null);
+  const [editEmpleadoId, setEditEmpleadoId] = useState("");
+  const [editObservaciones, setEditObservaciones] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
+  const [serviciosCatalogo, setServiciosCatalogo] = useState([]);
+  const [serviciosSeleccionados, setServiciosSeleccionados] = useState([]);
+  const [servicioManual, setServicioManual] = useState("");
+
+  const empleadoNombrePorId = useCallback(
+    (id) => {
+      const emp = empleadosDisponibles.find((u) => Number(u.id) === Number(id));
+      return emp ? emp.nombre : `ID ${id}`;
+    },
+    [empleadosDisponibles]
+  );
+
+  const cocheTextoPorId = useCallback(
+    (id) => {
+      const coche = [...cochesDisponibles, ...cochesCatalogo].find(
+        (c) => Number(c.coche_id) === Number(id)
+      );
+      if (!coche) return `ID ${id}`;
+      return `${coche.matricula}${coche.cliente_nombre ? ` - ${coche.cliente_nombre}` : ""}`;
+    },
+    [cochesDisponibles, cochesCatalogo]
+  );
+
+  const groupByDate = (partesArray) => {
+    const grupos = {};
+    partesArray.forEach((p) => {
+      const fecha = p.fecha_inicio ? new Date(p.fecha_inicio).toLocaleDateString("es-ES") : "Sin fecha";
+      if (!grupos[fecha]) grupos[fecha] = [];
+      grupos[fecha].push(p);
+    });
+    return Object.entries(grupos).sort((a, b) => new Date(b[0]) - new Date(a[0]));
+  };
+
+  const cargarPartes = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const todasLosPartes = await listarPartesTrabajo({
+        empleado_id: empleadoFiltro,
+        coche_id: cocheFiltro,
+      });
+      const activos = (Array.isArray(todasLosPartes) ? todasLosPartes : []).filter(
+        (p) => p.estado !== "finalizado"
+      );
+      setPartes(activos);
+    } catch (e) {
+      setError(e?.message || "No se pudieron cargar los partes.");
+      setPartes([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [empleadoFiltro, cocheFiltro]);
+
+  useEffect(() => {
+    cargarPartes();
+  }, [cargarPartes]);
+
+  const cargarRecursos = useCallback(async () => {
+    setLoadingRecursos(true);
+    setError("");
+    try {
+      const [coches, cochesAll, empleados, catalogo] = await Promise.all([
+        listarCochesParaCrearParte(),
+        listarCochesCatalogo(),
+        listarEmpleadosDisponibles(),
+        listarServiciosCatalogo(true),
+      ]);
+      setCochesDisponibles(Array.isArray(coches) ? coches : []);
+      setCochesCatalogo(Array.isArray(cochesAll) ? cochesAll : []);
+      setEmpleadosDisponibles(Array.isArray(empleados) ? empleados : []);
+      setServiciosCatalogo(Array.isArray(catalogo) ? catalogo : []);
+    } catch (e) {
+      setError(e?.message || "No se pudieron cargar coches/empleados para asignación.");
+      setCochesDisponibles([]);
+      setCochesCatalogo([]);
+      setEmpleadosDisponibles([]);
+      setServiciosCatalogo([]);
+    } finally {
+      setLoadingRecursos(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    cargarRecursos();
+  }, [cargarRecursos]);
+
+  const onCrearParte = async (e) => {
+    e.preventDefault();
+    setMensajeCreacion("");
+
+    if (!nuevoCocheId || !nuevoEmpleadoId) {
+      setMensajeCreacion("Debes indicar Coche ID y Empleado ID.");
+      return;
+    }
+
+    // Combinar servicios del catálogo + texto manual
+    const partesCatalogo = serviciosSeleccionados
+      .map((id) => {
+        const s = serviciosCatalogo.find((x) => x.id === id);
+        return s ? s.nombre : null;
+      })
+      .filter(Boolean);
+    const manual = String(servicioManual || "").trim();
+
+    const trabajoFinal = [...partesCatalogo, ...(manual ? [manual] : [])].join(" + ");
+
+    if (!trabajoFinal) {
+      setMensajeCreacion("Debes indicar al menos un trabajo a realizar.");
+      return;
+    }
+
+    const payload = {
+      coche_id: Number(nuevoCocheId),
+      empleado_id: Number(nuevoEmpleadoId),
+      observaciones: trabajoFinal,
+    };
+
+    try {
+      await crearParteTrabajo(payload);
+      setMensajeCreacion("Parte creado correctamente.");
+      setNuevoCocheId("");
+      setNuevoEmpleadoId("");
+      setNuevoTrabajoARealizar("");
+      setServiciosSeleccionados([]);
+      setServicioManual("");
+      await Promise.all([cargarPartes(), cargarRecursos()]);
+    } catch (e) {
+      setMensajeCreacion(e?.message || "Error al crear el parte.");
+    }
+  };
+
+  const onQuitarPausa = async (id) => {
+    setError("");
+    try {
+      await quitarPausa(id);
+      await cargarPartes();
+    } catch (e) {
+      setError(e?.message || "No se pudo quitar la pausa.");
+    }
+  };
+
+  const onFinalizar = async (id) => {
+    setError("");
+    try {
+      await cambiarEstadoParte(id, "finalizado");
+      await cargarPartes();
+    } catch (e) {
+      setError(e?.message || "No se pudo finalizar el parte.");
+    }
+  };
+
+  const onAbrirEditar = (parte) => {
+    setEditandoId(parte.id);
+    setEditEmpleadoId(parte.empleado_id || "");
+    setEditObservaciones(parte.observaciones || "");
+  };
+
+  const onCancelarEditar = () => {
+    setEditandoId(null);
+    setEditEmpleadoId("");
+    setEditObservaciones("");
+  };
+
+  const onGuardarEdicion = async () => {
+    if (!editEmpleadoId) {
+      setError("Debes seleccionar un empleado.");
+      return;
+    }
+
+    const trabajo = String(editObservaciones || "").trim();
+    if (!trabajo) {
+      setError("Debes indicar qué trabajo se va a realizar.");
+      return;
+    }
+
+    setEditLoading(true);
+    setError("");
+    try {
+      await editarParteTrabajo(editandoId, {
+        empleado_id: Number(editEmpleadoId),
+        observaciones: trabajo,
+      });
+      await cargarPartes();
+      onCancelarEditar();
+    } catch (e) {
+      setError(e?.message || "No se pudo editar el parte.");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  return (
+    <div className="container py-4" style={{ maxWidth: "1200px" }}>
+      {/* HEADER PREMIUM */}
+      <div
+        className="d-flex justify-content-between align-items-center p-3 mb-4 shadow-sm"
+        style={{
+          background: "#0f0f0f",
+          borderRadius: "12px",
+          color: "white",
+        }}
+      >
+        <h2 className="fw-bold m-0" style={{ color: "#d4af37", fontSize: "clamp(1.2rem, 4vw, 1.75rem)" }}>
+          🧰 Partes de Trabajo
+        </h2>
+        <p className="m-0 d-none d-md-block" style={{ fontSize: "0.85rem", color: "#aaa" }}>
+          Panel de asignación, seguimiento y finalización
+        </p>
+      </div>
+
+      {/* STATS CARDS */}
+      <div className="row g-3 mb-4">
+        <div className="col-md-4">
+          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
+            <div className="card-body">
+              <p className="text-muted mb-2">📋 Total partes visibles</p>
+              <h4 className="fw-bold" style={{ color: "#d4af37" }}>{partes.length}</h4>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-4">
+          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
+            <div className="card-body">
+              <p className="text-muted mb-2">🚗 Coches sin parte activa</p>
+              <h4 className="fw-bold" style={{ color: "#d4af37" }}>{cochesDisponibles.length}</h4>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-4">
+          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
+            <div className="card-body">
+              <p className="text-muted mb-2">👷 Empleados disponibles</p>
+              <h4 className="fw-bold" style={{ color: "#d4af37" }}>{empleadosDisponibles.length}</h4>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <div className="alert alert-danger alert-dismissible fade show" role="alert">
+          <strong>Error:</strong> {error}
+          <button type="button" className="btn-close" onClick={() => setError("")}></button>
+        </div>
+      )}
+
+      {/* FORM CREAR PARTE */}
+      <div className="card mb-4 shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
+        <div className="card-body">
+          <h5 className="card-title fw-semibold mb-3">📝 Crear parte</h5>
+          <form onSubmit={onCrearParte} className="row g-3">
+            <div className="col-md-6">
+              <label className="form-label">Coche sin parte activa *</label>
+              <select
+                className="form-select"
+                value={nuevoCocheId}
+                onChange={(e) => setNuevoCocheId(e.target.value)}
+                disabled={loadingRecursos}
+                required
+                style={{ borderRadius: "8px" }}
+              >
+                <option value="">Selecciona coche...</option>
+                {cochesDisponibles.map((c) => (
+                  <option key={c.coche_id} value={c.coche_id}>
+                    {c.matricula} {c.coche_descripcion ? ` - ${c.coche_descripcion}` : ""} {c.cliente_nombre ? ` - ${c.cliente_nombre}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="col-md-6">
+              <label className="form-label">Empleado *</label>
+              <select
+                className="form-select"
+                value={nuevoEmpleadoId}
+                onChange={(e) => setNuevoEmpleadoId(e.target.value)}
+                disabled={loadingRecursos}
+                required
+                style={{ borderRadius: "8px" }}
+              >
+                <option value="">Selecciona empleado...</option>
+                {empleadosDisponibles.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.nombre} ({u.rol})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="col-12">
+              <label className="form-label">Servicios del catálogo (selección múltiple)</label>
+              {serviciosCatalogo.length === 0 ? (
+                <p className="text-muted">
+                  No hay servicios en el catálogo. <a href="/catalogo-servicios" target="_blank" rel="noopener noreferrer">Crear servicios</a>
+                </p>
+              ) : (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+                  {serviciosCatalogo.map((s) => (
+                    <div key={s.id} className="form-check">
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        id={`servicio-${s.id}`}
+                        checked={serviciosSeleccionados.includes(s.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setServiciosSeleccionados((prev) => [...prev, s.id]);
+                          } else {
+                            setServiciosSeleccionados((prev) => prev.filter((x) => x !== s.id));
+                          }
+                        }}
+                      />
+                      <label className="form-check-label" htmlFor={`servicio-${s.id}`}>
+                        {s.nombre} {s.precio_base != null ? `(${Number(s.precio_base).toFixed(2)}€)` : ""}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="col-12">
+              <label className="form-label">Trabajo adicional / manual (opcional)</label>
+              <textarea
+                className="form-control"
+                value={servicioManual}
+                onChange={(e) => setServicioManual(e.target.value)}
+                rows={2}
+                placeholder="Ej.: Revisión de niveles + limpieza de rines especiales"
+                style={{ borderRadius: "8px" }}
+              />
+            </div>
+
+            <div className="col-12">
+              <button type="submit" className="btn btn-dark" style={{ borderColor: "#d4af37" }} disabled={loadingRecursos}>
+                ✅ Crear parte
+              </button>
+              {mensajeCreacion && <span className="ms-2 text-success">{mensajeCreacion}</span>}
+            </div>
+
+            {!loadingRecursos && cochesDisponibles.length === 0 && (
+              <div className="col-12">
+                <div className="alert alert-info">No hay coches disponibles para crear parte en este momento.</div>
+              </div>
+            )}
+          </form>
+        </div>
+      </div>
+
+      {/* FILTERS */}
+      <div className="card mb-4 shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
+        <div className="card-body">
+          <h5 className="card-title fw-semibold mb-3">🔎 Filtros</h5>
+          <div className="row g-3">
+            <div className="col-md-6">
+              <label className="form-label">Empleado</label>
+              <select
+                className="form-select"
+                value={empleadoFiltro}
+                onChange={(e) => setEmpleadoFiltro(e.target.value)}
+                style={{ borderRadius: "8px" }}
+              >
+                <option value="">Todos</option>
+                {empleadosDisponibles.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.nombre} ({u.rol})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-md-6">
+              <label className="form-label">Coche</label>
+              <select
+                className="form-select"
+                value={cocheFiltro}
+                onChange={(e) => setCocheFiltro(e.target.value)}
+                style={{ borderRadius: "8px" }}
+              >
+                <option value="">Todos</option>
+                {cochesCatalogo.map((c) => (
+                  <option key={c.coche_id} value={c.coche_id}>
+                    {c.matricula} {c.coche_descripcion ? ` - ${c.coche_descripcion}` : ""} {c.cliente_nombre ? ` - ${c.cliente_nombre}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* LISTA PARTES */}
+      {loading ? (
+        <div className="text-center py-5">
+          <p className="text-muted">Cargando partes activos...</p>
+        </div>
+      ) : partes.length === 0 ? (
+        <div className="alert alert-info">✅ No hay partes pendientes. ¡Todos los trabajos están finalizados!</div>
+      ) : (
+        <div>
+          {groupByDate(partes).map(([fecha, grupoPartes]) => (
+            <div key={fecha} className="mb-4">
+              <h5 className="mb-3" style={{ color: "#d4af37", fontWeight: "600" }}>📅 {fecha}</h5>
+              <div className="table-responsive">
+                <table className="table table-hover" style={{ borderRadius: "12px", overflow: "hidden" }}>
+                  <thead style={{ background: "#f8f9fa" }}>
+                    <tr>
+                      <th>ID</th>
+                      <th>Coche</th>
+                      <th>Empleado</th>
+                      <th>Estado</th>
+                      <th>Trabajo</th>
+                      <th>Inicio</th>
+                      <th>Fin</th>
+                      <th>Duración (h)</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {grupoPartes.map((p) => (
+                      <tr key={p.id}>
+                        <td>#{p.id}</td>
+                        <td>{cocheTextoPorId(p.coche_id)}</td>
+                        <td>{empleadoNombrePorId(p.empleado_id)}</td>
+                        <td><EstadoBadge estado={p.estado} /></td>
+                        <td>{p.observaciones || "-"}</td>
+                        <td className="small">{formatDate(p.fecha_inicio)}</td>
+                        <td className="small">{formatDate(p.fecha_fin)}</td>
+                        <td>{typeof p.duracion_horas === "number" ? p.duracion_horas.toFixed(2) : "-"}</td>
+                        <td>
+                          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                            {p.estado === "en_pausa" && (
+                              <button className="btn btn-sm btn-outline-primary" onClick={() => onQuitarPausa(p.id)}>
+                                ▶️ Reanudar
+                              </button>
+                            )}
+                            {p.estado !== "finalizado" && (
+                              <>
+                                <button className="btn btn-sm btn-outline-secondary" onClick={() => onAbrirEditar(p)}>
+                                  ✏️ Editar
+                                </button>
+                                <button className="btn btn-sm btn-success" onClick={() => onFinalizar(p.id)}>
+                                  ✅ Finalizar
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* MODAL EDITAR */}
+      {editandoId && (
+        <div className="modal d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+            <div className="modal-content">
+              <div className="modal-header" style={{ background: "#0f0f0f", color: "#d4af37", borderBottom: "none" }}>
+                <h5 className="modal-title fw-bold">✏️ Editar Parte #{editandoId}</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={onCancelarEditar}></button>
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <label className="form-label">Empleado</label>
+                  <select
+                    className="form-select"
+                    value={editEmpleadoId}
+                    onChange={(e) => setEditEmpleadoId(e.target.value)}
+                    disabled={editLoading}
+                    style={{ borderRadius: "8px" }}
+                  >
+                    <option value="">Selecciona empleado...</option>
+                    {empleadosDisponibles.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.nombre} ({u.rol})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Trabajo a realizar</label>
+                  <textarea
+                    className="form-control"
+                    value={editObservaciones}
+                    onChange={(e) => setEditObservaciones(e.target.value)}
+                    rows={3}
+                    disabled={editLoading}
+                    style={{ borderRadius: "8px" }}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={onCancelarEditar} disabled={editLoading}>
+                  Cancelar
+                </button>
+                <button type="button" className="btn btn-dark" style={{ borderColor: "#d4af37" }} onClick={onGuardarEdicion} disabled={editLoading}>
+                  {editLoading ? "Guardando..." : "✅ Guardar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function EmpleadoPartesTrabajo({ empleadoId }) {
+  const [partes, setPartes] = useState([]);
+  const [cochesCatalogo, setCochesCatalogo] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const cocheTextoPorId = useCallback(
+    (id) => {
+      const coche = cochesCatalogo.find((c) => Number(c.coche_id) === Number(id));
+      if (!coche) return `ID ${id}`;
+      return `${coche.matricula}${coche.cliente_nombre ? ` - ${coche.cliente_nombre}` : ""}`;
+    },
+    [cochesCatalogo]
+  );
+
+  const cargarCochesCatalogo = useCallback(async () => {
+    try {
+      const coches = await listarCochesCatalogo();
+      setCochesCatalogo(Array.isArray(coches) ? coches : []);
+    } catch {
+      setCochesCatalogo([]);
+    }
+  }, []);
+
+  const cargarPartes = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const pendientes = await listarPartesTrabajo({ empleado_id: empleadoId, estado: "pendiente" });
+      const enProceso = await listarPartesTrabajo({ empleado_id: empleadoId, estado: "en_proceso" });
+      const enPausa = await listarPartesTrabajo({ empleado_id: empleadoId, estado: "en_pausa" });
+      setPartes([...(pendientes || []), ...(enProceso || []), ...(enPausa || [])]);
+    } catch (e) {
+      setError(e?.message || "No se pudieron cargar tus partes.");
+      setPartes([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [empleadoId]);
+
+  useEffect(() => {
+    cargarPartes();
+  }, [cargarPartes]);
+
+  useEffect(() => {
+    cargarCochesCatalogo();
+  }, [cargarCochesCatalogo]);
+
+  const onCambioEstado = async (parteId, estado) => {
+    setError("");
+    try {
+      await cambiarEstadoParte(parteId, estado);
+      await cargarPartes();
+    } catch (e) {
+      setError(e?.message || "No se pudo actualizar el estado.");
+    }
+  };
+
+  const onQuitarPausa = async (parteId) => {
+    setError("");
+    try {
+      await quitarPausa(parteId);
+      await cargarPartes();
+    } catch (e) {
+      setError(e?.message || "No se pudo quitar la pausa.");
+    }
+  };
+
+  return (
+    <div className="container py-4" style={{ maxWidth: "1200px" }}>
+      {/* HEADER PREMIUM */}
+      <div
+        className="d-flex justify-content-between align-items-center p-3 mb-4 shadow-sm"
+        style={{
+          background: "#0f0f0f",
+          borderRadius: "12px",
+          color: "white",
+        }}
+      >
+        <h2 className="fw-bold m-0" style={{ color: "#d4af37", fontSize: "clamp(1.2rem, 4vw, 1.75rem)" }}>
+          👨‍🔧 Mis Partes Asignados
+        </h2>
+        <p className="m-0 d-none d-md-block" style={{ fontSize: "0.85rem", color: "#aaa" }}>
+          Gestiona el avance de los trabajos asignados
+        </p>
+      </div>
+
+      {error && (
+        <div className="alert alert-danger alert-dismissible fade show" role="alert">
+          <strong>Error:</strong> {error}
+          <button type="button" className="btn-close" onClick={() => setError("")}></button>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="text-center py-5">
+          <p className="text-muted">Cargando partes...</p>
+        </div>
+      ) : partes.length === 0 ? (
+        <div className="alert alert-info">ℹ️ No tienes partes de trabajo asignados en este momento.</div>
+      ) : (
+        <>
+          {/* TARJETAS en móvil */}
+          <div className="d-md-none">
+            {partes.map((p) => (
+              <div key={p.id} className="card mb-3 shadow-sm" style={{ borderRadius: "12px", borderLeft: "4px solid #d4af37" }}>
+                <div className="card-body">
+                  <div className="d-flex justify-content-between align-items-start mb-2">
+                    <h6 className="fw-bold mb-0">🚗 {cocheTextoPorId(p.coche_id)}</h6>
+                    <EstadoBadge estado={p.estado} />
+                  </div>
+                  <p className="text-muted small mb-2">
+                    {p.observaciones || "Sin descripción"}</p>
+                  <p className="text-muted small mb-3">
+                    🕐 Inicio: {formatDate(p.fecha_inicio)}
+                  </p>
+                  <div className="d-flex gap-2 flex-wrap">
+                    {p.estado === "pendiente" && (
+                      <button className="btn btn-success btn-sm w-100" onClick={() => onCambioEstado(p.id, "en_proceso")}>
+                        ▶️ Empezar
+                      </button>
+                    )}
+                    {p.estado === "en_proceso" && (
+                      <>
+                        <button className="btn btn-warning btn-sm flex-fill" onClick={() => onCambioEstado(p.id, "en_pausa")}>
+                          ⏸️ Pausar
+                        </button>
+                        <button className="btn btn-success btn-sm flex-fill" onClick={() => onCambioEstado(p.id, "finalizado")}>
+                          ✅ Finalizar
+                        </button>
+                      </>
+                    )}
+                    {p.estado === "en_pausa" && (
+                      <button className="btn btn-outline-primary btn-sm w-100" onClick={() => onQuitarPausa(p.id)}>
+                        ▶️ Reanudar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* TABLA en desktop */}
+          <div className="d-none d-md-block table-responsive">
+            <table className="table table-hover" style={{ borderRadius: "12px", overflow: "hidden" }}>
+              <thead style={{ background: "#f8f9fa" }}>
+                <tr>
+                  <th>ID</th>
+                  <th>Coche</th>
+                  <th>Estado</th>
+                  <th>Trabajo</th>
+                  <th>Inicio</th>
+                  <th>Duración (h)</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {partes.map((p) => (
+                  <tr key={p.id}>
+                    <td>#{p.id}</td>
+                    <td>{cocheTextoPorId(p.coche_id)}</td>
+                    <td><EstadoBadge estado={p.estado} /></td>
+                    <td>{p.observaciones || "-"}</td>
+                    <td className="small">{formatDate(p.fecha_inicio)}</td>
+                    <td>{typeof p.duracion_horas === "number" ? p.duracion_horas.toFixed(2) : "-"}</td>
+                    <td>
+                      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                        {p.estado === "pendiente" && (
+                          <button className="btn btn-sm btn-success" onClick={() => onCambioEstado(p.id, "en_proceso")}>
+                            ▶️ Empezar
+                          </button>
+                        )}
+                        {p.estado === "en_proceso" && (
+                          <>
+                            <button className="btn btn-sm btn-warning" onClick={() => onCambioEstado(p.id, "en_pausa")}>
+                              ⏸️ Pausar
+                            </button>
+                            <button className="btn btn-sm btn-success" onClick={() => onCambioEstado(p.id, "finalizado")}>
+                              ✅ Finalizar
+                            </button>
+                          </>
+                        )}
+                        {p.estado === "en_pausa" && (
+                          <button className="btn btn-sm btn-outline-primary" onClick={() => onQuitarPausa(p.id)}>
+                            ▶️ Reanudar
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

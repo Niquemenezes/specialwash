@@ -3,7 +3,7 @@ from functools import wraps
 from flask import jsonify
 from flask_jwt_extended import get_jwt, jwt_required
 
-ALLOWED_ROLES = {"administrador", "empleado", "encargado"}
+ALLOWED_ROLES = {"administrador", "empleado", "encargado", "tecnico_comercial"}
 
 
 def normalize_role(role):

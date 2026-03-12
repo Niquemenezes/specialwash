@@ -76,3 +76,42 @@ def me():
     if not getattr(user, "activo", True):
         return jsonify({"msg": "Cuenta desactivada"}), 403
     return jsonify({"user": user.to_dict()}), 200
+
+
+@auth_bp.route("/auth/reset-password", methods=["POST"])
+@role_required("administrador")
+def reset_password():
+    """Admin genera una contraseña temporal para un usuario.
+    Solo el administrador decide quién accede con qué contraseña.
+    
+    Body:
+    {
+        "user_id": <int>
+    }
+    
+    Response: {"user": {...}, "temporal_password": "xyz123ABC", "msg": "..."}
+    """
+    data = request.get_json() or {}
+    
+    user_id = data.get("user_id")
+    
+    if not user_id:
+        return jsonify({"msg": "user_id es requerido"}), 400
+    
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"msg": "Usuario no encontrado"}), 404
+    
+    # Generar contraseña temporal automática
+    import string
+    import random
+    temporal_password = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+    
+    user.password_hash = generate_password_hash(temporal_password)
+    db.session.commit()
+    
+    return jsonify({
+        "msg": f"Contraseña generada para {user.nombre}. Comparte esta contraseña con el usuario.",
+        "user": user.to_dict(),
+        "temporal_password": temporal_password
+    }), 200

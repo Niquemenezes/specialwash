@@ -126,11 +126,6 @@ const NavbarSW = () => {
                         </NavLink>
                       </li>
                       <li>
-                        <NavLink to="/servicios" className="dropdown-item">
-                          Servicios
-                        </NavLink>
-                      </li>
-                      <li>
                         <NavLink to="/inspeccion-recepcion" className="dropdown-item">
                           🚗 Inspección Recepción
                         </NavLink>
@@ -164,6 +159,37 @@ const NavbarSW = () => {
                     </ul>
                   </li>
 
+                  {/* Dropdown Partes de trabajo */}
+                  <li className="nav-item dropdown">
+                    <button
+                      className="nav-link dropdown-toggle sw-navlink btn btn-link"
+                      id="navPartes"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      aria-expanded="false"
+                    >
+                      Partes de trabajo
+                    </button>
+                    <ul className="dropdown-menu" aria-labelledby="navPartes">
+                      <li>
+                        <NavLink to="/partes-trabajo" className="dropdown-item">
+                          🧰 Partes activos
+                        </NavLink>
+                      </li>
+                      <li>
+                        <NavLink to="/partes-trabajo-finalizados" className="dropdown-item">
+                          ✅ Partes finalizados
+                        </NavLink>
+                      </li>
+                      <li><hr className="dropdown-divider" /></li>
+                      <li>
+                        <NavLink to="/catalogo-servicios" className="dropdown-item">
+                          🛠️ Catálogo de servicios
+                        </NavLink>
+                      </li>
+                    </ul>
+                  </li>
+
                   {/* Link directo Maquinaria */}
                   <li className="nav-item">
                     <NavLink to="/maquinaria" className="nav-link sw-navlink">
@@ -177,6 +203,7 @@ const NavbarSW = () => {
                       Usuarios
                     </NavLink>
                   </li>
+
                 </>
               )}
 
@@ -187,13 +214,6 @@ const NavbarSW = () => {
                       Registrar salida
                     </NavLink>
                   </li>
-                  {rol === "encargado" && (
-                    <li className="nav-item">
-                      <NavLink to="/servicios" className="nav-link sw-navlink">
-                        Servicios
-                      </NavLink>
-                    </li>
-                  )}
                   <li className="nav-item">
                     <NavLink to="/inspeccion-recepcion" className="nav-link sw-navlink">
                       🚗 Inspección
@@ -211,6 +231,13 @@ const NavbarSW = () => {
                       ✍️ Firma entrega
                     </NavLink>
                   </li>
+                  {rol === "empleado" && (
+                    <li className="nav-item">
+                      <NavLink to="/mis-partes-trabajo" className="nav-link sw-navlink">
+                        Mis partes
+                      </NavLink>
+                    </li>
+                  )}
                  
                 </>
               )}

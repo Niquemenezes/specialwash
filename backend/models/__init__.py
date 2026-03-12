@@ -13,3 +13,5 @@ from .servicio_cliente import ServicioCliente
 from .inspeccion_recepcion import InspeccionRecepcion
 from .gasto_empresa import GastoEmpresa
 from .acta_entrega import ActaEntrega
+from .parte_trabajo import ParteTrabajo, EstadoParte
+from .servicio_catalogo import ServicioCatalogo

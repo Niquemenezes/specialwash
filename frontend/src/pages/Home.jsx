@@ -85,12 +85,6 @@ export default function Home() {
             roles: ["administrador"],
           },
           {
-            to: "/servicios",
-            label: "Servicios",
-            detail: "Trabajos realizados",
-            roles: ["administrador", "encargado"],
-          },
-          {
             to: "/inspeccion-recepcion",
             label: "Inspección de recepción",
             detail: "Estado inicial y firmas",
@@ -118,6 +112,38 @@ export default function Home() {
             to: "/resumen-clientes",
             label: "Resumen de clientes",
             detail: "Facturación y períodos",
+            roles: ["administrador"],
+          },
+        ],
+      },
+      {
+        id: "partes",
+        title: "Partes de Trabajo",
+        subtitle: "Asignacion de tareas y avance",
+        emoji: "🧰",
+        items: [
+          {
+            to: "/partes-trabajo",
+            label: "📝 Gestionar partes",
+            detail: "Asignar coche y empleado",
+            roles: ["administrador"],
+          },
+          {
+            to: "/mis-partes-trabajo",
+            label: "👨‍🔧 Mis partes",
+            detail: "Ver y actualizar tus tareas",
+            roles: ["empleado"],
+          },
+          {
+            to: "/partes-trabajo-finalizados",
+            label: "✅ Partes finalizados",
+            detail: "Historial de trabajos completados",
+            roles: ["administrador"],
+          },
+          {
+            to: "/catalogo-servicios",
+            label: "🛠️ Catálogo de servicios",
+            detail: "Gestionar servicios disponibles",
             roles: ["administrador"],
           },
         ],

@@ -1,11 +1,9 @@
 import React, { useEffect, useState, useContext } from "react";
 import { Context } from "../store/appContext";
-import { useNavigate } from "react-router-dom";
 import GoldSelect from "../component/GoldSelect.jsx";
 
 const CochesPage = () => {
   const { store, actions } = useContext(Context);
-  const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState(null);
   const [busqueda, setBusqueda] = useState("");
@@ -24,10 +22,6 @@ const CochesPage = () => {
   const handleEditar = (coche) => {
     setEditando(coche);
     setShowModal(true);
-  };
-
-  const handleVerServicios = (cocheId) => {
-    navigate(`/servicios?coche_id=${cocheId}`);
   };
 
   const handleEliminar = async (id) => {
@@ -96,13 +90,6 @@ const CochesPage = () => {
                 <td>{c.color || "-"}</td>
                 <td>{c.cliente_nombre || "-"}</td>
                 <td className="text-center">
-                  <button
-                    className="btn btn-sm btn-outline-warning me-2"
-                    onClick={() => handleVerServicios(c.id)}
-                    title="Ver servicios"
-                  >
-                    🕐
-                  </button>
                   <button
                     className="btn btn-sm btn-outline-warning me-2"
                     onClick={() => handleEditar(c)}

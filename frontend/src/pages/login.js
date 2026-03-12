@@ -31,6 +31,11 @@ export default function Login() {
       sessionStorage.setItem("rol", rol);
       localStorage.setItem("rol", rol);
 
+        if (res.user?.id) {
+          sessionStorage.setItem("userId", res.user.id);
+          localStorage.setItem("userId", res.user.id);
+        }
+
       navigate("/", { replace: true });
     } catch (error) {
       setErr("Error de conexión. Inténtelo de nuevo.");

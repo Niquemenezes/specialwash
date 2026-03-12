@@ -2,7 +2,11 @@ import os
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 from wtforms.fields import PasswordField
-from models import db, User, Producto, Proveedor, Entrada, Salida, Maquinaria, Cliente, Coche, Servicio, ServicioCliente, InspeccionRecepcion, GastoEmpresa, ActaEntrega
+from models import (
+    db, User, Producto, ProductoCodigoBarras, Proveedor, Entrada, Salida, 
+    Maquinaria, Cliente, Coche, Servicio, ServicioCatalogo, ServicioCliente, 
+    InspeccionRecepcion, GastoEmpresa, ActaEntrega, ParteTrabajo
+)
 
 
 # === Clases personalizadas para mejorar apariencia y seguridad ===
@@ -53,18 +57,36 @@ def setup_admin(app):
     )
 
     # === Secciones ===
-    admin.add_view(UserAdmin(User, db.session, name="Usuarios"))
-    admin.add_view(SecureModelView(Producto, db.session, name="Productos"))
-    admin.add_view(SecureModelView(Proveedor, db.session, name="Proveedores"))
-    admin.add_view(SecureModelView(Entrada, db.session, name="Entradas"))
-    admin.add_view(SecureModelView(Salida, db.session, name="Salidas"))
-    admin.add_view(SecureModelView(Maquinaria, db.session, name="Maquinaria"))
-    admin.add_view(SecureModelView(Cliente, db.session, name="Clientes"))
-    admin.add_view(SecureModelView(Coche, db.session, name="Coches"))
-    admin.add_view(SecureModelView(Servicio, db.session, name="Servicios"))
-    admin.add_view(SecureModelView(ServicioCliente, db.session, name="Tarifas Personalizadas"))
-    admin.add_view(SecureModelView(InspeccionRecepcion, db.session, name="🚗 Inspecciones"))
+    # GESTIÓN DE USUARIOS
+    admin.add_view(UserAdmin(User, db.session, name="👤 Usuarios"))
+    
+    # INVENTARIO
+    admin.add_view(SecureModelView(Producto, db.session, name="📦 Productos"))
+    admin.add_view(SecureModelView(ProductoCodigoBarras, db.session, name="🏷️ Códigos Barras"))
+    
+    # PROVEEDORES Y COMPRAS
+    admin.add_view(SecureModelView(Proveedor, db.session, name="🤝 Proveedores"))
+    admin.add_view(SecureModelView(Entrada, db.session, name="📥 Entradas"))
+    admin.add_view(SecureModelView(Salida, db.session, name="📤 Salidas"))
+    
+    # RECURSOS
+    admin.add_view(SecureModelView(Maquinaria, db.session, name="🔧 Maquinaria"))
     admin.add_view(SecureModelView(GastoEmpresa, db.session, name="💸 Gastos Empresa"))
+    
+    # CLIENTES Y COCHES
+    admin.add_view(SecureModelView(Cliente, db.session, name="👥 Clientes"))
+    admin.add_view(SecureModelView(Coche, db.session, name="🚗 Coches"))
+    
+    # SERVICIOS
+    admin.add_view(SecureModelView(ServicioCatalogo, db.session, name="📋 Catálogo Servicios"))
+    admin.add_view(SecureModelView(Servicio, db.session, name="🛠️ Servicios Realizados"))
+    admin.add_view(SecureModelView(ServicioCliente, db.session, name="💰 Tarifas Personalizadas"))
+    
+    # PARTES DE TRABAJO
+    admin.add_view(SecureModelView(ParteTrabajo, db.session, name="🧰 Partes Trabajo"))
+    
+    # INSPECCIONES Y ENTREGAS
+    admin.add_view(SecureModelView(InspeccionRecepcion, db.session, name="🔍 Inspecciones"))
     admin.add_view(SecureModelView(ActaEntrega, db.session, name="📄 Actas Entrega"))
 
     # ⚠️ En producción, considera protegerlo con login o eliminarlo

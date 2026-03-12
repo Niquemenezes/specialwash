@@ -21,7 +21,6 @@ import HistorialSalidas from "./pages/HistorialSalidas.jsx";
 import PedidoBajoStock from "./pages/PedidoBajoStock.jsx";
 import ClientesPage from "./pages/ClientesPage.jsx";
 import CochesPage from "./pages/CochesPage.jsx";
-import ServiciosPage from "./pages/ServiciosPage.jsx";
 import ResumenClientesPage from "./pages/ResumenClientesPage.jsx";
 import InspeccionRecepcionPage from "./pages/InspeccionRecepcionPage.jsx";
 import ActaEntregaView from "./pages/ActaEntregaView.jsx";
@@ -30,6 +29,9 @@ import CochesPendientesEntrega from "./pages/CochesPendientesEntrega.jsx";
 import CochesEntregadosPage from "./pages/CochesEntregadosPage.jsx";
 import InspeccionesGuardadasPage from "./pages/InspeccionesGuardadasPage.jsx";
 import FirmaEntregaPage from "./pages/FirmaEntregaPage.jsx";
+import { AdminPartesTrabajo, EmpleadoPartesTrabajo } from "./pages/PartesTrabajo";
+import { AdminPartesTrabajoFinalizados } from "./pages/PartesTrabajoFinalizados";
+import CatalogoServiciosPage from "./pages/CatalogoServiciosPage";
 
 const isLogged = () =>
   Boolean(sessionStorage.getItem("token") || localStorage.getItem("token"));
@@ -156,10 +158,42 @@ const App = () => {
             />
 
             <Route
-              path="/servicios"
+              path="/partes-trabajo"
               element={
-                <PrivateRoute allow={["administrador", "encargado", "empleado"]}>
-                  <ServiciosPage />
+                <PrivateRoute allow={["administrador"]}>
+                  <AdminPartesTrabajo />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/mis-partes-trabajo"
+              element={
+                <PrivateRoute allow={["empleado"]}>
+                  <EmpleadoPartesTrabajo
+                    empleadoId={
+                      localStorage.getItem("userId") ||
+                      sessionStorage.getItem("userId")
+                    }
+                  />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/partes-trabajo-finalizados"
+              element={
+                <PrivateRoute allow={["administrador"]}>
+                  <AdminPartesTrabajoFinalizados />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/catalogo-servicios"
+              element={
+                <PrivateRoute allow={["administrador"]}>
+                  <CatalogoServiciosPage />
                 </PrivateRoute>
               }
             />

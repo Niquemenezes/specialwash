@@ -91,6 +91,7 @@ SERVER="root@194.164.164.78" REMOTE_PATH="/root/specialwash" ./deploy.sh all
 - La BD productiva no se pisa en deploy de codigo.
 - Ubicacion esperada: `/root/specialwash/backend/instance/specialwash.db`.
 - Si hay cambios de esquema, seguir `GUIA_ACTUALIZAR_BD.md`.
+- En el deploy actual a IONOS, el backend arranca con `ENABLE_DB_BOOTSTRAP=0` para no ejecutar `ensure_*_schema.py` ni `db.create_all()` sobre la base existente.
 
 ## Verificaciones Rapidas Post-Deploy
 
