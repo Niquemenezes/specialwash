@@ -1,25 +1,51 @@
 import os
+import sys
 from datetime import timedelta
 
+
+def _require_env(key: str, default_dev: str) -> str:
+    """
+    En producción (FLASK_ENV=production) exige que la variable exista
+    y no sea el valor por defecto de desarrollo. Falla en arranque si no.
+    """
+    value = os.getenv(key, "").strip()
+    is_production = os.getenv("FLASK_ENV", "development").strip().lower() == "production"
+
+    if is_production:
+        if not value:
+            print(f"[ERROR] Variable de entorno '{key}' no está definida en producción.", file=sys.stderr)
+            sys.exit(1)
+        if value == default_dev:
+            print(f"[ERROR] '{key}' tiene el valor por defecto inseguro. Cámbialo antes de arrancar en producción.", file=sys.stderr)
+            sys.exit(1)
+        return value
+
+    # Desarrollo: usa el valor de entorno si existe, si no el default
+    return value or default_dev
+
+
 class Config:
-    # Claves (usar variables de entorno en producción)
-    SECRET_KEY = os.getenv("SECRET_KEY", "dev_secret_key")
-    JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "jwt_secret_key")
-    
+    # Claves: en producción DEBEN venir de variables de entorno reales
+    SECRET_KEY = _require_env("SECRET_KEY", "dev_secret_key")
+    JWT_SECRET_KEY = _require_env("JWT_SECRET_KEY", "jwt_secret_key")
+
     # Duración del token JWT (2 horas)
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=2)
 
-    # Base de datos (usa SQLite local)
+    # Base de datos
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))
     SQLALCHEMY_DATABASE_URI = os.getenv(
         "DATABASE_URL",
         f"sqlite:///{os.path.join(BASE_DIR, 'instance', 'specialwash.db')}"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    
-    # CORS - Lista separada por comas. Ejemplo:
-    # FRONTEND_URLS=http://localhost:3000,https://mi-codespace-3000.app.github.dev
+
+    # CORS - Lista separada por comas. En producción solo debe estar tu dominio real.
+    # Ejemplo: FRONTEND_URLS=https://tudominio.com
     CORS_ORIGINS = os.getenv("FRONTEND_URLS") or os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+    # Subida de archivos - 20 MB máximo (suficiente para OCR de imágenes)
+    MAX_CONTENT_LENGTH = 20 * 1024 * 1024  # 20 MB
 
     # OpenAI (asistente de redaccion premium de actas)
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")

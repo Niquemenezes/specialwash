@@ -24,29 +24,33 @@ def _db_bootstrap_enabled():
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
-    
-    # Aumentar límite de subida de archivos a 200MB (para videos)
-    app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # 200 MB
 
-    # CORS para frontend local y Codespaces. Con credenciales no debe usarse "*".
-    cors_origins = [
-      "http://localhost:3000",
-      "http://127.0.0.1:3000",
-      "http://194.164.164.78",
-      "capacitor://localhost",
-      "ionic://localhost",
-      r"https://.*-3000\.app\.github\.dev",
-    ]
+    # Límite de subida definido en config; no sobreescribir aquí
+    # (ya está en Config.MAX_CONTENT_LENGTH como 20 MB)
 
-    # Permite sobreescribir/añadir orígenes desde FRONTEND_URLS o FRONTEND_URL.
-    configured_origins = getattr(Config, "CORS_ORIGINS", None)
-    if configured_origins:
-      if isinstance(configured_origins, str):
-        cors_origins.extend(
-          [o.strip() for o in configured_origins.split(",") if o.strip()]
-        )
-      elif isinstance(configured_origins, (list, tuple, set)):
-        cors_origins.extend([str(o).strip() for o in configured_origins if str(o).strip()])
+    # CORS: en producción solo los orígenes configurados vía FRONTEND_URLS/FRONTEND_URL.
+    # En desarrollo se añaden localhost y patrones de Codespaces.
+    is_production = os.getenv("FLASK_ENV", "development").strip().lower() == "production"
+
+    if is_production:
+        # Producción: solo los orígenes explícitamente configurados
+        configured = getattr(Config, "CORS_ORIGINS", "http://localhost:3000")
+        cors_origins = [o.strip() for o in configured.split(",") if o.strip()] if isinstance(configured, str) else list(configured)
+    else:
+        # Desarrollo: orígenes locales + Codespaces + los configurados
+        cors_origins = [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "capacitor://localhost",
+            "ionic://localhost",
+            r"https://.*-3000\.app\.github\.dev",
+        ]
+        configured = getattr(Config, "CORS_ORIGINS", "")
+        if configured:
+            if isinstance(configured, str):
+                cors_origins.extend([o.strip() for o in configured.split(",") if o.strip()])
+            else:
+                cors_origins.extend([str(o).strip() for o in configured if str(o).strip()])
 
     CORS(
       app,
