@@ -48,7 +48,10 @@ def listar_citas():
 
     cliente_id = request.args.get("cliente_id")
     if cliente_id:
-        q = q.filter(Cita.cliente_id == int(cliente_id))
+        try:
+            q = q.filter(Cita.cliente_id == int(cliente_id))
+        except (TypeError, ValueError):
+            return jsonify({"msg": "cliente_id invalido"}), 400
 
     estado = request.args.get("estado")
     if estado:

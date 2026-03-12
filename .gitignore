@@ -22,8 +22,7 @@ backend/env/
 *.log
 backend/app.log
 
-# Database - permitir specialwash.db ANTES de ignorar
-!backend/instance/specialwash.db
+# Database
 !backend/instance/
 *.db
 /backend/specialwash.db

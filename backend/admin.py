@@ -1,4 +1,5 @@
 import os
+from flask import abort
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 from wtforms.fields import PasswordField
@@ -7,6 +8,18 @@ from models import (
     Maquinaria, Cliente, Coche, Servicio, ServicioCatalogo, ServicioCliente, 
     InspeccionRecepcion, GastoEmpresa, ActaEntrega, ParteTrabajo, Cita
 )
+
+
+def _is_production():
+    return os.getenv("FLASK_ENV", "development").strip().lower() == "production"
+
+
+def _admin_enabled():
+    # En desarrollo se mantiene habilitado por defecto para no romper flujo local.
+    # En producción queda deshabilitado salvo activación explícita por variable de entorno.
+    if not _is_production():
+        return True
+    return str(os.getenv("ENABLE_ADMIN_PANEL", "0")).strip().lower() in {"1", "true", "yes", "on"}
 
 
 # === Clases personalizadas para mejorar apariencia y seguridad ===
@@ -29,8 +42,10 @@ class SecureModelView(ModelView):
     }
 
     def is_accessible(self):
-        # ⚠️ solo para entorno local (ajusta para producción)
-        return True
+        return _admin_enabled()
+
+    def inaccessible_callback(self, name, **kwargs):
+        return abort(403)
 
 
 class UserAdmin(SecureModelView):
@@ -47,7 +62,9 @@ class UserAdmin(SecureModelView):
 
 def setup_admin(app):
     # 🔐 Configuración básica
-    app.secret_key = os.environ.get('FLASK_APP_KEY', 'sample_key')
+    if not app.secret_key:
+        # Evita fallback inseguro; usa solo claves reales de entorno si no hay una ya configurada.
+        app.secret_key = os.environ.get("FLASK_APP_KEY") or os.environ.get("SECRET_KEY")
     app.config['FLASK_ADMIN_SWATCH'] = 'flatly'   # 🌙 Tema moderno y limpio
 
     admin = Admin(
