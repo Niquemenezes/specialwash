@@ -4,7 +4,7 @@ Esta guia define el deploy real de produccion en tu VPS de IONOS.
 
 ## Alcance
 
-- Servidor: `root@194.164.164.78`
+- Servidor: `root@specialwash.studio`
 - Codigo remoto: `/root/specialwash`
 - Backend: Flask en `:5000`
 - Frontend: build estatico de React servido por Nginx desde `/var/www/specialwash/public_html`
@@ -44,7 +44,7 @@ Desde la raiz del repositorio:
 Puedes sobreescribir destino sin editar script:
 
 ```bash
-SERVER="root@194.164.164.78" REMOTE_PATH="/root/specialwash" ./deploy.sh all
+SERVER="root@specialwash.studio" REMOTE_PATH="/root/specialwash" ./deploy.sh all
 ```
 
 ## Que Hace Cada Modo
@@ -96,14 +96,14 @@ SERVER="root@194.164.164.78" REMOTE_PATH="/root/specialwash" ./deploy.sh all
 ## Verificaciones Rapidas Post-Deploy
 
 ```bash
-ssh root@194.164.164.78 "lsof -i tcp:5000 | cat"
-ssh root@194.164.164.78 "tail -50 /root/specialwash/backend/app.log"
-ssh root@194.164.164.78 "nginx -t"
+ssh root@specialwash.studio "lsof -i tcp:5000 | cat"
+ssh root@specialwash.studio "tail -50 /root/specialwash/backend/app.log"
+ssh root@specialwash.studio "nginx -t"
 ```
 
 Luego validar en navegador:
 
-- `http://194.164.164.78`
+- `https://specialwash.studio`
 - Hard refresh: `Ctrl + Shift + R`
 
 ## Troubleshooting
@@ -111,23 +111,23 @@ Luego validar en navegador:
 ### Backend no responde
 
 ```bash
-ssh root@194.164.164.78 "tail -100 /root/specialwash/backend/app.log"
-ssh root@194.164.164.78 "fuser -k 5000/tcp || true"
-ssh root@194.164.164.78 "cd /root/specialwash/backend && nohup /root/specialwash/backend/venv/bin/python app.py > app.log 2>&1 < /dev/null &"
+ssh root@specialwash.studio "tail -100 /root/specialwash/backend/app.log"
+ssh root@specialwash.studio "fuser -k 5000/tcp || true"
+ssh root@specialwash.studio "cd /root/specialwash/backend && nohup /root/specialwash/backend/venv/bin/python app.py > app.log 2>&1 < /dev/null &"
 ```
 
 ### Nginx no recarga
 
 ```bash
-ssh root@194.164.164.78 "nginx -t"
-ssh root@194.164.164.78 "tail -50 /var/log/nginx/error.log"
+ssh root@specialwash.studio "nginx -t"
+ssh root@specialwash.studio "tail -50 /var/log/nginx/error.log"
 ```
 
 ### Error SSH/rsync
 
 ```bash
 ssh-keygen -t rsa
-ssh-copy-id root@194.164.164.78
+ssh-copy-id root@specialwash.studio
 ```
 
 ## Recomendacion de Produccion

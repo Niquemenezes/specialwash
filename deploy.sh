@@ -11,11 +11,12 @@
 
 set -euo pipefail
 
-SERVER="${SERVER:-root@194.164.164.78}"
+SERVER="${SERVER:-root@specialwash.studio}"
 REMOTE_PATH="${REMOTE_PATH:-/root/specialwash}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCAL_PATH="${LOCAL_PATH:-$SCRIPT_DIR}"
 NGINX_WEB_ROOT="${NGINX_WEB_ROOT:-/var/www/specialwash/public_html}"
+RUN_SCHEMA_UPDATES="${RUN_SCHEMA_UPDATES:-0}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -63,6 +64,7 @@ echo -e "${YELLOW}=== SPECIALWASH DEPLOY (IONOS) ===${NC}"
 echo "Server: $SERVER"
 echo "Remote path: $REMOTE_PATH"
 echo "Nginx web root: $NGINX_WEB_ROOT"
+echo "Run schema updates: $RUN_SCHEMA_UPDATES"
 
 deploy_backend() {
     echo -e "${YELLOW}[backend] Sincronizando codigo...${NC}"
@@ -78,7 +80,7 @@ deploy_backend() {
         "$LOCAL_PATH/backend/" "$SERVER:$REMOTE_PATH/backend/"
 
     echo -e "${YELLOW}[backend] Reiniciando proceso...${NC}"
-    ssh "$SERVER" 'bash -s' <<'BASH_BACKEND'
+    ssh "$SERVER" "RUN_SCHEMA_UPDATES=$RUN_SCHEMA_UPDATES bash -s" <<'BASH_BACKEND'
 set -euo pipefail
 
 cd /root/specialwash/backend
@@ -86,9 +88,14 @@ cd /root/specialwash/backend
 # Mantener la base de datos productiva intacta durante este despliegue.
 export ENABLE_DB_BOOTSTRAP=0
 
-# Aplicar ajustes de esquema no destructivos requeridos por nuevas tablas.
-if [[ -f /root/specialwash/backend/venv/bin/python ]]; then
-    /root/specialwash/backend/venv/bin/python update_cita_schema.py || true
+# No tocar DB por defecto. Solo ejecutar migraciones si se habilita explícitamente.
+if [[ "${RUN_SCHEMA_UPDATES:-0}" == "1" ]]; then
+    echo "RUN_SCHEMA_UPDATES=1 -> aplicando scripts de esquema"
+    if [[ -f /root/specialwash/backend/venv/bin/python ]]; then
+        /root/specialwash/backend/venv/bin/python update_cita_schema.py || true
+    fi
+else
+    echo "RUN_SCHEMA_UPDATES=0 -> no se ejecutan cambios de esquema"
 fi
 
 # Si existe un servicio systemd, usarlo (mas robusto para produccion).
@@ -100,6 +107,7 @@ if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files | grep -q '
     cat >/etc/systemd/system/specialwash-backend.service.d/override.conf <<'EOF'
 [Service]
 Environment=ENABLE_DB_BOOTSTRAP=0
+Environment=FRONTEND_URLS=https://specialwash.studio,https://www.specialwash.studio
 EOF
     systemctl daemon-reload
     systemctl restart specialwash-backend
@@ -122,8 +130,8 @@ BASH_BACKEND
 deploy_frontend() {
     echo -e "${YELLOW}[frontend] Construyendo build...${NC}"
     cd "$LOCAL_PATH/frontend"
-    # Forzar API same-origin en produccion para evitar llamadas a Codespaces.
-    REACT_APP_BACKEND_URL=/api npm run build
+    # API en subdominio dedicado (api.specialwash.studio)
+    REACT_APP_BACKEND_URL=https://api.specialwash.studio npm run build
 
     echo -e "${YELLOW}[frontend] Sincronizando build a Nginx web root...${NC}"
     rsync -azv --delete "$LOCAL_PATH/frontend/build/" "$SERVER:$NGINX_WEB_ROOT/"
@@ -166,8 +174,8 @@ fi
 echo -e "${GREEN}Deploy completado exitosamente${NC}"
 echo ""
 echo "Verificar en:"
-echo "  HTTPS: https://194.164.164.78 (recomendado)"
-echo "  HTTP:  http://194.164.164.78"
+echo "  Frontend: https://specialwash.studio"
+echo "  API:      https://api.specialwash.studio"
 echo ""
-echo "💡 Si aún no configuraste HTTPS, ejecuta: ./deploy-https-setup.sh"
+echo "💡 Si aún no configuraste HTTPS con Certbot, ejecuta: ./deploy-https-setup.sh"
 
