@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-SERVER="${SERVER:-root@194.164.164.78}"
+SERVER="${SERVER:-root@specialwash.studio}"
 REMOTE_PATH="${REMOTE_PATH:-/root/specialwash}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

@@ -1,7 +1,7 @@
 # Guía: Actualizar Base de Datos desde Producción (Ionos) a GitHub
 
 ## Credenciales de Acceso
-- **Host:** 194.164.164.78
+- **Host:** specialwash.studio
 - **Usuario:** root
 - **Contraseña:** cwtC7sJe
 - **Puerto SSH:** 22 (por defecto)
@@ -14,7 +14,7 @@
 Abre una terminal y conéctate al servidor:
 
 ```bash
-ssh root@194.164.164.78
+ssh root@specialwash.studio
 ```
 
 Te pedirá la contraseña: `cwtC7sJe`
@@ -47,14 +47,14 @@ Desde tu terminal local (ya no conectado al servidor), ejecuta:
 
 ```bash
 # Reemplaza /ruta/completa/a/specialwash.db con la ruta que encontraste
-scp root@194.164.164.78:/ruta/completa/a/specialwash.db /workspaces/specialwash/backend/instance/specialwash.db
+scp root@specialwash.studio:/ruta/completa/a/specialwash.db /workspaces/specialwash/backend/instance/specialwash.db
 ```
 
 Te pedirá la contraseña nuevamente.
 
 ### Ejemplo completo (tu caso):
 ```bash
-scp root@194.164.164.78:/root/specialwash/backend/instance/specialwash.db /workspaces/specialwash/backend/instance/specialwash.db
+scp root@specialwash.studio:/root/specialwash/backend/instance/specialwash.db /workspaces/specialwash/backend/instance/specialwash.db
 ```
 
 ---
@@ -107,7 +107,7 @@ Si quieres hacerlo todo más rápido (después del backup):
 ```bash
 cd /workspaces/specialwash
 cp backend/instance/specialwash.db backend/instance/specialwash_backup_$(date +%Y%m%d).db
-scp root@194.164.164.78:/root/specialwash/backend/instance/specialwash.db backend/instance/specialwash.db
+scp root@specialwash.studio:/root/specialwash/backend/instance/specialwash.db backend/instance/specialwash.db
 git add backend/instance/specialwash.db
 git commit -m "Actualizar BD desde producción"
 git push origin main
@@ -127,7 +127,7 @@ git push origin main
 
 ### Problema: No puedo conectarme por SSH
 - Verifica que el firewall de Ionos permita conexiones SSH
-- Verifica que la IP sea correcta: 194.164.164.78
+- Verifica que la IP sea correcta: specialwash.studio
 
 ---
 

@@ -18,7 +18,7 @@ npm run build:android
 ```
 
 Esto:
-- Construye React con backend `https://194.164.164.78`
+- Construye React con backend `https://specialwash.studio`
 - Sincroniza build con proyecto Android
 
 ### 2. Compilar APK debug
@@ -62,7 +62,7 @@ Comenta el bloque de IP y descomenta el de dominio:
 ```xml
 <!-- 
 <domain-config cleartextTrafficPermitted="false">
-    <domain includeSubdomains="false">194.164.164.78</domain>
+    <domain includeSubdomains="false">specialwash.studio</domain>
     ...
 </domain-config>
 -->
@@ -78,7 +78,7 @@ Comenta el bloque de IP y descomenta el de dominio:
 ### 3. Instalar Let's Encrypt en servidor
 
 ```bash
-ssh root@194.164.164.78
+ssh root@specialwash.studio
 apt install certbot python3-certbot-nginx
 certbot --nginx -d tudominio.com
 ```
@@ -106,7 +106,7 @@ cd android
 Es normal con certificado autofirmado. La configuración de `network_security_config.xml` permite certificados de usuario, así que:
 
 1. Abre Chrome en el móvil
-2. Ve a `https://194.164.164.78`
+2. Ve a `https://specialwash.studio`
 3. Acepta la advertencia de certificado (hazlo manualmente una vez)
 4. Vuelve a abrir la app
 
@@ -131,7 +131,7 @@ Para firmarlo y subirlo a Play Store, necesitas crear una keystore. Documentaci�
 
 ### Error: "Network request failed"
 - Verifica que el backend esté corriendo en producción
-- Comprueba que HTTPS esté activo: `curl -I https://194.164.164.78`
+- Comprueba que HTTPS esté activo: `curl -I https://specialwash.studio`
 
 ### Error: "Unable to verify certificate"
 - Acepta el certificado manualmente en Chrome del móvil primero

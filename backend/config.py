@@ -41,8 +41,16 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # CORS - Lista separada por comas. En producción solo debe estar tu dominio real.
-    # Ejemplo: FRONTEND_URLS=https://tudominio.com
-    CORS_ORIGINS = os.getenv("FRONTEND_URLS") or os.getenv("FRONTEND_URL", "http://localhost:3000")
+    # Ejemplo: FRONTEND_URLS=https://tudominio.com,https://www.tudominio.com
+    # Fallback de seguridad para este despliegue: permite el dominio productivo
+    # aunque FRONTEND_URLS no esté configurado todavía en el servidor.
+    CORS_ORIGINS = (
+        os.getenv("FRONTEND_URLS")
+        or os.getenv(
+            "FRONTEND_URL",
+            "https://specialwash.studio,https://www.specialwash.studio,http://localhost:3000",
+        )
+    )
 
     # Subida de archivos - 20 MB máximo (suficiente para OCR de imágenes)
     MAX_CONTENT_LENGTH = 20 * 1024 * 1024  # 20 MB

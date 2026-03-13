@@ -1,25 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Configuración para desarrollo: permite certificado autofirmado solo de IP conocida -->
+    <!-- Producción con dominio y certificados válidos (Let's Encrypt) -->
     <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="false">194.164.164.78</domain>
-        <trust-anchors>
-            <!-- Confía en certificados del sistema -->
-            <certificates src="system" />
-            <!-- Confía también en certificados de usuario (autofirmados aceptados manualmente) -->
-            <certificates src="user" />
-        </trust-anchors>
-    </domain-config>
-    
-    <!-- Producción futura con dominio y Let's Encrypt (descomentar cuando tengas dominio):
-    <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">tudominio.com</domain>
+        <domain includeSubdomains="true">specialwash.studio</domain>
+        <domain includeSubdomains="true">api.specialwash.studio</domain>
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </domain-config>
-    -->
-    
+
     <!-- Por defecto: solo certificados del sistema (rechaza autofirmados) -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
