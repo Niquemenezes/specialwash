@@ -1,12 +1,19 @@
 // src/front/js/pages/PedidoBajoStock.jsx
-import React, { useContext, useMemo } from "react";
+import React, { useContext, useEffect, useMemo } from "react";
 import { Context } from "../store/appContext";
 import { useNavigate } from "react-router-dom";
 import logo from "../img/logospecialwash.jpg";
 
 export default function PedidoBajoStock() {
-  const { store } = useContext(Context);
+  const { store, actions } = useContext(Context);
   const navigate = useNavigate();
+  const fechaImpresion = useMemo(() => new Date(), []);
+
+  useEffect(() => {
+    actions.getProductos();
+    // Ejecutar una sola vez al montar para evitar re-fetch en bucle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // --- Productos con stock inferior al mínimo ---
   const bajosDeStock = useMemo(
@@ -19,10 +26,15 @@ export default function PedidoBajoStock() {
     [store.productos]
   );
 
-  const fecha = new Date().toLocaleDateString("es-ES", {
+  const fecha = fechaImpresion.toLocaleDateString("es-ES", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
+  });
+
+  const hora = fechaImpresion.toLocaleTimeString("es-ES", {
+    hour: "2-digit",
+    minute: "2-digit",
   });
 
   const imprimir = () => {
@@ -203,8 +215,9 @@ export default function PedidoBajoStock() {
             </h1>
 
             <small><strong>Fecha:</strong> {fecha}</small><br />
+            <small><strong>Hora:</strong> {hora}</small><br />
             <small>
-              <strong>Documento:</strong> PR-{new Date().getFullYear()}-
+              <strong>Documento:</strong> PR-{fechaImpresion.getFullYear()}-
               {String(bajosDeStock.length).padStart(3, "0")}
             </small>
           </div>
