@@ -37,6 +37,8 @@ jobs:
 
       - name: Build web and sync Capacitor Android
         working-directory: frontend
+        env:
+          CI: "false"
         run: npm run build:android
 
       - name: Configure Android local.properties for CI
