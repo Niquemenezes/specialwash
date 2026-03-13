@@ -3,23 +3,27 @@ name: Build Android APK
 on:
   workflow_dispatch:
 
+env:
+  # Adelanta la migracion de GitHub Actions a Node 24 para evitar warnings/fallos futuros.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   build-apk:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "20"
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
       - name: Setup Java (Temurin 17)
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: "temurin"
           java-version: "17"
@@ -38,7 +42,13 @@ jobs:
       - name: Configure Android local.properties for CI
         working-directory: frontend/android
         run: |
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          SDK_PATH="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          if [ -z "$SDK_PATH" ]; then
+            echo "ANDROID_SDK_ROOT/ANDROID_HOME no definido en runner" >&2
+            exit 1
+          fi
+          echo "sdk.dir=$SDK_PATH" > local.properties
+          echo "Usando SDK en: $SDK_PATH"
 
       - name: Build debug APK
         working-directory: frontend/android
