@@ -98,6 +98,117 @@ const buildInformeTecnicoFromSections = (sections = []) => {
     .join("\n\n");
 };
 
+const clipText = (value = "", maxChars = 260) => {
+  const text = String(value || "").trim();
+  if (text.length <= maxChars) return text;
+  return `${text.slice(0, maxChars).trim()}...`;
+};
+
+const buildCompactContext = (sections = [], preferredIndex = -1) => {
+  const withContent = sections
+    .map((section, idx) => ({ section, idx }))
+    .filter(({ section }) => String(section.content || "").trim());
+
+  const ordered = preferredIndex >= 0
+    ? withContent.sort((a, b) => (a.idx === preferredIndex ? -1 : b.idx === preferredIndex ? 1 : a.idx - b.idx))
+    : withContent;
+
+  return ordered
+    .slice(0, 4)
+    .map(({ section, idx }) => `${idx + 1}) ${section.title || "Punto"}\n${clipText(section.content, 260)}`)
+    .join("\n\n");
+};
+
+const detectActaTemplate = (inspeccion) => {
+  const base = [
+    inspeccion?.averias_notas,
+    inspeccion?.trabajos_realizados,
+    inspeccion?.coche_descripcion,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (/(pintura|laca|paragolpes|aleta|capo|panel|repint|restaur)/.test(base)) {
+    return "restauracion_pintura";
+  }
+  if (/(pulido|correccion|microara|holograma|swirl|detailing|coating)/.test(base)) {
+    return "detailing_correccion";
+  }
+  if (/(interior|tapicer|cuero|textil|ozono|desinfeccion)/.test(base)) {
+    return "detailing_interior";
+  }
+  return "general";
+};
+
+const buildAutoDraft = (inspeccion) => {
+  const template = detectActaTemplate(inspeccion);
+  const vehiculo = inspeccion?.coche_descripcion || "vehiculo";
+  const matricula = inspeccion?.matricula || "-";
+  const km = Number(inspeccion?.kilometros || 0).toLocaleString("es-ES");
+  const observacionesRecepcion = clipText(inspeccion?.averias_notas || "Sin observaciones registradas en recepcion.", 380);
+
+  const common = {
+    estado: `Recepcion tecnica de ${vehiculo} (matricula ${matricula}, ${km} km). Como referencia inicial se documentaron las siguientes observaciones: ${observacionesRecepcion}`,
+    observaciones: "Entrega efectuada tras verificación de acabado, revisión visual de superficies y control final de conformidad. Se recomienda mantenimiento preventivo para preservar el resultado obtenido.",
+    efectos: "La evolución del acabado puede variar según condiciones de uso, exposición ambiental y hábitos de mantenimiento. Se aconseja revisión periódica para conservar el estándar técnico alcanzado.",
+  };
+
+  if (template === "restauracion_pintura") {
+    return {
+      templateLabel: "Restauracion y pintura",
+      sectionTexts: [
+        common.estado,
+        "Se ejecutaron tareas de preparación de superficie, corrección localizada y acabado conforme al alcance definido en la orden de trabajo.",
+        "Tras la intervención se verificaron uniformidad visual, continuidad de superficie y coherencia de terminación en las zonas tratadas.",
+        common.efectos,
+        "El vehículo queda listo para entrega dentro del alcance intervenido, con trazabilidad de proceso y cierre técnico documentado.",
+      ],
+      observaciones: common.observaciones,
+    };
+  }
+
+  if (template === "detailing_correccion") {
+    return {
+      templateLabel: "Detailing y correccion",
+      sectionTexts: [
+        common.estado,
+        "Se realizaron tareas de limpieza técnica, descontaminación y corrección de acabado dentro de los límites definidos para el servicio.",
+        "Se comprobó mejora de definición visual y reducción de defectos superficiales apreciables en las áreas tratadas.",
+        common.efectos,
+        "El resultado queda validado para entrega, con recomendación de mantenimiento preventivo para prolongar la condición del acabado.",
+      ],
+      observaciones: common.observaciones,
+    };
+  }
+
+  if (template === "detailing_interior") {
+    return {
+      templateLabel: "Detailing interior",
+      sectionTexts: [
+        common.estado,
+        "Se realizaron tareas de acondicionamiento interior, limpieza técnica de superficies y tratamiento de materiales según alcance contratado.",
+        "Se verificó estado final de habitáculo, terminación visual homogénea y ausencia de residuos de proceso en zonas intervenidas.",
+        common.efectos,
+        "El vehículo queda listo para entrega con interior estabilizado en limpieza y presentación, dentro del alcance ejecutado.",
+      ],
+      observaciones: common.observaciones,
+    };
+  }
+
+  return {
+    templateLabel: "Plantilla general",
+    sectionTexts: [
+      common.estado,
+      "Se ejecutaron los trabajos solicitados conforme al alcance definido y a la revisión técnica inicial del vehículo.",
+      "Se realizó control técnico final sobre las zonas intervenidas para validar consistencia y estado de entrega.",
+      common.efectos,
+      "Servicio finalizado y documentado para entrega al cliente, con recomendaciones de mantenimiento posterior.",
+    ],
+    observaciones: common.observaciones,
+  };
+};
+
 const cleanSectionDraft = (text = "", title = "") => {
   const raw = String(text || "").trim();
   if (!raw) return "";
@@ -114,6 +225,28 @@ const PREMIUM_TONE_RULES = [
   "Sin exageraciones, sin promesas y sin florituras.",
 ].join(" ");
 
+const AI_OPT_IN_STORAGE_KEY = "sw_acta_ai_opt_in";
+
+const getFriendlyAiError = (error) => {
+  const raw = String(error?.message || error || "");
+  const lower = raw.toLowerCase();
+  const isQuota = lower.includes("insufficient_quota") || lower.includes("exceeded your current quota");
+
+  if (isQuota) {
+    return {
+      isQuota: true,
+      message:
+        "No hay creditos disponibles en OpenAI para usar IA ahora mismo. " +
+        "Puedes continuar con 'Generar borrador automatico' (sin coste) y guardar el acta normalmente.",
+    };
+  }
+
+  return {
+    isQuota: false,
+    message: `No se pudo completar la solicitud con IA: ${raw || "error desconocido"}`,
+  };
+};
+
 const CochesPendientesEntrega = () => {
   const { actions } = useContext(Context);
   const navigate = useNavigate();
@@ -124,10 +257,26 @@ const CochesPendientesEntrega = () => {
   const [observacionesActa, setObservacionesActa] = useState("");
   const [guardandoActa, setGuardandoActa] = useState(false);
   const [aiObservacionesLoading, setAiObservacionesLoading] = useState(false);
+  const [ultimaPlantilla, setUltimaPlantilla] = useState("");
+  const [usarIA, setUsarIA] = useState(() => {
+    try {
+      return localStorage.getItem(AI_OPT_IN_STORAGE_KEY) === "1";
+    } catch (_) {
+      return false;
+    }
+  });
   const [sections, setSections] = useState(() =>
     DEFAULT_SECTION_TITLES.map((title, idx) => ({ id: `sec-${idx + 1}`, title, content: "", fromInspection: false }))
   );
   const [aiBySection, setAiBySection] = useState({});
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(AI_OPT_IN_STORAGE_KEY, usarIA ? "1" : "0");
+    } catch (_) {
+      // no-op
+    }
+  }, [usarIA]);
 
   const cargarPendientes = useCallback(async () => {
     setLoading(true);
@@ -155,6 +304,7 @@ const CochesPendientesEntrega = () => {
       setInspeccionActa(detalle);
       setObservacionesActa(detalle?.entrega_observaciones || parsed.observaciones || "");
       setSections(createSectionsFromData(campos, estadoDesdeInspeccion));
+      setUltimaPlantilla("");
       setAiBySection({});
       setShowActaModal(true);
     } catch (err) {
@@ -168,8 +318,28 @@ const CochesPendientesEntrega = () => {
     setObservacionesActa("");
     setGuardandoActa(false);
     setAiObservacionesLoading(false);
+    setUltimaPlantilla("");
     setSections(DEFAULT_SECTION_TITLES.map((title, idx) => ({ id: `sec-${idx + 1}`, title, content: "", fromInspection: false })));
     setAiBySection({});
+  };
+
+  const generarBorradorAutomatico = () => {
+    if (!inspeccionActa) return;
+    const draft = buildAutoDraft(inspeccionActa);
+
+    setSections((prev) => prev.map((section, idx) => {
+      const hasContent = String(section.content || "").trim().length > 0;
+      if (hasContent) return section;
+      return {
+        ...section,
+        content: draft.sectionTexts[idx] || section.content,
+      };
+    }));
+
+    if (!String(observacionesActa || "").trim()) {
+      setObservacionesActa(draft.observaciones);
+    }
+    setUltimaPlantilla(draft.templateLabel);
   };
 
   const actualizarSeccion = (id, patch) => {
@@ -193,18 +363,22 @@ const CochesPendientesEntrega = () => {
   };
 
   const redactarSeccionConAI = async (section, index) => {
+    if (!usarIA) {
+      alert("La IA esta desactivada para evitar gasto de creditos. Activa la opcion 'Usar IA (gasta creditos)' si la necesitas.");
+      return;
+    }
     if (!inspeccionActa) return;
     setAiBySection((prev) => ({ ...prev, [section.id]: true }));
     try {
-      const contextoActual = buildInformeTecnicoFromSections(sections);
+      const contextoActual = buildCompactContext(sections, index);
       const promptSeccion = [
         `Redacta solo el punto ${index + 1}: ${section.title}.`,
         PREMIUM_TONE_RULES,
         "Maximo 70 palabras. Solo hechos tecnicos y resultados observables.",
         "No repitas todo el informe, responde solo con el texto del punto.",
-        `Texto base del punto: ${section.content || "(vacio)"}`,
+        `Texto base del punto: ${clipText(section.content || "(vacio)", 260)}`,
         "",
-        "Contexto del informe completo:",
+        "Contexto breve del informe:",
         contextoActual,
       ].join("\n");
 
@@ -223,25 +397,31 @@ const CochesPendientesEntrega = () => {
       const finalText = cleanSectionDraft(maybeByNumber || texto, section.title);
       actualizarSeccion(section.id, { content: finalText || section.content });
     } catch (err) {
-      alert(`No se pudo generar esta seccion con AI: ${err.message}`);
+      const aiErr = getFriendlyAiError(err);
+      if (aiErr.isQuota) setUsarIA(false);
+      alert(aiErr.message);
     } finally {
       setAiBySection((prev) => ({ ...prev, [section.id]: false }));
     }
   };
 
   const redactarObservacionesConAI = async () => {
+    if (!usarIA) {
+      alert("La IA esta desactivada para evitar gasto de creditos. Activa la opcion 'Usar IA (gasta creditos)' si la necesitas.");
+      return;
+    }
     if (!inspeccionActa) return;
     setAiObservacionesLoading(true);
     try {
-      const contextoActual = buildInformeTecnicoFromSections(sections);
+      const contextoActual = buildCompactContext(sections);
       const promptObservaciones = [
         "Redacta solo el bloque 'Observaciones de entrega'.",
         PREMIUM_TONE_RULES,
         "Maximo 45 palabras. Cierre sobrio, tecnico y sin promocion.",
         "No repitas todo el informe tecnico, responde unicamente con las observaciones finales.",
-        `Texto base actual: ${observacionesActa || "(vacio)"}`,
+        `Texto base actual: ${clipText(observacionesActa || "(vacio)", 200)}`,
         "",
-        "Contexto del informe tecnico:",
+        "Contexto breve del informe tecnico:",
         contextoActual,
       ].join("\n");
 
@@ -263,7 +443,9 @@ const CochesPendientesEntrega = () => {
 
       setObservacionesActa(cleaned || texto);
     } catch (err) {
-      alert(`No se pudo generar observaciones con AI: ${err.message}`);
+      const aiErr = getFriendlyAiError(err);
+      if (aiErr.isQuota) setUsarIA(false);
+      alert(aiErr.message);
     } finally {
       setAiObservacionesLoading(false);
     }
@@ -420,6 +602,24 @@ const CochesPendientesEntrega = () => {
               </div>
 
               <div className="modal-body">
+                <div className="alert alert-warning py-2 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2">
+                  <div className="small mb-0">
+                    Modo ahorro: la IA esta desactivada por defecto para no consumir creditos.
+                  </div>
+                  <div className="form-check form-switch mb-0">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id="sw-usar-ia-switch"
+                      checked={usarIA}
+                      onChange={(e) => setUsarIA(e.target.checked)}
+                    />
+                    <label className="form-check-label" htmlFor="sw-usar-ia-switch">
+                      Usar IA (gasta creditos)
+                    </label>
+                  </div>
+                </div>
+
                 <div className="mb-3 p-3 rounded" style={{ border: "1px solid #e6dece", background: "#fffdf9" }}>
                   <div className="d-flex flex-wrap justify-content-between gap-2 mb-2">
                     <div><strong>Cliente:</strong> {inspeccionActa.cliente_nombre || "-"}</div>
@@ -434,10 +634,21 @@ const CochesPendientesEntrega = () => {
 
                 <div className="d-flex justify-content-between align-items-center mb-2">
                   <h6 className="mb-0 fw-bold">Informe tecnico de intervencion</h6>
-                  <button type="button" className="btn btn-outline-dark btn-sm" onClick={agregarSeccion}>
-                    + Agregar punto
-                  </button>
+                  <div className="d-flex gap-2">
+                    <button type="button" className="btn btn-outline-primary btn-sm" onClick={generarBorradorAutomatico}>
+                      Generar borrador automatico
+                    </button>
+                    <button type="button" className="btn btn-outline-dark btn-sm" onClick={agregarSeccion}>
+                      + Agregar punto
+                    </button>
+                  </div>
                 </div>
+
+                {ultimaPlantilla && (
+                  <div className="small text-muted mb-2">
+                    Plantilla aplicada: {ultimaPlantilla}. Solo se rellenan campos vacios para no sobrescribir tu texto.
+                  </div>
+                )}
 
                 {sections.map((section, idx) => (
                   <div key={section.id} className="mb-3 p-3 rounded" style={{ border: "1px solid #e6dece", background: "#fff" }}>
@@ -456,7 +667,7 @@ const CochesPendientesEntrega = () => {
                           type="button"
                           className="btn btn-dark btn-sm"
                           onClick={() => redactarSeccionConAI(section, idx)}
-                          disabled={Boolean(aiBySection[section.id]) || guardandoActa}
+                          disabled={!usarIA || Boolean(aiBySection[section.id]) || guardandoActa}
                         >
                           {aiBySection[section.id] ? "AI..." : "AI en este punto"}
                         </button>
@@ -492,7 +703,7 @@ const CochesPendientesEntrega = () => {
                       type="button"
                       className="btn btn-dark btn-sm"
                       onClick={redactarObservacionesConAI}
-                      disabled={aiObservacionesLoading || guardandoActa}
+                      disabled={!usarIA || aiObservacionesLoading || guardandoActa}
                     >
                       {aiObservacionesLoading ? "AI..." : "AI observaciones"}
                     </button>

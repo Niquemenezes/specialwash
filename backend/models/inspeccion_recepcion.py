@@ -43,6 +43,14 @@ class InspeccionRecepcion(db.Model):
     trabajos_realizados = db.Column(db.Text)
     entrega_observaciones = db.Column(db.Text)
 
+    # Repaso pre-entrega
+    repaso_checklist = db.Column(db.Text, default="{}")
+    repaso_notas = db.Column(db.Text)
+    repaso_completado = db.Column(db.Boolean, default=False, nullable=False)
+    repaso_completado_por_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    repaso_completado_por_nombre = db.Column(db.String(120))
+    repaso_completado_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
     confirmado = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=now_madrid, nullable=False)
     updated_at = db.Column(db.DateTime(timezone=True), default=now_madrid, onupdate=now_madrid)
@@ -78,6 +86,12 @@ class InspeccionRecepcion(db.Model):
             "conformidad_revision_entrega": self.conformidad_revision_entrega,
             "trabajos_realizados": self.trabajos_realizados,
             "entrega_observaciones": self.entrega_observaciones,
+            "repaso_checklist": json.loads(self.repaso_checklist or "{}"),
+            "repaso_notas": self.repaso_notas,
+            "repaso_completado": self.repaso_completado,
+            "repaso_completado_por_id": self.repaso_completado_por_id,
+            "repaso_completado_por_nombre": self.repaso_completado_por_nombre,
+            "repaso_completado_at": iso(self.repaso_completado_at),
             "confirmado": self.confirmado,
             "created_at": iso(self.created_at),
             "updated_at": iso(self.updated_at),

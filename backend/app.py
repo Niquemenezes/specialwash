@@ -13,6 +13,7 @@ from update_servicio_cliente_schema import ensure_servicio_cliente_schema
 from update_user_schema import ensure_user_schema
 from update_cita_schema import ensure_cita_schema
 from update_notificacion_schema import ensure_notificacion_schema
+from update_inspeccion_schema import ensure_inspeccion_schema
 
 
 load_dotenv()
@@ -78,6 +79,7 @@ def create_app():
         ensure_user_schema()
         ensure_cita_schema()
         ensure_notificacion_schema()
+        ensure_inspeccion_schema()
         db.create_all()  # crea las tablas
 
     # === Página raíz ===

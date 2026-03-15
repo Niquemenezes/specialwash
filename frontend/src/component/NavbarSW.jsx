@@ -216,6 +216,45 @@ const NavbarSW = () => {
             <ul className="navbar-nav me-auto mt-3 mt-md-0 sw-nav-left">
               {rol === "administrador" && (
                 <>
+                  {/* Dropdown Flujo Entrega */}
+                  <li className="nav-item dropdown">
+                    <button
+                      className="nav-link dropdown-toggle sw-navlink btn btn-link"
+                      id="navFlujoEntrega"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      aria-expanded="false"
+                    >
+                      Flujo Entrega
+                    </button>
+                    <ul className="dropdown-menu" aria-labelledby="navFlujoEntrega">
+                      <li><h6 className="dropdown-header">Pre-entrega</h6></li>
+                      <li>
+                        <NavLink to="/inspeccion-recepcion" className="dropdown-item">
+                          1) Inspección recepción (todos)
+                        </NavLink>
+                      </li>
+                      <li>
+                        <NavLink to="/inspecciones-guardadas" className="dropdown-item">
+                          2) Inspecciones + Pendientes (admin)
+                        </NavLink>
+                      </li>
+                      <li><hr className="dropdown-divider" /></li>
+                      <li><h6 className="dropdown-header">Entrega</h6></li>
+                      <li>
+                        <NavLink to="/repaso-entrega" className="dropdown-item">
+                          3) Repaso + Firma
+                        </NavLink>
+                      </li>
+                      <li><hr className="dropdown-divider" /></li>
+                      <li>
+                        <NavLink to="/entregados" className="dropdown-item">
+                          4) Coches entregados
+                        </NavLink>
+                      </li>
+                    </ul>
+                  </li>
+
                   {/* Dropdown Inventario */}
                   <li className="nav-item dropdown">
                     <button
@@ -254,29 +293,24 @@ const NavbarSW = () => {
                           Historial Salidas
                         </NavLink>
                       </li>
-                      <li>
-                        <NavLink to="/proveedores" className="dropdown-item">
-                          Proveedores
-                        </NavLink>
-                      </li>
                     </ul>
                   </li>
 
-                  {/* Dropdown Clientes */}
+                  {/* Dropdown Administración */}
                   <li className="nav-item dropdown">
                     <button
                       className="nav-link dropdown-toggle sw-navlink btn btn-link"
-                      id="navClientes"
+                      id="navAdministracion"
                       type="button"
                       data-bs-toggle="dropdown"
                       aria-expanded="false"
                     >
-                      Clientes
+                      Administración
                     </button>
-                    <ul className="dropdown-menu" aria-labelledby="navClientes">
+                    <ul className="dropdown-menu" aria-labelledby="navAdministracion">
                       <li>
                         <NavLink to="/clientes" className="dropdown-item">
-                          Gestión Clientes
+                          Clientes
                         </NavLink>
                       </li>
                       <li>
@@ -285,34 +319,29 @@ const NavbarSW = () => {
                         </NavLink>
                       </li>
                       <li>
-                        <NavLink to="/inspeccion-recepcion" className="dropdown-item">
-                          🚗 Inspección Recepción
-                        </NavLink>
-                      </li>
-                      <li>
-                        <NavLink to="/inspecciones-guardadas" className="dropdown-item">
-                          🔒 Inspecciones Guardadas (Admin)
-                        </NavLink>
-                      </li>
-                      <li>
-                        <NavLink to="/pendientes-entrega" className="dropdown-item">
-                          🚙 Coches Pendientes de Entrega
-                        </NavLink>
-                      </li>
-                      <li>
-                        <NavLink to="/firma-entrega" className="dropdown-item">
-                          ✍️ Firma de Entrega
-                        </NavLink>
-                      </li>
-                      <li>
-                        <NavLink to="/entregados" className="dropdown-item">
-                          ✅ Coches Entregados
+                        <NavLink to="/resumen-clientes" className="dropdown-item">
+                          Resumen Clientes
                         </NavLink>
                       </li>
                       <li><hr className="dropdown-divider" /></li>
                       <li>
-                        <NavLink to="/resumen-clientes" className="dropdown-item">
-                          Resumen Clientes
+                        <NavLink to="/administracion/finanzas" className="dropdown-item">
+                          Finanzas
+                        </NavLink>
+                      </li>
+                      <li>
+                        <NavLink to="/maquinaria" className="dropdown-item">
+                          Maquinaria
+                        </NavLink>
+                      </li>
+                      <li>
+                        <NavLink to="/usuarios" className="dropdown-item">
+                          Usuarios
+                        </NavLink>
+                      </li>
+                      <li>
+                        <NavLink to="/proveedores" className="dropdown-item">
+                          Proveedores
                         </NavLink>
                       </li>
                     </ul>
@@ -349,45 +378,38 @@ const NavbarSW = () => {
                     </ul>
                   </li>
 
-                  {/* Link directo Maquinaria */}
-                  <li className="nav-item">
-                    <NavLink to="/maquinaria" className="nav-link sw-navlink">
-                      Maquinaria
-                    </NavLink>
-                  </li>
-
-                  {/* Link directo Usuarios */}
-                  <li className="nav-item">
-                    <NavLink to="/usuarios" className="nav-link sw-navlink">
-                      Usuarios
-                    </NavLink>
-                  </li>
-
                 </>
               )}
 
               {(rol === "empleado" || rol === "encargado") && (
                 <>
+                  <li className="nav-item dropdown">
+                    <button
+                      className="nav-link dropdown-toggle sw-navlink btn btn-link"
+                      id="navFlujoEntregaOperativo"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      aria-expanded="false"
+                    >
+                      Flujo Entrega
+                    </button>
+                    <ul className="dropdown-menu" aria-labelledby="navFlujoEntregaOperativo">
+                      <li>
+                        <NavLink to="/inspeccion-recepcion" className="dropdown-item">
+                          1) Inspección recepción
+                        </NavLink>
+                      </li>
+                      <li>
+                        <NavLink to="/repaso-entrega" className="dropdown-item">
+                          2) Repaso + Firma
+                        </NavLink>
+                      </li>
+                    </ul>
+                  </li>
+
                   <li className="nav-item">
                     <NavLink to="/salidas" className="nav-link sw-navlink">
                       Registrar salida
-                    </NavLink>
-                  </li>
-                  <li className="nav-item">
-                    <NavLink to="/inspeccion-recepcion" className="nav-link sw-navlink">
-                      🚗 Inspección
-                    </NavLink>
-                  </li>
-                  {rol === "encargado" && (
-                    <li className="nav-item">
-                      <NavLink to="/entregados" className="nav-link sw-navlink">
-                        ✅ Entregados
-                      </NavLink>
-                    </li>
-                  )}
-                  <li className="nav-item">
-                    <NavLink to="/firma-entrega" className="nav-link sw-navlink">
-                      ✍️ Firma entrega
                     </NavLink>
                   </li>
                   {rol === "empleado" && (
@@ -439,7 +461,7 @@ const NavbarSW = () => {
                     className="btn sw-btn-gold"
                     onClick={handleLogout}
                   >
-                    Cerrar sesión
+                    Salir
                   </button>
                 </li>
               </>

@@ -67,7 +67,8 @@ export default function ProductosPage() {
       list = list.filter(
         (p) =>
           p?.stock_minimo != null &&
-          Number(p?.stock_actual ?? 0) < Number(p?.stock_minimo ?? 0)
+          Number(p?.stock_actual ?? 0) < Number(p?.stock_minimo ?? 0) &&
+          !p?.pedido_en_curso
       );
     }
 
@@ -79,7 +80,19 @@ export default function ProductosPage() {
       (productos || []).filter(
         (p) =>
           p?.stock_minimo != null &&
-          Number(p?.stock_actual ?? 0) < Number(p?.stock_minimo ?? 0)
+          Number(p?.stock_actual ?? 0) < Number(p?.stock_minimo ?? 0) &&
+          !p?.pedido_en_curso
+      ),
+    [productos]
+  );
+
+  const bajosDeStockEnPedido = useMemo(
+    () =>
+      (productos || []).filter(
+        (p) =>
+          p?.stock_minimo != null &&
+          Number(p?.stock_actual ?? 0) < Number(p?.stock_minimo ?? 0) &&
+          !!p?.pedido_en_curso
       ),
     [productos]
   );
@@ -242,8 +255,13 @@ export default function ProductosPage() {
         <div className="d-flex flex-wrap gap-2 mb-3 no-print">
         <span className="badge bg-secondary">Total: {productos.length}</span>
         <span className="badge bg-danger">
-          Bajo stock: {bajosDeStock.length}
+            Bajo stock (pendientes): {bajosDeStock.length}
         </span>
+          {bajosDeStockEnPedido.length > 0 && (
+            <span className="badge bg-warning text-dark">
+              En pedido: {bajosDeStockEnPedido.length}
+            </span>
+          )}
         {soloBajoStock && (
           <span className="badge bg-info">
             Mostrando solo {productosFiltrados.length}
@@ -348,7 +366,7 @@ export default function ProductosPage() {
                         <div className="fw-semibold">{p.nombre}</div>
                         {bajo && (
                           <span className="badge bg-warning text-dark mt-1">
-                            Bajo stock
+                            {p?.pedido_en_curso ? "Bajo stock (pedido en curso)" : "Bajo stock"}
                           </span>
                         )}
                       </td>

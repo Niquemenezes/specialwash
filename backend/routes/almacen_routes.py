@@ -144,6 +144,13 @@ def registrar_entrada():
     if precio_unitario > 0:
         producto.precio_referencia = precio_unitario
 
+    # Si llega una entrada, el pedido pendiente para ese producto se considera recibido.
+    producto.pedido_en_curso = False
+    producto.pedido_fecha = None
+    producto.pedido_cantidad = None
+    producto.pedido_canal = None
+    producto.pedido_proveedor_id = None
+
     entrada = Entrada(
         producto_id=producto.id,
         producto_nombre=producto.nombre,

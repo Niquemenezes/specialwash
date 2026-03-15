@@ -23,6 +23,26 @@ def ensure_producto_schema(db_path: Path = DB_PATH) -> bool:
             cur.execute("ALTER TABLE producto ADD COLUMN codigo_barras TEXT")
             changed = True
 
+        if "pedido_en_curso" not in existing:
+            cur.execute("ALTER TABLE producto ADD COLUMN pedido_en_curso INTEGER DEFAULT 0")
+            changed = True
+
+        if "pedido_fecha" not in existing:
+            cur.execute("ALTER TABLE producto ADD COLUMN pedido_fecha TEXT")
+            changed = True
+
+        if "pedido_cantidad" not in existing:
+            cur.execute("ALTER TABLE producto ADD COLUMN pedido_cantidad INTEGER")
+            changed = True
+
+        if "pedido_canal" not in existing:
+            cur.execute("ALTER TABLE producto ADD COLUMN pedido_canal TEXT")
+            changed = True
+
+        if "pedido_proveedor_id" not in existing:
+            cur.execute("ALTER TABLE producto ADD COLUMN pedido_proveedor_id INTEGER")
+            changed = True
+
         # Intentar crear indice unico para evitar duplicados.
         cur.execute("PRAGMA index_list('producto')")
         indexes = {row[1] for row in cur.fetchall()}

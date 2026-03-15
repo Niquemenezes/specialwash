@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from sqlalchemy import or_
+from datetime import datetime
 
 from models import Producto, ProductoCodigoBarras, db
 from utils.auth_utils import role_required
@@ -46,6 +47,34 @@ def _codigo_esta_ocupado(codigo, producto_id=None):
     if producto_id:
         multi_query = multi_query.filter(ProductoCodigoBarras.producto_id != producto_id)
     return multi_query.first() is not None
+
+
+def _parse_bool(value, default=False):
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "yes", "on", "si", "sí"}
+
+
+def _parse_int_or_none(value):
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_datetime_or_none(value):
+    if value is None or value == "":
+        return None
+    if isinstance(value, datetime):
+        return value
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
 
 
 @productos_bp.route("/productos", methods=["GET"])
@@ -107,6 +136,11 @@ def productos_create():
         codigo_barras=codigo_barras,
         stock_minimo=int(data.get("stock_minimo", 0)),
         stock_actual=int(data.get("stock_actual", 0)),
+        pedido_en_curso=_parse_bool(data.get("pedido_en_curso"), default=False),
+        pedido_fecha=_parse_datetime_or_none(data.get("pedido_fecha")),
+        pedido_cantidad=_parse_int_or_none(data.get("pedido_cantidad")),
+        pedido_canal=(str(data.get("pedido_canal") or "").strip() or None),
+        pedido_proveedor_id=_parse_int_or_none(data.get("pedido_proveedor_id")),
     )
     db.session.add(p)
     db.session.flush()
@@ -161,6 +195,24 @@ def productos_update(pid):
     p.categoria = data.get("categoria", p.categoria)
     p.stock_minimo = int(data.get("stock_minimo", p.stock_minimo))
     p.stock_actual = int(data.get("stock_actual", p.stock_actual))
+
+    if "pedido_en_curso" in data:
+        p.pedido_en_curso = _parse_bool(data.get("pedido_en_curso"), default=False)
+    if "pedido_fecha" in data:
+        p.pedido_fecha = _parse_datetime_or_none(data.get("pedido_fecha"))
+    if "pedido_cantidad" in data:
+        p.pedido_cantidad = _parse_int_or_none(data.get("pedido_cantidad"))
+    if "pedido_canal" in data:
+        p.pedido_canal = (str(data.get("pedido_canal") or "").strip() or None)
+    if "pedido_proveedor_id" in data:
+        p.pedido_proveedor_id = _parse_int_or_none(data.get("pedido_proveedor_id"))
+
+    # Si se marca como no pedido, limpiamos metadatos para evitar estados incoherentes.
+    if not p.pedido_en_curso:
+        p.pedido_fecha = None
+        p.pedido_cantidad = None
+        p.pedido_canal = None
+        p.pedido_proveedor_id = None
 
     db.session.commit()
     return jsonify(p.to_dict()), 200

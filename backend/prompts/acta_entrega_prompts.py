@@ -39,15 +39,24 @@ PROMPT_OBSERVACIONES_FINALES = (
 )
 
 # ============ TEMPLATES para USUARIOS PERSONALIZADOS ==========
+def _clip_text(value, max_chars):
+    text = str(value or "").strip()
+    if len(text) <= max_chars:
+        return text
+    return f"{text[:max_chars].rstrip()}..."
+
+
 def build_user_prompt_acta(cliente_nombre, coche_descripcion, matricula, kilometros, averias, borrador):
     """Construye el prompt de usuario para generar acta completa."""
+    averias_txt = _clip_text(averias or "Sin observaciones", 700)
+    borrador_txt = _clip_text(borrador or "No aportado", 1800)
     return (
         f"Cliente: {cliente_nombre}\n"
         f"Vehículo: {coche_descripcion}\n"
         f"Matrícula: {matricula}\n"
         f"Kilómetros: {kilometros or '-'}\n"
-        f"Observaciones recepción: {averias or 'Sin observaciones'}\n"
-        f"Borrador de trabajos: {borrador or 'No aportado'}\n\n"
+        f"Observaciones recepción: {averias_txt}\n"
+        f"Borrador de trabajos: {borrador_txt}\n\n"
         "Instrucciones de salida:\n"
         "- Máximo 180 palabras en total.\n"
         "- Solo hechos técnicos y resultados observables.\n"
@@ -59,29 +68,33 @@ def build_user_prompt_acta(cliente_nombre, coche_descripcion, matricula, kilomet
 
 def build_user_prompt_seccion(numero_seccion, titulo_seccion, contenido_actual, contexto_informe):
     """Construye el prompt de usuario para redactar una sección específica."""
+    contenido_txt = _clip_text(contenido_actual or "(vacío)", 500)
+    contexto_txt = _clip_text(contexto_informe, 1200)
     return (
         f"Redacta solo el punto {numero_seccion}: {titulo_seccion}.\n"
         f"{PROMPT_SECCION_GENERICA}\n"
-        f"Texto base del punto: {contenido_actual or '(vacío)'}\n\n"
+        f"Texto base del punto: {contenido_txt}\n\n"
         "Instrucciones de salida: máximo 70 palabras, sin frases promocionales.\n"
         "Contexto del informe completo:\n"
-        f"{contexto_informe}"
+        f"{contexto_txt}"
     )
 
 
 def build_user_prompt_observaciones(observaciones_actuales, contexto_informe):
     """Construye el prompt de usuario para redactar observaciones finales."""
+    observaciones_txt = _clip_text(observaciones_actuales or "(vacío)", 400)
+    contexto_txt = _clip_text(contexto_informe, 1200)
     return (
         f"{PROMPT_OBSERVACIONES_FINALES}\n"
-        f"Texto base actual: {observaciones_actuales or '(vacío)'}\n\n"
+        f"Texto base actual: {observaciones_txt}\n\n"
         "Instrucciones de salida: máximo 45 palabras, cierre sobrio y técnico.\n"
         "Contexto del informe técnico:\n"
-        f"{contexto_informe}"
+        f"{contexto_txt}"
     )
 
 
 # ============ CONFIGURACIÓN DE MODELOS ==========
-DEFAULT_MODEL = "gpt-4-mini"
+DEFAULT_MODEL = "gpt-5-mini"  # Modelo de bajo coste por defecto
 DEFAULT_TEMPERATURE = 0.2
 
 # ============ PATRONES para LIMPIEZA de RESPUESTAS ==========

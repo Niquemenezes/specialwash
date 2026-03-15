@@ -68,22 +68,10 @@ export default function Home() {
       },
       {
         id: "clientes",
-        title: "Clientes y Vehículos",
-        subtitle: "Recepción, servicio y entrega",
+        title: "Vehículos",
+        subtitle: "Flujo de recepción, repaso y entrega",
         emoji: "🚗",
         items: [
-          {
-            to: "/clientes",
-            label: "Gestión de clientes",
-            detail: "Ficha y datos de contacto",
-            roles: ["administrador"],
-          },
-          {
-            to: "/coches",
-            label: "Coches",
-            detail: "Registro de vehículos",
-            roles: ["administrador"],
-          },
           {
             to: "/inspeccion-recepcion",
             label: "Inspección de recepción",
@@ -91,27 +79,21 @@ export default function Home() {
             roles: ["administrador", "empleado", "encargado"],
           },
           {
-            to: "/pendientes-entrega",
-            label: "Pendientes de entrega",
-            detail: "Preparación de acta y cierre",
-            roles: ["administrador", "encargado"],
+            to: "/inspecciones-guardadas",
+            label: "Inspecciones + Pendientes",
+            detail: "Revisión y validación (admin)",
+            roles: ["administrador"],
           },
           {
-            to: "/firma-entrega",
-            label: "Firma de entrega",
-            detail: "Firma cliente y cierre final",
+            to: "/repaso-entrega",
+            label: "Repaso + Firma entrega",
+            detail: "Control y firma cliente",
             roles: ["administrador", "empleado", "encargado"],
           },
           {
             to: "/entregados",
             label: "Coches entregados",
-            detail: "Historial de entregas",
-            roles: ["administrador", "encargado"],
-          },
-          {
-            to: "/resumen-clientes",
-            label: "Resumen de clientes",
-            detail: "Facturación y períodos",
+            detail: "Historial final",
             roles: ["administrador"],
           },
           {
@@ -160,6 +142,30 @@ export default function Home() {
         subtitle: "Estructura interna y recursos",
         emoji: "🧩",
         items: [
+          {
+            to: "/clientes",
+            label: "Clientes",
+            detail: "Ficha y datos de contacto",
+            roles: ["administrador"],
+          },
+          {
+            to: "/coches",
+            label: "Coches",
+            detail: "Registro de vehículos",
+            roles: ["administrador"],
+          },
+          {
+            to: "/resumen-clientes",
+            label: "Resumen de clientes",
+            detail: "Facturación y períodos",
+            roles: ["administrador"],
+          },
+          {
+            to: "/administracion/finanzas",
+            label: "Finanzas",
+            detail: "Control de gastos e ingresos",
+            roles: ["administrador"],
+          },
           {
             to: "/proveedores",
             label: "Proveedores",
@@ -239,7 +245,6 @@ export default function Home() {
           )}
         </div>
 
-        {/* Módulos por bloques */}
         <div className="row g-3 g-lg-4">
           {visibleSections.map((section) => (
             <div className="col-12 col-xl-4" key={section.id}>

@@ -680,8 +680,6 @@ def gastos_empresa_create():
 
     try:
         importe = float(data.get("importe"))
-        if importe < 0:
-            return jsonify({"msg": "El importe debe ser mayor o igual a 0"}), 400
     except (TypeError, ValueError):
         return jsonify({"msg": "El importe debe ser un numero valido"}), 400
 
@@ -725,8 +723,6 @@ def gastos_empresa_update(gid):
     if "importe" in data:
         try:
             importe = float(data.get("importe"))
-            if importe < 0:
-                return jsonify({"msg": "El importe debe ser mayor o igual a 0"}), 400
             gasto.importe = importe
         except (TypeError, ValueError):
             return jsonify({"msg": "El importe debe ser un numero valido"}), 400
