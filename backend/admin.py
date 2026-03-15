@@ -15,11 +15,8 @@ def _is_production():
 
 
 def _admin_enabled():
-    # En desarrollo se mantiene habilitado por defecto para no romper flujo local.
-    # En producción queda deshabilitado salvo activación explícita por variable de entorno.
-    if not _is_production():
-        return True
-    return str(os.getenv("ENABLE_ADMIN_PANEL", "0")).strip().lower() in {"1", "true", "yes", "on"}
+    # Mantener panel admin visible para recuperar el comportamiento anterior.
+    return True
 
 
 # === Clases personalizadas para mejorar apariencia y seguridad ===
