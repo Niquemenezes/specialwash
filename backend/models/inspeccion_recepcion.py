@@ -56,7 +56,16 @@ class InspeccionRecepcion(db.Model):
     updated_at = db.Column(db.DateTime(timezone=True), default=now_madrid, onupdate=now_madrid)
 
     # Relaciones
-    usuario = db.relationship("User", backref="inspecciones_realizadas")
+    usuario = db.relationship(
+        "User",
+        foreign_keys=[usuario_id],
+        backref="inspecciones_realizadas",
+    )
+    repaso_completado_por = db.relationship(
+        "User",
+        foreign_keys=[repaso_completado_por_id],
+        backref="inspecciones_repaso_completado",
+    )
     cliente = db.relationship("Cliente", backref="inspecciones_recepcion")
     coche = db.relationship("Coche", backref="inspecciones_recepcion")
 
