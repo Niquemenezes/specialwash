@@ -44,7 +44,7 @@ const RegistrarSalidaPage = () => {
 
   useEffect(() => {
     actions.getProductos();
-    actions.getSalidas();
+    if (isAdmin) actions.getSalidas();
     if (!store.user) actions.me();
     if (isAdmin) actions.getUsuarios();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -106,7 +106,7 @@ const RegistrarSalidaPage = () => {
         observaciones: "",
       }));
 
-      await actions.getSalidas({}, true);
+      if (isAdmin) await actions.getSalidas({}, true);
       await actions.getProductos();
     } catch (err) {
       alert("Error: " + err.message);
@@ -363,54 +363,60 @@ const RegistrarSalidaPage = () => {
         </div>
       </form>
 
-      <div className="card border-0 shadow-sm">
-        <div className="table-responsive">
-          <table className="table table-hover align-middle mb-0">
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Producto</th>
-                <th className="text-end">Cantidad</th>
-                <th>Usuario</th>
-                <th className="text-center">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(store.salidas || []).map((s) => (
-                <tr key={s.id}>
-                  <td>{fmtDateTime(s.fecha)}</td>
-                  <td>{s.producto_nombre}</td>
-                  <td className="text-end">{s.cantidad}</td>
-                  <td>{s.usuario_nombre}</td>
-                  <td className="text-center">
-                    <button
-                      className="btn btn-sm btn-outline-primary me-1"
-                      onClick={() => handleEditar(s)}
-                      title="Editar"
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      className="btn btn-sm btn-outline-danger"
-                      onClick={() => handleEliminar(s.id)}
-                      title="Eliminar"
-                    >
-                      🗑️
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {(store.salidas || []).length === 0 && (
+      {isAdmin ? (
+        <div className="card border-0 shadow-sm">
+          <div className="table-responsive">
+            <table className="table table-hover align-middle mb-0">
+              <thead>
                 <tr>
-                  <td colSpan="5" className="text-center text-muted py-3">
-                    No hay salidas registradas
-                  </td>
+                  <th>Fecha</th>
+                  <th>Producto</th>
+                  <th className="text-end">Cantidad</th>
+                  <th>Usuario</th>
+                  <th className="text-center">Acciones</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(store.salidas || []).map((s) => (
+                  <tr key={s.id}>
+                    <td>{fmtDateTime(s.fecha)}</td>
+                    <td>{s.producto_nombre}</td>
+                    <td className="text-end">{s.cantidad}</td>
+                    <td>{s.usuario_nombre}</td>
+                    <td className="text-center">
+                      <button
+                        className="btn btn-sm btn-outline-primary me-1"
+                        onClick={() => handleEditar(s)}
+                        title="Editar"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={() => handleEliminar(s.id)}
+                        title="Eliminar"
+                      >
+                        🗑️
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {(store.salidas || []).length === 0 && (
+                  <tr>
+                    <td colSpan="5" className="text-center text-muted py-3">
+                      No hay salidas registradas
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="alert alert-info">
+          Puedes registrar salidas, pero el historial y cantidades retiradas solo están visibles para administradores.
+        </div>
+      )}
 
       {showNuevo && (
         <ProductoFormModal
@@ -421,7 +427,7 @@ const RegistrarSalidaPage = () => {
         />
       )}
 
-      {showEditModal && editando && (
+      {isAdmin && showEditModal && editando && (
         <EditarSalidaModal
           show={showEditModal}
           salida={editando}

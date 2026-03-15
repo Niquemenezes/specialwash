@@ -13,6 +13,7 @@ const getState = ({ getStore, getActions, setStore }) => {
   let _loadingClientes = false;
   let _loadingCoches = false;
   let _loadingServicios = false;
+  let _loadingGastosEmpresa = false;
 
   // ========= Helper de fetch =========
   async function apiFetch(
@@ -97,6 +98,7 @@ const getState = ({ getStore, getActions, setStore }) => {
       clientes: [],
       coches: [],
       servicios: [],
+      gastosEmpresa: [],
 
       // Informes
       resumenEntradas: [],
@@ -566,6 +568,69 @@ const getState = ({ getStore, getActions, setStore }) => {
         } catch (err) { console.error("deleteMaquina:", err); throw err; }
       },
 
+      // ===== GASTOS EMPRESA =====
+      getGastosEmpresa: async ({ desde, hasta, categoria, q } = {}) => {
+        if (_loadingGastosEmpresa) return { items: getStore().gastosEmpresa || [], total: 0, count: 0 };
+        _loadingGastosEmpresa = true;
+        try {
+          const params = new URLSearchParams();
+          if (desde) params.append("desde", desde);
+          if (hasta) params.append("hasta", hasta);
+          if (categoria) params.append("categoria", categoria);
+          if (q) params.append("q", q);
+          const data = await apiFetch(`/api/gastos-empresa${params.toString() ? `?${params.toString()}` : ""}`);
+          const items = Array.isArray(data?.items) ? data.items : [];
+          setStore({ gastosEmpresa: items });
+          return {
+            items,
+            total: Number(data?.total || 0),
+            count: Number(data?.count || items.length),
+          };
+        } catch (err) {
+          console.error("getGastosEmpresa:", err);
+          setStore({ gastosEmpresa: [] });
+          return { items: [], total: 0, count: 0 };
+        } finally {
+          _loadingGastosEmpresa = false;
+        }
+      },
+
+      createGastoEmpresa: async (payload) => {
+        try {
+          const created = await apiFetch("/api/gastos-empresa", { method: "POST", body: payload });
+          const current = getStore().gastosEmpresa || [];
+          setStore({ gastosEmpresa: [created, ...current] });
+          return created;
+        } catch (err) {
+          console.error("createGastoEmpresa:", err);
+          throw err;
+        }
+      },
+
+      updateGastoEmpresa: async (id, payload) => {
+        try {
+          const updated = await apiFetch(`/api/gastos-empresa/${id}`, { method: "PUT", body: payload });
+          const current = getStore().gastosEmpresa || [];
+          setStore({ gastosEmpresa: current.map((g) => (g.id === updated.id ? updated : g)) });
+          return updated;
+        } catch (err) {
+          console.error("updateGastoEmpresa:", err);
+          throw err;
+        }
+      },
+
+      deleteGastoEmpresa: async (id) => {
+        try {
+          await apiFetch(`/api/gastos-empresa/${id}`, { method: "DELETE" });
+          const current = getStore().gastosEmpresa || [];
+          setStore({ gastosEmpresa: current.filter((g) => g.id !== id) });
+          return true;
+        } catch (err) {
+          console.error("deleteGastoEmpresa:", err);
+          throw err;
+        }
+      },
+
       // ===== Reporte extra opcional
       getReporteGastoProductos: async ({ desde, hasta, producto_id } = {}) => {
         try {
@@ -917,6 +982,19 @@ const getState = ({ getStore, getActions, setStore }) => {
           return updated;
         } catch (err) {
           console.error("registrarEntregaInspeccion:", err);
+          throw err;
+        }
+      },
+
+      guardarRepasoInspeccion: async (id, payload) => {
+        try {
+          const updated = await apiFetch(`/api/inspeccion-recepcion/${id}/repaso`, {
+            method: "POST",
+            body: payload,
+          });
+          return updated;
+        } catch (err) {
+          console.error("guardarRepasoInspeccion:", err);
           throw err;
         }
       },

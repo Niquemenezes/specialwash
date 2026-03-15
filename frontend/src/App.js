@@ -19,6 +19,7 @@ import Maquinaria from "./pages/maquinaria.js";
 import ResumenEntradas from "./pages/ResumenEntradas.jsx";
 import HistorialSalidas from "./pages/HistorialSalidas.jsx";
 import PedidoBajoStock from "./pages/PedidoBajoStock.jsx";
+import PedidoBajoStockPrint from "./pages/PedidoBajoStockPrint.jsx";
 import ClientesPage from "./pages/ClientesPage.jsx";
 import CochesPage from "./pages/CochesPage.jsx";
 import ResumenClientesPage from "./pages/ResumenClientesPage.jsx";
@@ -33,6 +34,8 @@ import { AdminPartesTrabajo, EmpleadoPartesTrabajo } from "./pages/PartesTrabajo
 import { AdminPartesTrabajoFinalizados } from "./pages/PartesTrabajoFinalizados";
 import CatalogoServiciosPage from "./pages/CatalogoServiciosPage";
 import CitasPage from "./pages/CitasPage";
+import GastosEmpresaPage from "./pages/GastosEmpresaPage.jsx";
+import RepasoEntregaPage from "./pages/RepasoEntregaPage.jsx";
 
 const isLogged = () =>
   Boolean(sessionStorage.getItem("token") || localStorage.getItem("token"));
@@ -141,6 +144,15 @@ const App = () => {
             />
 
             <Route
+              path="/pedido-bajo-stock/imprimir"
+              element={
+                <PrivateRoute allow={["administrador"]}>
+                  <PedidoBajoStockPrint />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
               path="/clientes"
               element={
                 <PrivateRoute allow={["administrador"]}>
@@ -218,6 +230,15 @@ const App = () => {
             />
 
             <Route
+              path="/administracion/finanzas"
+              element={
+                <PrivateRoute allow={["administrador"]}>
+                  <GastosEmpresaPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
               path="/inspeccion-recepcion"
               element={
                 <PrivateRoute allow={["administrador", "empleado", "encargado"]}>
@@ -251,18 +272,19 @@ const App = () => {
 
             <Route
               path="/pendientes-entrega"
-              element={
-                <PrivateRoute allow={["administrador", "encargado"]}>
-                  <CochesPendientesEntrega />
-                </PrivateRoute>
-              }
+              element={<Navigate to="/inspecciones-guardadas?tab=pendientes" replace />}
             />
 
             <Route
               path="/firma-entrega"
+              element={<Navigate to="/repaso-entrega?tab=firma" replace />}
+            />
+
+            <Route
+              path="/repaso-entrega"
               element={
-                <PrivateRoute allow={["administrador", "empleado", "encargado"]}>
-                  <FirmaEntregaPage />
+                <PrivateRoute>
+                  <RepasoEntregaPage />
                 </PrivateRoute>
               }
             />
@@ -270,7 +292,7 @@ const App = () => {
             <Route
               path="/entregados"
               element={
-                <PrivateRoute allow={["administrador", "empleado", "encargado"]}>
+                <PrivateRoute allow={["administrador"]}>
                   <CochesEntregadosPage />
                 </PrivateRoute>
               }

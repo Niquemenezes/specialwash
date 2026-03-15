@@ -1,6 +1,7 @@
 import React, { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Context } from "../store/appContext";
+import CochesPendientesEntrega from "./CochesPendientesEntrega";
 
 const getMediaUrl = (item) => (typeof item === "string" ? item : item?.url || "");
 const phoneToDigits = (value) => (value || "").replace(/\D/g, "");
@@ -13,6 +14,13 @@ const InspeccionesGuardadasPage = () => {
   const [loading, setLoading] = useState(true);
   const [detalle, setDetalle] = useState(null);
   const focoAbiertoRef = useRef(null);
+  const activeTab = searchParams.get("tab") || "guardadas";
+
+  const switchTab = (tab) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", tab);
+    setSearchParams(next, { replace: true });
+  };
 
   const cargarInspecciones = useCallback(async () => {
     setLoading(true);
@@ -90,20 +98,43 @@ const InspeccionesGuardadasPage = () => {
   return (
     <div className="container py-4">
       <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
-        <h2 className="mb-0">Inspecciones Guardadas</h2>
-        <div className="d-flex gap-2">
-          <button className="btn btn-outline-secondary" onClick={volver}>
-            Volver
-          </button>
-          <button className="btn btn-outline-dark" onClick={cargarInspecciones}>
-            Recargar
-          </button>
-        </div>
+        <h2 className="mb-0">Inspecciones y Pendientes</h2>
+        <button className="btn btn-outline-secondary" onClick={volver}>
+          Volver
+        </button>
       </div>
 
-      <p className="text-muted">
-        Esta vista centraliza los datos guardados de inspección. Acceso exclusivo para administradores.
-      </p>
+      <ul className="nav nav-tabs mb-3">
+        <li className="nav-item">
+          <button
+            type="button"
+            className={`nav-link ${activeTab === "guardadas" ? "active" : ""}`}
+            onClick={() => switchTab("guardadas")}
+          >
+            📋 Inspecciones guardadas
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            type="button"
+            className={`nav-link ${activeTab === "pendientes" ? "active" : ""}`}
+            onClick={() => switchTab("pendientes")}
+          >
+            🚗 Pendientes / Acta
+          </button>
+        </li>
+      </ul>
+
+      {activeTab === "guardadas" && (
+        <>
+          <div className="d-flex justify-content-end mb-2">
+            <button className="btn btn-outline-dark btn-sm" onClick={cargarInspecciones}>
+              Recargar
+            </button>
+          </div>
+          <p className="text-muted">
+            Esta vista centraliza los datos guardados de inspección. Acceso exclusivo para administradores.
+          </p>
 
       <div className="card shadow-sm border-0 mb-4">
         <div className="card-body p-0">
@@ -368,6 +399,10 @@ const InspeccionesGuardadasPage = () => {
           </div>
         </div>
       )}
+        </>
+      )}
+
+      {activeTab === "pendientes" && <CochesPendientesEntrega />}
     </div>
   );
 };

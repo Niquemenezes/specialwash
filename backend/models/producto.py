@@ -10,6 +10,11 @@ class Producto(db.Model):
     codigo_barras = db.Column(db.String(64), unique=True, index=True)
     stock_minimo = db.Column(db.Integer, default=0)
     stock_actual = db.Column(db.Integer, default=0)
+    pedido_en_curso = db.Column(db.Boolean, default=False, nullable=False)
+    pedido_fecha = db.Column(db.DateTime(timezone=True))
+    pedido_cantidad = db.Column(db.Integer)
+    pedido_canal = db.Column(db.String(30))
+    pedido_proveedor_id = db.Column(db.Integer)
    
 
     created_at = db.Column(
@@ -28,6 +33,17 @@ class Producto(db.Model):
     )
 
     def to_dict(self):
+        # Proveedor habitual: ultima entrada con proveedor asociado.
+        ultima_con_proveedor = None
+        for entrada in sorted(
+            (self.entradas or []),
+            key=lambda e: e.fecha or e.created_at or now_madrid(),
+            reverse=True,
+        ):
+            if entrada.proveedor_id:
+                ultima_con_proveedor = entrada
+                break
+
         codigos = [c.to_dict() for c in (self.codigos_barras or [])]
         if self.codigo_barras and not any(c.get("codigo_barras") == self.codigo_barras for c in codigos):
             codigos.insert(0, {
@@ -47,5 +63,12 @@ class Producto(db.Model):
             "codigos_barras": codigos,
             "stock_minimo": self.stock_minimo,
             "stock_actual": self.stock_actual,
+            "pedido_en_curso": bool(self.pedido_en_curso),
+            "pedido_fecha": iso(self.pedido_fecha),
+            "pedido_cantidad": self.pedido_cantidad,
+            "pedido_canal": self.pedido_canal,
+            "pedido_proveedor_id": self.pedido_proveedor_id,
+            "proveedor_habitual_id": getattr(ultima_con_proveedor, "proveedor_id", None),
+            "proveedor_habitual_nombre": getattr(getattr(ultima_con_proveedor, "proveedor", None), "nombre", None),
             "created_at": iso(self.created_at),
         }

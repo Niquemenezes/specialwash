@@ -42,7 +42,8 @@ class OpenAIService:
         user_prompt = build_user_prompt_acta(
             cliente_nombre, coche_descripcion, matricula, kilometros, averias, borrador
         )
-        return self._call_openai(SYSTEM_PROMPT_REDACTOR, user_prompt)
+        # max_tokens: limita coste para acta completa
+        return self._call_openai(SYSTEM_PROMPT_REDACTOR, user_prompt, max_tokens=260)
 
     def generate_seccion(self, numero, titulo, contenido_actual, contexto_informe):
         """Genera una sección específica del acta."""
@@ -50,7 +51,8 @@ class OpenAIService:
             raise ValueError("OPENAI_API_KEY no está configurada")
 
         user_prompt = build_user_prompt_seccion(numero, titulo, contenido_actual, contexto_informe)
-        return self._call_openai(SYSTEM_PROMPT_REDACTOR, user_prompt)
+        # max_tokens: suficiente para un solo punto
+        return self._call_openai(SYSTEM_PROMPT_REDACTOR, user_prompt, max_tokens=120)
 
     def generate_observaciones(self, observaciones_actuales, contexto_informe):
         """Genera observaciones finales del acta."""
@@ -58,9 +60,10 @@ class OpenAIService:
             raise ValueError("OPENAI_API_KEY no está configurada")
 
         user_prompt = build_user_prompt_observaciones(observaciones_actuales, contexto_informe)
-        return self._call_openai(SYSTEM_PROMPT_REDACTOR, user_prompt)
+        # max_tokens: observaciones finales breves
+        return self._call_openai(SYSTEM_PROMPT_REDACTOR, user_prompt, max_tokens=80)
 
-    def _call_openai(self, system_prompt, user_prompt):
+    def _call_openai(self, system_prompt, user_prompt, max_tokens=260):
         """Llama a OpenAI API y retorna el contenido generado."""
         payload = {
             "model": self.model,
@@ -69,6 +72,7 @@ class OpenAIService:
                 {"role": "user", "content": user_prompt},
             ],
             "temperature": DEFAULT_TEMPERATURE,
+            "max_tokens": max_tokens,
         }
 
         req = urlrequest.Request(

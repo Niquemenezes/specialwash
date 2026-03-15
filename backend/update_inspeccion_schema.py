@@ -19,7 +19,40 @@ NEW_COLUMNS = {
     "conformidad_revision_entrega": "BOOLEAN NOT NULL DEFAULT 0",
     "trabajos_realizados": "TEXT",
     "entrega_observaciones": "TEXT",
+    "repaso_checklist": "TEXT DEFAULT '{}'",
+    "repaso_notas": "TEXT",
+    "repaso_completado": "BOOLEAN NOT NULL DEFAULT 0",
+    "repaso_completado_por_id": "INTEGER",
+    "repaso_completado_por_nombre": "VARCHAR(120)",
+    "repaso_completado_at": "DATETIME",
 }
+
+
+def ensure_inspeccion_schema(db_path: Path = DB_PATH) -> bool:
+    """Retorna True si aplicó cambios de columnas en inspeccion_recepcion."""
+    if not db_path.exists():
+        return False
+
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    changed = False
+    try:
+        cur.execute("PRAGMA table_info(inspeccion_recepcion)")
+        existing = {row[1] for row in cur.fetchall()}
+
+        for col_name, col_type in NEW_COLUMNS.items():
+            if col_name in existing:
+                continue
+            sql = f"ALTER TABLE inspeccion_recepcion ADD COLUMN {col_name} {col_type}"
+            cur.execute(sql)
+            changed = True
+            print(f"+ Columna agregada: {col_name}")
+
+        if changed:
+            conn.commit()
+        return changed
+    finally:
+        conn.close()
 
 
 def main():
@@ -27,28 +60,10 @@ def main():
       print(f"No existe la base de datos en: {DB_PATH}")
       return
 
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-
-    cur.execute("PRAGMA table_info(inspeccion_recepcion)")
-    existing = {row[1] for row in cur.fetchall()}
-
-    applied = 0
-    for col_name, col_type in NEW_COLUMNS.items():
-        if col_name in existing:
-            continue
-        sql = f"ALTER TABLE inspeccion_recepcion ADD COLUMN {col_name} {col_type}"
-        cur.execute(sql)
-        applied += 1
-        print(f"+ Columna agregada: {col_name}")
-
-    conn.commit()
-    conn.close()
-
-    if applied == 0:
+    if not ensure_inspeccion_schema(DB_PATH):
         print("Esquema al dia, no se agregaron columnas.")
     else:
-        print(f"Actualizacion completada. Columnas agregadas: {applied}")
+        print("Actualizacion completada. Se agregaron columnas faltantes.")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 // src/front/js/pages/PedidoBajoStock.jsx
-import React, { useContext, useEffect, useMemo } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Context } from "../store/appContext";
 import { useNavigate } from "react-router-dom";
 import logo from "../img/logospecialwash.jpg";
@@ -8,22 +8,102 @@ export default function PedidoBajoStock() {
   const { store, actions } = useContext(Context);
   const navigate = useNavigate();
   const fechaImpresion = useMemo(() => new Date(), []);
+  const [proveedorFiltroId, setProveedorFiltroId] = useState("");
+  const [canalPedido, setCanalPedido] = useState("whatsapp");
+  const [nombrePedido, setNombrePedido] = useState(() => {
+    const hoy = new Date().toLocaleDateString("es-ES");
+    return `Pedido ${hoy}`;
+  });
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [cantidadesPedido, setCantidadesPedido] = useState({});
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     actions.getProductos();
+    actions.getProveedores?.();
     // Ejecutar una sola vez al montar para evitar re-fetch en bucle.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- Productos con stock inferior al mínimo ---
-  const bajosDeStock = useMemo(
+  const proveedores = useMemo(() => store.proveedores || [], [store.proveedores]);
+
+  // --- Productos con stock inferior al mínimo y sin pedido en curso ---
+  const bajosDeStockBase = useMemo(
     () =>
-      (store.productos || []).filter(
-        (p) =>
-          p?.stock_minimo != null &&
-          Number(p.stock_actual ?? 0) < Number(p.stock_minimo ?? 0)
-      ),
+      (store.productos || []).filter((p) => {
+        const bajo =
+          p?.stock_minimo != null && Number(p.stock_actual ?? 0) < Number(p.stock_minimo ?? 0);
+        return bajo && !p?.pedido_en_curso;
+      }),
     [store.productos]
+  );
+
+  const bajosDeStock = useMemo(() => {
+    if (!proveedorFiltroId) return bajosDeStockBase;
+    return bajosDeStockBase.filter(
+      (p) => String(p.proveedor_habitual_id || "") === String(proveedorFiltroId)
+    );
+  }, [bajosDeStockBase, proveedorFiltroId]);
+
+  const pedidosEnCurso = useMemo(() => {
+    const list = (store.productos || []).filter((p) => {
+      const bajo =
+        p?.stock_minimo != null && Number(p.stock_actual ?? 0) < Number(p.stock_minimo ?? 0);
+      if (!bajo || !p?.pedido_en_curso) return false;
+      if (proveedorFiltroId && String(p.pedido_proveedor_id || p.proveedor_habitual_id || "") !== String(proveedorFiltroId)) {
+        return false;
+      }
+      return true;
+    });
+
+    return list.sort((a, b) => {
+      const da = a?.pedido_fecha ? new Date(a.pedido_fecha).getTime() : 0;
+      const db = b?.pedido_fecha ? new Date(b.pedido_fecha).getTime() : 0;
+      return db - da;
+    });
+  }, [store.productos, proveedorFiltroId]);
+
+  useEffect(() => {
+    // Por defecto, seleccionamos todo lo visible para agilizar el pedido.
+    setSelectedIds(bajosDeStock.map((p) => p.id));
+  }, [bajosDeStock]);
+
+  useEffect(() => {
+    // Inicializa/actualiza cantidades por producto con sugerencia basada en mínimo.
+    setCantidadesPedido((prev) => {
+      const next = {};
+      bajosDeStock.forEach((p) => {
+        const sugerido = Math.max(1, Number(p.stock_minimo ?? 1));
+        const actual = Number(prev[p.id]);
+        next[p.id] = Number.isFinite(actual) && actual >= 0 ? Math.trunc(actual) : sugerido;
+      });
+      return next;
+    });
+  }, [bajosDeStock]);
+
+  const onCantidadChange = (productoId, value, fallback) => {
+    const parsed = Number(value);
+    const nextVal = Number.isFinite(parsed) && parsed >= 0 ? Math.trunc(parsed) : fallback;
+    setCantidadesPedido((prev) => ({ ...prev, [productoId]: nextVal }));
+  };
+
+  const toggleSelected = (id, checked) => {
+    setSelectedIds((prev) => {
+      const set = new Set(prev);
+      if (checked) set.add(id);
+      else set.delete(id);
+      return Array.from(set);
+    });
+  };
+
+  const productosSeleccionados = useMemo(
+    () => bajosDeStock.filter((p) => selectedIds.includes(p.id)),
+    [bajosDeStock, selectedIds]
+  );
+
+  const proveedorSeleccionado = useMemo(
+    () => proveedores.find((p) => String(p.id) === String(proveedorFiltroId)) || null,
+    [proveedores, proveedorFiltroId]
   );
 
   const fecha = fechaImpresion.toLocaleDateString("es-ES", {
@@ -37,32 +117,115 @@ export default function PedidoBajoStock() {
     minute: "2-digit",
   });
 
-  const imprimir = () => {
+  const textoPedido = useMemo(() => {
+    const lineas = productosSeleccionados.map((p) => {
+      const stock = Number(p.stock_actual ?? 0);
+      const min = Number(p.stock_minimo ?? 0);
+      const sugerido = Math.max(1, min || 1);
+      const cantidad = Number(cantidadesPedido[p.id] ?? sugerido);
+      return `- ${p.nombre} | stock ${stock} | min ${min} | pedir ${cantidad}`;
+    });
+    const destino = proveedorSeleccionado?.nombre ? `Proveedor: ${proveedorSeleccionado.nombre}` : "Proveedor: por definir";
+    return [
+      `${nombrePedido} (${fecha} ${hora})`,
+      destino,
+      "",
+      ...lineas,
+    ].join("\n");
+  }, [productosSeleccionados, proveedorSeleccionado, fecha, hora, nombrePedido, cantidadesPedido]);
+
+  const marcarSeleccionadosComoPedido = async () => {
+    if (!productosSeleccionados.length) return;
+    setSaving(true);
     try {
-      const el = document.querySelector(".pedido-sheet");
-      if (!el) return window.print();
-
-      const w = window.open("", "_blank", "noopener,noreferrer");
-      if (!w) return window.print();
-
-      const style = Array.from(document.querySelectorAll("link[rel=stylesheet], style"))
-        .map((n) => n.outerHTML)
-        .join("\n");
-
-      w.document.write(`<!doctype html><html><head><meta charset="utf-8">${style}</head><body>`);
-      w.document.write(el.outerHTML);
-      w.document.write("</body></html>");
-      w.document.close();
-      w.focus();
-      setTimeout(() => {
-        w.print();
-        w.close();
-      }, 250);
+      const nowIso = new Date().toISOString();
+      await Promise.all(
+        productosSeleccionados.map((p) => {
+          const min = Number(p.stock_minimo ?? 0);
+          const sugerido = Math.max(1, min || 1);
+          const cantidad = Number(cantidadesPedido[p.id] ?? sugerido);
+          return actions.updateProducto(p.id, {
+            pedido_en_curso: true,
+            pedido_fecha: nowIso,
+            pedido_cantidad: cantidad,
+            pedido_canal: canalPedido,
+            pedido_proveedor_id: proveedorSeleccionado?.id || null,
+          });
+        })
+      );
+      await actions.getProductos();
+      alert("Productos marcados como pedido en curso.");
     } catch (err) {
-      console.warn("printTable error:", err);
-      window.print();
+      alert(`No se pudo marcar el pedido: ${err?.message || "error"}`);
+    } finally {
+      setSaving(false);
     }
   };
+
+  const marcarComoRecibido = async (producto) => {
+    if (!window.confirm(`Marcar "${producto.nombre}" como recibido?`)) return;
+    setSaving(true);
+    try {
+      await actions.updateProducto(producto.id, {
+        pedido_en_curso: false,
+      });
+      await actions.getProductos();
+    } catch (err) {
+      alert(`No se pudo actualizar: ${err?.message || "error"}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const abrirWhatsApp = () => {
+    if (!proveedorSeleccionado?.telefono) {
+      alert("Selecciona un proveedor con teléfono para abrir WhatsApp.");
+      return;
+    }
+    const telefono = String(proveedorSeleccionado.telefono).replace(/[^\d]/g, "");
+    const url = `https://wa.me/${telefono}?text=${encodeURIComponent(textoPedido)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const abrirEmail = () => {
+    if (!proveedorSeleccionado?.email) {
+      alert("Selecciona un proveedor con email para enviar correo.");
+      return;
+    }
+    const subject = encodeURIComponent(nombrePedido || "Pedido de reposicion - SpecialWash");
+    const body = encodeURIComponent(textoPedido);
+    window.location.href = `mailto:${proveedorSeleccionado.email}?subject=${subject}&body=${body}`;
+  };
+
+  const abrirVistaImpresion = (auto = false) => {
+    const params = new URLSearchParams();
+    if (proveedorFiltroId) params.set("proveedor_id", String(proveedorFiltroId));
+    // Si hay seleccionados usar esos; si no, usar los ya pedidos (en curso)
+    const idsParaImprimir = selectedIds.length
+      ? selectedIds
+      : pedidosEnCurso.map((p) => p.id);
+    if (idsParaImprimir.length) params.set("ids", idsParaImprimir.join(","));
+    if (auto) params.set("auto", "1");
+
+    // Respaldo para evitar pantalla en blanco si el store tarda en cargar.
+    try {
+      const idsSet = new Set(idsParaImprimir.map((id) => String(id)));
+      const payloadItems = (store.productos || []).filter((p) => idsSet.has(String(p.id)));
+      const payload = {
+        createdAt: Date.now(),
+        proveedorId: proveedorFiltroId ? String(proveedorFiltroId) : "",
+        items: payloadItems,
+      };
+      sessionStorage.setItem("pedido_bajo_stock_print_payload", JSON.stringify(payload));
+    } catch (_) {
+      // no-op
+    }
+
+    const url = `/pedido-bajo-stock/imprimir?${params.toString()}`;
+    navigate(url);
+  };
+
+  const imprimir = () => abrirVistaImpresion(true);
 
   return (
     <div className="container py-4">
@@ -168,7 +331,8 @@ export default function PedidoBajoStock() {
 
           header, footer,
           nav, .navbar, .sidebar,
-          .actions-no-print {
+          .actions-no-print,
+          .col-sel-print {
             display: none !important;
             visibility: hidden !important;
           }
@@ -200,6 +364,75 @@ export default function PedidoBajoStock() {
           <button type="button" className="btn btn-dark" onClick={imprimir}>
             🖨️ Imprimir
           </button>
+          <button type="button" className="btn btn-outline-dark" onClick={abrirVistaImpresion}>
+            📄 Vista impresión
+          </button>
+        </div>
+
+        <div className="row g-2 mb-3 actions-no-print">
+          <div className="col-md-4">
+            <label className="form-label fw-semibold">Proveedor</label>
+            <select
+              className="form-select"
+              value={proveedorFiltroId}
+              onChange={(e) => setProveedorFiltroId(e.target.value)}
+            >
+              <option value="">Todos (sin filtro)</option>
+              {proveedores.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="col-md-3">
+            <label className="form-label fw-semibold">Canal</label>
+            <select
+              className="form-select"
+              value={canalPedido}
+              onChange={(e) => setCanalPedido(e.target.value)}
+            >
+              <option value="whatsapp">WhatsApp</option>
+              <option value="email">Email</option>
+              <option value="impresion">Impresion</option>
+            </select>
+          </div>
+          <div className="col-md-5">
+            <label className="form-label fw-semibold">Nombre del pedido</label>
+            <input
+              type="text"
+              className="form-control"
+              value={nombrePedido}
+              onChange={(e) => setNombrePedido(e.target.value)}
+              placeholder="Ej: Pedido semanal proveedor"
+            />
+          </div>
+          <div className="col-12 d-flex align-items-end gap-2 flex-wrap">
+            <button
+              type="button"
+              className="btn btn-warning"
+              onClick={marcarSeleccionadosComoPedido}
+              disabled={saving || !productosSeleccionados.length}
+            >
+              {saving ? "Guardando..." : `Marcar pedido (${productosSeleccionados.length})`}
+            </button>
+            <button
+              type="button"
+              className="btn btn-success"
+              onClick={abrirWhatsApp}
+              disabled={!productosSeleccionados.length}
+            >
+              WhatsApp
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={abrirEmail}
+              disabled={!productosSeleccionados.length}
+            >
+              Email
+            </button>
+          </div>
         </div>
 
         {/* -------- CABECERA -------- */}
@@ -229,12 +462,16 @@ export default function PedidoBajoStock() {
             <table className="table pedido-table mb-0">
               <thead>
                 <tr>
+                  <th style={{ width: 60 }} className="text-center col-sel-print">
+                    Sel.
+                  </th>
                   <th style={{ width: 80 }}>ID</th>
                   <th>Producto</th>
-                  <th style={{ width: 200 }}>Categoría</th>
+                  <th style={{ width: 200 }}>Proveedor</th>
+                  <th style={{ width: 160 }}>Categoría</th>
                   <th className="text-end" style={{ width: 120 }}>Stock</th>
                   <th className="text-end" style={{ width: 120 }}>Mínimo</th>
-                  <th className="text-end" style={{ width: 150 }}>Sugerido</th>
+                  <th className="text-end" style={{ width: 190 }}>Cant. a pedir</th>
                 </tr>
               </thead>
 
@@ -242,27 +479,46 @@ export default function PedidoBajoStock() {
                 {bajosDeStock.map((p) => {
                   const stock = Number(p.stock_actual ?? 0);
                   const min = Number(p.stock_minimo ?? 0);
-                  const sugerido = Math.max(0, min * 2 - stock);
+                  const sugerido = Math.max(1, min || 1);
+                  const cantidad = Number(cantidadesPedido[p.id] ?? sugerido);
 
                   return (
                     <tr key={p.id}>
+                      <td className="text-center col-sel-print">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(p.id)}
+                          onChange={(e) => toggleSelected(p.id, e.target.checked)}
+                        />
+                      </td>
                       <td>#{p.id}</td>
                       <td>
                         <strong>{p.nombre}</strong><br />
                         <small className="text-muted">{p.detalle || ""}</small>
                       </td>
+                      <td>{p.proveedor_habitual_nombre || "—"}</td>
                       <td>{p.categoria || "—"}</td>
                       <td className="text-end">{stock}</td>
                       <td className="text-end">{min}</td>
-                      <td className="text-end fw-bold">{sugerido}</td>
+                      <td className="text-end fw-bold">
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          className="form-control form-control-sm text-end"
+                          value={cantidad}
+                          onChange={(e) => onCantidadChange(p.id, e.target.value, sugerido)}
+                        />
+                        <small className="text-muted">Sugerido: {sugerido}</small>
+                      </td>
                     </tr>
                   );
                 })}
 
                 {bajosDeStock.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="text-center py-4">
-                      ✅ Todos los productos están por encima del mínimo
+                    <td colSpan={8} className="text-center py-4">
+                      ✅ No hay productos pendientes de pedido para este filtro
                     </td>
                   </tr>
                 )}
@@ -271,12 +527,64 @@ export default function PedidoBajoStock() {
               {bajosDeStock.length > 0 && (
                 <tfoot>
                   <tr>
-                    <td colSpan={6}>
+                    <td colSpan={8}>
                       Total de productos a revisar: {bajosDeStock.length}
                     </td>
                   </tr>
                 </tfoot>
               )}
+            </table>
+          </div>
+        </div>
+
+        <div className="mt-4 actions-no-print">
+          <h5 className="mb-2">Productos ya pedidos (en curso): {pedidosEnCurso.length}</h5>
+          <div className="table-responsive border rounded">
+            <table className="table table-sm align-middle mb-0">
+              <thead className="table-light">
+                <tr>
+                  <th style={{ width: 70 }}>ID</th>
+                  <th>Producto</th>
+                  <th style={{ width: 170 }}>Proveedor</th>
+                  <th style={{ width: 120 }} className="text-end">Cant. pedida</th>
+                  <th style={{ width: 120 }}>Canal</th>
+                  <th style={{ width: 170 }}>Fecha pedido</th>
+                  <th style={{ width: 140 }} className="text-end">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pedidosEnCurso.map((p) => (
+                  <tr key={`pedido-${p.id}`}>
+                    <td>#{p.id}</td>
+                    <td>{p.nombre}</td>
+                    <td>{p.proveedor_habitual_nombre || "—"}</td>
+                    <td className="text-end">{p.pedido_cantidad ?? "—"}</td>
+                    <td style={{ textTransform: "capitalize" }}>{p.pedido_canal || "—"}</td>
+                    <td>
+                      {p.pedido_fecha
+                        ? new Date(p.pedido_fecha).toLocaleString("es-ES")
+                        : "—"}
+                    </td>
+                    <td className="text-end">
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-success"
+                        onClick={() => marcarComoRecibido(p)}
+                        disabled={saving}
+                      >
+                        Marcar recibido
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {!pedidosEnCurso.length && (
+                  <tr>
+                    <td colSpan={7} className="text-center py-3 text-muted">
+                      No hay productos en pedido para este filtro.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
             </table>
           </div>
         </div>

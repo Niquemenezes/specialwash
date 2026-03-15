@@ -80,7 +80,7 @@ def build_user_prompt_recomendaciones(historial, estado_actual):
 
 ```env
 OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4-mini
+OPENAI_MODEL=gpt-5-mini
 ```
 
 ## Notas

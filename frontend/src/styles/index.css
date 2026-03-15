@@ -610,6 +610,21 @@ button {
   background: rgba(0, 0, 0, 0.45);
 }
 
+/* Ajuste compacto solo para el lado derecho del navbar */
+.sw-nav-right .sw-role-pill {
+  font-size: 0.64rem;
+  letter-spacing: 0.05em;
+  padding: 0.14rem 0.45rem;
+  white-space: nowrap;
+}
+
+.sw-nav-right .sw-btn-gold {
+  font-size: 0.64rem;
+  letter-spacing: 0.05em;
+  padding: 0.28rem 0.62rem;
+  white-space: nowrap;
+}
+
 /* Dropdown del Navbar – tema oscuro / dorado */
 .sw-navbar .dropdown-menu {
   --bs-dropdown-bg: #1a1a1a;
