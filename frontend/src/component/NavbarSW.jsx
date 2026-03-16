@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import logo from "../img/logospecialwash.jpg";
 import { buildApiUrl } from "../utils/apiBase";
-import { getStoredRol, getStoredToken } from "../utils/authSession";
+import { getStoredRol, getStoredToken, isEmployeeRole } from "../utils/authSession";
 
 // ─── Campana de notificaciones ───────────────────────────────────────────────
 const CampanaNotificaciones = ({ token }) => {
@@ -173,6 +173,7 @@ const NavbarSW = () => {
     ""
   ).toLowerCase().trim();
   const isPintura = rolRaw === "pintura";
+  const isEmpleadoOperativo = isEmployeeRole(rol);
   const handleLogout = async () => {
     try {
       await fetch(buildApiUrl("/api/auth/logout"), {
@@ -387,7 +388,7 @@ const NavbarSW = () => {
                 </>
               )}
 
-              {(rol === "empleado" || rol === "encargado") && (
+              {((rol === "empleado" || rol === "encargado" || rol === "pintura") && rol !== "detailing") && (
                 <>
                   {!isPintura && (
                     <li className="nav-item dropdown">
@@ -420,7 +421,7 @@ const NavbarSW = () => {
                       Registrar salida
                     </NavLink>
                   </li>
-                  {rol === "empleado" && (
+                  {isEmpleadoOperativo && (
                     <li className="nav-item">
                       <NavLink to="/mis-partes-trabajo" className="nav-link sw-navlink">
                         Mis partes
@@ -428,6 +429,53 @@ const NavbarSW = () => {
                     </li>
                   )}
                  
+                </>
+              )}
+
+              {rol === "detailing" && (
+                <>
+                  <li className="nav-item dropdown">
+                    <button
+                      className="nav-link dropdown-toggle sw-navlink btn btn-link"
+                      id="navFlujoEntregaDetailing"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      aria-expanded="false"
+                    >
+                      Flujo Entrega
+                    </button>
+                    <ul className="dropdown-menu" aria-labelledby="navFlujoEntregaDetailing">
+                      <li>
+                        <NavLink to="/inspeccion-recepcion" className="dropdown-item">
+                          1) Inspección recepción
+                        </NavLink>
+                      </li>
+                      <li>
+                        <NavLink to="/repaso-entrega" className="dropdown-item">
+                          2) Repaso + Firma
+                        </NavLink>
+                      </li>
+                    </ul>
+                  </li>
+
+                  <li className="nav-item dropdown">
+                    <button
+                      className="nav-link dropdown-toggle sw-navlink btn btn-link"
+                      id="navPartesDetailing"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      aria-expanded="false"
+                    >
+                      Partes
+                    </button>
+                    <ul className="dropdown-menu" aria-labelledby="navPartesDetailing">
+                      <li>
+                        <NavLink to="/flujo-trabajo" className="dropdown-item">
+                          👨‍🔧 Mis partes
+                        </NavLink>
+                      </li>
+                    </ul>
+                  </li>
                 </>
               )}
 
@@ -523,7 +571,7 @@ const NavbarSW = () => {
                     </strong>
                   </span>
                 </li>
-                {(rol === "administrador" || rol === "encargado" || rol === "tecnico_comercial" || rol === "calidad") && (
+                {(rol === "administrador" || rol === "encargado" || rol === "tecnico_comercial" || rol === "calidad" || rol === "detailing") && (
                   <li className="nav-item">
                     <NavLink to="/citas" className="nav-link sw-navlink">
                       Citas

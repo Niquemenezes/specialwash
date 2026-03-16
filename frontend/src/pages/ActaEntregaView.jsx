@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import SignaturePad from "../component/SignaturePad.jsx";
 import { Context } from "../store/appContext";
+import { isEmployeeRole, normalizeRol } from "../utils/authSession";
 
 const safeDate = (value) => {
   if (!value) return "-";
@@ -85,14 +86,6 @@ const getStored = (k) =>
   (typeof sessionStorage !== "undefined" && sessionStorage.getItem(k)) ||
   (typeof localStorage !== "undefined" && localStorage.getItem(k)) || "";
 
-const normalizeRol = (r) => {
-  r = (r || "").toLowerCase().trim();
-  if (r === "admin" || r === "administrator") return "administrador";
-  if (r === "employee" || r === "staff") return "empleado";
-  if (r === "manager" || r === "responsable") return "encargado";
-  return r;
-};
-
 const ActaEntregaView = () => {
   const { id } = useParams();
   const location = useLocation();
@@ -165,7 +158,7 @@ const ActaEntregaView = () => {
       navigate("/entregados", { replace: true });
       return;
     }
-    navigate(rol === "empleado" ? "/firma-entrega" : "/pendientes-entrega", { replace: true });
+    navigate(isEmployeeRole(rol) ? "/firma-entrega" : "/pendientes-entrega", { replace: true });
   };
 
   useEffect(() => {
@@ -213,7 +206,7 @@ const ActaEntregaView = () => {
     } catch (err) {
       alert(`Error al finalizar entrega: ${err.message}`);
     } finally {
-      setGuardando(false);
+      navigate(isEmployeeRole(rol) ? "/" : "/entregados", { replace: true });
     }
   };
 

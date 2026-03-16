@@ -2,10 +2,32 @@ export const normalizeRol = (r) => {
   const value = (r || "").toLowerCase().trim();
   if (value === "admin" || value === "administrator") return "administrador";
   if (value === "employee" || value === "staff") return "empleado";
-  if (value === "detailing" || value === "pintura") return "empleado";
   if (value === "manager" || value === "responsable") return "encargado";
+  if (value === "deteiling") return "detailing";
   return value;
 };
+
+export const isEmployeeRole = (rol) => {
+  const value = normalizeRol(rol);
+  return value === "empleado" || value === "detailing" || value === "pintura";
+};
+
+export const roleMatches = (currentRol, allowedRol) => {
+  const current = normalizeRol(currentRol);
+  const allowed = normalizeRol(allowedRol);
+
+  if (!current || !allowed) return false;
+  if (current === allowed) return true;
+
+  if (allowed === "empleado") {
+    return isEmployeeRole(current);
+  }
+
+  return false;
+};
+
+export const hasAllowedRole = (currentRol, allowedRoles = []) =>
+  allowedRoles.some((allowedRol) => roleMatches(currentRol, allowedRol));
 
 export const getStoredToken = () =>
   (typeof sessionStorage !== "undefined" && sessionStorage.getItem("token")) ||
