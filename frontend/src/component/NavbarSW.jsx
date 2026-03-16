@@ -430,6 +430,72 @@ const NavbarSW = () => {
                  
                 </>
               )}
+
+              {rol === "calidad" && (
+                <>
+                  <li className="nav-item dropdown">
+                    <button
+                      className="nav-link dropdown-toggle sw-navlink btn btn-link"
+                      id="navFlujoEntregaCalidad"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      aria-expanded="false"
+                    >
+                      Flujo Entrega
+                    </button>
+                    <ul className="dropdown-menu" aria-labelledby="navFlujoEntregaCalidad">
+                      <li>
+                        <NavLink to="/inspeccion-recepcion" className="dropdown-item">
+                          1) Inspección recepción
+                        </NavLink>
+                      </li>
+                      <li>
+                        <NavLink to="/repaso-entrega" className="dropdown-item">
+                          2) Repaso + Firma
+                        </NavLink>
+                      </li>
+                    </ul>
+                  </li>
+
+                  <li className="nav-item dropdown">
+                    <button
+                      className="nav-link dropdown-toggle sw-navlink btn btn-link"
+                      id="navInventarioCalidad"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      aria-expanded="false"
+                    >
+                      Inventario
+                    </button>
+                    <ul className="dropdown-menu" aria-labelledby="navInventarioCalidad">
+                      <li>
+                        <NavLink to="/salidas" className="dropdown-item">
+                          Salidas
+                        </NavLink>
+                      </li>
+                    </ul>
+                  </li>
+
+                  <li className="nav-item dropdown">
+                    <button
+                      className="nav-link dropdown-toggle sw-navlink btn btn-link"
+                      id="navPartesCalidad"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      aria-expanded="false"
+                    >
+                      Partes
+                    </button>
+                    <ul className="dropdown-menu" aria-labelledby="navPartesCalidad">
+                      <li>
+                        <NavLink to="/partes-trabajo" className="dropdown-item">
+                          🧰 Partes activos
+                        </NavLink>
+                      </li>
+                    </ul>
+                  </li>
+                </>
+              )}
             </ul>
           )}
 
@@ -445,13 +511,6 @@ const NavbarSW = () => {
               </>
             ) : (
               <>
-                {(rol === "administrador" || rol === "encargado" || rol === "tecnico_comercial") && (
-                  <li className="nav-item">
-                    <NavLink to="/citas" className="nav-link sw-navlink">
-                      Citas
-                    </NavLink>
-                  </li>
-                )}
                 {/* Campana: solo admin y encargado */}
                 {(rol === "administrador" || rol === "encargado") && (
                   <CampanaNotificaciones token={token} />
@@ -464,6 +523,13 @@ const NavbarSW = () => {
                     </strong>
                   </span>
                 </li>
+                {(rol === "administrador" || rol === "encargado" || rol === "tecnico_comercial" || rol === "calidad") && (
+                  <li className="nav-item">
+                    <NavLink to="/citas" className="nav-link sw-navlink">
+                      Citas
+                    </NavLink>
+                  </li>
+                )}
                 <li className="nav-item">
                   <button
                     className="btn sw-btn-gold"
