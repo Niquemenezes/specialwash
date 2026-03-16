@@ -24,6 +24,7 @@ const getState = ({ getStore, getActions, setStore }) => {
       body,
       auth = true,
       json = true,
+      timeoutMs = 15000,
     } = {}
   ) {
     const store = getStore();
@@ -41,11 +42,25 @@ const getState = ({ getStore, getActions, setStore }) => {
 
     if (auth && token) finalHeaders.Authorization = `Bearer ${token}`;
 
-    const resp = await fetch(url, {
-      method,
-      headers: finalHeaders,
-      body: json && body && typeof body !== "string" ? JSON.stringify(body) : body,
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    let resp;
+    try {
+      resp = await fetch(url, {
+        method,
+        headers: finalHeaders,
+        body: json && body && typeof body !== "string" ? JSON.stringify(body) : body,
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (err?.name === "AbortError") {
+        throw new Error("Tiempo de espera agotado. Revisa backend/sesión y vuelve a intentar.");
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     const raw = await resp.text();
     let data = raw;
