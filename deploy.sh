@@ -73,6 +73,9 @@ deploy_backend() {
         --exclude='venv' \
         --exclude='__pycache__' \
         --exclude='*.pyc' \
+        --exclude='*.db' \
+        --exclude='*.sqlite' \
+        --exclude='*.sqlite3' \
         --exclude='instance/specialwash.db' \
         --exclude='specialwash.db' \
         --exclude='app.log' \

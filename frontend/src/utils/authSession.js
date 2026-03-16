@@ -2,6 +2,7 @@ export const normalizeRol = (r) => {
   const value = (r || "").toLowerCase().trim();
   if (value === "admin" || value === "administrator") return "administrador";
   if (value === "employee" || value === "staff") return "empleado";
+  if (value === "detailing" || value === "pintura") return "empleado";
   if (value === "manager" || value === "responsable") return "encargado";
   return value;
 };

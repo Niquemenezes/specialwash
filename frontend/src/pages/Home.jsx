@@ -100,7 +100,7 @@ export default function Home() {
             to: "/citas",
             label: "📅 Citas",
             detail: "Agenda y gestión de citas",
-            roles: ["administrador", "encargado", "tecnico_comercial", "calidad"],
+            roles: ["administrador", "encargado", "tecnico_comercial", "calidad", "detailing"],
           },
         ],
       },
@@ -111,16 +111,10 @@ export default function Home() {
         emoji: "🧰",
         items: [
           {
-            to: "/partes-trabajo",
-            label: "📝 Gestionar partes",
-            detail: "Asignar coche y empleado",
-            roles: ["administrador", "calidad"],
-          },
-          {
-            to: "/mis-partes-trabajo",
+            to: "/flujo-trabajo",
             label: "👨‍🔧 Mis partes",
             detail: "Ver y actualizar tus tareas",
-            roles: ["empleado"],
+            roles: ["empleado", "detailing", "pintura"],
           },
           {
             to: "/partes-trabajo-finalizados",
@@ -202,6 +196,12 @@ export default function Home() {
   const greeting = getGreeting();
 
   return (
+          {
+            to: "/mis-partes-trabajo",
+            label: "🔄 Flujo de trabajo",
+            detail: "Secuencia operativa y avance de partes",
+            roles: ["empleado", "detailing", "pintura"],
+          },
     <div className="sw-home-wrapper">
       <div className="container py-4 py-md-5">
         {/* Encabezado */}

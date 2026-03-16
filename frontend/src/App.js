@@ -182,7 +182,21 @@ const App = () => {
             <Route
               path="/mis-partes-trabajo"
               element={
-                <PrivateRoute allow={["empleado"]}>
+                <PrivateRoute allow={["empleado", "detailing", "pintura"]}>
+                  <EmpleadoPartesTrabajo
+                    empleadoId={
+                      localStorage.getItem("userId") ||
+                      sessionStorage.getItem("userId")
+                    }
+                  />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/flujo-trabajo"
+              element={
+                <PrivateRoute allow={["empleado", "detailing", "pintura"]}>
                   <EmpleadoPartesTrabajo
                     empleadoId={
                       localStorage.getItem("userId") ||
@@ -214,7 +228,7 @@ const App = () => {
             <Route
               path="/citas"
               element={
-                <PrivateRoute allow={["administrador", "encargado", "tecnico_comercial", "calidad"]}>
+                <PrivateRoute allow={["administrador", "encargado", "tecnico_comercial", "calidad", "detailing"]}>
                   <CitasPage />
                 </PrivateRoute>
               }
