@@ -144,7 +144,9 @@ def crear_inspeccion():
     - averias_notas (str, opcional)
     """
     data = request.get_json(silent=True) or {}
-    user_id = get_jwt_identity()
+    user_id = _jwt_user_id()
+    if not user_id:
+        return jsonify({"msg": "Usuario no válido en el token"}), 401
     
     try:
         # Validar campos requeridos
@@ -408,7 +410,9 @@ def actualizar_inspeccion(inspeccion_id):
     if not inspeccion:
         return jsonify({"msg": "Inspección no encontrada"}), 404
     
-    user_id = get_jwt_identity()
+    user_id = _jwt_user_id()
+    if not user_id:
+        return jsonify({"msg": "Usuario no válido en el token"}), 401
     user = User.query.get(user_id)
     if not _is_inspeccion_role(user):
         return jsonify({"msg": "No tienes permiso para esta acción"}), 403
@@ -638,7 +642,9 @@ def ver_acta_final(inspeccion_id):
     if not acta:
         return jsonify({"msg": "Acta final no encontrada"}), 404
 
-    user_id = get_jwt_identity()
+    user_id = _jwt_user_id()
+    if not user_id:
+        return jsonify({"msg": "Usuario no válido en el token"}), 401
     user = User.query.get(user_id)
 
     # Empleado solo puede ver actas de sus inspecciones.
@@ -800,7 +806,9 @@ def upload_foto(inspeccion_id):
     if not inspeccion:
         return jsonify({"msg": "Inspección no encontrada"}), 404
     
-    user_id = get_jwt_identity()
+    user_id = _jwt_user_id()
+    if not user_id:
+        return jsonify({"msg": "Usuario no válido en el token"}), 401
     user = User.query.get(user_id)
     if not _is_inspeccion_role(user):
         return jsonify({"msg": "No tienes permiso para esta acción"}), 403
@@ -862,7 +870,9 @@ def upload_video(inspeccion_id):
     if not inspeccion:
         return jsonify({"msg": "Inspección no encontrada"}), 404
     
-    user_id = get_jwt_identity()
+    user_id = _jwt_user_id()
+    if not user_id:
+        return jsonify({"msg": "Usuario no válido en el token"}), 401
     user = User.query.get(user_id)
     if not _is_inspeccion_role(user):
         return jsonify({"msg": "No tienes permiso para esta acción"}), 403
@@ -923,7 +933,9 @@ def eliminar_inspeccion(inspeccion_id):
     if not inspeccion:
         return jsonify({"msg": "Inspección no encontrada"}), 404
 
-    user_id = get_jwt_identity()
+    user_id = _jwt_user_id()
+    if not user_id:
+        return jsonify({"msg": "Usuario no válido en el token"}), 401
     user = User.query.get(user_id)
 
     if not user:
@@ -960,7 +972,9 @@ def eliminar_foto(inspeccion_id, foto_index):
     if not inspeccion:
         return jsonify({"msg": "Inspección no encontrada"}), 404
     
-    user_id = get_jwt_identity()
+    user_id = _jwt_user_id()
+    if not user_id:
+        return jsonify({"msg": "Usuario no válido en el token"}), 401
     user = User.query.get(user_id)
     if not _is_inspeccion_role(user):
         return jsonify({"msg": "No tienes permiso para esta acción"}), 403
@@ -1007,7 +1021,9 @@ def eliminar_video(inspeccion_id, video_index):
     if not inspeccion:
         return jsonify({"msg": "Inspección no encontrada"}), 404
     
-    user_id = get_jwt_identity()
+    user_id = _jwt_user_id()
+    if not user_id:
+        return jsonify({"msg": "Usuario no válido en el token"}), 401
     user = User.query.get(user_id)
     if not _is_inspeccion_role(user):
         return jsonify({"msg": "No tienes permiso para esta acción"}), 403

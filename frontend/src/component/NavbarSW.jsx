@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import logo from "../img/logospecialwash.jpg";
+import logo from "../img/Logo Special-Wash.png";
 import { buildApiUrl } from "../utils/apiBase";
 import { getStoredRol, getStoredToken, isEmployeeRole } from "../utils/authSession";
 
@@ -197,10 +197,7 @@ const NavbarSW = () => {
           <div className="sw-logo-wrap">
             <img src={logo} alt="SpecialWash" className="sw-logo-img" />
           </div>
-          <div className="d-flex flex-column lh-1">
-            <span className="sw-brand-main">SpecialWash</span>
-            <span className="sw-brand-sub">Internal Panel</span>
-          </div>
+          
         </Link>
 
         {/* Toggler */}
