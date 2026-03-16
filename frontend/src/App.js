@@ -83,7 +83,7 @@ const App = () => {
             <Route
               path="/salidas"
               element={
-                <PrivateRoute allow={["administrador", "empleado", "encargado"]}>
+                <PrivateRoute allow={["administrador", "empleado", "encargado", "calidad"]}>
                   <RegistrarSalidaPage />
                 </PrivateRoute>
               }
@@ -173,7 +173,7 @@ const App = () => {
             <Route
               path="/partes-trabajo"
               element={
-                <PrivateRoute allow={["administrador"]}>
+                <PrivateRoute allow={["administrador", "calidad"]}>
                   <AdminPartesTrabajo />
                 </PrivateRoute>
               }
@@ -214,7 +214,7 @@ const App = () => {
             <Route
               path="/citas"
               element={
-                <PrivateRoute allow={["administrador", "encargado", "tecnico_comercial"]}>
+                <PrivateRoute allow={["administrador", "encargado", "tecnico_comercial", "calidad"]}>
                   <CitasPage />
                 </PrivateRoute>
               }
@@ -241,7 +241,7 @@ const App = () => {
             <Route
               path="/inspeccion-recepcion"
               element={
-                <PrivateRoute allow={["administrador", "empleado", "encargado"]}>
+                <PrivateRoute allow={["administrador", "detailing", "calidad"]}>
                   <InspeccionRecepcionPage />
                 </PrivateRoute>
               }
@@ -283,7 +283,7 @@ const App = () => {
             <Route
               path="/repaso-entrega"
               element={
-                <PrivateRoute>
+                <PrivateRoute allow={["administrador", "detailing", "calidad"]}>
                   <RepasoEntregaPage />
                 </PrivateRoute>
               }

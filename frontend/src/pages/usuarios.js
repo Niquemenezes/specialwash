@@ -7,6 +7,8 @@ const normalizeRol = (r) => {
   if (["admin", "administrator"].includes(r)) return "administrador";
   if (["employee", "staff"].includes(r)) return "empleado";
   if (["manager", "responsable"].includes(r)) return "encargado";
+  if (["quality"].includes(r)) return "calidad";
+  if (["paint", "painter"].includes(r)) return "pintura";
   return r;
 };
 
@@ -225,6 +227,9 @@ export default function Usuarios() {
                   style={{ borderRadius: "8px" }}
                 >
                   <option value="empleado">Empleado</option>
+                  <option value="detailing">Detailing</option>
+                  <option value="calidad">Calidad</option>
+                  <option value="pintura">Pintura</option>
                   <option value="administrador">Administrador</option>
                   <option value="encargado">Encargado</option>
                   <option value="tecnico_comercial">Técnico Comercial</option>

@@ -91,7 +91,12 @@ export async function listarEmpleadosDisponibles() {
   const users = await apiFetch("/api/usuarios");
   const list = Array.isArray(users) ? users : [];
 
-  return list.filter((u) => u && u.activo !== false && ["empleado", "encargado"].includes((u.rol || "").toLowerCase()));
+  return list.filter(
+    (u) =>
+      u &&
+      u.activo !== false &&
+      ["empleado", "encargado", "detailing", "pintura"].includes((u.rol || "").toLowerCase())
+  );
 }
 
 export async function listarCochesCatalogo() {
@@ -145,4 +150,22 @@ export async function listarCochesParaCrearParte() {
 export async function listarServiciosCatalogo(soloActivos = true) {
   const query = soloActivos ? "?activos=true" : "";
   return apiFetch(`/api/servicios_catalogo${query}`);
+}
+
+export async function obtenerUltimaInspeccionPorCoche(cocheId) {
+  const id = Number(cocheId);
+  if (!Number.isFinite(id) || id <= 0) return null;
+
+  const inspecciones = await apiFetch("/api/inspeccion-recepcion");
+  const lista = Array.isArray(inspecciones) ? inspecciones : [];
+
+  const candidatas = lista
+    .filter((i) => Number(i?.coche_id) === id)
+    .sort((a, b) => {
+      const da = new Date(a?.fecha_inspeccion || 0).getTime();
+      const db = new Date(b?.fecha_inspeccion || 0).getTime();
+      return db - da;
+    });
+
+  return candidatas[0] || null;
 }

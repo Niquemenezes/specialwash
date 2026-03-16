@@ -12,7 +12,8 @@ const INITIAL_FORM_DATA = {
   firma_cliente_recepcion: "",
   firma_empleado_recepcion: "",
   consentimiento_datos_recepcion: false,
-  averias_notas: ""
+  averias_notas: "",
+  servicios_aplicados: []
 };
 
 const MAX_VIDEO_SIZE_BYTES = 100 * 1024 * 1024;
@@ -53,6 +54,8 @@ const InspeccionRecepcionPage = () => {
   const [cargandoEdicion, setCargandoEdicion] = useState(false);
   const [inspeccionCreada, setInspeccionCreada] = useState(null);
   const [inspeccionEditandoId, setInspeccionEditandoId] = useState(null);
+  const [catalogoServicios, setCatalogoServicios] = useState([]);
+  const [servicioManual, setServicioManual] = useState({ nombre: "", precio: "" });
   const [searchParams, setSearchParams] = useSearchParams();
   const rol = normalizeRol(getStored("rol"));
   const isAdmin = rol === "administrador";
@@ -86,7 +89,10 @@ const InspeccionRecepcionPage = () => {
           firma_cliente_recepcion: inspeccion.firma_cliente_recepcion || "",
           firma_empleado_recepcion: inspeccion.firma_empleado_recepcion || "",
           consentimiento_datos_recepcion: Boolean(inspeccion.consentimiento_datos_recepcion),
-          averias_notas: inspeccion.averias_notas || ""
+          averias_notas: inspeccion.averias_notas || "",
+          servicios_aplicados: Array.isArray(inspeccion.servicios_aplicados)
+            ? inspeccion.servicios_aplicados
+            : []
         });
         setInspeccionEditandoId(inspeccion.id);
         setFotos([]);
@@ -106,11 +112,89 @@ const InspeccionRecepcionPage = () => {
     };
   }, [actions, searchParams]);
 
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const servicios = await actions.getServiciosCatalogo(true);
+        if (active) setCatalogoServicios(Array.isArray(servicios) ? servicios : []);
+      } catch {
+        if (active) setCatalogoServicios([]);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [actions]);
+
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value
+    }));
+  };
+
+  const agregarServicioCatalogo = (servicio) => {
+    const servicioId = Number(servicio?.id);
+    if (!servicioId) return;
+
+    setFormData((prev) => {
+      const existentes = prev.servicios_aplicados || [];
+      if (existentes.some((s) => Number(s.servicio_catalogo_id) === servicioId)) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        servicios_aplicados: [
+          ...existentes,
+          {
+            origen: "catalogo",
+            servicio_catalogo_id: servicioId,
+            nombre: servicio.nombre || "Servicio",
+            precio: Number(servicio.precio_base || 0),
+          },
+        ],
+      };
+    });
+  };
+
+  const agregarServicioManual = () => {
+    const nombre = String(servicioManual.nombre || "").trim();
+    const precio = Number.parseFloat(servicioManual.precio || "0");
+
+    if (!nombre) {
+      alert("Debes indicar el nombre del servicio manual");
+      return;
+    }
+
+    if (Number.isNaN(precio) || precio < 0) {
+      alert("El precio debe ser 0 o mayor");
+      return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      servicios_aplicados: [
+        ...(prev.servicios_aplicados || []),
+        {
+          origen: "manual",
+          servicio_catalogo_id: null,
+          nombre,
+          precio,
+        },
+      ],
+    }));
+
+    setServicioManual({ nombre: "", precio: "" });
+  };
+
+  const eliminarServicioAplicado = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      servicios_aplicados: (prev.servicios_aplicados || []).filter((_, i) => i !== index),
     }));
   };
 
@@ -240,7 +324,13 @@ const InspeccionRecepcionPage = () => {
     try {
       const payload = {
         ...formData,
-        kilometros
+        kilometros,
+        servicios_aplicados: (formData.servicios_aplicados || []).map((s) => ({
+          origen: s.origen || "manual",
+          servicio_catalogo_id: s.servicio_catalogo_id ?? null,
+          nombre: String(s.nombre || "").trim(),
+          precio: Number.parseFloat(s.precio || 0) || 0,
+        }))
       };
 
       let inspeccion = null;
@@ -288,6 +378,7 @@ const InspeccionRecepcionPage = () => {
       
       // Limpiar formulario
       setFormData(INITIAL_FORM_DATA);
+      setServicioManual({ nombre: "", precio: "" });
       setFotos([]);
       setVideos([]);
       setFotosPreview([]);
@@ -310,6 +401,7 @@ const InspeccionRecepcionPage = () => {
     setInspeccionEditandoId(null);
     setSearchParams({});
     setFormData(INITIAL_FORM_DATA);
+    setServicioManual({ nombre: "", precio: "" });
     setFotos([]);
     setVideos([]);
     setFotosPreview([]);
@@ -597,6 +689,103 @@ const InspeccionRecepcionPage = () => {
                   placeholder="Describe el estado del vehículo, daños visibles, etc."
                   style={{ fontSize: "1rem" }}
                 />
+              </div>
+
+              {/* Servicios aplicados */}
+              <div className="col-12 mb-3">
+                <div className="card border-0" style={{ background: "#f8f9fa" }}>
+                  <div className="card-body p-3">
+                    <h6 className="fw-bold mb-3">🧾 Servicios para esta recepción</h6>
+
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">Catálogo activo</label>
+                      <div className="d-flex flex-wrap gap-2">
+                        {catalogoServicios.length === 0 && (
+                          <span className="text-muted small">No hay servicios activos en catálogo.</span>
+                        )}
+                        {catalogoServicios.map((servicio) => (
+                          <button
+                            key={servicio.id}
+                            type="button"
+                            className="btn btn-sm btn-outline-dark"
+                            onClick={() => agregarServicioCatalogo(servicio)}
+                          >
+                            {servicio.nombre} · {Number(servicio.precio_base || 0).toFixed(2)} €
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">Servicio manual</label>
+                      <div className="row g-2">
+                        <div className="col-12 col-md-6">
+                          <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Nombre del servicio"
+                            value={servicioManual.nombre}
+                            onChange={(e) => setServicioManual((prev) => ({ ...prev, nombre: e.target.value }))}
+                          />
+                        </div>
+                        <div className="col-8 col-md-3">
+                          <input
+                            type="number"
+                            className="form-control"
+                            min="0"
+                            step="0.01"
+                            placeholder="Precio"
+                            value={servicioManual.precio}
+                            onChange={(e) => setServicioManual((prev) => ({ ...prev, precio: e.target.value }))}
+                          />
+                        </div>
+                        <div className="col-4 col-md-3 d-grid">
+                          <button type="button" className="btn btn-dark" onClick={agregarServicioManual}>
+                            Añadir
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="form-label fw-semibold">Servicios añadidos</label>
+                      {(formData.servicios_aplicados || []).length === 0 ? (
+                        <div className="text-muted small">No hay servicios añadidos aún.</div>
+                      ) : (
+                        <div className="table-responsive">
+                          <table className="table table-sm align-middle mb-0">
+                            <thead>
+                              <tr>
+                                <th>Tipo</th>
+                                <th>Nombre</th>
+                                <th>Precio</th>
+                                <th className="text-end">Acción</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(formData.servicios_aplicados || []).map((servicio, index) => (
+                                <tr key={`${servicio.nombre}-${index}`}>
+                                  <td>{servicio.origen === "catalogo" ? "Catálogo" : "Manual"}</td>
+                                  <td>{servicio.nombre}</td>
+                                  <td>{Number(servicio.precio || 0).toFixed(2)} €</td>
+                                  <td className="text-end">
+                                    <button
+                                      type="button"
+                                      className="btn btn-sm btn-outline-danger"
+                                      onClick={() => eliminarServicioAplicado(index)}
+                                    >
+                                      Quitar
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Proteccion de datos */}

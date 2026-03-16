@@ -50,7 +50,7 @@ export default function Home() {
             to: "/salidas",
             label: "Registrar salida",
             detail: "Consumo de taller y operaciones",
-            roles: ["administrador", "empleado", "encargado"],
+            roles: ["administrador", "empleado", "encargado", "calidad"],
           },
           {
             to: "/resumen-entradas",
@@ -76,7 +76,7 @@ export default function Home() {
             to: "/inspeccion-recepcion",
             label: "Inspección de recepción",
             detail: "Estado inicial y firmas",
-            roles: ["administrador", "empleado", "encargado"],
+            roles: ["administrador", "detailing", "calidad"],
           },
           {
             to: "/inspecciones-guardadas",
@@ -88,7 +88,7 @@ export default function Home() {
             to: "/repaso-entrega",
             label: "Repaso + Firma entrega",
             detail: "Control y firma cliente",
-            roles: ["administrador", "empleado", "encargado"],
+            roles: ["administrador", "detailing", "calidad"],
           },
           {
             to: "/entregados",
@@ -100,7 +100,7 @@ export default function Home() {
             to: "/citas",
             label: "📅 Citas",
             detail: "Agenda y gestión de citas",
-            roles: ["administrador", "encargado", "tecnico_comercial"],
+            roles: ["administrador", "encargado", "tecnico_comercial", "calidad"],
           },
         ],
       },
@@ -114,7 +114,7 @@ export default function Home() {
             to: "/partes-trabajo",
             label: "📝 Gestionar partes",
             detail: "Asignar coche y empleado",
-            roles: ["administrador"],
+            roles: ["administrador", "calidad"],
           },
           {
             to: "/mis-partes-trabajo",

@@ -9,6 +9,7 @@ import {
   listarCochesCatalogo,
   listarEmpleadosDisponibles,
   listarServiciosCatalogo,
+  obtenerUltimaInspeccionPorCoche,
 } from "../utils/parteTrabajoApi";
 
 function EstadoBadge({ estado }) {
@@ -50,6 +51,7 @@ export function AdminPartesTrabajo() {
   const [editLoading, setEditLoading] = useState(false);
   const [serviciosCatalogo, setServiciosCatalogo] = useState([]);
   const [nuevoServicioId, setNuevoServicioId] = useState("");
+  const [serviciosParteSeleccionados, setServiciosParteSeleccionados] = useState([]);
 
   const empleadoNombrePorId = useCallback(
     (id) => {
@@ -133,6 +135,79 @@ export function AdminPartesTrabajo() {
     cargarRecursos();
   }, [cargarRecursos]);
 
+  useEffect(() => {
+    let active = true;
+
+    const cargarServiciosDesdeInspeccion = async () => {
+      if (!nuevoCocheId) {
+        setServiciosParteSeleccionados([]);
+        return;
+      }
+
+      try {
+        const inspeccion = await obtenerUltimaInspeccionPorCoche(nuevoCocheId);
+        if (!active) return;
+
+        const desdeRecepcion = Array.isArray(inspeccion?.servicios_aplicados)
+          ? inspeccion.servicios_aplicados.map((s, idx) => ({
+              key: `rec-${s?.servicio_catalogo_id || "x"}-${idx}`,
+              nombre: String(s?.nombre || "").trim(),
+              precio: Number(s?.precio || 0),
+              origen: "recepcion",
+              servicio_catalogo_id: s?.servicio_catalogo_id ?? null,
+            }))
+          : [];
+
+        const limpios = desdeRecepcion.filter((s) => s.nombre);
+        setServiciosParteSeleccionados(limpios);
+      } catch {
+        if (active) setServiciosParteSeleccionados([]);
+      }
+    };
+
+    cargarServiciosDesdeInspeccion();
+    return () => {
+      active = false;
+    };
+  }, [nuevoCocheId]);
+
+  const agregarServicioExtra = () => {
+    if (!nuevoServicioId) {
+      setMensajeCreacion("Debes seleccionar un servicio del catálogo.");
+      return;
+    }
+
+    const servicioElegido = serviciosCatalogo.find((s) => Number(s.id) === Number(nuevoServicioId));
+    if (!servicioElegido) {
+      setMensajeCreacion("Servicio no válido.");
+      return;
+    }
+
+    const nombre = String(servicioElegido.nombre || "").trim();
+    if (!nombre) return;
+
+    setServiciosParteSeleccionados((prev) => {
+      const yaExiste = prev.some((s) => s.nombre.toLowerCase() === nombre.toLowerCase());
+      if (yaExiste) return prev;
+      return [
+        ...prev,
+        {
+          key: `extra-${servicioElegido.id}`,
+          nombre,
+          precio: Number(servicioElegido.precio_base || 0),
+          origen: "extra",
+          servicio_catalogo_id: servicioElegido.id,
+        },
+      ];
+    });
+    setNuevoServicioId("");
+    setMensajeCreacion("");
+  };
+
+  const quitarServicioSeleccionado = (key) => {
+    setServiciosParteSeleccionados((prev) => prev.filter((s) => s.key !== key));
+  };
+
   const onCrearParte = async (e) => {
     e.preventDefault();
     setMensajeCreacion("");
@@ -143,17 +218,19 @@ export function AdminPartesTrabajo() {
     }
 
     if (!nuevoServicioId) {
-      setMensajeCreacion("Debes seleccionar un servicio.");
+      setMensajeCreacion("Debes seleccionar al menos un servicio para el parte.");
       return;
     }
 
-    const servicioElegido = serviciosCatalogo.find((s) => Number(s.id) === Number(nuevoServicioId));
-    const trabajoFinal = servicioElegido?.nombre || "";
-
-    if (!trabajoFinal) {
-      setMensajeCreacion("Servicio no válido. Selecciona uno de la lista.");
+    if (serviciosParteSeleccionados.length === 0) {
+      setMensajeCreacion("Debes añadir al menos un servicio para el parte.");
       return;
     }
+
+    const trabajoFinal = serviciosParteSeleccionados
+      .map((s) => s.nombre)
+      .filter(Boolean)
+      .join(" | ");
 
     const payload = {
       coche_id: Number(nuevoCocheId),
@@ -168,6 +245,7 @@ export function AdminPartesTrabajo() {
       setNuevoEmpleadoId("");
       setNuevoTrabajoARealizar("");
       setNuevoServicioId("");
+      setServiciosParteSeleccionados([]);
       await Promise.all([cargarPartes(), cargarRecursos()]);
     } catch (e) {
       setMensajeCreacion(e?.message || "Error al crear el parte.");
@@ -342,27 +420,64 @@ export function AdminPartesTrabajo() {
             </div>
 
             <div className="col-12">
-              <label className="form-label">Servicio *</label>
+              <label className="form-label">Servicios del parte *</label>
               {serviciosCatalogo.length === 0 ? (
                 <p className="text-muted">
                   No hay servicios en el catálogo. <a href="/catalogo-servicios" target="_blank" rel="noopener noreferrer">Crear servicios</a>
                 </p>
               ) : (
-                <select
-                  className="form-select"
-                  value={nuevoServicioId}
-                  onChange={(e) => setNuevoServicioId(e.target.value)}
-                  required
-                  style={{ borderRadius: "8px" }}
-                >
-                  <option value="">Selecciona servicio...</option>
-                  {serviciosCatalogo.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.nombre} {s.precio_base != null ? `(${Number(s.precio_base).toFixed(2)}€)` : ""}
-                    </option>
-                  ))}
-                </select>
+                <div className="row g-2">
+                  <div className="col-12 col-md-8">
+                    <select
+                      className="form-select"
+                      value={nuevoServicioId}
+                      onChange={(e) => setNuevoServicioId(e.target.value)}
+                      style={{ borderRadius: "8px" }}
+                    >
+                      <option value="">Añadir servicio extra desde catálogo...</option>
+                      {serviciosCatalogo.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.nombre} {s.precio_base != null ? `(${Number(s.precio_base).toFixed(2)}€)` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-12 col-md-4 d-grid">
+                    <button
+                      type="button"
+                      className="btn btn-outline-dark"
+                      onClick={agregarServicioExtra}
+                    >
+                      Añadir servicio extra
+                    </button>
+                  </div>
+                </div>
               )}
+              <small className="text-muted d-block mt-2">
+                Al elegir coche, se cargan automáticamente los servicios acordados en recepción (última inspección).
+              </small>
+
+              <div className="mt-2">
+                {serviciosParteSeleccionados.length === 0 ? (
+                  <div className="text-muted small">No hay servicios seleccionados todavía.</div>
+                ) : (
+                  <div className="d-flex flex-wrap gap-2">
+                    {serviciosParteSeleccionados.map((s) => (
+                      <span key={s.key} className="badge bg-secondary d-flex align-items-center gap-2 p-2">
+                        {s.nombre} {Number.isFinite(s.precio) ? `· ${Number(s.precio).toFixed(2)}€` : ""}
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-light py-0 px-1"
+                          onClick={() => quitarServicioSeleccionado(s.key)}
+                          title="Quitar servicio"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="col-12">
