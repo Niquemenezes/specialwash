@@ -376,7 +376,7 @@ def entrada_delete(eid):
 
 
 @almacen_bp.route("/registro-salida", methods=["POST"])
-@role_required("administrador", "empleado")
+@role_required("administrador", "empleado", "calidad")
 def registrar_salida():
     data = request.get_json() or {}
 

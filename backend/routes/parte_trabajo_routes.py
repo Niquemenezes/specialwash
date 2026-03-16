@@ -8,7 +8,7 @@ from extensions import db
 from datetime import datetime
 import json
 
-from utils.auth_utils import normalize_role, role_required
+from utils.auth_utils import WORKSHOP_ROLES, normalize_role, role_required
 
 bp = Blueprint('parte_trabajo', __name__)
 
@@ -19,7 +19,10 @@ def _current_role():
 
 
 def _can_manage_all_partes():
-    return _current_role() in {'administrador', 'encargado'}
+    return _current_role() in {'administrador', 'calidad'}
+
+
+ASSIGNABLE_PARTE_ROLES = set(WORKSHOP_ROLES) | {'encargado'}
 
 
 def _serialize_parte(parte):
@@ -52,7 +55,7 @@ def _parse_query_datetime(raw_value, end_of_day=False):
 
 # Crear parte de trabajo (solo admin)
 @bp.route('/parte_trabajo', methods=['POST'])
-@role_required('administrador', 'encargado')
+@role_required('administrador', 'calidad')
 def crear_parte_trabajo():
     data = request.get_json() or {}
 
@@ -72,8 +75,8 @@ def crear_parte_trabajo():
         return jsonify({'msg': 'Empleado no encontrado'}), 404
     if not getattr(empleado, 'activo', True):
         return jsonify({'msg': 'El empleado está inactivo'}), 400
-    if normalize_role(getattr(empleado, 'rol', '')) not in {'empleado', 'encargado'}:
-        return jsonify({'msg': 'Solo se puede asignar a empleados o encargados'}), 400
+    if normalize_role(getattr(empleado, 'rol', '')) not in ASSIGNABLE_PARTE_ROLES:
+        return jsonify({'msg': 'Solo se puede asignar a roles operativos'}), 400
 
     parte_activa = ParteTrabajo.query.filter(
         ParteTrabajo.coche_id == int(coche_id),
@@ -132,7 +135,7 @@ def listar_partes_trabajo():
 
 
 @bp.route('/parte_trabajo/<int:parte_id>', methods=['PUT'])
-@role_required('administrador', 'encargado')
+@role_required('administrador', 'calidad')
 def editar_parte_trabajo(parte_id):
     parte = ParteTrabajo.query.get_or_404(parte_id)
     data = request.get_json() or {}
@@ -147,8 +150,8 @@ def editar_parte_trabajo(parte_id):
             return jsonify({'msg': 'Empleado no encontrado'}), 404
         if not getattr(empleado, 'activo', True):
             return jsonify({'msg': 'El empleado está inactivo'}), 400
-        if normalize_role(getattr(empleado, 'rol', '')) not in {'empleado', 'encargado'}:
-            return jsonify({'msg': 'Solo se puede asignar a empleados o encargados'}), 400
+        if normalize_role(getattr(empleado, 'rol', '')) not in ASSIGNABLE_PARTE_ROLES:
+            return jsonify({'msg': 'Solo se puede asignar a roles operativos'}), 400
 
         parte.empleado_id = empleado.id
 
@@ -230,7 +233,7 @@ def quitar_pausa(parte_id):
 
 # Analítica: partes por empleado y semana
 @bp.route('/parte_trabajo/analitica', methods=['GET'])
-@role_required('administrador', 'encargado')
+@role_required('administrador', 'calidad')
 def analitica_partes():
     empleado_id = request.args.get('empleado_id')
     fecha_inicio = request.args.get('fecha_inicio')

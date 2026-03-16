@@ -32,6 +32,7 @@ class InspeccionRecepcion(db.Model):
 
     # Observaciones / averias
     averias_notas = db.Column(db.Text)
+    servicios_aplicados = db.Column(db.Text, default="[]")
 
     # Datos de entrega / cierre
     entregado = db.Column(db.Boolean, default=False, nullable=False)
@@ -87,6 +88,7 @@ class InspeccionRecepcion(db.Model):
             "fotos_cloudinary": json.loads(self.fotos_cloudinary or "[]"),
             "videos_cloudinary": json.loads(self.videos_cloudinary or "[]"),
             "averias_notas": self.averias_notas,
+            "servicios_aplicados": json.loads(self.servicios_aplicados or "[]"),
             "entregado": self.entregado,
             "fecha_entrega": iso(self.fecha_entrega),
             "firma_cliente_entrega": self.firma_cliente_entrega,

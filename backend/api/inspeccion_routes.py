@@ -35,6 +35,57 @@ def _jwt_user_id():
     except (TypeError, ValueError):
         return None
 
+
+INSPECCION_ALLOWED_ROLES = {"administrador", "detailing", "calidad"}
+
+
+def _is_inspeccion_role(user):
+    if not user:
+        return False
+    return normalize_role(getattr(user, "rol", "")) in INSPECCION_ALLOWED_ROLES
+
+
+def _normalize_servicios_aplicados(raw):
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise ValueError("servicios_aplicados debe ser una lista")
+
+    normalized = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        nombre = str(item.get("nombre") or "").strip()
+        if not nombre:
+            continue
+
+        origen = str(item.get("origen") or "manual").strip().lower()
+        if origen not in {"catalogo", "manual"}:
+            origen = "manual"
+
+        precio_raw = item.get("precio", 0)
+        try:
+            precio = round(float(precio_raw or 0), 2)
+        except (TypeError, ValueError):
+            precio = 0.0
+        if precio < 0:
+            precio = 0.0
+
+        servicio_catalogo_id = item.get("servicio_catalogo_id")
+        try:
+            servicio_catalogo_id = int(servicio_catalogo_id) if servicio_catalogo_id is not None else None
+        except (TypeError, ValueError):
+            servicio_catalogo_id = None
+
+        normalized.append({
+            "origen": origen,
+            "servicio_catalogo_id": servicio_catalogo_id,
+            "nombre": nombre,
+            "precio": precio,
+        })
+
+    return normalized
+
 CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME", "").strip()
 CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY", "").strip()
 CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET", "").strip()
@@ -71,7 +122,7 @@ def role_required(*roles):
 
 # ============ CREAR INSPECCIÓN ============
 @inspeccion_bp.route("/inspeccion-recepcion", methods=["POST"])
-@role_required("administrador", "empleado", "encargado")
+@role_required("administrador", "detailing", "calidad")
 def crear_inspeccion():
     """
     Crear una nueva inspección de recepción.
@@ -182,6 +233,7 @@ def crear_inspeccion():
             firma_empleado_recepcion=data.get("firma_empleado_recepcion"),
             consentimiento_datos_recepcion=consentimiento_datos_recepcion,
             averias_notas=data.get("averias_notas", ""),
+            servicios_aplicados=json.dumps(_normalize_servicios_aplicados(data.get("servicios_aplicados"))),
             fotos_cloudinary="[]",
             videos_cloudinary="[]",
             confirmado=False
@@ -227,6 +279,9 @@ def crear_inspeccion():
 
         return jsonify(inspeccion.to_dict()), 201
     
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"msg": str(e)}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({"msg": f"Error al crear inspección: {str(e)}"}), 500
@@ -245,6 +300,8 @@ def listar_inspecciones():
     if user_id is None:
         return jsonify({"msg": "Token inválido"}), 401
     user = User.query.get(user_id)
+    if not _is_inspeccion_role(user):
+        return jsonify({"msg": "No tienes permiso para esta acción"}), 403
     
     try:
         if user.rol == "administrador":
@@ -268,7 +325,7 @@ def listar_inspecciones():
 
 # ============ LISTAR PENDIENTES DE ENTREGA (OPERATIVO) ============
 @inspeccion_bp.route("/inspeccion-recepcion/pendientes-entrega", methods=["GET"])
-@role_required("administrador", "empleado", "encargado")
+@role_required("administrador", "detailing", "calidad")
 def listar_pendientes_entrega():
     """
     Lista operativa para firma de entrega.
@@ -312,12 +369,14 @@ def ver_inspeccion(inspeccion_id):
     user = User.query.get(user_id)
     if not user:
         return jsonify({"msg": "Usuario no encontrado"}), 401
+    if not _is_inspeccion_role(user):
+        return jsonify({"msg": "No tienes permiso para esta acción"}), 403
     
     # Validar permisos por rol y operativa de entrega.
     if user.rol == "administrador":
         return jsonify(inspeccion.to_dict()), 200
 
-    if user.rol in ("empleado", "encargado"):
+    if normalize_role(user.rol) in {"detailing", "calidad"}:
         if inspeccion.entregado:
             return jsonify({"msg": "No tienes permiso para ver esta inspección"}), 403
         return jsonify(inspeccion.to_dict()), 200
@@ -344,6 +403,8 @@ def actualizar_inspeccion(inspeccion_id):
     
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
+    if not _is_inspeccion_role(user):
+        return jsonify({"msg": "No tienes permiso para esta acción"}), 403
     
     # Validar permisos
     if user.rol != "administrador" and inspeccion.usuario_id != user_id:
@@ -385,6 +446,10 @@ def actualizar_inspeccion(inspeccion_id):
         
         if "averias_notas" in data:
             inspeccion.averias_notas = data["averias_notas"]
+
+        if "servicios_aplicados" in data:
+            servicios_aplicados = _normalize_servicios_aplicados(data.get("servicios_aplicados"))
+            inspeccion.servicios_aplicados = json.dumps(servicios_aplicados)
         
         # Solo admin puede confirmar
         if "confirmado" in data and user.rol == "administrador":
@@ -393,6 +458,9 @@ def actualizar_inspeccion(inspeccion_id):
         db.session.commit()
         return jsonify(inspeccion.to_dict()), 200
     
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"msg": str(e)}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({"msg": f"Error al actualizar inspección: {str(e)}"}), 500
@@ -400,7 +468,7 @@ def actualizar_inspeccion(inspeccion_id):
 
 # ============ REGISTRAR ENTREGA ==========
 @inspeccion_bp.route("/inspeccion-recepcion/<int:inspeccion_id>/acta", methods=["POST"])
-@role_required("administrador", "empleado", "encargado")
+@role_required("administrador", "detailing", "calidad")
 def guardar_acta_entrega(inspeccion_id):
     """
     Guardar/actualizar el acta de entrega como documento en estado pendiente.
@@ -430,7 +498,7 @@ def guardar_acta_entrega(inspeccion_id):
 
 
 @inspeccion_bp.route("/inspeccion-recepcion/<int:inspeccion_id>/entrega", methods=["POST"])
-@role_required("administrador", "empleado", "encargado")
+@role_required("administrador", "detailing", "calidad")
 def registrar_entrega(inspeccion_id):
     """
     Registrar entrega del vehiculo con acta tecnica.
@@ -511,7 +579,7 @@ def registrar_entrega(inspeccion_id):
 
 
 @inspeccion_bp.route("/inspeccion-recepcion/<int:inspeccion_id>/repaso", methods=["POST"])
-@role_required("administrador", "empleado", "encargado")
+@role_required("administrador", "detailing", "calidad")
 def guardar_repaso_entrega(inspeccion_id):
     """Guardar checklist de repaso pre-entrega y marcar listo para entrega."""
     inspeccion = InspeccionRecepcion.query.get(inspeccion_id)
@@ -585,7 +653,7 @@ def listar_actas_entregadas():
 
 # ============ SUGERIR ACTA PREMIUM CON GPT ==========
 @inspeccion_bp.route("/inspeccion-recepcion/<int:inspeccion_id>/sugerir-acta", methods=["POST"])
-@role_required("administrador", "empleado", "encargado")
+@role_required("administrador", "detailing", "calidad")
 def sugerir_acta_premium(inspeccion_id):
     """Genera un texto formal de acta de entrega con GPT usando OpenAI API."""
     inspeccion = InspeccionRecepcion.query.get(inspeccion_id)
@@ -619,7 +687,7 @@ def sugerir_acta_premium(inspeccion_id):
 
 # ============ CHATBOT OPENAI PARA ACTA ==========
 @inspeccion_bp.route("/inspeccion-recepcion/<int:inspeccion_id>/chat-acta", methods=["POST"])
-@role_required("administrador", "empleado", "encargado")
+@role_required("administrador", "detailing", "calidad")
 def chat_acta_premium(inspeccion_id):
     """Chat conversacional para redactar acta de entrega con contexto de la inspeccion."""
     inspeccion = InspeccionRecepcion.query.get(inspeccion_id)
@@ -727,6 +795,8 @@ def upload_foto(inspeccion_id):
     
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
+    if not _is_inspeccion_role(user):
+        return jsonify({"msg": "No tienes permiso para esta acción"}), 403
     
     # Validar que sea el creador o admin
     if user.rol != "administrador" and inspeccion.usuario_id != user_id:
@@ -787,6 +857,8 @@ def upload_video(inspeccion_id):
     
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
+    if not _is_inspeccion_role(user):
+        return jsonify({"msg": "No tienes permiso para esta acción"}), 403
     
     # Validar que sea el creador o admin
     if user.rol != "administrador" and inspeccion.usuario_id != user_id:
@@ -849,6 +921,8 @@ def eliminar_inspeccion(inspeccion_id):
 
     if not user:
         return jsonify({"msg": "Usuario no encontrado"}), 401
+    if not _is_inspeccion_role(user):
+        return jsonify({"msg": "No tienes permiso para esta acción"}), 403
 
     if user.rol != "administrador":
         if inspeccion.usuario_id != user_id:
@@ -881,6 +955,8 @@ def eliminar_foto(inspeccion_id, foto_index):
     
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
+    if not _is_inspeccion_role(user):
+        return jsonify({"msg": "No tienes permiso para esta acción"}), 403
     
     # Validar permisos
     if user.rol != "administrador" and inspeccion.usuario_id != user_id:
@@ -926,6 +1002,8 @@ def eliminar_video(inspeccion_id, video_index):
     
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
+    if not _is_inspeccion_role(user):
+        return jsonify({"msg": "No tienes permiso para esta acción"}), 403
     
     # Validar permisos
     if user.rol != "administrador" and inspeccion.usuario_id != user_id:

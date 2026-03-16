@@ -8,7 +8,7 @@ usuarios_bp = Blueprint("usuario_routes", __name__)
 
 
 @usuarios_bp.route("/usuarios", methods=["GET"])
-@role_required("administrador")
+@role_required("administrador", "calidad")
 def usuarios_list():
     return jsonify([u.to_dict() for u in User.query.order_by(User.id.desc()).all()])
 

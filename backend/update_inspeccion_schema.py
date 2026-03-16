@@ -25,6 +25,7 @@ NEW_COLUMNS = {
     "repaso_completado_por_id": "INTEGER",
     "repaso_completado_por_nombre": "VARCHAR(120)",
     "repaso_completado_at": "DATETIME",
+    "servicios_aplicados": "TEXT DEFAULT '[]'",
 }
 
 

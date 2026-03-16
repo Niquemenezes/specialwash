@@ -98,7 +98,7 @@ def obtener_cita(cita_id):
 
 # ── Crear cita ────────────────────────────────────────────────────────────────
 @citas_bp.route("/citas", methods=["POST"])
-@role_required("administrador", "encargado", "tecnico_comercial")
+@role_required("administrador", "encargado", "tecnico_comercial", "calidad")
 def crear_cita():
     """
     POST /api/citas
@@ -154,7 +154,7 @@ def crear_cita():
 
 # ── Editar cita ───────────────────────────────────────────────────────────────
 @citas_bp.route("/citas/<int:cita_id>", methods=["PUT"])
-@role_required("administrador", "encargado", "tecnico_comercial")
+@role_required("administrador", "encargado", "tecnico_comercial", "calidad")
 def editar_cita(cita_id):
     cita = Cita.query.get_or_404(cita_id)
     data = request.get_json() or {}
@@ -200,7 +200,7 @@ def editar_cita(cita_id):
 
 # ── Cambiar solo el estado ─────────────────────────────────────────────────────
 @citas_bp.route("/citas/<int:cita_id>/estado", methods=["PATCH"])
-@role_required("administrador", "encargado", "tecnico_comercial")
+@role_required("administrador", "encargado", "tecnico_comercial", "calidad")
 def cambiar_estado_cita(cita_id):
     cita = Cita.query.get_or_404(cita_id)
     data = request.get_json() or {}
