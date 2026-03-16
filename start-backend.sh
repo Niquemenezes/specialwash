@@ -27,4 +27,5 @@ echo "[3/4] Instalando dependencias..."
 pip install -r requirements.txt
 
 echo "[4/4] Iniciando backend en http://localhost:5000 ..."
+export DEV_AUTH_BYPASS="${DEV_AUTH_BYPASS:-1}"
 python app.py
