@@ -167,6 +167,12 @@ const NavbarSW = () => {
   const navigate = useNavigate();
   const token = getStoredToken();
   const rol = getStoredRol();
+  const rolRaw = (
+    sessionStorage.getItem("rol") ||
+    localStorage.getItem("rol") ||
+    ""
+  ).toLowerCase().trim();
+  const isPintura = rolRaw === "pintura";
   const handleLogout = async () => {
     try {
       await fetch(buildApiUrl("/api/auth/logout"), {
@@ -383,29 +389,31 @@ const NavbarSW = () => {
 
               {(rol === "empleado" || rol === "encargado") && (
                 <>
-                  <li className="nav-item dropdown">
-                    <button
-                      className="nav-link dropdown-toggle sw-navlink btn btn-link"
-                      id="navFlujoEntregaOperativo"
-                      type="button"
-                      data-bs-toggle="dropdown"
-                      aria-expanded="false"
-                    >
-                      Flujo Entrega
-                    </button>
-                    <ul className="dropdown-menu" aria-labelledby="navFlujoEntregaOperativo">
-                      <li>
-                        <NavLink to="/inspeccion-recepcion" className="dropdown-item">
-                          1) Inspección recepción
-                        </NavLink>
-                      </li>
-                      <li>
-                        <NavLink to="/repaso-entrega" className="dropdown-item">
-                          2) Repaso + Firma
-                        </NavLink>
-                      </li>
-                    </ul>
-                  </li>
+                  {!isPintura && (
+                    <li className="nav-item dropdown">
+                      <button
+                        className="nav-link dropdown-toggle sw-navlink btn btn-link"
+                        id="navFlujoEntregaOperativo"
+                        type="button"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                      >
+                        Flujo Entrega
+                      </button>
+                      <ul className="dropdown-menu" aria-labelledby="navFlujoEntregaOperativo">
+                        <li>
+                          <NavLink to="/inspeccion-recepcion" className="dropdown-item">
+                            1) Inspección recepción
+                          </NavLink>
+                        </li>
+                        <li>
+                          <NavLink to="/repaso-entrega" className="dropdown-item">
+                            2) Repaso + Firma
+                          </NavLink>
+                        </li>
+                      </ul>
+                    </li>
+                  )}
 
                   <li className="nav-item">
                     <NavLink to="/salidas" className="nav-link sw-navlink">
