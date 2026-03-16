@@ -50,7 +50,7 @@ export default function Home() {
             to: "/salidas",
             label: "Registrar salida",
             detail: "Consumo de taller y operaciones",
-            roles: ["administrador", "empleado", "encargado", "calidad"],
+            roles: ["administrador", "empleado", "encargado", "calidad", "detailing", "pintura"],
           },
           {
             to: "/resumen-entradas",
