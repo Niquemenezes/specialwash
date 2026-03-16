@@ -7,10 +7,30 @@ from pathlib import Path
 DB_PATH = Path(__file__).resolve().parent / "instance" / "specialwash.db"
 
 NEW_COLUMNS = {
+    # Datos de respaldo (por si cliente o coche no existen aún)
+    "cliente_id": "INTEGER",
+    "coche_id": "INTEGER",
+    "cliente_nombre": "VARCHAR(200) NOT NULL DEFAULT ''",
+    "cliente_telefono": "VARCHAR(30) NOT NULL DEFAULT ''",
+    "coche_descripcion": "VARCHAR(250) NOT NULL DEFAULT ''",
+    "matricula": "VARCHAR(30)",
     "kilometros": "INTEGER",
+    
+    # Firmas de recepción
     "firma_cliente_recepcion": "TEXT",
     "firma_empleado_recepcion": "TEXT",
     "consentimiento_datos_recepcion": "BOOLEAN NOT NULL DEFAULT 0",
+    "fecha_inspeccion": "DATETIME",
+    
+    # Evidencias
+    "fotos_cloudinary": "TEXT DEFAULT '[]'",
+    "videos_cloudinary": "TEXT DEFAULT '[]'",
+    
+    # Observaciones / averias
+    "averias_notas": "TEXT",
+    "servicios_aplicados": "TEXT DEFAULT '[]'",
+    
+    # Datos de entrega / cierre
     "entregado": "BOOLEAN NOT NULL DEFAULT 0",
     "fecha_entrega": "DATETIME",
     "firma_cliente_entrega": "TEXT",
@@ -19,13 +39,19 @@ NEW_COLUMNS = {
     "conformidad_revision_entrega": "BOOLEAN NOT NULL DEFAULT 0",
     "trabajos_realizados": "TEXT",
     "entrega_observaciones": "TEXT",
+    
+    # Repaso pre-entrega
     "repaso_checklist": "TEXT DEFAULT '{}'",
     "repaso_notas": "TEXT",
     "repaso_completado": "BOOLEAN NOT NULL DEFAULT 0",
     "repaso_completado_por_id": "INTEGER",
     "repaso_completado_por_nombre": "VARCHAR(120)",
     "repaso_completado_at": "DATETIME",
-    "servicios_aplicados": "TEXT DEFAULT '[]'",
+    
+    # Estado
+    "confirmado": "BOOLEAN NOT NULL DEFAULT 0",
+    "created_at": "DATETIME",
+    "updated_at": "DATETIME",
 }
 
 

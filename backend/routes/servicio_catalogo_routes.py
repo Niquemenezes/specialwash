@@ -7,6 +7,18 @@ from utils.auth_utils import role_required
 servicio_catalogo_bp = Blueprint("servicio_catalogo_routes", __name__)
 
 
+def parse_tiempo_estimado_minutos(value):
+    if value in (None, ""):
+        return None
+    try:
+        minutos = int(value)
+    except (TypeError, ValueError):
+        raise ValueError("El tiempo estimado debe ser un numero entero de minutos")
+    if minutos < 0:
+        raise ValueError("El tiempo estimado no puede ser negativo")
+    return minutos
+
+
 @servicio_catalogo_bp.route("/servicios_catalogo", methods=["GET"])
 @jwt_required()
 def listar_servicios_catalogo():
@@ -32,10 +44,18 @@ def crear_servicio_catalogo():
     if existente:
         return jsonify({"msg": "Ya existe un servicio con ese nombre"}), 400
 
+    try:
+        tiempo_estimado_minutos = parse_tiempo_estimado_minutos(
+            data.get("tiempo_estimado_minutos")
+        )
+    except ValueError as exc:
+        return jsonify({"msg": str(exc)}), 400
+
     servicio = ServicioCatalogo(
         nombre=nombre,
         descripcion=(data.get("descripcion") or "").strip() or None,
         precio_base=data.get("precio_base"),
+        tiempo_estimado_minutos=tiempo_estimado_minutos,
         activo=True,
     )
     db.session.add(servicio)
@@ -64,6 +84,13 @@ def editar_servicio_catalogo(servicio_id):
         servicio.descripcion = (data["descripcion"] or "").strip() or None
     if "precio_base" in data:
         servicio.precio_base = data["precio_base"]
+    if "tiempo_estimado_minutos" in data:
+        try:
+            servicio.tiempo_estimado_minutos = parse_tiempo_estimado_minutos(
+                data.get("tiempo_estimado_minutos")
+            )
+        except ValueError as exc:
+            return jsonify({"msg": str(exc)}), 400
     if "activo" in data:
         servicio.activo = bool(data["activo"])
 

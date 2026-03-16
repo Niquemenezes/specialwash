@@ -19,7 +19,7 @@ async function apiFetch(path, options = {}) {
   return data;
 }
 
-const EMPTY_FORM = { nombre: "", descripcion: "", precio_base: "" };
+const EMPTY_FORM = { nombre: "", descripcion: "", precio_base: "", tiempo_estimado_minutos: "" };
 
 export default function CatalogoServiciosPage() {
   const [servicios, setServicios] = useState([]);
@@ -71,6 +71,8 @@ export default function CatalogoServiciosPage() {
       nombre: s.nombre || "",
       descripcion: s.descripcion || "",
       precio_base: s.precio_base != null ? String(s.precio_base) : "",
+      tiempo_estimado_minutos:
+        s.tiempo_estimado_minutos != null ? String(s.tiempo_estimado_minutos) : "",
     });
     setModalError("");
     setShowModal(true);
@@ -94,6 +96,10 @@ export default function CatalogoServiciosPage() {
         nombre,
         descripcion: form.descripcion.trim() || null,
         precio_base: form.precio_base !== "" ? parseFloat(form.precio_base) : null,
+        tiempo_estimado_minutos:
+          form.tiempo_estimado_minutos !== ""
+            ? parseInt(form.tiempo_estimado_minutos, 10)
+            : null,
       };
       if (editandoId) {
         await apiFetch(`/api/servicios_catalogo/${editandoId}`, {
@@ -198,6 +204,7 @@ export default function CatalogoServiciosPage() {
                 <th>Nombre</th>
                 <th>Descripción</th>
                 <th className="text-end" style={{ width: 110 }}>Precio base</th>
+                <th className="text-end" style={{ width: 130 }}>Tiempo estimado</th>
                 <th className="text-center" style={{ width: 90 }}>Estado</th>
                 <th className="text-end" style={{ width: 200 }}>Acciones</th>
               </tr>
@@ -205,12 +212,12 @@ export default function CatalogoServiciosPage() {
             <tbody>
               {loading && (
                 <tr>
-                  <td colSpan={6} className="text-center py-4">Cargando…</td>
+                  <td colSpan={7} className="text-center py-4">Cargando…</td>
                 </tr>
               )}
               {!loading && serviciosFiltrados.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center py-4 text-muted">
+                  <td colSpan={7} className="text-center py-4 text-muted">
                     No hay servicios{filtro ? " que coincidan con la búsqueda" : ""}.
                   </td>
                 </tr>
@@ -226,6 +233,11 @@ export default function CatalogoServiciosPage() {
                     <td className="text-end">
                       {s.precio_base != null
                         ? `${Number(s.precio_base).toFixed(2)} €`
+                        : <span className="fst-italic text-muted">—</span>}
+                    </td>
+                    <td className="text-end">
+                      {s.tiempo_estimado_minutos != null
+                        ? `${Number(s.tiempo_estimado_minutos)} min`
                         : <span className="fst-italic text-muted">—</span>}
                     </td>
                     <td className="text-center">
@@ -332,6 +344,20 @@ export default function CatalogoServiciosPage() {
                         value={form.precio_base}
                         onChange={(e) => setForm({ ...form, precio_base: e.target.value })}
                         placeholder="0.00"
+                      />
+                    </div>
+                    <div className="mt-3 mb-1">
+                      <label className="form-label fw-semibold">Tiempo estimado (min)</label>
+                      <input
+                        className="form-control"
+                        type="number"
+                        step="1"
+                        min="0"
+                        value={form.tiempo_estimado_minutos}
+                        onChange={(e) =>
+                          setForm({ ...form, tiempo_estimado_minutos: e.target.value })
+                        }
+                        placeholder="Ej.: 60"
                       />
                     </div>
                   </div>
