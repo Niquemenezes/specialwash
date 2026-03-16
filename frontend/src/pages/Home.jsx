@@ -111,6 +111,12 @@ export default function Home() {
         emoji: "🧰",
         items: [
           {
+            to: "/partes-trabajo",
+            label: "📋 Partes activos",
+            detail: "Crear, asignar y dar seguimiento",
+            roles: ["administrador", "calidad"],
+          },
+          {
             to: "/flujo-trabajo",
             label: "👨‍🔧 Mis partes",
             detail: "Ver y actualizar tus tareas",
@@ -196,12 +202,6 @@ export default function Home() {
   const greeting = getGreeting();
 
   return (
-          {
-            to: "/mis-partes-trabajo",
-            label: "🔄 Flujo de trabajo",
-            detail: "Secuencia operativa y avance de partes",
-            roles: ["empleado", "detailing", "pintura"],
-          },
     <div className="sw-home-wrapper">
       <div className="container py-4 py-md-5">
         {/* Encabezado */}

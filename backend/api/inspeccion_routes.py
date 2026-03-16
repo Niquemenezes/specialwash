@@ -37,12 +37,19 @@ def _jwt_user_id():
 
 
 INSPECCION_ALLOWED_ROLES = {"administrador", "detailing", "calidad"}
+INSPECCION_MANAGER_ROLES = {"administrador", "calidad"}
 
 
 def _is_inspeccion_role(user):
     if not user:
         return False
     return normalize_role(getattr(user, "rol", "")) in INSPECCION_ALLOWED_ROLES
+
+
+def _can_view_all_inspecciones(user):
+    if not user:
+        return False
+    return normalize_role(getattr(user, "rol", "")) in INSPECCION_MANAGER_ROLES
 
 
 def _normalize_servicios_aplicados(raw):
@@ -304,13 +311,13 @@ def listar_inspecciones():
         return jsonify({"msg": "No tienes permiso para esta acción"}), 403
     
     try:
-        if user.rol == "administrador":
-            # Admin ve todas
+        if _can_view_all_inspecciones(user):
+            # Administrador y calidad ven todas
             inspecciones = InspeccionRecepcion.query.order_by(
                 InspeccionRecepcion.fecha_inspeccion.desc()
             ).all()
         else:
-            # Empleado ve solo sus propias inspecciones
+            # Roles operativos ven solo sus propias inspecciones
             inspecciones = InspeccionRecepcion.query.filter(
                 InspeccionRecepcion.usuario_id == user_id
             ).order_by(
