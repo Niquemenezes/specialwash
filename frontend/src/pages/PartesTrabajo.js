@@ -39,7 +39,6 @@ export function AdminPartesTrabajo() {
   const [cocheFiltro, setCocheFiltro] = useState("");
   const [nuevoCocheId, setNuevoCocheId] = useState("");
   const [nuevoEmpleadoId, setNuevoEmpleadoId] = useState("");
-  const [nuevoTrabajoARealizar, setNuevoTrabajoARealizar] = useState("");
   const [mensajeCreacion, setMensajeCreacion] = useState("");
   const [cochesDisponibles, setCochesDisponibles] = useState([]);
   const [cochesCatalogo, setCochesCatalogo] = useState([]);
@@ -52,6 +51,8 @@ export function AdminPartesTrabajo() {
   const [serviciosCatalogo, setServiciosCatalogo] = useState([]);
   const [nuevoServicioId, setNuevoServicioId] = useState("");
   const [serviciosParteSeleccionados, setServiciosParteSeleccionados] = useState([]);
+  const [nuevoServicioManualNombre, setNuevoServicioManualNombre] = useState("");
+  const [nuevoServicioManualPrecio, setNuevoServicioManualPrecio] = useState("");
 
   const empleadoNombrePorId = useCallback(
     (id) => {
@@ -204,6 +205,41 @@ export function AdminPartesTrabajo() {
     setMensajeCreacion("");
   };
 
+  const agregarServicioManual = () => {
+    const nombre = String(nuevoServicioManualNombre || "").trim();
+    if (!nombre) {
+      setMensajeCreacion("Debes escribir el nombre del servicio manual.");
+      return;
+    }
+
+    const precioRaw = String(nuevoServicioManualPrecio || "").trim();
+    const precio = precioRaw === "" ? 0 : Number(precioRaw);
+    if (!Number.isFinite(precio) || precio < 0) {
+      setMensajeCreacion("El precio manual debe ser un número válido mayor o igual a 0.");
+      return;
+    }
+
+    setServiciosParteSeleccionados((prev) => {
+      const yaExiste = prev.some((s) => String(s.nombre || "").toLowerCase() === nombre.toLowerCase());
+      if (yaExiste) return prev;
+
+      return [
+        ...prev,
+        {
+          key: `manual-${Date.now()}`,
+          nombre,
+          precio: Math.round(precio * 100) / 100,
+          origen: "manual",
+          servicio_catalogo_id: null,
+        },
+      ];
+    });
+
+    setNuevoServicioManualNombre("");
+    setNuevoServicioManualPrecio("");
+    setMensajeCreacion("");
+  };
+
   const quitarServicioSeleccionado = (key) => {
     setServiciosParteSeleccionados((prev) => prev.filter((s) => s.key !== key));
   };
@@ -214,11 +250,6 @@ export function AdminPartesTrabajo() {
 
     if (!nuevoCocheId || !nuevoEmpleadoId) {
       setMensajeCreacion("Debes indicar Coche ID y Empleado ID.");
-      return;
-    }
-
-    if (!nuevoServicioId) {
-      setMensajeCreacion("Debes seleccionar al menos un servicio para el parte.");
       return;
     }
 
@@ -243,8 +274,9 @@ export function AdminPartesTrabajo() {
       setMensajeCreacion("Parte creado correctamente.");
       setNuevoCocheId("");
       setNuevoEmpleadoId("");
-      setNuevoTrabajoARealizar("");
       setNuevoServicioId("");
+      setNuevoServicioManualNombre("");
+      setNuevoServicioManualPrecio("");
       setServiciosParteSeleccionados([]);
       await Promise.all([cargarPartes(), cargarRecursos()]);
     } catch (e) {
@@ -453,6 +485,40 @@ export function AdminPartesTrabajo() {
                   </div>
                 </div>
               )}
+
+              <div className="row g-2 mt-2">
+                <div className="col-12 col-md-6">
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={nuevoServicioManualNombre}
+                    onChange={(e) => setNuevoServicioManualNombre(e.target.value)}
+                    placeholder="Servicio manual (ej. Pulido de faros)"
+                    style={{ borderRadius: "8px" }}
+                  />
+                </div>
+                <div className="col-12 col-md-3">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="form-control"
+                    value={nuevoServicioManualPrecio}
+                    onChange={(e) => setNuevoServicioManualPrecio(e.target.value)}
+                    placeholder="Precio (€)"
+                    style={{ borderRadius: "8px" }}
+                  />
+                </div>
+                <div className="col-12 col-md-3 d-grid">
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary"
+                    onClick={agregarServicioManual}
+                  >
+                    Añadir manual
+                  </button>
+                </div>
+              </div>
               <small className="text-muted d-block mt-2">
                 Al elegir coche, se cargan automáticamente los servicios acordados en recepción (última inspección).
               </small>
