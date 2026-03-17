@@ -103,3 +103,95 @@ def enviar_notificacion_inspeccion(
     except Exception as e:
         logger.warning("WhatsApp: error inesperado — %s", e)
         return False
+
+
+def enviar_notificacion_entrega_cliente(
+    cliente_nombre: str,
+    matricula: str,
+    cliente_telefono: str,
+    fecha_hora: str,
+) -> bool:
+    """
+    Envía un mensaje WhatsApp al CLIENTE informando de que su vehículo
+    está listo para recoger.
+
+    Usa la plantilla definida en WHATSAPP_TEMPLATE_ENTREGA (default: coche_listo).
+    Si el cliente no tiene teléfono configurado, retorna False sin error.
+    Retorna True si el envío fue exitoso, False en cualquier otro caso.
+    La función nunca lanza excepción para no interrumpir el flujo principal.
+    """
+    token = os.getenv("WHATSAPP_TOKEN", "").strip()
+    phone_number_id = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "").strip()
+    template_name = os.getenv("WHATSAPP_TEMPLATE_ENTREGA", "coche_listo").strip()
+    template_lang = os.getenv("WHATSAPP_TEMPLATE_LANG", "es").strip()
+
+    if not token or not phone_number_id:
+        logger.info("WhatsApp: WHATSAPP_TOKEN o WHATSAPP_PHONE_NUMBER_ID no configurados. Se omite notificación de entrega.")
+        return False
+
+    # Normalizar número de teléfono del cliente (quitar espacios, guiones, +)
+    digits = "".join(ch for ch in (cliente_telefono or "") if ch.isdigit())
+    if not digits:
+        logger.info("WhatsApp: cliente sin teléfono, se omite notificación de entrega.")
+        return False
+
+    # Si empieza por 6 o 7 (móvil ES sin prefijo), añadir 34
+    if len(digits) == 9 and digits[0] in ("6", "7"):
+        digits = "34" + digits
+
+    url = META_API_URL.format(phone_number_id=phone_number_id)
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": digits,
+        "type": "template",
+        "template": {
+            "name": template_name,
+            "language": {"code": template_lang},
+            "components": [
+                {
+                    "type": "body",
+                    "parameters": [
+                        {"type": "text", "text": cliente_nombre or "-"},
+                        {"type": "text", "text": matricula or "-"},
+                        {"type": "text", "text": fecha_hora or "-"},
+                    ],
+                }
+            ],
+        },
+    }
+
+    try:
+        body = json.dumps(payload).encode("utf-8")
+        req = urlrequest.Request(
+            url,
+            data=body,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        with urlrequest.urlopen(req, timeout=8) as resp:
+            status = resp.getcode()
+            if status == 200:
+                logger.info("WhatsApp: notificación de entrega enviada a cliente %s (%s)", cliente_nombre, digits)
+                return True
+            else:
+                logger.warning("WhatsApp: respuesta inesperada HTTP %s (entrega)", status)
+                return False
+
+    except HTTPError as e:
+        body_err = ""
+        try:
+            body_err = e.read().decode("utf-8", errors="replace")
+        except Exception:
+            pass
+        logger.warning("WhatsApp: HTTP error %s — %s (entrega)", e.code, body_err)
+        return False
+    except URLError as e:
+        logger.warning("WhatsApp: error de red — %s (entrega)", e.reason)
+        return False
+    except Exception as e:
+        logger.warning("WhatsApp: error inesperado — %s (entrega)", e)
+        return False

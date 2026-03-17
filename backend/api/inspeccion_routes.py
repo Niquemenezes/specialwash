@@ -18,7 +18,7 @@ from models.coche import Coche
 from models.cliente import Cliente
 from models.base import now_madrid
 from utils.auth_utils import normalize_role
-from services.whatsapp_service import enviar_notificacion_inspeccion
+from services.whatsapp_service import enviar_notificacion_inspeccion, enviar_notificacion_entrega_cliente
 from models.notificacion import Notificacion
 from services.openai_service import get_openai_service
 
@@ -583,6 +583,19 @@ def registrar_entrega(inspeccion_id):
         acta.fecha_entrega = inspeccion.fecha_entrega or now_madrid()
 
         db.session.commit()
+
+        # Notificación WhatsApp al cliente
+        try:
+            hora_entrega = inspeccion.fecha_entrega.strftime("%d/%m/%Y %H:%M") if inspeccion.fecha_entrega else ""
+            enviar_notificacion_entrega_cliente(
+                cliente_nombre=inspeccion.cliente_nombre,
+                matricula=inspeccion.matricula,
+                cliente_telefono=inspeccion.cliente_telefono,
+                fecha_hora=hora_entrega,
+            )
+        except Exception:
+            pass  # Nunca bloquear la respuesta por el WhatsApp
+
         return jsonify(inspeccion.to_dict()), 200
     except Exception as e:
         db.session.rollback()
