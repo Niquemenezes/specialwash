@@ -74,6 +74,7 @@ class InspeccionRecepcion(db.Model):
         return {
             "id": self.id,
             "usuario_id": self.usuario_id,
+            "usuario_nombre": self.usuario.nombre if self.usuario else None,
             "cliente_id": self.cliente_id,
             "coche_id": self.coche_id,
             "cliente_nombre": self.cliente_nombre,
