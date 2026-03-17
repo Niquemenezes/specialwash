@@ -95,7 +95,32 @@ export ENABLE_DB_BOOTSTRAP=0
 if [[ "${RUN_SCHEMA_UPDATES:-0}" == "1" ]]; then
     echo "RUN_SCHEMA_UPDATES=1 -> aplicando scripts de esquema"
     if [[ -f /root/specialwash/backend/venv/bin/python ]]; then
-        /root/specialwash/backend/venv/bin/python update_cita_schema.py || true
+        DB_FILE="/root/specialwash/backend/instance/specialwash.db"
+        BACKUP_DIR="/root/specialwash/backend/instance/backups"
+        if [[ -f "$DB_FILE" ]]; then
+            mkdir -p "$BACKUP_DIR"
+            cp "$DB_FILE" "$BACKUP_DIR/specialwash.db.$(date +%Y%m%d_%H%M%S).bak"
+            echo " -> backup creado en $BACKUP_DIR"
+        else
+            echo " -> aviso: no se encontro la BD en $DB_FILE (se omite backup)"
+        fi
+
+        PYTHON_BIN="/root/specialwash/backend/venv/bin/python"
+        for script in \
+            update_producto_schema.py \
+            update_producto_codigos_schema.py \
+            update_servicio_cliente_schema.py \
+            update_servicio_catalogo_schema.py \
+            update_user_schema.py \
+            update_cita_schema.py \
+            update_notificacion_schema.py \
+            update_inspeccion_schema.py \
+            update_acta_entrega_schema.py; do
+            if [[ -f "$script" ]]; then
+                echo " -> ejecutando $script"
+                "$PYTHON_BIN" "$script" || true
+            fi
+        done
     fi
 else
     echo "RUN_SCHEMA_UPDATES=0 -> no se ejecutan cambios de esquema"
