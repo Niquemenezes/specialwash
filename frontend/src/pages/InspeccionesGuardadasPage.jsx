@@ -152,6 +152,7 @@ const InspeccionesGuardadasPage = () => {
                     <th>Cliente</th>
                     <th>Coche</th>
                     <th>Matrícula</th>
+                    <th>Hecho por</th>
                     <th>Fotos</th>
                     <th>Videos</th>
                     <th>Estado</th>
@@ -166,6 +167,7 @@ const InspeccionesGuardadasPage = () => {
                       <td>{insp.cliente_nombre}</td>
                       <td>{insp.coche_descripcion}</td>
                       <td><span className="badge bg-dark">{insp.matricula}</span></td>
+                      <td>{insp.usuario_nombre || "-"}</td>
                       <td>{insp.fotos_cloudinary?.length || 0}</td>
                       <td>{insp.videos_cloudinary?.length || 0}</td>
                       <td>
