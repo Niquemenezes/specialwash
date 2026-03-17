@@ -31,6 +31,19 @@ function formatDate(value) {
   return d.toLocaleString();
 }
 
+function formatShortDate(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function AdminPartesTrabajo() {
   const [partes, setPartes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -424,11 +437,17 @@ export function AdminPartesTrabajo() {
                 style={{ borderRadius: "8px" }}
               >
                 <option value="">Selecciona coche...</option>
-                {cochesDisponibles.map((c) => (
-                  <option key={c.coche_id} value={c.coche_id}>
-                    {c.matricula} {c.coche_descripcion ? ` - ${c.coche_descripcion}` : ""} {c.cliente_nombre ? ` - ${c.cliente_nombre}` : ""}
-                  </option>
-                ))}
+                {cochesDisponibles.map((c) => {
+                  const fechaUltima = formatShortDate(c.fecha_inspeccion);
+                  const metaInspeccion = c.ultima_inspeccion_id
+                    ? ` · Últ. insp #${c.ultima_inspeccion_id}${fechaUltima ? ` (${fechaUltima})` : ""}`
+                    : "";
+                  return (
+                    <option key={c.coche_id} value={c.coche_id}>
+                      {c.matricula} {c.coche_descripcion ? ` - ${c.coche_descripcion}` : ""} {c.cliente_nombre ? ` - ${c.cliente_nombre}` : ""}{metaInspeccion}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 

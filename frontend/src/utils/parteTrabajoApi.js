@@ -112,11 +112,12 @@ export async function listarCochesCatalogo() {
 }
 
 export async function listarCochesParaCrearParte() {
-  const [coches, partesPendientes, partesEnProceso, partesEnPausa] = await Promise.all([
+  const [coches, partesPendientes, partesEnProceso, partesEnPausa, inspecciones] = await Promise.all([
     listarCochesCatalogo(),
     listarPartesTrabajo({ estado: "pendiente" }),
     listarPartesTrabajo({ estado: "en_proceso" }),
     listarPartesTrabajo({ estado: "en_pausa" }),
+    apiFetch("/api/inspeccion-recepcion").catch(() => []),
   ]);
 
   const listaCoches = Array.isArray(coches) ? coches : [];
@@ -128,22 +129,48 @@ export async function listarCochesParaCrearParte() {
 
   const cochesAsignados = new Set(partesActivas.map((p) => Number(p?.coche_id)).filter((id) => Number.isFinite(id)));
 
+  const latestInspeccionByCoche = new Map();
+  const listaInspecciones = Array.isArray(inspecciones) ? inspecciones : [];
+  for (const insp of listaInspecciones) {
+    const cocheId = Number(insp?.coche_id);
+    if (!Number.isFinite(cocheId)) continue;
+
+    const ts = new Date(insp?.fecha_inspeccion || insp?.created_at || 0).getTime();
+    const prev = latestInspeccionByCoche.get(cocheId);
+    const prevTs = prev ? new Date(prev?.fecha_inspeccion || prev?.created_at || 0).getTime() : -1;
+    const inspId = Number(insp?.id || 0);
+    const prevId = Number(prev?.id || 0);
+
+    if (!prev || ts > prevTs || (ts === prevTs && inspId > prevId)) {
+      latestInspeccionByCoche.set(cocheId, insp);
+    }
+  }
+
   const disponibles = [];
   for (const coche of listaCoches) {
     const cocheId = Number(coche?.coche_id);
     if (!Number.isFinite(cocheId)) continue;
     if (cochesAsignados.has(cocheId)) continue;
 
+    const ultima = latestInspeccionByCoche.get(cocheId) || null;
+    const fechaUltima = ultima?.fecha_inspeccion || ultima?.created_at || null;
+
     disponibles.push({
       coche_id: cocheId,
       matricula: coche?.matricula || "Sin matrícula",
       coche_descripcion: coche?.coche_descripcion || "",
       cliente_nombre: coche?.cliente_nombre || "",
-      fecha_inspeccion: null,
+      fecha_inspeccion: fechaUltima,
+      ultima_inspeccion_id: ultima?.id || null,
     });
   }
 
-  return disponibles.sort((a, b) => String(a.matricula).localeCompare(String(b.matricula)));
+  return disponibles.sort((a, b) => {
+    const ta = new Date(a?.fecha_inspeccion || 0).getTime();
+    const tb = new Date(b?.fecha_inspeccion || 0).getTime();
+    if (tb !== ta) return tb - ta;
+    return String(a.matricula).localeCompare(String(b.matricula));
+  });
 }
 
 // Listar servicios del catálogo (solo activos por defecto)
@@ -162,9 +189,10 @@ export async function obtenerUltimaInspeccionPorCoche(cocheId) {
   const candidatas = lista
     .filter((i) => Number(i?.coche_id) === id)
     .sort((a, b) => {
-      const da = new Date(a?.fecha_inspeccion || 0).getTime();
-      const db = new Date(b?.fecha_inspeccion || 0).getTime();
-      return db - da;
+      const da = new Date(a?.fecha_inspeccion || a?.created_at || 0).getTime();
+      const db = new Date(b?.fecha_inspeccion || b?.created_at || 0).getTime();
+      if (db !== da) return db - da;
+      return Number(b?.id || 0) - Number(a?.id || 0);
     });
 
   return candidatas[0] || null;
