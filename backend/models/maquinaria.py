@@ -1,3 +1,5 @@
+import json
+
 from .base import db, iso, now_madrid
 
 class Maquinaria(db.Model):
@@ -17,6 +19,7 @@ class Maquinaria(db.Model):
     precio_con_iva = db.Column(db.Float, default=0)
     cantidad = db.Column(db.Integer, default=1)
     notas = db.Column(db.Text)
+    facturas_cloudinary = db.Column(db.Text, default="[]")
 
     created_at = db.Column(db.DateTime(timezone=True), default=now_madrid, nullable=False)
 
@@ -36,5 +39,6 @@ class Maquinaria(db.Model):
             "precio_con_iva": self.precio_con_iva,
             "cantidad": self.cantidad,
             "notas": self.notas,
+            "facturas_cloudinary": json.loads(self.facturas_cloudinary or "[]"),
             "created_at": iso(self.created_at),
         }

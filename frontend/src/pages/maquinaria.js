@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Context } from "../store/appContext";
 
 // ------- CONFIGURACIÓN DE GARANTÍA -------
@@ -39,6 +39,8 @@ function fmtDate(d) {
 
 export default function Maquinaria() {
   const { store, actions } = useContext(Context);
+  const facturaCamaraRef = useRef(null);
+  const facturaArchivoRef = useRef(null);
 
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("");
@@ -46,6 +48,8 @@ export default function Maquinaria() {
   const [ocrFile, setOcrFile] = useState(null);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrMsg, setOcrMsg] = useState("");
+  const [facturaFile, setFacturaFile] = useState(null);
+  const [facturaUploading, setFacturaUploading] = useState(false);
 
   const [form, setForm] = useState({
     nombre: "",
@@ -73,7 +77,7 @@ export default function Maquinaria() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [actions]);
 
   // ---------------- FILTER ----------------
   const items = useMemo(() => {
@@ -98,6 +102,7 @@ export default function Maquinaria() {
     setEditing({});
     setOcrFile(null);
     setOcrMsg("");
+    setFacturaFile(null);
     setForm({
       nombre: "",
       tipo: "",
@@ -119,6 +124,7 @@ export default function Maquinaria() {
     setEditing(m);
     setOcrFile(null);
     setOcrMsg("");
+    setFacturaFile(null);
     setForm({
       nombre: m.nombre || "",
       descuento: m.descuento ?? "",
@@ -140,6 +146,7 @@ export default function Maquinaria() {
     setEditing(null);
     setOcrFile(null);
     setOcrMsg("");
+    setFacturaFile(null);
     setForm({
       nombre: "",
       descuento: "",
@@ -178,12 +185,20 @@ export default function Maquinaria() {
     };
 
     try {
-      if (editing?.id) await actions.updateMaquina(editing.id, payload);
-      else await actions.createMaquina(payload);
+      const saved = editing?.id
+        ? await actions.updateMaquina(editing.id, payload)
+        : await actions.createMaquina(payload);
+
+      if (facturaFile) {
+        setFacturaUploading(true);
+        await actions.subirFacturaMaquinaria(saved.id, facturaFile);
+      }
 
       cancel();
     } catch (err) {
       alert(err.message);
+    } finally {
+      setFacturaUploading(false);
     }
   };
 
@@ -257,6 +272,32 @@ export default function Maquinaria() {
       setOcrMsg(err?.message || "No se pudo leer el documento con OCR.");
     } finally {
       setOcrLoading(false);
+    }
+  };
+
+  const facturasDe = (m) => (Array.isArray(m?.facturas_cloudinary) ? m.facturas_cloudinary : []);
+
+  const facturaUrl = (factura) => {
+    if (!factura) return "";
+    if (typeof factura === "string") return factura;
+    return factura.url || "";
+  };
+
+  const facturaNombre = (factura, index) => {
+    if (!factura) return `Factura ${index + 1}`;
+    if (typeof factura === "string") return `Factura ${index + 1}`;
+    return factura.original_filename || `Factura ${index + 1}`;
+  };
+
+  const eliminarFactura = async (facturaIndex) => {
+    if (!editing?.id) return;
+    if (!window.confirm("¿Eliminar esta factura de la maquinaria?")) return;
+
+    try {
+      const data = await actions.eliminarFacturaMaquinaria(editing.id, facturaIndex);
+      if (data?.maquinaria) setEditing(data.maquinaria);
+    } catch (err) {
+      alert(err.message || "No se pudo eliminar la factura.");
     }
   };
 
@@ -348,7 +389,13 @@ export default function Maquinaria() {
 
             <form onSubmit={save} className="row g-3">
               <div className="col-12">
-                <label className="form-label fw-semibold">Carga manual u OCR (opcional)</label>
+                <div className="alert alert-info mb-0" role="alert">
+                  <strong>Nota:</strong> El bloque OCR solo sugiere datos. La factura se guarda en el sistema desde "Factura de compra" al pulsar "Guardar".
+                </div>
+              </div>
+
+              <div className="col-12">
+                <label className="form-label fw-semibold">Escaneo OCR (opcional, no guarda factura)</label>
                 <div className="d-flex gap-2 flex-wrap">
                   <input
                     type="file"
@@ -371,11 +418,104 @@ export default function Maquinaria() {
                 </div>
                 {!ocrMsg && (
                   <small className="text-muted d-block mt-1">
-                    OCR sugiere nombre, marca, modelo, serie, fecha, precio, IVA y cantidad. Puedes editar todo manualmente.
+                    OCR sugiere nombre, marca, modelo, serie, fecha, precio, IVA y cantidad. Sirve para autocompletar.
                   </small>
                 )}
                 {ocrMsg && <small className="text-muted d-block mt-1">{ocrMsg}</small>}
               </div>
+
+              <div className="col-12">
+                <label className="form-label fw-semibold">Factura de compra (se guarda en el sistema)</label>
+
+                <input
+                  ref={facturaCamaraRef}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  capture="environment"
+                  className="d-none"
+                  onChange={(e) => setFacturaFile(e.target.files?.[0] || null)}
+                />
+                <input
+                  ref={facturaArchivoRef}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="d-none"
+                  onChange={(e) => setFacturaFile(e.target.files?.[0] || null)}
+                />
+
+                <div className="d-flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-outline-dark"
+                    onClick={() => facturaCamaraRef.current?.click()}
+                  >
+                    📷 Sacar foto factura
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary"
+                    onClick={() => facturaArchivoRef.current?.click()}
+                  >
+                    📎 Subir archivo factura
+                  </button>
+                  {facturaFile && (
+                    <button
+                      type="button"
+                      className="btn btn-outline-danger"
+                      onClick={() => setFacturaFile(null)}
+                    >
+                      Quitar selección
+                    </button>
+                  )}
+                </div>
+
+                <small className="text-muted d-block mt-1">
+                  Formatos permitidos: PDF o imágenes. Esta es la sección correcta para guardar factura.
+                </small>
+                {facturaFile && (
+                  <small className="d-block mt-1 text-success">
+                    Archivo seleccionado: {facturaFile.name}
+                  </small>
+                )}
+              </div>
+
+              {editing?.id && facturasDe(editing).length > 0 && (
+                <div className="col-12">
+                  <label className="form-label fw-semibold">Facturas guardadas</label>
+                  <div className="d-flex flex-column gap-2">
+                    {facturasDe(editing).map((factura, index) => {
+                      const url = facturaUrl(factura);
+                      return (
+                        <div
+                          key={`${editing.id}-factura-${index}`}
+                          className="d-flex align-items-center justify-content-between border rounded px-3 py-2"
+                        >
+                          <div className="text-truncate me-2">{facturaNombre(factura, index)}</div>
+                          <div className="d-flex gap-2">
+                            {url && (
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="btn btn-sm btn-outline-primary"
+                              >
+                                Ver
+                              </a>
+                            )}
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-danger"
+                              onClick={() => eliminarFactura(index)}
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {Object.entries({
                 nombre: "Nombre *",
@@ -495,6 +635,7 @@ export default function Maquinaria() {
                 <button
                   className="btn"
                   type="submit"
+                  disabled={facturaUploading}
                   style={{
                     background: "#d4af37",
                     color: "black",
@@ -504,7 +645,7 @@ export default function Maquinaria() {
                     paddingRight: "1rem",
                   }}
                 >
-                  💾 Guardar
+                  {facturaUploading ? "Subiendo factura..." : "💾 Guardar"}
                 </button>
                 <button
                   className="btn"
@@ -545,6 +686,7 @@ export default function Maquinaria() {
                 <th className="text-end">IVA %</th>
                 <th className="text-end">P. con IVA</th>
                 <th className="text-center">Cant.</th>
+                <th className="text-center">Facturas</th>
                 <th>Garantía</th>
                 <th className="text-end">Acciones</th>
               </tr>
@@ -552,11 +694,11 @@ export default function Maquinaria() {
 
             <tbody>
               {loading && (
-                <tr><td colSpan="12" className="text-center py-4">Cargando…</td></tr>
+                <tr><td colSpan="13" className="text-center py-4">Cargando…</td></tr>
               )}
 
               {!loading && items.length === 0 && (
-                <tr><td colSpan="12" className="text-center text-muted py-4">Sin maquinaria</td></tr>
+                <tr><td colSpan="13" className="text-center text-muted py-4">Sin maquinaria</td></tr>
               )}
 
               {!loading &&
@@ -592,6 +734,25 @@ export default function Maquinaria() {
                       <td className="text-end">{(m.iva ?? 0).toFixed(2)}%</td>
                       <td className="text-end">{(m.precio_con_iva ?? 0).toFixed(2)} €</td>
                       <td className="text-center">{m.cantidad ?? 1}</td>
+                      <td className="text-center">
+                        {facturasDe(m).length > 0 ? (
+                          <div className="d-flex flex-column gap-1 align-items-center">
+                            <span className="badge bg-info text-dark">{facturasDe(m).length}</span>
+                            {facturaUrl(facturasDe(m)[0]) && (
+                              <a
+                                href={facturaUrl(facturasDe(m)[0])}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="btn btn-sm btn-outline-info"
+                              >
+                                Ver última
+                              </a>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted">-</span>
+                        )}
+                      </td>
                       <td><span className={badgeClass}>{text}</span></td>
 
                       <td className="text-end">
@@ -604,6 +765,7 @@ export default function Maquinaria() {
                         </button>
                         <button
                           className="btn btn-sm btn-outline-danger"
+                          disabled={facturaUploading}
                           onClick={() => remove(m)}
                           title="Eliminar"
                         >

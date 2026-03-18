@@ -565,6 +565,56 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
       },
 
+      subirFacturaMaquinaria: async (maquinariaId, archivo) => {
+        try {
+          const formData = new FormData();
+          formData.append("file", archivo);
+
+          const data = await apiFetch(`/api/maquinaria/${maquinariaId}/upload-factura`, {
+            method: "POST",
+            body: formData,
+            json: false,
+            headers: {},
+          });
+
+          if (data?.maquinaria?.id) {
+            const { maquinaria } = getStore();
+            setStore({
+              maquinaria: maquinaria.map((m) =>
+                m.id === data.maquinaria.id ? data.maquinaria : m
+              ),
+            });
+          }
+
+          return data;
+        } catch (err) {
+          console.error("subirFacturaMaquinaria:", err);
+          throw err;
+        }
+      },
+
+      eliminarFacturaMaquinaria: async (maquinariaId, facturaIndex) => {
+        try {
+          const data = await apiFetch(`/api/maquinaria/${maquinariaId}/factura/${facturaIndex}`, {
+            method: "DELETE",
+          });
+
+          if (data?.maquinaria?.id) {
+            const { maquinaria } = getStore();
+            setStore({
+              maquinaria: maquinaria.map((m) =>
+                m.id === data.maquinaria.id ? data.maquinaria : m
+              ),
+            });
+          }
+
+          return data;
+        } catch (err) {
+          console.error("eliminarFacturaMaquinaria:", err);
+          throw err;
+        }
+      },
+
       updateMaquina: async (id, maquina) => {
         try {
           const updated = await apiFetch(`/api/maquinaria/${id}`, { method: "PUT", body: maquina });

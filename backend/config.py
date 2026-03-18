@@ -52,8 +52,8 @@ class Config:
         )
     )
 
-    # Subida de archivos - 20 MB máximo (suficiente para OCR de imágenes)
-    MAX_CONTENT_LENGTH = 20 * 1024 * 1024  # 20 MB
+    # Subida de archivos - 300 MB para admitir videos 1080p de inspección
+    MAX_CONTENT_LENGTH = 300 * 1024 * 1024  # 300 MB
 
     # OpenAI (asistente de redaccion premium de actas)
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")

@@ -2,7 +2,7 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Context } from "../store/appContext";
 import { useNavigate } from "react-router-dom";
-import logo from "../img/logospecialwash.jpg";
+import logo from "../img/Logo Special-Wash Studio.png";
 
 export default function PedidoBajoStock() {
   const { store, actions } = useContext(Context);

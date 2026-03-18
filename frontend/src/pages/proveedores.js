@@ -30,7 +30,7 @@ export default function Proveedores() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [actions]);
 
   // Filtrado
   const proveedores = useMemo(() => {

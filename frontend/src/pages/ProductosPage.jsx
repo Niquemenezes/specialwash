@@ -131,15 +131,6 @@ export default function ProductosPage() {
     }
   };
 
-  const recargar = async () => {
-    setLoading(true);
-    try {
-      await actions.getProductos();
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // ================================
   // FUNCIONES DE IMPRESIÓN
   // ================================

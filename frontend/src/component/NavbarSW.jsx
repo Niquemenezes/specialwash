@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import logo from "../img/Logo Special-Wash.png";
+import logo from "../img/Logo Special-Wash Studio.png";
 import { buildApiUrl } from "../utils/apiBase";
 import { getStoredRol, getStoredToken, isEmployeeRole } from "../utils/authSession";
 
