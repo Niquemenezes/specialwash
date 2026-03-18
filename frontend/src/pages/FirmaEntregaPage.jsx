@@ -85,7 +85,8 @@ const FirmaEntregaPage = () => {
                 </thead>
                 <tbody>
                   {pendientes.map((item) => {
-                    const actaLista = Boolean((item.trabajos_realizados || "").trim());
+                    const esConcesionario = Boolean(item.es_concesionario);
+                    const actaLista = esConcesionario || Boolean((item.trabajos_realizados || "").trim());
                     return (
                       <tr key={item.id}>
                         <td>{item.id}</td>
@@ -94,7 +95,9 @@ const FirmaEntregaPage = () => {
                         <td>{item.matricula || "-"}</td>
                         <td>{formatFecha(item.fecha_inspeccion)}</td>
                         <td>
-                          {actaLista ? (
+                          {esConcesionario ? (
+                            <span className="badge bg-info text-dark">Sin acta cliente (profesional)</span>
+                          ) : actaLista ? (
                             <span className="badge bg-success">Lista para firmar</span>
                           ) : (
                             <span className="badge bg-secondary">Acta pendiente</span>
@@ -103,7 +106,7 @@ const FirmaEntregaPage = () => {
                         <td>
                           {actaLista ? (
                             <Link className="btn btn-outline-success btn-sm" to={`/acta-entrega/${item.id}`}>
-                              Firmar entrega
+                              {esConcesionario ? "Cerrar entrega" : "Firmar entrega"}
                             </Link>
                           ) : (
                             <button className="btn btn-outline-secondary btn-sm" disabled>

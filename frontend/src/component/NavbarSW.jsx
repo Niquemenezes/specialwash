@@ -455,6 +455,12 @@ const NavbarSW = () => {
                     </ul>
                   </li>
 
+                  <li className="nav-item">
+                    <NavLink to="/salidas" className="nav-link sw-navlink">
+                      Registrar salida
+                    </NavLink>
+                  </li>
+
                   <li className="nav-item dropdown">
                     <button
                       className="nav-link dropdown-toggle sw-navlink btn btn-link"

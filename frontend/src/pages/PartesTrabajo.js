@@ -44,6 +44,32 @@ function formatShortDate(value) {
   });
 }
 
+function formatMinutes(minutes) {
+  const total = Number.isFinite(Number(minutes)) ? Math.max(0, Number(minutes)) : 0;
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0) return `${m} min`;
+  if (m === 0) return `${h} h`;
+  return `${h} h ${m} min`;
+}
+
+function parseHoursToMinutes(hoursValue) {
+  const raw = String(hoursValue ?? "").trim();
+  if (!raw) return 0;
+  const hours = Number(raw.replace(",", "."));
+  if (!Number.isFinite(hours) || hours < 0) return null;
+  return Math.round(hours * 60);
+}
+
+function deviationBadge(desviacionMinutos) {
+  if (!Number.isFinite(Number(desviacionMinutos))) return <span className="text-muted">-</span>;
+  const value = Number(desviacionMinutos);
+  let cls = "bg-success";
+  if (value > 30) cls = "bg-danger";
+  else if (value > 10) cls = "bg-warning text-dark";
+  return <span className={`badge ${cls}`}>{`${value > 0 ? "+" : ""}${value} min`}</span>;
+}
+
 export function AdminPartesTrabajo() {
   const [partes, setPartes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -66,6 +92,7 @@ export function AdminPartesTrabajo() {
   const [serviciosParteSeleccionados, setServiciosParteSeleccionados] = useState([]);
   const [nuevoServicioManualNombre, setNuevoServicioManualNombre] = useState("");
   const [nuevoServicioManualPrecio, setNuevoServicioManualPrecio] = useState("");
+  const [nuevoServicioManualHoras, setNuevoServicioManualHoras] = useState("");
 
   const empleadoNombrePorId = useCallback(
     (id) => {
@@ -167,6 +194,7 @@ export function AdminPartesTrabajo() {
               key: `rec-${s?.servicio_catalogo_id || "x"}-${idx}`,
               nombre: String(s?.nombre || "").trim(),
               precio: Number(s?.precio || 0),
+              tiempo_estimado_minutos: Number.parseInt(s?.tiempo_estimado_minutos || 0, 10) || 0,
               origen: "recepcion",
               servicio_catalogo_id: s?.servicio_catalogo_id ?? null,
             }))
@@ -209,6 +237,7 @@ export function AdminPartesTrabajo() {
           key: `extra-${servicioElegido.id}`,
           nombre,
           precio: Number(servicioElegido.precio_base || 0),
+          tiempo_estimado_minutos: Number.parseInt(servicioElegido.tiempo_estimado_minutos || 0, 10) || 0,
           origen: "extra",
           servicio_catalogo_id: servicioElegido.id,
         },
@@ -232,6 +261,12 @@ export function AdminPartesTrabajo() {
       return;
     }
 
+    const tiempoEstimadoMin = parseHoursToMinutes(nuevoServicioManualHoras);
+    if (tiempoEstimadoMin === null) {
+      setMensajeCreacion("Las horas estimadas deben ser un número válido mayor o igual a 0.");
+      return;
+    }
+
     setServiciosParteSeleccionados((prev) => {
       const yaExiste = prev.some((s) => String(s.nombre || "").toLowerCase() === nombre.toLowerCase());
       if (yaExiste) return prev;
@@ -242,6 +277,7 @@ export function AdminPartesTrabajo() {
           key: `manual-${Date.now()}`,
           nombre,
           precio: Math.round(precio * 100) / 100,
+          tiempo_estimado_minutos: tiempoEstimadoMin,
           origen: "manual",
           servicio_catalogo_id: null,
         },
@@ -250,6 +286,7 @@ export function AdminPartesTrabajo() {
 
     setNuevoServicioManualNombre("");
     setNuevoServicioManualPrecio("");
+    setNuevoServicioManualHoras("");
     setMensajeCreacion("");
   };
 
@@ -280,6 +317,10 @@ export function AdminPartesTrabajo() {
       coche_id: Number(nuevoCocheId),
       empleado_id: Number(nuevoEmpleadoId),
       observaciones: trabajoFinal,
+      tiempo_estimado_minutos: serviciosParteSeleccionados.reduce(
+        (acc, s) => acc + (Number.parseInt(s.tiempo_estimado_minutos || 0, 10) || 0),
+        0
+      ),
     };
 
     try {
@@ -290,6 +331,7 @@ export function AdminPartesTrabajo() {
       setNuevoServicioId("");
       setNuevoServicioManualNombre("");
       setNuevoServicioManualPrecio("");
+      setNuevoServicioManualHoras("");
       setServiciosParteSeleccionados([]);
       await Promise.all([cargarPartes(), cargarRecursos()]);
     } catch (e) {
@@ -357,6 +399,7 @@ export function AdminPartesTrabajo() {
       await editarParteTrabajo(editandoId, {
         empleado_id: Number(editEmpleadoId),
         observaciones: trabajo,
+        tiempo_estimado_minutos: Number.parseInt(servicioElegido?.tiempo_estimado_minutos || 0, 10) || 0,
       });
       await cargarPartes();
       onCancelarEditar();
@@ -506,7 +549,7 @@ export function AdminPartesTrabajo() {
               )}
 
               <div className="row g-2 mt-2">
-                <div className="col-12 col-md-6">
+                <div className="col-12 col-md-5">
                   <input
                     type="text"
                     className="form-control"
@@ -528,7 +571,19 @@ export function AdminPartesTrabajo() {
                     style={{ borderRadius: "8px" }}
                   />
                 </div>
-                <div className="col-12 col-md-3 d-grid">
+                <div className="col-12 col-md-2">
+                  <input
+                    type="number"
+                    step="0.25"
+                    min="0"
+                    className="form-control"
+                    value={nuevoServicioManualHoras}
+                    onChange={(e) => setNuevoServicioManualHoras(e.target.value)}
+                    placeholder="Horas"
+                    style={{ borderRadius: "8px" }}
+                  />
+                </div>
+                <div className="col-12 col-md-2 d-grid">
                   <button
                     type="button"
                     className="btn btn-outline-secondary"
@@ -541,25 +596,38 @@ export function AdminPartesTrabajo() {
               <small className="text-muted d-block mt-2">
                 Al elegir coche, se cargan automáticamente los servicios acordados en recepción (última inspección).
               </small>
+              <small className="text-muted d-block mt-1">
+                En servicio manual puedes indicar horas (ej. 1.5) y se convertirán automáticamente a minutos.
+              </small>
 
               <div className="mt-2">
                 {serviciosParteSeleccionados.length === 0 ? (
                   <div className="text-muted small">No hay servicios seleccionados todavía.</div>
                 ) : (
-                  <div className="d-flex flex-wrap gap-2">
-                    {serviciosParteSeleccionados.map((s) => (
-                      <span key={s.key} className="badge bg-secondary d-flex align-items-center gap-2 p-2">
-                        {s.nombre} {Number.isFinite(s.precio) ? `· ${Number(s.precio).toFixed(2)}€` : ""}
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-light py-0 px-1"
-                          onClick={() => quitarServicioSeleccionado(s.key)}
-                          title="Quitar servicio"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
+                  <div>
+                    <div className="d-flex flex-wrap gap-2">
+                      {serviciosParteSeleccionados.map((s) => (
+                        <span key={s.key} className="badge bg-secondary d-flex align-items-center gap-2 p-2">
+                          {s.nombre}
+                          {Number.isFinite(s.precio) ? ` · ${Number(s.precio).toFixed(2)}€` : ""}
+                          {` · ${formatMinutes(Number.parseInt(s.tiempo_estimado_minutos || 0, 10) || 0)}`}
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-light py-0 px-1"
+                            onClick={() => quitarServicioSeleccionado(s.key)}
+                            title="Quitar servicio"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                    <small className="text-muted d-block mt-2">
+                      Tiempo estimado total del parte: {formatMinutes(serviciosParteSeleccionados.reduce(
+                        (acc, s) => acc + (Number.parseInt(s.tiempo_estimado_minutos || 0, 10) || 0),
+                        0
+                      ))}
+                    </small>
                   </div>
                 )}
               </div>
@@ -645,7 +713,9 @@ export function AdminPartesTrabajo() {
                       <th>Trabajo</th>
                       <th>Inicio</th>
                       <th>Fin</th>
+                      <th>Estimado</th>
                       <th>Duración (h)</th>
+                      <th>Desvío</th>
                       <th>Acciones</th>
                     </tr>
                   </thead>
@@ -659,7 +729,9 @@ export function AdminPartesTrabajo() {
                         <td>{p.observaciones || "-"}</td>
                         <td className="small">{formatDate(p.fecha_inicio)}</td>
                         <td className="small">{formatDate(p.fecha_fin)}</td>
+                        <td>{formatMinutes(p.tiempo_estimado_minutos || 0)}</td>
                         <td>{typeof p.duracion_horas === "number" ? p.duracion_horas.toFixed(2) : "-"}</td>
+                        <td>{deviationBadge(p.desviacion_minutos)}</td>
                         <td>
                           <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                             {p.estado === "en_pausa" && (

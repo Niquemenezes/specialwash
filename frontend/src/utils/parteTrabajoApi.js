@@ -35,11 +35,11 @@ async function apiFetch(path, options = {}) {
 }
 
 // Crear parte de trabajo
-export async function crearParteTrabajo({ coche_id, empleado_id, observaciones }) {
+export async function crearParteTrabajo({ coche_id, empleado_id, observaciones, tiempo_estimado_minutos }) {
   return apiFetch("/api/parte_trabajo", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ coche_id, empleado_id, observaciones })
+    body: JSON.stringify({ coche_id, empleado_id, observaciones, tiempo_estimado_minutos })
   });
 }
 
@@ -69,11 +69,11 @@ export async function quitarPausa(parte_id) {
 }
 
 // Editar parte de trabajo
-export async function editarParteTrabajo(parte_id, { empleado_id, observaciones }) {
+export async function editarParteTrabajo(parte_id, { empleado_id, observaciones, tiempo_estimado_minutos }) {
   return apiFetch(`/api/parte_trabajo/${parte_id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ empleado_id, observaciones })
+    body: JSON.stringify({ empleado_id, observaciones, tiempo_estimado_minutos })
   });
 }
 

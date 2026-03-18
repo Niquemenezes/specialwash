@@ -546,7 +546,9 @@ const CochesPendientesEntrega = () => {
                       <td>{inspeccion.matricula || "-"}</td>
                       <td>{formatFecha(inspeccion.fecha_inspeccion)}</td>
                       <td>
-                        {(inspeccion.trabajos_realizados || "").trim() ? (
+                        {inspeccion.es_concesionario ? (
+                          <span className="badge bg-info text-dark">No requerida (profesional)</span>
+                        ) : (inspeccion.trabajos_realizados || "").trim() ? (
                           <div className="d-flex flex-column gap-2">
                             <span className="badge bg-success align-self-start">Acta guardada</span>
                             <div className="d-flex gap-2 flex-wrap">
@@ -573,15 +575,17 @@ const CochesPendientesEntrega = () => {
                         )}
                       </td>
                       <td>
-                        <div className="d-flex gap-2">
-                          <button
-                            type="button"
-                            className="btn btn-outline-primary btn-sm"
-                            onClick={() => abrirPrepararActa(inspeccion.id)}
-                          >
-                            Preparar acta
-                          </button>
-                        </div>
+                        {!inspeccion.es_concesionario && (
+                          <div className="d-flex gap-2">
+                            <button
+                              type="button"
+                              className="btn btn-outline-primary btn-sm"
+                              onClick={() => abrirPrepararActa(inspeccion.id)}
+                            >
+                              Preparar acta
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}

@@ -17,6 +17,7 @@ NEW_COLUMNS = {
     "kilometros": "INTEGER",
     
     # Firmas de recepción
+    "es_concesionario": "BOOLEAN NOT NULL DEFAULT 0",
     "firma_cliente_recepcion": "TEXT",
     "firma_empleado_recepcion": "TEXT",
     "consentimiento_datos_recepcion": "BOOLEAN NOT NULL DEFAULT 0",

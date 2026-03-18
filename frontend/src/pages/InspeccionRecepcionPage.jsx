@@ -10,6 +10,7 @@ const INITIAL_FORM_DATA = {
   coche_descripcion: "",
   matricula: "",
   kilometros: "",
+  es_concesionario: false,
   firma_cliente_recepcion: "",
   firma_empleado_recepcion: "",
   consentimiento_datos_recepcion: false,
@@ -22,6 +23,14 @@ const FORMATOS_VIDEO_ACEPTADOS = ["mp4", "mov", "avi", "mkv", "webm", "3gp", "fl
 const FORMATOS_VIDEO_LABEL = "MP4, MOV, AVI, MKV, WEBM, 3GP, FLV";
 
 const formatFileSizeMB = (sizeInBytes) => (sizeInBytes / (1024 * 1024)).toFixed(2);
+
+const parseHoursToMinutes = (rawHours) => {
+  const raw = String(rawHours ?? "").trim();
+  if (!raw) return 0;
+  const value = Number(raw.replace(",", "."));
+  if (!Number.isFinite(value) || value < 0) return null;
+  return Math.round(value * 60);
+};
 
 const getStored = (k) =>
   (typeof sessionStorage !== "undefined" && sessionStorage.getItem(k)) ||
@@ -56,7 +65,7 @@ const InspeccionRecepcionPage = () => {
   const [inspeccionCreada, setInspeccionCreada] = useState(null);
   const [inspeccionEditandoId, setInspeccionEditandoId] = useState(null);
   const [catalogoServicios, setCatalogoServicios] = useState([]);
-  const [servicioManual, setServicioManual] = useState({ nombre: "", precio: "" });
+  const [servicioManual, setServicioManual] = useState({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "" });
   const [searchParams, setSearchParams] = useSearchParams();
   const rol = normalizeRol(getStored("rol"));
   const isAdmin = rol === "administrador";
@@ -87,6 +96,7 @@ const InspeccionRecepcionPage = () => {
           coche_descripcion: inspeccion.coche_descripcion || "",
           matricula: inspeccion.matricula || "",
           kilometros: inspeccion.kilometros || "",
+          es_concesionario: Boolean(inspeccion.es_concesionario),
           firma_cliente_recepcion: inspeccion.firma_cliente_recepcion || "",
           firma_empleado_recepcion: inspeccion.firma_empleado_recepcion || "",
           consentimiento_datos_recepcion: Boolean(inspeccion.consentimiento_datos_recepcion),
@@ -131,9 +141,11 @@ const InspeccionRecepcionPage = () => {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+    const nextValue = type === "checkbox" ? checked : value;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value
+      [name]: nextValue,
+      ...(name === "es_concesionario" && checked ? { firma_cliente_recepcion: "" } : {})
     }));
   };
 
@@ -149,13 +161,14 @@ const InspeccionRecepcionPage = () => {
 
       return {
         ...prev,
-        servicios_aplicados: [
+            servicios_aplicados: [
           ...existentes,
           {
             origen: "catalogo",
             servicio_catalogo_id: servicioId,
             nombre: servicio.nombre || "Servicio",
             precio: Number(servicio.precio_base || 0),
+            tiempo_estimado_minutos: Number.parseInt(servicio.tiempo_estimado_minutos || 0, 10) || 0,
           },
         ],
       };
@@ -176,6 +189,19 @@ const InspeccionRecepcionPage = () => {
       return;
     }
 
+    const tiempoEnMinutos = Number.parseInt(servicioManual.tiempo_estimado_minutos || "0", 10);
+    if (Number.isNaN(tiempoEnMinutos) || tiempoEnMinutos < 0) {
+      alert("El tiempo estimado debe ser 0 o mayor");
+      return;
+    }
+
+    const tiempoDesdeHoras = parseHoursToMinutes(servicioManual.tiempo_estimado_horas);
+    if (tiempoDesdeHoras === null) {
+      alert("Las horas estimadas deben ser un número válido mayor o igual a 0");
+      return;
+    }
+    const tiempoEstimado = tiempoDesdeHoras > 0 ? tiempoDesdeHoras : tiempoEnMinutos;
+
     setFormData((prev) => ({
       ...prev,
       servicios_aplicados: [
@@ -185,11 +211,12 @@ const InspeccionRecepcionPage = () => {
           servicio_catalogo_id: null,
           nombre,
           precio,
+          tiempo_estimado_minutos: tiempoEstimado,
         },
       ],
     }));
 
-    setServicioManual({ nombre: "", precio: "" });
+    setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "" });
   };
 
   const eliminarServicioAplicado = (index) => {
@@ -304,8 +331,13 @@ const InspeccionRecepcionPage = () => {
     // Validaciones básicas
     if (!formData.cliente_nombre || !formData.cliente_telefono || 
         !formData.coche_descripcion || !formData.matricula || !formData.kilometros ||
-        !formData.firma_cliente_recepcion || !formData.firma_empleado_recepcion) {
+        !formData.firma_empleado_recepcion) {
       alert("Por favor, completa todos los campos obligatorios");
+      return;
+    }
+
+    if (!formData.es_concesionario && !formData.firma_cliente_recepcion) {
+      alert("La firma del cliente es obligatoria en la recepcion para flujo normal");
       return;
     }
 
@@ -331,6 +363,7 @@ const InspeccionRecepcionPage = () => {
           servicio_catalogo_id: s.servicio_catalogo_id ?? null,
           nombre: String(s.nombre || "").trim(),
           precio: Number.parseFloat(s.precio || 0) || 0,
+          tiempo_estimado_minutos: Number.parseInt(s.tiempo_estimado_minutos || 0, 10) || 0,
         }))
       };
 
@@ -379,7 +412,7 @@ const InspeccionRecepcionPage = () => {
       
       // Limpiar formulario
       setFormData(INITIAL_FORM_DATA);
-      setServicioManual({ nombre: "", precio: "" });
+      setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "" });
       setFotos([]);
       setVideos([]);
       setFotosPreview([]);
@@ -402,7 +435,7 @@ const InspeccionRecepcionPage = () => {
     setInspeccionEditandoId(null);
     setSearchParams({});
     setFormData(INITIAL_FORM_DATA);
-    setServicioManual({ nombre: "", precio: "" });
+    setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "" });
     setFotos([]);
     setVideos([]);
     setFotosPreview([]);
@@ -530,6 +563,22 @@ const InspeccionRecepcionPage = () => {
                   placeholder="Ej: 125000"
                   required
                 />
+              </div>
+
+              <div className="col-12 mb-3">
+                <div className="form-check">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    id="es_concesionario"
+                    name="es_concesionario"
+                    checked={Boolean(formData.es_concesionario)}
+                    onChange={handleInputChange}
+                  />
+                  <label className="form-check-label" htmlFor="es_concesionario">
+                    Coche de concesionario/profesional (en recepcion no se solicita firma de cliente)
+                  </label>
+                </div>
               </div>
 
               {/* Fotos */}
@@ -712,6 +761,9 @@ const InspeccionRecepcionPage = () => {
                             onClick={() => agregarServicioCatalogo(servicio)}
                           >
                             {servicio.nombre} · {Number(servicio.precio_base || 0).toFixed(2)} €
+                            {Number(servicio.tiempo_estimado_minutos || 0) > 0
+                              ? ` · ${Number(servicio.tiempo_estimado_minutos)} min`
+                              : ""}
                           </button>
                         ))}
                       </div>
@@ -729,7 +781,7 @@ const InspeccionRecepcionPage = () => {
                             onChange={(e) => setServicioManual((prev) => ({ ...prev, nombre: e.target.value }))}
                           />
                         </div>
-                        <div className="col-8 col-md-3">
+                        <div className="col-6 col-md-2">
                           <input
                             type="number"
                             className="form-control"
@@ -740,12 +792,37 @@ const InspeccionRecepcionPage = () => {
                             onChange={(e) => setServicioManual((prev) => ({ ...prev, precio: e.target.value }))}
                           />
                         </div>
-                        <div className="col-4 col-md-3 d-grid">
+                        <div className="col-6 col-md-2">
+                          <input
+                            type="number"
+                            className="form-control"
+                            min="0"
+                            step="1"
+                            placeholder="Minutos"
+                            value={servicioManual.tiempo_estimado_minutos}
+                            onChange={(e) => setServicioManual((prev) => ({ ...prev, tiempo_estimado_minutos: e.target.value }))}
+                          />
+                        </div>
+                        <div className="col-6 col-md-2">
+                          <input
+                            type="number"
+                            className="form-control"
+                            min="0"
+                            step="0.25"
+                            placeholder="Horas"
+                            value={servicioManual.tiempo_estimado_horas}
+                            onChange={(e) => setServicioManual((prev) => ({ ...prev, tiempo_estimado_horas: e.target.value }))}
+                          />
+                        </div>
+                        <div className="col-12 col-md-2 d-grid">
                           <button type="button" className="btn btn-dark" onClick={agregarServicioManual}>
                             Añadir
                           </button>
                         </div>
                       </div>
+                      <small className="text-muted d-block mt-1">
+                        Puedes indicar minutos o horas (ej. 1.5 horas = 90 min). Si completas ambos, se prioriza horas.
+                      </small>
                     </div>
 
                     <div>
@@ -760,6 +837,7 @@ const InspeccionRecepcionPage = () => {
                                 <th>Tipo</th>
                                 <th>Nombre</th>
                                 <th>Precio</th>
+                                <th>Tiempo estimado</th>
                                 <th className="text-end">Acción</th>
                               </tr>
                             </thead>
@@ -769,6 +847,7 @@ const InspeccionRecepcionPage = () => {
                                   <td>{servicio.origen === "catalogo" ? "Catálogo" : "Manual"}</td>
                                   <td>{servicio.nombre}</td>
                                   <td>{Number(servicio.precio || 0).toFixed(2)} €</td>
+                                  <td>{Number(servicio.tiempo_estimado_minutos || 0)} min</td>
                                   <td className="text-end">
                                     <button
                                       type="button"
@@ -781,6 +860,23 @@ const InspeccionRecepcionPage = () => {
                                 </tr>
                               ))}
                             </tbody>
+                            <tfoot>
+                              <tr>
+                                <th colSpan="2">Total</th>
+                                <th>
+                                  {(formData.servicios_aplicados || [])
+                                    .reduce((acc, s) => acc + (Number(s.precio || 0) || 0), 0)
+                                    .toFixed(2)}{" "}
+                                  €
+                                </th>
+                                <th>
+                                  {(formData.servicios_aplicados || [])
+                                    .reduce((acc, s) => acc + (Number.parseInt(s.tiempo_estimado_minutos || 0, 10) || 0), 0)}{" "}
+                                  min
+                                </th>
+                                <th />
+                              </tr>
+                            </tfoot>
                           </table>
                         </div>
                       )}
@@ -830,15 +926,25 @@ const InspeccionRecepcionPage = () => {
                         />
                       </div>
                       <div className="col-12 col-md-6">
-                        <SignaturePad
-                          title="Firma Cliente"
-                          value={formData.firma_cliente_recepcion}
-                          onChange={(firma) => setFormData((prev) => ({ ...prev, firma_cliente_recepcion: firma }))}
-                        />
+                        {formData.es_concesionario ? (
+                          <div className="border rounded p-3 h-100 bg-white d-flex align-items-center">
+                            <small className="text-muted mb-0">
+                              En este tipo de recepcion solo se requiere firma de empleado.
+                            </small>
+                          </div>
+                        ) : (
+                          <SignaturePad
+                            title="Firma Cliente"
+                            value={formData.firma_cliente_recepcion}
+                            onChange={(firma) => setFormData((prev) => ({ ...prev, firma_cliente_recepcion: firma }))}
+                          />
+                        )}
                       </div>
                     </div>
                     <small className="text-muted">
-                      Ambas firmas son obligatorias para dejar constancia de la revision de estado del coche en recepcion.
+                      {formData.es_concesionario
+                        ? "En modo concesionario/profesional solo es obligatoria la firma del empleado en recepcion."
+                        : "Ambas firmas son obligatorias para dejar constancia de la revision de estado del coche en recepcion."}
                     </small>
                   </div>
                 </div>

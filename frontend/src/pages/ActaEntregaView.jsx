@@ -147,6 +147,7 @@ const ActaEntregaView = () => {
   }, [inspeccion?.entrega_observaciones, acta.observaciones]);
   const contenidoTecnico = useMemo(() => normalizeTechnicalContent(acta.contenido), [acta.contenido]);
   const isEntregado = Boolean(inspeccion?.entregado);
+  const esConcesionario = Boolean(inspeccion?.es_concesionario);
   const rol = normalizeRol(getStored("rol"));
 
   const volver = () => {
@@ -172,7 +173,7 @@ const ActaEntregaView = () => {
 
   const finalizarEntrega = async () => {
     if (!inspeccion) return;
-    if (!(inspeccion.trabajos_realizados || "").trim()) {
+    if (!esConcesionario && !(inspeccion.trabajos_realizados || "").trim()) {
       alert("Debes preparar y guardar el acta antes de finalizar la entrega.");
       return;
     }
@@ -180,11 +181,11 @@ const ActaEntregaView = () => {
       alert("Debes indicar el nombre de la persona que firma la recepcion del vehiculo.");
       return;
     }
-    if (!firmaCliente) {
+    if (!esConcesionario && !firmaCliente) {
       alert("La firma del cliente es obligatoria para finalizar la entrega.");
       return;
     }
-    if (!consentimiento) {
+    if (!esConcesionario && !consentimiento) {
       alert("Debes confirmar la proteccion de datos.");
       return;
     }
@@ -192,14 +193,16 @@ const ActaEntregaView = () => {
     setGuardando(true);
     try {
       await actions.registrarEntregaInspeccion(inspeccion.id, {
-        trabajos_realizados: inspeccion.trabajos_realizados,
+        trabajos_realizados: esConcesionario
+          ? String(inspeccion.trabajos_realizados || "").trim()
+          : inspeccion.trabajos_realizados,
         entrega_observaciones: mergeObservacionesConFirmante(
           observacionesLimpias === "-" ? "" : observacionesLimpias,
           nombreFirmante
         ),
-        firma_cliente_entrega: firmaCliente,
-        consentimiento_datos_entrega: consentimiento,
-        conformidad_revision_entrega: conformidad,
+        firma_cliente_entrega: esConcesionario ? null : firmaCliente,
+        consentimiento_datos_entrega: esConcesionario ? false : consentimiento,
+        conformidad_revision_entrega: esConcesionario ? false : conformidad,
       });
       alert("Entrega finalizada correctamente");
       navigate(rol === "empleado" ? "/" : "/entregados", { replace: true });
@@ -399,7 +402,11 @@ const ActaEntregaView = () => {
 
         <div className="box mb-3 avoid-break">
           <div className="section-title">Informe Tecnico de Intervencion</div>
-          <div className="content">{contenidoTecnico || "(Acta sin contenido)"}</div>
+          <div className="content">
+            {esConcesionario
+              ? "Vehiculo de concesionario/profesional: cierre de entrega interno sin firma de cliente ni acta tecnica obligatoria."
+              : (contenidoTecnico || "(Acta sin contenido)")}
+          </div>
         </div>
 
         <div className="legal-note avoid-break mb-3">
@@ -428,52 +435,56 @@ const ActaEntregaView = () => {
           <div className="form-text">Puede ser distinto al titular si otra persona recoge el vehiculo.</div>
         </div>
 
-        <div className="mb-2 fw-bold">Revision con cliente</div>
-        <div className="form-check mb-2">
-          <input
-            className="form-check-input"
-            type="checkbox"
-            id="conformidad"
-            checked={conformidad}
-            disabled={isEntregado}
-            onChange={(e) => setConformidad(e.target.checked)}
-          />
-          <label className="form-check-label" htmlFor="conformidad">
-            Cliente confirma revision visual del coche y del trabajo realizado.
-          </label>
-        </div>
-
-        <div className="form-check mb-3">
-          <input
-            className="form-check-input"
-            type="checkbox"
-            id="consentimiento"
-            checked={consentimiento}
-            disabled={isEntregado}
-            onChange={(e) => setConsentimiento(e.target.checked)}
-          />
-          <label className="form-check-label" htmlFor="consentimiento">
-            Cliente acepta proteccion de datos en el proceso de entrega.
-          </label>
-        </div>
-
-        {isEntregado ? (
-          <div className="mb-3">
-            <label className="form-label fw-bold d-block">Firma cliente (entrega)</label>
-            <div className="border rounded p-3 text-center" style={{ background: "#fff" }}>
-              {firmaCliente ? (
-                <img
-                  src={firmaCliente}
-                  alt="Firma cliente entrega"
-                  style={{ maxWidth: "100%", maxHeight: "180px", objectFit: "contain" }}
-                />
-              ) : (
-                <span className="text-muted">Sin firma registrada</span>
-              )}
+        {!esConcesionario && (
+          <>
+            <div className="mb-2 fw-bold">Revision con cliente</div>
+            <div className="form-check mb-2">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                id="conformidad"
+                checked={conformidad}
+                disabled={isEntregado}
+                onChange={(e) => setConformidad(e.target.checked)}
+              />
+              <label className="form-check-label" htmlFor="conformidad">
+                Cliente confirma revision visual del coche y del trabajo realizado.
+              </label>
             </div>
-          </div>
-        ) : (
-          <SignaturePad title="Firma cliente (entrega)" value={firmaCliente} onChange={setFirmaCliente} />
+
+            <div className="form-check mb-3">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                id="consentimiento"
+                checked={consentimiento}
+                disabled={isEntregado}
+                onChange={(e) => setConsentimiento(e.target.checked)}
+              />
+              <label className="form-check-label" htmlFor="consentimiento">
+                Cliente acepta proteccion de datos en el proceso de entrega.
+              </label>
+            </div>
+
+            {isEntregado ? (
+              <div className="mb-3">
+                <label className="form-label fw-bold d-block">Firma cliente (entrega)</label>
+                <div className="border rounded p-3 text-center" style={{ background: "#fff" }}>
+                  {firmaCliente ? (
+                    <img
+                      src={firmaCliente}
+                      alt="Firma cliente entrega"
+                      style={{ maxWidth: "100%", maxHeight: "180px", objectFit: "contain" }}
+                    />
+                  ) : (
+                    <span className="text-muted">Sin firma registrada</span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <SignaturePad title="Firma cliente (entrega)" value={firmaCliente} onChange={setFirmaCliente} />
+            )}
+          </>
         )}
 
         <div className="d-flex gap-2 justify-content-end mt-3 no-print">

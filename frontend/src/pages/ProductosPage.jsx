@@ -19,31 +19,26 @@ export default function ProductosPage() {
   // CARGA INICIAL
   // ================================
   useEffect(() => {
+    let active = true;
     (async () => {
       setLoading(true);
       try {
-        const token =
-          sessionStorage.getItem("token") ||
-          localStorage.getItem("token");
-
-        if (!token) {
-          if (window.location.pathname !== "/login") {
-            window.location.href = "/login";
-          }
-          return;
-        }
-
         try {
           await actions.me?.();
         } catch {}
 
-        await actions.getProductos();
+        if (active) {
+          await actions.getProductos();
+        }
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
+    return () => {
+      active = false;
+    };
+  }, [actions]);
 
   const productos = useMemo(() => store.productos || [], [store.productos]);
 
