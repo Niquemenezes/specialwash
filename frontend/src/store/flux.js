@@ -1,5 +1,6 @@
 // src/front/js/store/flux.js — SpecialWash (roles + módulos + candados anti-bucle)
 import { buildApiUrl } from "../utils/apiBase";
+import { clearStoredSession, ensureActiveSession, touchSessionActivity } from "../utils/authSession";
 
 const getState = ({ getStore, getActions, setStore }) => {
   // ====== Candados simples para evitar múltiples fetch en StrictMode/re-montajes ======
@@ -40,6 +41,16 @@ const getState = ({ getStore, getActions, setStore }) => {
       (typeof sessionStorage !== "undefined" && sessionStorage.getItem("token")) ||
       (typeof localStorage !== "undefined" && localStorage.getItem("token"));
 
+    if (auth) {
+      const active = ensureActiveSession();
+      if (!active.ok) {
+        clearStoredSession();
+        setStore({ auth: false, token: null, user: null });
+        throw new Error("Sesión expirada. Vuelve a iniciar sesión.");
+      }
+      touchSessionActivity();
+    }
+
     if (auth && token) finalHeaders.Authorization = `Bearer ${token}`;
 
     const controller = new AbortController();
@@ -67,9 +78,15 @@ const getState = ({ getStore, getActions, setStore }) => {
     try { data = raw ? JSON.parse(raw) : null; } catch { /* respuesta no-JSON */ }
 
     if (!resp.ok) {
+      if (resp.status === 401) {
+        clearStoredSession();
+        setStore({ auth: false, token: null, user: null });
+        throw new Error("Sesión expirada. Vuelve a iniciar sesión.");
+      }
       const msg = (data && (data.msg || data.message)) || `HTTP ${resp.status}`;
       throw new Error(msg);
     }
+    if (auth) touchSessionActivity();
     return data;
   }
 
@@ -157,6 +174,7 @@ const getState = ({ getStore, getActions, setStore }) => {
             body: { email, password },
           });
           const { token, user } = saveTokenAndUser(data);
+          touchSessionActivity();
           setStore({ token, auth: true, user });
           return { ok: true };
         } catch (err) {
@@ -176,6 +194,7 @@ const getState = ({ getStore, getActions, setStore }) => {
             body: { email, password, rol },
           });
           const { token, user } = saveTokenAndUser(data);
+          touchSessionActivity();
           setStore({ token, auth: true, user });
           return { ok: true, user, token };
         } catch (err) {
@@ -205,10 +224,7 @@ const getState = ({ getStore, getActions, setStore }) => {
 
       logout: async () => {
         try { await apiFetch("/api/auth/logout", { method: "POST", auth: false }); } catch { /* no-op */ }
-        localStorage.removeItem("token"); localStorage.removeItem("rol");
-        sessionStorage.removeItem("token"); sessionStorage.removeItem("rol");
-         localStorage.removeItem("userId");
-         sessionStorage.removeItem("userId");
+        clearStoredSession();
         setStore({ auth: false, token: null, user: null });
       },
 
