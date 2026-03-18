@@ -2,6 +2,7 @@ import React, { useEffect, useState, useContext, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Context } from "../store/appContext";
 import SignaturePad from "../component/SignaturePad.jsx";
+import "../styles/inspeccion-responsive.css";
 
 const INITIAL_FORM_DATA = {
   cliente_nombre: "",
@@ -16,7 +17,7 @@ const INITIAL_FORM_DATA = {
   servicios_aplicados: []
 };
 
-const MAX_VIDEO_SIZE_BYTES = 100 * 1024 * 1024;
+const MAX_VIDEO_SIZE_BYTES = 250 * 1024 * 1024; // 250 MB (1080p ~30fps, 1-2 min)
 const FORMATOS_VIDEO_ACEPTADOS = ["mp4", "mov", "avi", "mkv", "webm", "3gp", "flv"];
 const FORMATOS_VIDEO_LABEL = "MP4, MOV, AVI, MKV, WEBM, 3GP, FLV";
 
@@ -227,7 +228,7 @@ const InspeccionRecepcionPage = () => {
     archivos.forEach((archivo) => {
       const sizeInMB = formatFileSizeMB(archivo.size);
       
-      // Validar tamaño
+      // Validar tamaño (máx 250 MB para 1080p)
       if (archivo.size > MAX_VIDEO_SIZE_BYTES) {
         videosGrandes.push(`${archivo.name} (${sizeInMB} MB)`);
         return;
@@ -246,7 +247,7 @@ const InspeccionRecepcionPage = () => {
     
     // Mostrar alertas si hay problemas
     if (videosGrandes.length > 0) {
-      alert(`⚠️ Los siguientes videos exceden 100MB y no se añadirán:\n${videosGrandes.join("\n")}`);
+      alert(`⚠️ Los siguientes videos exceden 250 MB y no se añadirán:\n${videosGrandes.join("\n")}`);
     }
     
     if (formatosInvalidos.length > 0) {
@@ -361,7 +362,7 @@ const InspeccionRecepcionPage = () => {
         validarAntes: (video) => {
           if (video.size <= MAX_VIDEO_SIZE_BYTES) return null;
           const videoSize = formatFileSizeMB(video.size);
-          return `⚠️ El video "${video.name}" es muy grande (${videoSize} MB). Máximo: 100 MB`;
+          return `⚠️ El video "${video.name}" es muy grande (${videoSize} MB). Máximo: 250 MB`;
         }
       });
 
@@ -417,17 +418,17 @@ const InspeccionRecepcionPage = () => {
   };
 
   return (
-    <div className="container py-4" style={{ maxWidth: "900px" }}>
+    <div className="container py-4 sw-inspeccion-page" style={{ maxWidth: "1024px" }}>
       {/* Header - Responsive */}
       <div
         className="d-flex justify-content-center align-items-center mb-3 mb-md-4 p-3 rounded shadow-sm"
         style={{ background: "#0f0f0f", color: "white" }}
       >
         <div className="w-100 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2">
-          <h2 className="fw-bold mb-0 fs-4 fs-md-3 text-center text-md-start" style={{ color: "#d4af37" }}>
+          <h2 className="fw-bold mb-0 fs-5 fs-md-3 text-center text-md-start" style={{ color: "#d4af37" }}>
             {inspeccionEditandoId ? `✏️ Editar Inspección #${inspeccionEditandoId}` : "🚗 Inspección de Recepción"}
           </h2>
-          <div className="d-flex gap-2">
+          <div className="d-flex flex-column flex-sm-row gap-2 sw-header-actions">
             <button type="button" className="btn btn-sm btn-outline-secondary" onClick={volver}>
               Volver
             </button>
@@ -647,7 +648,7 @@ const InspeccionRecepcionPage = () => {
                   </label>
                 </div>
                 <small className="text-muted d-block" style={{ fontSize: "0.85rem" }}>
-                  🎬 Máx {FORMATOS_VIDEO_LABEL} • Tamaño máx: 100MB por video
+                  🎬 Máx {FORMATOS_VIDEO_LABEL} • Tamaño máx: 250MB por video
                 </small>
                 
                 {/* Preview de videos */}
@@ -707,7 +708,7 @@ const InspeccionRecepcionPage = () => {
                           <button
                             key={servicio.id}
                             type="button"
-                            className="btn btn-sm btn-outline-dark"
+                            className="btn btn-outline-dark sw-touch-btn"
                             onClick={() => agregarServicioCatalogo(servicio)}
                           >
                             {servicio.nombre} · {Number(servicio.precio_base || 0).toFixed(2)} €
@@ -820,7 +821,7 @@ const InspeccionRecepcionPage = () => {
                 <div className="card border-0" style={{ background: "#f8f9fa" }}>
                   <div className="card-body p-3">
                     <h6 className="fw-bold mb-3">Firmas de Revision de Estado (Recepcion)</h6>
-                    <div className="row">
+                    <div className="row g-3">
                       <div className="col-12 col-md-6">
                         <SignaturePad
                           title="Firma Empleado"
@@ -858,7 +859,7 @@ const InspeccionRecepcionPage = () => {
               )}
               <button
                 type="submit"
-                className="btn btn-lg w-100 w-md-auto px-5 py-3"
+                className="btn btn-lg w-100 sw-btn-md-auto px-5 py-3"
                 style={{ background: "#d4af37", color: "black", fontWeight: "600", fontSize: "1.1rem" }}
                 disabled={guardando || cargandoEdicion}
               >

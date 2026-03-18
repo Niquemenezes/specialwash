@@ -20,10 +20,11 @@ const injectContext = PassedComponent => {
 					})
 			})
 		);
+		const getMessage = state?.actions?.getMessage;
 
 			useEffect(() => {
-				if (state?.actions?.getMessage) state.actions.getMessage();
-			}, []);
+				if (getMessage) getMessage();
+			}, [getMessage]);
 
 		
 		// The initial value for the context is not null anymore, but the current state of this component,

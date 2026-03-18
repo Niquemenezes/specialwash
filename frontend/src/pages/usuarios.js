@@ -47,7 +47,7 @@ export default function Usuarios() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [actions]);
 
   // ================================
   // Filtrar usuarios

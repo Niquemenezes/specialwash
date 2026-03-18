@@ -4,7 +4,12 @@ from flask_jwt_extended import (
 )
 from sqlalchemy import func, desc
 from datetime import datetime, timedelta
+import json
+import os
 import re
+
+import cloudinary
+import cloudinary.uploader
 
 from models import db, User, Producto, Proveedor, Entrada, Salida, Maquinaria, Cliente, Coche, Servicio, ServicioCliente, InspeccionRecepcion, GastoEmpresa
 from models.base import now_madrid
@@ -18,6 +23,24 @@ try:
 except Exception:  # pragma: no cover - optional dependency
     Image = None
     pytesseract = None
+
+
+CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME", "").strip()
+CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY", "").strip()
+CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET", "").strip()
+
+
+def _cloudinary_configured():
+    return bool(CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET)
+
+
+if _cloudinary_configured():
+    cloudinary.config(
+        cloud_name=CLOUDINARY_CLOUD_NAME,
+        api_key=CLOUDINARY_API_KEY,
+        api_secret=CLOUDINARY_API_SECRET,
+        secure=True,
+    )
 
 
 def _parse_decimal(value):
@@ -204,6 +227,100 @@ def maquinaria_delete(mid):
         db.session.rollback()
         return jsonify({"error": "No se puede eliminar la maquinaria"}), 400
     return jsonify({"msg": "Maquinaria eliminada"}), 200
+
+
+@api.route("/maquinaria/<int:mid>/upload-factura", methods=["POST"])
+@role_required("administrador")
+def maquinaria_upload_factura(mid):
+    if not _cloudinary_configured():
+        return jsonify({"msg": "Cloudinary no está configurado en el servidor"}), 503
+
+    maquinaria = Maquinaria.query.get_or_404(mid)
+    file = request.files.get("file")
+
+    if not file:
+        return jsonify({"msg": "No se proporcionó archivo"}), 400
+
+    if not file.filename:
+        return jsonify({"msg": "No se seleccionó archivo"}), 400
+
+    allowed_mime = {
+        "application/pdf",
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/heic",
+        "image/heif",
+    }
+    content_type = (file.content_type or "").lower()
+    if content_type and content_type not in allowed_mime:
+        return jsonify({"msg": "Formato no permitido. Usa PDF o imágenes (JPG/PNG/WEBP)."}), 400
+
+    try:
+        result = cloudinary.uploader.upload(
+            file,
+            folder="specialwash/maquinaria/facturas",
+            resource_type="auto",
+            overwrite=False,
+        )
+
+        facturas = json.loads(maquinaria.facturas_cloudinary or "[]")
+        factura = {
+            "url": result.get("secure_url") or result.get("url"),
+            "public_id": result.get("public_id"),
+            "resource_type": result.get("resource_type", "image"),
+            "original_filename": file.filename,
+            "uploaded_at": result.get("created_at"),
+        }
+        facturas.append(factura)
+
+        maquinaria.facturas_cloudinary = json.dumps(facturas)
+        db.session.commit()
+
+        return jsonify({
+            "msg": "Factura subida correctamente",
+            "factura": factura,
+            "maquinaria": maquinaria.to_dict(),
+            "total_facturas": len(facturas),
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"msg": f"Error al subir factura: {str(e)}"}), 500
+
+
+@api.route("/maquinaria/<int:mid>/factura/<int:factura_index>", methods=["DELETE"])
+@role_required("administrador")
+def maquinaria_delete_factura(mid, factura_index):
+    if not _cloudinary_configured():
+        return jsonify({"msg": "Cloudinary no está configurado en el servidor"}), 503
+
+    maquinaria = Maquinaria.query.get_or_404(mid)
+
+    try:
+        facturas = json.loads(maquinaria.facturas_cloudinary or "[]")
+
+        if factura_index < 0 or factura_index >= len(facturas):
+            return jsonify({"msg": "Índice de factura inválido"}), 400
+
+        factura = facturas[factura_index]
+        public_id = factura.get("public_id")
+        resource_type = factura.get("resource_type") or "image"
+
+        if public_id:
+            cloudinary.uploader.destroy(public_id, resource_type=resource_type)
+
+        facturas.pop(factura_index)
+        maquinaria.facturas_cloudinary = json.dumps(facturas)
+        db.session.commit()
+
+        return jsonify({
+            "msg": "Factura eliminada correctamente",
+            "maquinaria": maquinaria.to_dict(),
+            "total_facturas": len(facturas),
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"msg": f"Error al eliminar factura: {str(e)}"}), 500
 
 
 # =====================================================

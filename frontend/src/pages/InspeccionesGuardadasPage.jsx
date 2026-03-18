@@ -2,8 +2,48 @@ import React, { useCallback, useContext, useEffect, useRef, useState } from "rea
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Context } from "../store/appContext";
 import CochesPendientesEntrega from "./CochesPendientesEntrega";
+import { getApiBase } from "../utils/apiBase";
+import "../styles/inspeccion-responsive.css";
 
-const getMediaUrl = (item) => (typeof item === "string" ? item : item?.url || "");
+const getStoredToken = () =>
+  (typeof sessionStorage !== "undefined" && sessionStorage.getItem("token")) ||
+  (typeof localStorage !== "undefined" && localStorage.getItem("token")) || "";
+
+/**
+ * Devuelve la URL reproducible de un item de vídeo.
+ * Soporta:
+ *  - Entradas nuevas (IONOS local): { filename, ... }
+ *  - Entradas legado (Cloudinary): { url, ... } o string
+ */
+const getVideoUrl = (item, inspeccionId) => {
+  if (!item) return "";
+  if (typeof item === "string") return item; // legado string
+  if (item.filename) {
+    // Video local en IONOS: necesita token JWT en query param para el tag <video>
+    const base = getApiBase();
+    const token = getStoredToken();
+    return `${base}/api/inspeccion-recepcion/${inspeccionId}/video-file/${item.filename}?token=${encodeURIComponent(token)}`;
+  }
+  return item.url || ""; // legado Cloudinary
+};
+
+/**
+ * Devuelve la URL mostrable de un item de foto.
+ *  - Fotos Cloudinary nuevas: { url, public_id, ... }
+ *  - Fotos locales IONOS (fallback sin Cloudinary): { filename, ... }
+ *  - Legado string o { url }
+ */
+const getFotoUrl = (item, inspeccionId) => {
+  if (!item) return "";
+  if (typeof item === "string") return item;
+  if (item.filename) {
+    const base = getApiBase();
+    const token = getStoredToken();
+    return `${base}/api/inspeccion-recepcion/${inspeccionId}/foto-file/${item.filename}?token=${encodeURIComponent(token)}`;
+  }
+  return item.url || "";
+};
+
 const phoneToDigits = (value) => (value || "").replace(/\D/g, "");
 
 const InspeccionesGuardadasPage = () => {
@@ -96,7 +136,7 @@ const InspeccionesGuardadasPage = () => {
   };
 
   return (
-    <div className="container py-4">
+    <div className="container py-4 sw-inspecciones-page">
       <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
         <h2 className="mb-0">Inspecciones y Pendientes</h2>
         <button className="btn btn-outline-secondary" onClick={volver}>
@@ -104,7 +144,7 @@ const InspeccionesGuardadasPage = () => {
         </button>
       </div>
 
-      <ul className="nav nav-tabs mb-3">
+      <ul className="nav nav-tabs mb-3 sw-tabs-wrap">
         <li className="nav-item">
           <button
             type="button"
@@ -143,7 +183,7 @@ const InspeccionesGuardadasPage = () => {
           ) : inspecciones.length === 0 ? (
             <div className="p-4 text-center text-muted">No hay inspecciones registradas.</div>
           ) : (
-            <div className="table-responsive">
+            <div className="table-responsive sw-inspecciones-table">
               <table className="table table-hover align-middle mb-0">
                 <thead className="table-light">
                   <tr>
@@ -178,7 +218,7 @@ const InspeccionesGuardadasPage = () => {
                         )}
                       </td>
                       <td>
-                        <div className="btn-group btn-group-sm" role="group">
+                        <div className="btn-group btn-group-sm sw-action-group" role="group">
                           <button className="btn btn-outline-primary" onClick={() => verDetalle(insp.id)} title="Ver detalle">
                             👁️
                           </button>
@@ -319,8 +359,11 @@ const InspeccionesGuardadasPage = () => {
                     <div className="card-body p-2 p-md-3">
                       <div className="row g-3">
                         {detalle.fotos_cloudinary.map((foto, index) => {
-                          const url = getMediaUrl(foto);
+                          const url = getFotoUrl(foto, detalle.id);
                           if (!url) return null;
+                          const fotoExpira = foto?.expires_at
+                            ? new Date(foto.expires_at).toLocaleDateString("es-ES")
+                            : null;
                           return (
                             <div key={index} className="col-6 col-sm-6 col-md-4">
                               <div className="border rounded p-2">
@@ -335,6 +378,11 @@ const InspeccionesGuardadasPage = () => {
                                 <p className="text-center mt-2 mb-0 small text-muted d-none d-md-block">
                                   Foto #{index + 1} - Click para ampliar
                                 </p>
+                                {fotoExpira && (
+                                  <p className="text-center mb-0 small text-warning">
+                                    ⏳ Caduca: {fotoExpira}
+                                  </p>
+                                )}
                               </div>
                             </div>
                           );
@@ -352,15 +400,26 @@ const InspeccionesGuardadasPage = () => {
                     <div className="card-body p-2 p-md-3">
                       <div className="row g-3">
                         {detalle.videos_cloudinary.map((video, index) => {
-                          const url = getMediaUrl(video);
+                          const url = getVideoUrl(video, detalle.id);
                           if (!url) return null;
+                          const expiresAt = video?.expires_at
+                            ? new Date(video.expires_at).toLocaleDateString("es-ES")
+                            : null;
                           return (
                             <div key={index} className="col-12 col-sm-6">
                               <div className="border rounded p-2">
                                 <video src={url} controls className="w-100 rounded" style={{ maxHeight: "400px" }}>
                                   Tu navegador no soporta el elemento de video.
                                 </video>
-                                <p className="text-center mt-2 mb-0 small text-muted">Video #{index + 1}</p>
+                                <p className="text-center mt-2 mb-0 small text-muted">
+                                  Video #{index + 1}
+                                  {video?.original_name && ` · ${video.original_name}`}
+                                </p>
+                                {expiresAt && (
+                                  <p className="text-center mb-0 small text-warning">
+                                    ⏳ Caduca: {expiresAt}
+                                  </p>
+                                )}
                               </div>
                             </div>
                           );
