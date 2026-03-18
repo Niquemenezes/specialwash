@@ -20,6 +20,7 @@ from models.user import User
 from models.coche import Coche
 from models.cliente import Cliente
 from models.parte_trabajo import ParteTrabajo, EstadoParte
+from models.gasto_empresa import GastoEmpresa
 from models.base import now_madrid
 from utils.auth_utils import normalize_role
 from services.whatsapp_service import enviar_notificacion_inspeccion, enviar_notificacion_entrega_cliente
@@ -84,6 +85,7 @@ def _serialize_inspeccion_con_estado(inspeccion, partes_por_coche):
     data = inspeccion.to_dict()
     parte = partes_por_coche.get(inspeccion.coche_id)
     data["estado_coche"] = _compute_estado_coche(inspeccion, parte)
+    data["cobro"] = _build_cobro_info(inspeccion)
     return data
 
 
@@ -163,6 +165,67 @@ def _normalize_servicios_aplicados(raw):
         })
 
     return normalized
+
+
+def _safe_servicios_aplicados(inspeccion):
+    try:
+        raw = json.loads(inspeccion.servicios_aplicados or "[]")
+        return raw if isinstance(raw, list) else []
+    except Exception:
+        return []
+
+
+def _importe_total_inspeccion(inspeccion):
+    total = 0.0
+    for item in _safe_servicios_aplicados(inspeccion):
+        if not isinstance(item, dict):
+            continue
+        try:
+            precio = float(item.get("precio") or 0)
+        except (TypeError, ValueError):
+            precio = 0.0
+        if precio > 0:
+            total += precio
+    return round(total, 2)
+
+
+def _build_cobro_info(inspeccion):
+    total = _importe_total_inspeccion(inspeccion)
+    pagado_raw = float(inspeccion.cobro_importe_pagado or 0)
+    pagado = round(max(pagado_raw, 0.0), 2)
+    pendiente = round(max(total - pagado, 0.0), 2)
+
+    if inspeccion.es_concesionario and pagado <= 0:
+        estado = "facturar_despues"
+        label = "Facturar después"
+        color = "#6f42c1"
+    elif pagado <= 0:
+        estado = "pendiente"
+        label = "Pendiente de cobro"
+        color = "#dc3545"
+    elif pendiente <= 0.009:
+        estado = "pagado_total"
+        label = "Pagado"
+        color = "#198754"
+        pendiente = 0.0
+    else:
+        estado = "pagado_parcial"
+        label = "Pago parcial"
+        color = "#fd7e14"
+
+    return {
+        "estado": estado,
+        "label": label,
+        "color": color,
+        "es_concesionario": bool(inspeccion.es_concesionario),
+        "importe_total": total,
+        "importe_pagado": pagado,
+        "importe_pendiente": pendiente,
+        "fecha_ultimo_pago": inspeccion.cobro_fecha_ultimo_pago.isoformat() if inspeccion.cobro_fecha_ultimo_pago else None,
+        "metodo": inspeccion.cobro_metodo,
+        "referencia": inspeccion.cobro_referencia,
+        "observaciones": inspeccion.cobro_observaciones,
+    }
 
 CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME", "").strip()
 CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY", "").strip()
@@ -592,6 +655,127 @@ def actualizar_inspeccion(inspeccion_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"msg": f"Error al actualizar inspección: {str(e)}"}), 500
+
+
+@inspeccion_bp.route("/inspeccion-recepcion/<int:inspeccion_id>/cobro", methods=["POST"])
+@role_required("administrador", "calidad")
+def registrar_cobro_inspeccion(inspeccion_id):
+    """Registrar cobro parcial o total y reflejarlo en caja (finanzas)."""
+    inspeccion = InspeccionRecepcion.query.get(inspeccion_id)
+    if not inspeccion:
+        return jsonify({"msg": "Inspección no encontrada"}), 404
+
+    data = request.get_json(silent=True) or {}
+    accion = str(data.get("accion") or "abono").strip().lower()
+
+    total = _importe_total_inspeccion(inspeccion)
+    pagado_actual = float(inspeccion.cobro_importe_pagado or 0)
+
+    if accion == "marcar_pagado_total":
+        importe = max(total - pagado_actual, 0.0)
+    else:
+        try:
+            importe = float(data.get("importe"))
+        except (TypeError, ValueError):
+            return jsonify({"msg": "Debes indicar un importe válido"}), 400
+
+    if importe < 0:
+        return jsonify({"msg": "El importe no puede ser negativo"}), 400
+
+    metodo = (data.get("metodo") or "").strip() or None
+    referencia = (data.get("referencia") or "").strip() or None
+    observaciones = (data.get("observaciones") or "").strip() or None
+
+    try:
+        nuevo_pagado = round(max(pagado_actual + importe, 0.0), 2)
+        if total > 0:
+            nuevo_pagado = min(nuevo_pagado, total)
+
+        inspeccion.cobro_importe_pagado = nuevo_pagado
+        inspeccion.cobro_fecha_ultimo_pago = now_madrid() if importe > 0 else inspeccion.cobro_fecha_ultimo_pago
+        inspeccion.cobro_metodo = metodo
+        inspeccion.cobro_referencia = referencia
+        inspeccion.cobro_observaciones = observaciones
+
+        cobro = _build_cobro_info(inspeccion)
+        inspeccion.cobro_estado = cobro["estado"]
+
+        # Registra ingreso real en finanzas para reflejar dinero en caja.
+        if importe > 0:
+            ingreso = GastoEmpresa(
+                fecha=now_madrid(),
+                concepto=f"Cobro inspección #{inspeccion.id} · {inspeccion.matricula or '-'}",
+                categoria="ingreso_cobro_inspeccion",
+                importe=round(float(importe), 2),
+                proveedor=inspeccion.cliente_nombre,
+                observaciones=(
+                    f"metodo={metodo or '-'} | referencia={referencia or '-'} | "
+                    f"tipo={'profesional' if inspeccion.es_concesionario else 'particular'}"
+                ),
+            )
+            db.session.add(ingreso)
+
+        db.session.commit()
+
+        partes = _get_partes_por_coche([inspeccion.coche_id] if inspeccion.coche_id else [])
+        return jsonify(_serialize_inspeccion_con_estado(inspeccion, partes)), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"msg": f"Error al registrar cobro: {str(e)}"}), 500
+
+
+@inspeccion_bp.route("/inspeccion-recepcion/cobros/profesionales", methods=["GET"])
+@role_required("administrador", "calidad")
+def listar_cobros_profesionales():
+    """Listado agrupado por cliente profesional para seguimiento de deuda/cobro."""
+    solo_pendientes = str(request.args.get("solo_pendientes", "1")).strip().lower() not in {"0", "false", "no"}
+
+    try:
+        query = (
+            InspeccionRecepcion.query
+            .filter(InspeccionRecepcion.es_concesionario.is_(True))
+            .filter(InspeccionRecepcion.entregado.is_(True))
+            .order_by(InspeccionRecepcion.fecha_entrega.desc(), InspeccionRecepcion.id.desc())
+        )
+        items = query.all()
+
+        if solo_pendientes:
+            items = [i for i in items if _build_cobro_info(i)["importe_pendiente"] > 0.009]
+
+        coche_ids = [i.coche_id for i in items if i.coche_id]
+        partes_por_coche = _get_partes_por_coche(coche_ids)
+
+        grouped = {}
+        for insp in items:
+            key = insp.cliente_id or f"nombre:{(insp.cliente_nombre or '').strip().lower()}"
+            if key not in grouped:
+                grouped[key] = {
+                    "cliente_id": insp.cliente_id,
+                    "cliente_nombre": insp.cliente_nombre or "Cliente profesional",
+                    "total_facturado": 0.0,
+                    "total_pagado": 0.0,
+                    "total_pendiente": 0.0,
+                    "inspecciones": [],
+                }
+
+            data = _serialize_inspeccion_con_estado(insp, partes_por_coche)
+            cobro = data.get("cobro") or {}
+            grouped[key]["total_facturado"] += float(cobro.get("importe_total") or 0)
+            grouped[key]["total_pagado"] += float(cobro.get("importe_pagado") or 0)
+            grouped[key]["total_pendiente"] += float(cobro.get("importe_pendiente") or 0)
+            grouped[key]["inspecciones"].append(data)
+
+        resp = []
+        for _, cliente_data in grouped.items():
+            cliente_data["total_facturado"] = round(cliente_data["total_facturado"], 2)
+            cliente_data["total_pagado"] = round(cliente_data["total_pagado"], 2)
+            cliente_data["total_pendiente"] = round(cliente_data["total_pendiente"], 2)
+            resp.append(cliente_data)
+
+        resp.sort(key=lambda x: x["total_pendiente"], reverse=True)
+        return jsonify(resp), 200
+    except Exception as e:
+        return jsonify({"msg": f"Error al listar cobros profesionales: {str(e)}"}), 500
 
 
 # ============ REGISTRAR ENTREGA ==========

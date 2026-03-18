@@ -45,6 +45,14 @@ class InspeccionRecepcion(db.Model):
     trabajos_realizados = db.Column(db.Text)
     entrega_observaciones = db.Column(db.Text)
 
+    # Cobros
+    cobro_estado = db.Column(db.String(30), default="pendiente", nullable=False)
+    cobro_importe_pagado = db.Column(db.Float, default=0.0, nullable=False)
+    cobro_fecha_ultimo_pago = db.Column(db.DateTime(timezone=True), nullable=True)
+    cobro_metodo = db.Column(db.String(50), nullable=True)
+    cobro_referencia = db.Column(db.String(120), nullable=True)
+    cobro_observaciones = db.Column(db.Text, nullable=True)
+
     # Repaso pre-entrega
     repaso_checklist = db.Column(db.Text, default="{}")
     repaso_notas = db.Column(db.Text)
@@ -100,6 +108,12 @@ class InspeccionRecepcion(db.Model):
             "conformidad_revision_entrega": self.conformidad_revision_entrega,
             "trabajos_realizados": self.trabajos_realizados,
             "entrega_observaciones": self.entrega_observaciones,
+            "cobro_estado": self.cobro_estado,
+            "cobro_importe_pagado": float(self.cobro_importe_pagado or 0),
+            "cobro_fecha_ultimo_pago": iso(self.cobro_fecha_ultimo_pago),
+            "cobro_metodo": self.cobro_metodo,
+            "cobro_referencia": self.cobro_referencia,
+            "cobro_observaciones": self.cobro_observaciones,
             "repaso_checklist": json.loads(self.repaso_checklist or "{}"),
             "repaso_notas": self.repaso_notas,
             "repaso_completado": self.repaso_completado,

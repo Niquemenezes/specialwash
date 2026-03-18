@@ -966,6 +966,31 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
       },
 
+      registrarCobroInspeccion: async (id, payload) => {
+        try {
+          const data = await apiFetch(`/api/inspeccion-recepcion/${id}/cobro`, {
+            method: "POST",
+            body: payload,
+          });
+          return data;
+        } catch (err) {
+          console.error("registrarCobroInspeccion:", err);
+          throw err;
+        }
+      },
+
+      getCobrosProfesionales: async ({ soloPendientes = true } = {}) => {
+        try {
+          const params = new URLSearchParams();
+          params.append("solo_pendientes", soloPendientes ? "1" : "0");
+          const data = await apiFetch(`/api/inspeccion-recepcion/cobros/profesionales?${params.toString()}`);
+          return Array.isArray(data) ? data : [];
+        } catch (err) {
+          console.error("getCobrosProfesionales:", err);
+          return [];
+        }
+      },
+
       // ============ NOTIFICACIONES INTERNAS ============
       getNotificaciones: async () => {
         try {

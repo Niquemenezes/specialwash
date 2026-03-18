@@ -52,6 +52,7 @@ const InspeccionesGuardadasPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [inspecciones, setInspecciones] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [guardandoCobro, setGuardandoCobro] = useState(false);
   const [detalle, setDetalle] = useState(null);
   const focoAbiertoRef = useRef(null);
   const activeTab = searchParams.get("tab") || "guardadas";
@@ -128,6 +129,43 @@ const InspeccionesGuardadasPage = () => {
     navigate(`/inspeccion-recepcion?editId=${id}`);
   };
 
+  const registrarCobroDetalle = async (id, accion) => {
+    if (!detalle || !id) return;
+
+    let payload;
+    if (accion === "marcar_pagado_total") {
+      if (!window.confirm("Marcar este trabajo como pagado al 100%?")) return;
+      payload = {
+        accion,
+        metodo: "efectivo",
+      };
+    } else {
+      const raw = window.prompt("Importe cobrado (EUR)", "0");
+      if (raw == null) return;
+      const importe = Number(raw);
+      if (!Number.isFinite(importe) || importe < 0) {
+        alert("Importe inválido");
+        return;
+      }
+      payload = {
+        accion: "abono",
+        importe,
+        metodo: "efectivo",
+      };
+    }
+
+    setGuardandoCobro(true);
+    try {
+      const updated = await actions.registrarCobroInspeccion(id, payload);
+      setDetalle(updated);
+      await cargarInspecciones();
+    } catch (error) {
+      alert(`No se pudo registrar el cobro: ${error?.message || "error"}`);
+    } finally {
+      setGuardandoCobro(false);
+    }
+  };
+
   const volver = () => {
     if (window.history.length > 1) {
       navigate(-1);
@@ -197,6 +235,7 @@ const InspeccionesGuardadasPage = () => {
                     <th>Fotos</th>
                     <th>Videos</th>
                     <th>Estado</th>
+                    <th>Cobro</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
@@ -233,6 +272,26 @@ const InspeccionesGuardadasPage = () => {
                           <span className="badge bg-success">Entregado</span>
                         ) : (
                           <span className="badge bg-warning text-dark">Pendiente</span>
+                        )}
+                      </td>
+                      <td>
+                        {insp.cobro ? (
+                          <div>
+                            <span
+                              className="badge"
+                              style={{
+                                backgroundColor: insp.cobro.color,
+                                color: insp.cobro.color === "#ffc107" || insp.cobro.color === "#adb5bd" ? "#000" : "#fff",
+                              }}
+                            >
+                              {insp.cobro.label}
+                            </span>
+                            <div className="small text-muted mt-1">
+                              {Number(insp.cobro.importe_pagado || 0).toFixed(2)} / {Number(insp.cobro.importe_total || 0).toFixed(2)} EUR
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-muted small">-</span>
                         )}
                       </td>
                       <td>
@@ -343,6 +402,52 @@ const InspeccionesGuardadasPage = () => {
                         <span className="text-muted small" style={{ paddingTop: "4px" }}>
                           {detalle.estado_coche.parte_obs}
                         </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {detalle.cobro && (
+                  <div className="card mb-3">
+                    <div className="card-header py-2" style={{ background: "#d4af37", fontWeight: "600" }}>
+                      💶 Estado de cobro
+                    </div>
+                    <div className="card-body p-3">
+                      <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
+                        <span
+                          className="badge"
+                          style={{
+                            backgroundColor: detalle.cobro.color,
+                            color: detalle.cobro.color === "#ffc107" || detalle.cobro.color === "#adb5bd" ? "#000" : "#fff",
+                          }}
+                        >
+                          {detalle.cobro.label}
+                        </span>
+                        <span className="small text-muted">
+                          Total {Number(detalle.cobro.importe_total || 0).toFixed(2)} EUR | Pagado {" "}
+                          {Number(detalle.cobro.importe_pagado || 0).toFixed(2)} EUR | Pendiente {" "}
+                          {Number(detalle.cobro.importe_pendiente || 0).toFixed(2)} EUR
+                        </span>
+                      </div>
+                      {!detalle.es_concesionario && (
+                        <div className="d-flex gap-2">
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-primary"
+                            onClick={() => registrarCobroDetalle(detalle.id, "abono")}
+                            disabled={guardandoCobro}
+                          >
+                            Registrar abono
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-success"
+                            onClick={() => registrarCobroDetalle(detalle.id, "marcar_pagado_total")}
+                            disabled={guardandoCobro}
+                          >
+                            Marcar pagado total
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>

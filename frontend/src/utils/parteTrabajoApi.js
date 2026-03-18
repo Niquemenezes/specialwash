@@ -35,11 +35,11 @@ async function apiFetch(path, options = {}) {
 }
 
 // Crear parte de trabajo
-export async function crearParteTrabajo({ coche_id, empleado_id, observaciones, tiempo_estimado_minutos }) {
+export async function crearParteTrabajo({ coche_id, empleado_id, observaciones, tiempo_estimado_minutos, servicios = [] }) {
   return apiFetch("/api/parte_trabajo", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ coche_id, empleado_id, observaciones, tiempo_estimado_minutos })
+    body: JSON.stringify({ coche_id, empleado_id, observaciones, tiempo_estimado_minutos, servicios })
   });
 }
 
