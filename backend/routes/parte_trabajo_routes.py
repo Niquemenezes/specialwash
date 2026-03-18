@@ -37,6 +37,23 @@ def _parse_tiempo_estimado_minutos(value):
     return minutos
 
 
+def _sum_tiempo_servicios(servicios):
+    if not isinstance(servicios, list):
+        return 0
+    total = 0
+    for item in servicios:
+        if not isinstance(item, dict):
+            continue
+        raw = item.get('tiempo_estimado_minutos', 0)
+        try:
+            mins = int(raw)
+        except (TypeError, ValueError):
+            mins = 0
+        if mins > 0:
+            total += mins
+    return total
+
+
 def _serialize_parte(parte, include_sensitive=False):
     duracion_horas = parte.duracion_total()
     duracion_minutos = int(round(duracion_horas * 60))
@@ -84,10 +101,15 @@ def crear_parte_trabajo():
     coche_id = data.get('coche_id')
     empleado_id = data.get('empleado_id')
     observaciones = (data.get('observaciones') or '').strip()
+    servicios = data.get('servicios') if isinstance(data.get('servicios'), list) else []
     try:
-        tiempo_estimado_minutos = _parse_tiempo_estimado_minutos(data.get('tiempo_estimado_minutos'))
+        tiempo_estimado_payload = _parse_tiempo_estimado_minutos(data.get('tiempo_estimado_minutos'))
     except ValueError as e:
         return jsonify({'msg': str(e)}), 400
+
+    # Prioriza el cálculo por servicios cuando llegan desde frontend para evitar
+    # desajustes de UI y asegurar sumatorio consistente.
+    tiempo_estimado_minutos = _sum_tiempo_servicios(servicios) if servicios else tiempo_estimado_payload
 
     if coche_id is None or empleado_id is None:
         return jsonify({'msg': 'Debes indicar coche_id y empleado_id'}), 400

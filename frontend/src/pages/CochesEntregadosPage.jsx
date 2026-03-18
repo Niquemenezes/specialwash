@@ -1,6 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Context } from "../store/appContext";
+import { getApiBase } from "../utils/apiBase";
 
 const toDateInputValue = (date) => {
   const d = new Date(date);
@@ -22,12 +23,40 @@ const parseKm = (value) => {
   return Number.isFinite(n) ? n : null;
 };
 
+const getStoredToken = () =>
+  (typeof sessionStorage !== "undefined" && sessionStorage.getItem("token")) ||
+  (typeof localStorage !== "undefined" && localStorage.getItem("token")) || "";
+
+const getFotoUrl = (item, inspeccionId) => {
+  if (!item) return "";
+  if (typeof item === "string") return item;
+  if (item.filename) {
+    const base = getApiBase();
+    const token = getStoredToken();
+    return `${base}/api/inspeccion-recepcion/${inspeccionId}/foto-file/${item.filename}?token=${encodeURIComponent(token)}`;
+  }
+  return item.url || "";
+};
+
+const getVideoUrl = (item, inspeccionId) => {
+  if (!item) return "";
+  if (typeof item === "string") return item;
+  if (item.filename) {
+    const base = getApiBase();
+    const token = getStoredToken();
+    return `${base}/api/inspeccion-recepcion/${inspeccionId}/video-file/${item.filename}?token=${encodeURIComponent(token)}`;
+  }
+  return item.url || "";
+};
+
 const CochesEntregadosPage = () => {
   const { actions } = useContext(Context);
   const navigate = useNavigate();
   const [inspecciones, setInspecciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [detalle, setDetalle] = useState(null);
+  const [loadingDetalle, setLoadingDetalle] = useState(false);
 
   const [busqueda, setBusqueda] = useState("");
   const [fechaDesde, setFechaDesde] = useState("");
@@ -111,6 +140,18 @@ const CochesEntregadosPage = () => {
 
   const editarInspeccion = (id) => {
     navigate(`/inspeccion-recepcion?editId=${id}`);
+  };
+
+  const verInspeccion = async (id) => {
+    try {
+      setLoadingDetalle(true);
+      const data = await actions.getInspeccion(id);
+      setDetalle(data || null);
+    } catch (err) {
+      alert(err?.message || "No se pudo cargar el detalle de inspección");
+    } finally {
+      setLoadingDetalle(false);
+    }
   };
 
   const eliminarInspeccion = async (item) => {
@@ -272,6 +313,14 @@ const CochesEntregadosPage = () => {
                           </button>
                           <button
                             type="button"
+                            className="btn btn-outline-dark btn-sm"
+                            onClick={() => verInspeccion(item.id)}
+                            disabled={loadingDetalle}
+                          >
+                            Ver inspección
+                          </button>
+                          <button
+                            type="button"
                             className="btn btn-outline-danger btn-sm"
                             onClick={() => eliminarInspeccion(item)}
                           >
@@ -287,6 +336,98 @@ const CochesEntregadosPage = () => {
           )}
         </div>
       </div>
+
+      {detalle && (
+        <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.75)" }}>
+          <div className="modal-dialog modal-xl modal-dialog-scrollable modal-fullscreen-md-down">
+            <div className="modal-content">
+              <div className="modal-header py-3" style={{ background: "#0f0f0f", color: "#d4af37" }}>
+                <h5 className="modal-title fw-bold fs-6 fs-md-5">
+                  🚗 Inspección #{detalle.id} - {detalle.matricula}
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  onClick={() => setDetalle(null)}
+                  aria-label="Cerrar"
+                ></button>
+              </div>
+
+              <div className="modal-body p-3">
+                <div className="card mb-3">
+                  <div className="card-header py-2" style={{ background: "#d4af37", fontWeight: "600" }}>
+                    👤 Datos de la recepción
+                  </div>
+                  <div className="card-body p-3">
+                    <div className="row g-2">
+                      <div className="col-12 col-md-6"><strong>Cliente:</strong> {detalle.cliente_nombre || "-"}</div>
+                      <div className="col-12 col-md-6"><strong>Teléfono:</strong> {detalle.cliente_telefono || "-"}</div>
+                      <div className="col-12 col-md-6"><strong>Coche:</strong> {detalle.coche_descripcion || "-"}</div>
+                      <div className="col-12 col-md-6"><strong>Fecha inspección:</strong> {formatFecha(detalle.fecha_inspeccion)}</div>
+                      <div className="col-12"><strong>Observaciones:</strong> {detalle.averias_notas || "Sin observaciones"}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {Array.isArray(detalle.fotos_cloudinary) && detalle.fotos_cloudinary.length > 0 && (
+                  <div className="card mb-3">
+                    <div className="card-header py-2" style={{ background: "#d4af37", fontWeight: "600" }}>
+                      📸 Fotos de inspección ({detalle.fotos_cloudinary.length})
+                    </div>
+                    <div className="card-body p-2 p-md-3">
+                      <div className="row g-3">
+                        {detalle.fotos_cloudinary.map((foto, index) => {
+                          const url = getFotoUrl(foto, detalle.id);
+                          if (!url) return null;
+                          return (
+                            <div key={index} className="col-6 col-sm-6 col-md-4">
+                              <a href={url} target="_blank" rel="noopener noreferrer">
+                                <img
+                                  src={url}
+                                  alt={`Foto ${index + 1}`}
+                                  className="img-fluid rounded border"
+                                  style={{ width: "100%", height: "180px", objectFit: "cover" }}
+                                />
+                              </a>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {Array.isArray(detalle.videos_cloudinary) && detalle.videos_cloudinary.length > 0 && (
+                  <div className="card mb-3">
+                    <div className="card-header py-2" style={{ background: "#d4af37", fontWeight: "600" }}>
+                      🎥 Videos de inspección ({detalle.videos_cloudinary.length})
+                    </div>
+                    <div className="card-body p-2 p-md-3">
+                      <div className="row g-3">
+                        {detalle.videos_cloudinary.map((video, index) => {
+                          const url = getVideoUrl(video, detalle.id);
+                          if (!url) return null;
+                          return (
+                            <div key={index} className="col-12 col-md-6">
+                              <video src={url} controls className="w-100 rounded border" style={{ maxHeight: "300px" }} />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setDetalle(null)}>
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

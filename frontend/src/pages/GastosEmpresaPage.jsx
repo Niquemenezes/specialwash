@@ -41,6 +41,7 @@ export default function GastosEmpresaPage() {
   const [ingresosAutomaticos, setIngresosAutomaticos] = useState(0);
   const [gastosAutoEntradas, setGastosAutoEntradas] = useState([]);
   const [gastosAutoMaquinaria, setGastosAutoMaquinaria] = useState([]);
+  const [cobrosProfesionales, setCobrosProfesionales] = useState([]);
 
   const [form, setForm] = useState(DEFAULT_FORM);
 
@@ -63,6 +64,9 @@ export default function GastosEmpresaPage() {
         actions.getEntradas({ desde: nextDesde, hasta: nextHasta }),
         actions.getMaquinaria(),
       ]);
+
+      const cobrosProfResp = await actions.getCobrosProfesionales({ soloPendientes: true });
+      setCobrosProfesionales(Array.isArray(cobrosProfResp) ? cobrosProfResp : []);
 
       const items = Array.isArray(gastosResp?.items) ? gastosResp.items : [];
       setGastos(items);
@@ -126,6 +130,7 @@ export default function GastosEmpresaPage() {
       setIngresosAutomaticos(0);
       setGastosAutoEntradas([]);
       setGastosAutoMaquinaria([]);
+      setCobrosProfesionales([]);
     } finally {
       setLoading(false);
     }
@@ -139,31 +144,44 @@ export default function GastosEmpresaPage() {
   }, [desde, hasta]);
 
   const totales = useMemo(() => {
-    const manualIngresos = gastos
-      .filter((g) => String(g.categoria || "").toLowerCase() === "ingreso_manual")
+    const ingresosCobrados = gastos
+      .filter((g) => {
+        const cat = String(g.categoria || "").toLowerCase();
+        return cat === "ingreso_manual" || cat === "ingreso_cobro_inspeccion";
+      })
       .reduce((acc, g) => acc + Number(g.importe || 0), 0);
 
     const totalGastosManuales = gastos
-      .filter((g) => String(g.categoria || "").toLowerCase() !== "ingreso_manual")
+      .filter((g) => {
+        const cat = String(g.categoria || "").toLowerCase();
+        return cat !== "ingreso_manual" && cat !== "ingreso_cobro_inspeccion";
+      })
       .reduce((acc, g) => acc + Number(g.importe || 0), 0);
 
     const totalGastosEntradasAuto = gastosAutoEntradas.reduce((acc, g) => acc + Number(g.importe || 0), 0);
     const totalGastosMaquinariaAuto = gastosAutoMaquinaria.reduce((acc, g) => acc + Number(g.importe || 0), 0);
     const totalGastos = totalGastosManuales + totalGastosEntradasAuto + totalGastosMaquinariaAuto;
 
-    const ingresosTotales = Number(ingresosAutomaticos || 0) + manualIngresos;
-    const balance = ingresosTotales - totalGastos;
+    const ingresosFacturados = Number(ingresosAutomaticos || 0);
+    const balanceCaja = ingresosCobrados - totalGastos;
+    const balanceDevengado = ingresosFacturados - totalGastos;
+    const pendienteProfesionales = (cobrosProfesionales || []).reduce(
+      (acc, c) => acc + Number(c.total_pendiente || 0),
+      0
+    );
 
     return {
-      manualIngresos,
+      ingresosCobrados,
+      ingresosFacturados,
       totalGastosManuales,
       totalGastosEntradasAuto,
       totalGastosMaquinariaAuto,
       totalGastos,
-      ingresosTotales,
-      balance,
+      balanceCaja,
+      balanceDevengado,
+      pendienteProfesionales,
     };
-  }, [gastos, gastosAutoEntradas, gastosAutoMaquinaria, ingresosAutomaticos]);
+  }, [gastos, gastosAutoEntradas, gastosAutoMaquinaria, ingresosAutomaticos, cobrosProfesionales]);
 
   const movimientosTabla = useMemo(() => {
     const manual = (gastos || []).map((g) => ({ ...g, origen: "manual" }));
@@ -187,9 +205,11 @@ export default function GastosEmpresaPage() {
 
   const exportarCSV = () => {
     const rows = movimientosFiltrados.map((g) => {
-      const tipo = String(g.categoria || "").toLowerCase() === "ingreso_manual" ? "Ingreso manual" : "Gasto";
+      const cat = String(g.categoria || "").toLowerCase();
+      const isIngreso = cat === "ingreso_manual" || cat === "ingreso_cobro_inspeccion";
+      const tipo = isIngreso ? "Ingreso" : "Gasto";
       const origen = String(g.origen || "") || "manual";
-      const importeSigned = String(g.categoria || "").toLowerCase() === "ingreso_manual"
+      const importeSigned = isIngreso
         ? Number(g.importe || 0)
         : -Number(g.importe || 0);
 
@@ -403,21 +423,21 @@ export default function GastosEmpresaPage() {
         <div className="col-md-4">
           <div className="card border-info h-100">
             <div className="card-body">
-              <div className="text-muted small">Ingresos manuales (sin factura)</div>
-              <div className="fs-4 fw-bold text-info">{money(totales.manualIngresos)}</div>
-              <div className="small text-muted">Registros manuales de caja/cobros</div>
+              <div className="text-muted small">Ingresos cobrados (caja real)</div>
+              <div className="fs-4 fw-bold text-info">{money(totales.ingresosCobrados)}</div>
+              <div className="small text-muted">Incluye cobros de inspecciones y manuales</div>
             </div>
           </div>
         </div>
         <div className="col-md-4">
-          <div className={`card h-100 ${totales.balance >= 0 ? "border-primary" : "border-warning"}`}>
+          <div className={`card h-100 ${totales.balanceCaja >= 0 ? "border-primary" : "border-warning"}`}>
             <div className="card-body">
-              <div className="text-muted small">Resultado (ganancia / perdida)</div>
-              <div className={`fs-4 fw-bold ${totales.balance >= 0 ? "text-primary" : "text-warning"}`}>
-                {money(totales.balance)}
+              <div className="text-muted small">Resultado caja (cobrado - gastos)</div>
+              <div className={`fs-4 fw-bold ${totales.balanceCaja >= 0 ? "text-primary" : "text-warning"}`}>
+                {money(totales.balanceCaja)}
               </div>
               <div className="small text-muted">
-                Ingresos totales {money(totales.ingresosTotales)} - Gastos {money(totales.totalGastos)}
+                Cobrado {money(totales.ingresosCobrados)} - Gastos {money(totales.totalGastos)}
               </div>
             </div>
           </div>
@@ -439,8 +459,11 @@ export default function GastosEmpresaPage() {
         <div className="col-md-6">
           <div className="card border-success h-100">
             <div className="card-body">
-              <div className="text-muted small">Ingresos totales del periodo</div>
-              <div className="fs-5 fw-bold text-success">{money(totales.ingresosTotales)}</div>
+              <div className="text-muted small">Facturación estimada del periodo</div>
+              <div className="fs-5 fw-bold text-success">{money(totales.ingresosFacturados)}</div>
+              <div className="small text-muted">
+                Balance devengado: {money(totales.balanceDevengado)} | Pendiente profesional: {money(totales.pendienteProfesionales)}
+              </div>
             </div>
           </div>
         </div>
@@ -535,15 +558,22 @@ export default function GastosEmpresaPage() {
                 <tr key={g.id}>
                   <td>{fmtDate(g.fecha || g.created_at)}</td>
                   <td>
-                    {String(g.categoria || "").toLowerCase() === "ingreso_manual" ? (
-                      <span className="badge bg-success">Ingreso manual</span>
-                    ) : String(g.origen || "") === "entrada" ? (
-                      <span className="badge bg-danger">Gasto auto</span>
-                    ) : String(g.origen || "") === "maquinaria" ? (
-                      <span className="badge bg-danger">Gasto auto</span>
-                    ) : (
-                      <span className="badge bg-danger">Gasto</span>
-                    )}
+                    {(() => {
+                      const cat = String(g.categoria || "").toLowerCase();
+                      if (cat === "ingreso_manual") {
+                        return <span className="badge bg-success">Ingreso manual</span>;
+                      }
+                      if (cat === "ingreso_cobro_inspeccion") {
+                        return <span className="badge bg-success">Cobro inspección</span>;
+                      }
+                      if (String(g.origen || "") === "entrada") {
+                        return <span className="badge bg-danger">Gasto auto</span>;
+                      }
+                      if (String(g.origen || "") === "maquinaria") {
+                        return <span className="badge bg-danger">Gasto auto</span>;
+                      }
+                      return <span className="badge bg-danger">Gasto</span>;
+                    })()}
                   </td>
                   <td>
                     {String(g.origen || "") === "entrada" && <span className="badge bg-secondary">Productos</span>}
@@ -555,7 +585,10 @@ export default function GastosEmpresaPage() {
                   <td>{g.proveedor || "-"}</td>
                   <td>{g.observaciones || "-"}</td>
                   <td className="text-end fw-semibold">
-                    {String(g.categoria || "").toLowerCase() === "ingreso_manual" ? "+" : "-"}
+                    {(() => {
+                      const cat = String(g.categoria || "").toLowerCase();
+                      return cat === "ingreso_manual" || cat === "ingreso_cobro_inspeccion" ? "+" : "-";
+                    })()}
                     {money(g.importe)}
                   </td>
                   <td className="text-end">

@@ -334,6 +334,11 @@ const NavbarSW = () => {
                         </NavLink>
                       </li>
                       <li>
+                        <NavLink to="/administracion/cobros-profesionales" className="dropdown-item">
+                          Cobros profesionales
+                        </NavLink>
+                      </li>
+                      <li>
                         <NavLink to="/maquinaria" className="dropdown-item">
                           Maquinaria
                         </NavLink>

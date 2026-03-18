@@ -34,6 +34,7 @@ import { AdminPartesTrabajoFinalizados } from "./pages/PartesTrabajoFinalizados"
 import CatalogoServiciosPage from "./pages/CatalogoServiciosPage";
 import CitasPage from "./pages/CitasPage";
 import GastosEmpresaPage from "./pages/GastosEmpresaPage.jsx";
+import CobrosProfesionalesPage from "./pages/CobrosProfesionalesPage.jsx";
 import RepasoEntregaPage from "./pages/RepasoEntregaPage.jsx";
 
 const isLogged = () =>
@@ -266,6 +267,15 @@ const App = () => {
               element={
                 <PrivateRoute allow={["administrador"]}>
                   <GastosEmpresaPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/administracion/cobros-profesionales"
+              element={
+                <PrivateRoute allow={["administrador"]}>
+                  <CobrosProfesionalesPage />
                 </PrivateRoute>
               }
             />

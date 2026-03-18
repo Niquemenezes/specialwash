@@ -321,6 +321,12 @@ export function AdminPartesTrabajo() {
         (acc, s) => acc + (Number.parseInt(s.tiempo_estimado_minutos || 0, 10) || 0),
         0
       ),
+      servicios: serviciosParteSeleccionados.map((s) => ({
+        nombre: String(s.nombre || "").trim(),
+        tiempo_estimado_minutos: Number.parseInt(s.tiempo_estimado_minutos || 0, 10) || 0,
+        precio: Number(s.precio || 0),
+        origen: s.origen || "manual",
+      })),
     };
 
     try {

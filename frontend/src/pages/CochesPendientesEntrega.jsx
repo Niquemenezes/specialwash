@@ -209,6 +209,42 @@ const buildAutoDraft = (inspeccion) => {
   };
 };
 
+const buildServiciosAplicadosTexto = (servicios = []) => {
+  const lista = Array.isArray(servicios) ? servicios : [];
+  const items = lista
+    .map((s) => {
+      if (!s || typeof s !== "object") return "";
+      const nombre = String(s.nombre || "").trim();
+      if (!nombre) return "";
+
+      const origen = String(s.origen || "manual").toLowerCase();
+      const mins = Number.parseInt(s.tiempo_estimado_minutos || 0, 10) || 0;
+      const precio = Number.parseFloat(s.precio || 0) || 0;
+
+      const parts = [nombre];
+      if (origen === "manual") parts.push("manual");
+      if (mins > 0) parts.push(`${mins} min`);
+      if (precio > 0) parts.push(`${precio.toFixed(2)} EUR`);
+
+      return `- ${parts.join(" · ")}`;
+    })
+    .filter(Boolean);
+
+  if (!items.length) return "";
+  return `Servicios aplicados registrados:\n${items.join("\n")}`;
+};
+
+const mergeTrabajosConServicios = (trabajosActuales, serviciosAplicadosTexto) => {
+  const base = String(trabajosActuales || "").trim();
+  const servicios = String(serviciosAplicadosTexto || "").trim();
+  if (!servicios) return base;
+
+  if (!base) return servicios;
+  if (base.toLowerCase().includes("servicios aplicados registrados:")) return base;
+
+  return `${base}\n\n${servicios}`;
+};
+
 const cleanSectionDraft = (text = "", title = "") => {
   const raw = String(text || "").trim();
   if (!raw) return "";
@@ -301,9 +337,20 @@ const CochesPendientesEntrega = () => {
       const parsed = parseActaDesdeTexto(detalle?.trabajos_realizados || "");
       const campos = parseCamposInforme(parsed.contenido || "");
       const estadoDesdeInspeccion = (detalle?.averias_notas || "").trim();
+      const serviciosAplicadosTexto = buildServiciosAplicadosTexto(detalle?.servicios_aplicados || []);
+      const seccionesBase = createSectionsFromData(campos, estadoDesdeInspeccion);
+      const seccionesConServicios = seccionesBase.map((section, idx) => {
+        // Sección 2 = "Trabajos realizados"
+        if (idx !== 1) return section;
+        return {
+          ...section,
+          content: mergeTrabajosConServicios(section.content, serviciosAplicadosTexto),
+        };
+      });
+
       setInspeccionActa(detalle);
       setObservacionesActa(detalle?.entrega_observaciones || parsed.observaciones || "");
-      setSections(createSectionsFromData(campos, estadoDesdeInspeccion));
+      setSections(seccionesConServicios);
       setUltimaPlantilla("");
       setAiBySection({});
       setShowActaModal(true);

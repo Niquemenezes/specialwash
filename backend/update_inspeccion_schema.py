@@ -40,6 +40,12 @@ NEW_COLUMNS = {
     "conformidad_revision_entrega": "BOOLEAN NOT NULL DEFAULT 0",
     "trabajos_realizados": "TEXT",
     "entrega_observaciones": "TEXT",
+    "cobro_estado": "VARCHAR(30) NOT NULL DEFAULT 'pendiente'",
+    "cobro_importe_pagado": "FLOAT NOT NULL DEFAULT 0",
+    "cobro_fecha_ultimo_pago": "DATETIME",
+    "cobro_metodo": "VARCHAR(50)",
+    "cobro_referencia": "VARCHAR(120)",
+    "cobro_observaciones": "TEXT",
     
     # Repaso pre-entrega
     "repaso_checklist": "TEXT DEFAULT '{}'",
