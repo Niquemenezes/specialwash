@@ -16,6 +16,7 @@ from update_notificacion_schema import ensure_notificacion_schema
 from update_inspeccion_schema import ensure_inspeccion_schema
 from update_servicio_catalogo_schema import ensure_servicio_catalogo_schema
 from update_maquinaria_schema import ensure_maquinaria_schema
+from update_parte_trabajo_schema import ensure_parte_trabajo_schema
 
 
 load_dotenv()
@@ -84,6 +85,7 @@ def create_app():
         ensure_inspeccion_schema()
         ensure_servicio_catalogo_schema()
         ensure_maquinaria_schema()
+        ensure_parte_trabajo_schema()
         db.create_all()  # crea las tablas
 
     # === Página raíz ===

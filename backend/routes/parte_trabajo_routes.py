@@ -25,8 +25,23 @@ def _can_manage_all_partes():
 ASSIGNABLE_PARTE_ROLES = set(WORKSHOP_ROLES) | {'encargado'}
 
 
-def _serialize_parte(parte):
-    return {
+def _parse_tiempo_estimado_minutos(value):
+    if value in (None, ""):
+        return 0
+    try:
+        minutos = int(value)
+    except (TypeError, ValueError):
+        raise ValueError('tiempo_estimado_minutos debe ser un numero entero')
+    if minutos < 0:
+        raise ValueError('tiempo_estimado_minutos no puede ser negativo')
+    return minutos
+
+
+def _serialize_parte(parte, include_sensitive=False):
+    duracion_horas = parte.duracion_total()
+    duracion_minutos = int(round(duracion_horas * 60))
+    tiempo_estimado = int(parte.tiempo_estimado_minutos or 0)
+    payload = {
         'id': parte.id,
         'coche_id': parte.coche_id,
         'empleado_id': parte.empleado_id,
@@ -34,8 +49,15 @@ def _serialize_parte(parte):
         'fecha_inicio': parte.fecha_inicio.isoformat() if parte.fecha_inicio else None,
         'fecha_fin': parte.fecha_fin.isoformat() if parte.fecha_fin else None,
         'observaciones': parte.observaciones,
-        'duracion_horas': parte.duracion_total()
+        'duracion_horas': duracion_horas,
     }
+    if include_sensitive:
+        payload.update({
+            'tiempo_estimado_minutos': tiempo_estimado,
+            'duracion_minutos': duracion_minutos,
+            'desviacion_minutos': duracion_minutos - tiempo_estimado,
+        })
+    return payload
 
 
 def _parse_query_datetime(raw_value, end_of_day=False):
@@ -62,6 +84,10 @@ def crear_parte_trabajo():
     coche_id = data.get('coche_id')
     empleado_id = data.get('empleado_id')
     observaciones = (data.get('observaciones') or '').strip()
+    try:
+        tiempo_estimado_minutos = _parse_tiempo_estimado_minutos(data.get('tiempo_estimado_minutos'))
+    except ValueError as e:
+        return jsonify({'msg': str(e)}), 400
 
     if coche_id is None or empleado_id is None:
         return jsonify({'msg': 'Debes indicar coche_id y empleado_id'}), 400
@@ -93,7 +119,8 @@ def crear_parte_trabajo():
         coche_id=int(coche_id),
         empleado_id=int(empleado_id),
         estado=EstadoParte.pendiente,
-        observaciones=observaciones
+        observaciones=observaciones,
+        tiempo_estimado_minutos=tiempo_estimado_minutos,
     )
     db.session.add(parte)
     db.session.commit()
@@ -131,7 +158,8 @@ def listar_partes_trabajo():
             return jsonify({'msg': 'coche_id inválido'}), 400
         query = query.filter(ParteTrabajo.coche_id == coche_id_int)
     partes = query.all()
-    return jsonify([_serialize_parte(p) for p in partes])
+    include_sensitive = _can_manage_all_partes()
+    return jsonify([_serialize_parte(p, include_sensitive=include_sensitive) for p in partes])
 
 
 @bp.route('/parte_trabajo/<int:parte_id>', methods=['PUT'])
@@ -158,9 +186,15 @@ def editar_parte_trabajo(parte_id):
     if 'observaciones' in data:
         parte.observaciones = (data.get('observaciones') or '').strip()
 
+    if 'tiempo_estimado_minutos' in data:
+        try:
+            parte.tiempo_estimado_minutos = _parse_tiempo_estimado_minutos(data.get('tiempo_estimado_minutos'))
+        except ValueError as e:
+            return jsonify({'msg': str(e)}), 400
+
     db.session.commit()
 
-    return jsonify(_serialize_parte(parte))
+    return jsonify(_serialize_parte(parte, include_sensitive=True))
 
 # Cambiar estado de parte de trabajo
 @bp.route('/parte_trabajo/<int:parte_id>/estado', methods=['PUT'])
@@ -253,16 +287,23 @@ def analitica_partes():
         query = query.filter(ParteTrabajo.fecha_fin <= fecha_fin_dt)
     partes = query.all()
     total_horas = sum([p.duracion_total() for p in partes])
+    total_estimado_minutos = sum([int(p.tiempo_estimado_minutos or 0) for p in partes])
+    total_real_minutos = sum([int(round(p.duracion_total() * 60)) for p in partes])
     return jsonify({
         'total_partes': len(partes),
         'total_horas': total_horas,
         'promedio_horas': total_horas / len(partes) if partes else 0,
+        'total_estimado_minutos': total_estimado_minutos,
+        'total_real_minutos': total_real_minutos,
+        'total_desviacion_minutos': total_real_minutos - total_estimado_minutos,
         'partes': [
             {
                 'id': p.id,
                 'coche_id': p.coche_id,
                 'estado': p.estado.value,
-                'duracion_horas': p.duracion_total()
+                'duracion_horas': p.duracion_total(),
+                'tiempo_estimado_minutos': int(p.tiempo_estimado_minutos or 0),
+                'duracion_minutos': int(round(p.duracion_total() * 60)),
             } for p in partes
         ]
     })

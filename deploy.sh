@@ -111,6 +111,7 @@ if [[ "${RUN_SCHEMA_UPDATES:-0}" == "1" ]]; then
             update_producto_codigos_schema.py \
             update_servicio_cliente_schema.py \
             update_servicio_catalogo_schema.py \
+            update_parte_trabajo_schema.py \
             update_user_schema.py \
             update_cita_schema.py \
             update_notificacion_schema.py \

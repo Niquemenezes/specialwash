@@ -19,6 +19,7 @@ from models.acta_entrega import ActaEntrega
 from models.user import User
 from models.coche import Coche
 from models.cliente import Cliente
+from models.parte_trabajo import ParteTrabajo, EstadoParte
 from models.base import now_madrid
 from utils.auth_utils import normalize_role
 from services.whatsapp_service import enviar_notificacion_inspeccion, enviar_notificacion_entrega_cliente
@@ -26,6 +27,64 @@ from models.notificacion import Notificacion
 from services.openai_service import get_openai_service
 
 inspeccion_bp = Blueprint('inspeccion', __name__, url_prefix='/api')
+
+
+# ============ HELPERS ESTADO DEL COCHE ============
+
+_PRIORIDAD_ESTADO_PARTE = {"en_proceso": 0, "en_pausa": 1, "pendiente": 2, "finalizado": 3}
+
+
+def _get_partes_por_coche(coche_ids):
+    """Retorna dict coche_id -> parte más relevante para mostrar estado actual."""
+    if not coche_ids:
+        return {}
+    partes = ParteTrabajo.query.filter(ParteTrabajo.coche_id.in_(coche_ids)).all()
+    por_coche = {}
+    for parte in partes:
+        cid = parte.coche_id
+        st = parte.estado.value if parte.estado else "finalizado"
+        prioridad = _PRIORIDAD_ESTADO_PARTE.get(st, 99)
+        if cid not in por_coche:
+            por_coche[cid] = (prioridad, parte)
+        else:
+            current_prioridad, _ = por_coche[cid]
+            if prioridad < current_prioridad:
+                por_coche[cid] = (prioridad, parte)
+    return {cid: parte for cid, (_, parte) in por_coche.items()}
+
+
+def _compute_estado_coche(inspeccion, parte):
+    """Calcula el estado visual actual del coche en el proceso de taller."""
+    if inspeccion.entregado:
+        return {"estado": "entregado", "label": "✅ Entregado", "color": "#198754", "parte_id": None, "parte_obs": None}
+
+    if inspeccion.repaso_completado:
+        return {"estado": "listo_entrega", "label": "🟢 Listo para entrega", "color": "#20c997", "parte_id": None, "parte_obs": None}
+
+    if parte is None:
+        return {"estado": "esperando_parte", "label": "⏳ Esperando parte de trabajo", "color": "#adb5bd", "parte_id": None, "parte_obs": None}
+
+    st = parte.estado.value if parte.estado else "desconocido"
+    obs = (parte.observaciones or "").strip()
+    short_obs = obs[:60] if obs else None
+
+    if st == "en_proceso":
+        return {"estado": "en_proceso", "label": "🔧 En trabajo", "color": "#fd7e14", "parte_id": parte.id, "parte_obs": short_obs}
+    if st == "en_pausa":
+        return {"estado": "en_pausa", "label": "⏸️ En pausa", "color": "#ffc107", "parte_id": parte.id, "parte_obs": short_obs}
+    if st == "pendiente":
+        return {"estado": "parte_pendiente", "label": "📋 Parte asignado", "color": "#6f42c1", "parte_id": parte.id, "parte_obs": short_obs}
+    if st == "finalizado":
+        return {"estado": "parte_finalizado", "label": "🏁 Trabajos finalizados", "color": "#0d6efd", "parte_id": parte.id, "parte_obs": short_obs}
+
+    return {"estado": "desconocido", "label": "❓ Desconocido", "color": "#6c757d", "parte_id": None, "parte_obs": None}
+
+
+def _serialize_inspeccion_con_estado(inspeccion, partes_por_coche):
+    data = inspeccion.to_dict()
+    parte = partes_por_coche.get(inspeccion.coche_id)
+    data["estado_coche"] = _compute_estado_coche(inspeccion, parte)
+    return data
 
 
 def _telefono_digits(value):
@@ -81,6 +140,14 @@ def _normalize_servicios_aplicados(raw):
         if precio < 0:
             precio = 0.0
 
+        tiempo_raw = item.get("tiempo_estimado_minutos", 0)
+        try:
+            tiempo_estimado_minutos = int(tiempo_raw or 0)
+        except (TypeError, ValueError):
+            tiempo_estimado_minutos = 0
+        if tiempo_estimado_minutos < 0:
+            tiempo_estimado_minutos = 0
+
         servicio_catalogo_id = item.get("servicio_catalogo_id")
         try:
             servicio_catalogo_id = int(servicio_catalogo_id) if servicio_catalogo_id is not None else None
@@ -92,6 +159,7 @@ def _normalize_servicios_aplicados(raw):
             "servicio_catalogo_id": servicio_catalogo_id,
             "nombre": nombre,
             "precio": precio,
+            "tiempo_estimado_minutos": tiempo_estimado_minutos,
         })
 
     return normalized
@@ -167,8 +235,8 @@ def crear_inspeccion():
     - coche_descripcion (str)
     - matricula (str)
     - kilometros (int)
-    - firma_cliente_recepcion (base64)
     - firma_empleado_recepcion (base64)
+    - firma_cliente_recepcion (base64) solo en flujo normal
     - averias_notas (str, opcional)
     """
     data = request.get_json(silent=True) or {}
@@ -177,6 +245,8 @@ def crear_inspeccion():
         return jsonify({"msg": "Usuario no válido en el token"}), 401
     
     try:
+        es_concesionario = bool(data.get("es_concesionario", False))
+
         # Validar campos requeridos
         required_fields = [
             "cliente_nombre",
@@ -184,12 +254,14 @@ def crear_inspeccion():
             "coche_descripcion",
             "matricula",
             "kilometros",
-            "firma_cliente_recepcion",
             "firma_empleado_recepcion",
         ]
         for field in required_fields:
             if not data.get(field):
                 return jsonify({"msg": f"Campo requerido: {field}"}), 400
+
+        if not es_concesionario and not data.get("firma_cliente_recepcion"):
+            return jsonify({"msg": "Campo requerido: firma_cliente_recepcion"}), 400
         
         cliente_nombre = data.get("cliente_nombre").strip()
         cliente_telefono = data.get("cliente_telefono").strip()
@@ -266,7 +338,8 @@ def crear_inspeccion():
             coche_descripcion=data.get("coche_descripcion"),
             matricula=matricula,
             kilometros=kilometros,
-            firma_cliente_recepcion=data.get("firma_cliente_recepcion"),
+            es_concesionario=es_concesionario,
+            firma_cliente_recepcion=None if es_concesionario else data.get("firma_cliente_recepcion"),
             firma_empleado_recepcion=data.get("firma_empleado_recepcion"),
             consentimiento_datos_recepcion=consentimiento_datos_recepcion,
             averias_notas=data.get("averias_notas", ""),
@@ -353,8 +426,10 @@ def listar_inspecciones():
             ).order_by(
                 InspeccionRecepcion.fecha_inspeccion.desc()
             ).all()
-        
-        return jsonify([i.to_dict() for i in inspecciones]), 200
+
+        coche_ids = [i.coche_id for i in inspecciones if i.coche_id]
+        partes_por_coche = _get_partes_por_coche(coche_ids)
+        return jsonify([_serialize_inspeccion_con_estado(i, partes_por_coche) for i in inspecciones]), 200
     
     except Exception as e:
         return jsonify({"msg": f"Error al listar inspecciones: {str(e)}"}), 500
@@ -380,7 +455,9 @@ def listar_pendientes_entrega():
             .order_by(InspeccionRecepcion.fecha_inspeccion.desc())
             .all()
         )
-        return jsonify([i.to_dict() for i in inspecciones]), 200
+        coche_ids = [i.coche_id for i in inspecciones if i.coche_id]
+        partes_por_coche = _get_partes_por_coche(coche_ids)
+        return jsonify([_serialize_inspeccion_con_estado(i, partes_por_coche) for i in inspecciones]), 200
     except Exception as e:
         return jsonify({"msg": f"Error al listar pendientes de entrega: {str(e)}"}), 500
 
@@ -410,18 +487,22 @@ def ver_inspeccion(inspeccion_id):
         return jsonify({"msg": "No tienes permiso para esta acción"}), 403
     
     # Validar permisos por rol y operativa de entrega.
+    def _to_dict_con_estado():
+        partes = _get_partes_por_coche([inspeccion.coche_id] if inspeccion.coche_id else [])
+        return _serialize_inspeccion_con_estado(inspeccion, partes)
+
     if user.rol == "administrador":
-        return jsonify(inspeccion.to_dict()), 200
+        return jsonify(_to_dict_con_estado()), 200
 
     if normalize_role(user.rol) in {"detailing", "calidad"}:
         if inspeccion.entregado:
             return jsonify({"msg": "No tienes permiso para ver esta inspección"}), 403
-        return jsonify(inspeccion.to_dict()), 200
+        return jsonify(_to_dict_con_estado()), 200
 
     if inspeccion.usuario_id != user_id:
         return jsonify({"msg": "No tienes permiso para ver esta inspección"}), 403
-    
-    return jsonify(inspeccion.to_dict()), 200
+
+    return jsonify(_to_dict_con_estado()), 200
 
 
 # ============ ACTUALIZAR INSPECCIÓN ============
@@ -474,8 +555,16 @@ def actualizar_inspeccion(inspeccion_id):
             except (TypeError, ValueError):
                 return jsonify({"msg": "El campo kilometros debe ser un numero entero"}), 400
 
+        if "es_concesionario" in data:
+            inspeccion.es_concesionario = bool(data["es_concesionario"])
+            if inspeccion.es_concesionario:
+                inspeccion.firma_cliente_recepcion = None
+
         if "firma_cliente_recepcion" in data:
-            inspeccion.firma_cliente_recepcion = data["firma_cliente_recepcion"]
+            if inspeccion.es_concesionario:
+                inspeccion.firma_cliente_recepcion = None
+            else:
+                inspeccion.firma_cliente_recepcion = data["firma_cliente_recepcion"]
 
         if "firma_empleado_recepcion" in data:
             inspeccion.firma_empleado_recepcion = data["firma_empleado_recepcion"]
@@ -555,27 +644,30 @@ def registrar_entrega(inspeccion_id):
         return jsonify({"msg": "Inspección no encontrada"}), 404
 
     data = request.get_json() or {}
-    required_fields = ["trabajos_realizados"]
-    for field in required_fields:
-        if not data.get(field):
-            return jsonify({"msg": f"Campo requerido: {field}"}), 400
+    es_concesionario = bool(inspeccion.es_concesionario)
 
-    if not (data.get("firma_cliente_entrega") or "").strip():
+    if not es_concesionario and not data.get("trabajos_realizados"):
+        return jsonify({"msg": "Campo requerido: trabajos_realizados"}), 400
+
+    if not es_concesionario and not (data.get("firma_cliente_entrega") or "").strip():
         return jsonify({"msg": "Campo requerido: firma_cliente_entrega"}), 400
 
     consentimiento_datos_entrega = bool(data.get("consentimiento_datos_entrega", False))
-    if not consentimiento_datos_entrega:
+    if not es_concesionario and not consentimiento_datos_entrega:
         return jsonify({"msg": "Debe aceptarse la proteccion de datos en entrega"}), 400
 
     conformidad_revision_entrega = bool(data.get("conformidad_revision_entrega", False))
 
     try:
-        inspeccion.trabajos_realizados = data.get("trabajos_realizados", "").strip()
+        trabajos_realizados = data.get("trabajos_realizados")
+        if trabajos_realizados is None:
+            trabajos_realizados = inspeccion.trabajos_realizados or ""
+        inspeccion.trabajos_realizados = str(trabajos_realizados).strip()
         inspeccion.entrega_observaciones = data.get("entrega_observaciones", "").strip()
-        inspeccion.firma_cliente_entrega = data.get("firma_cliente_entrega")
+        inspeccion.firma_cliente_entrega = None if es_concesionario else data.get("firma_cliente_entrega")
         inspeccion.firma_empleado_entrega = data.get("firma_empleado_entrega")
-        inspeccion.consentimiento_datos_entrega = consentimiento_datos_entrega
-        inspeccion.conformidad_revision_entrega = conformidad_revision_entrega
+        inspeccion.consentimiento_datos_entrega = consentimiento_datos_entrega if not es_concesionario else False
+        inspeccion.conformidad_revision_entrega = conformidad_revision_entrega if not es_concesionario else False
         inspeccion.entregado = True
         inspeccion.fecha_entrega = now_madrid()
 

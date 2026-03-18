@@ -19,6 +19,7 @@ class ParteTrabajo(db.Model):
     fecha_inicio = db.Column(db.DateTime)
     fecha_fin = db.Column(db.DateTime)
     observaciones = db.Column(db.String)
+    tiempo_estimado_minutos = db.Column(db.Integer, nullable=False, default=0)
 
     coche = db.relationship("Coche")
     empleado = db.relationship("User")
@@ -66,3 +67,6 @@ class ParteTrabajo(db.Model):
                     total -= (fin - inicio).total_seconds()
 
         return max(total, 0) / 3600  # horas
+
+    def duracion_total_minutos(self):
+        return int(round(self.duracion_total() * 60))

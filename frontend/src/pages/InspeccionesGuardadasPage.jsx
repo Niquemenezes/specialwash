@@ -55,6 +55,7 @@ const InspeccionesGuardadasPage = () => {
   const [detalle, setDetalle] = useState(null);
   const focoAbiertoRef = useRef(null);
   const activeTab = searchParams.get("tab") || "guardadas";
+  const inspeccionesGuardadas = inspecciones.filter((insp) => !insp?.entregado);
 
   const switchTab = (tab) => {
     const next = new URLSearchParams(searchParams);
@@ -97,7 +98,7 @@ const InspeccionesGuardadasPage = () => {
     if (!Number.isInteger(focusId) || focusId <= 0) return;
     if (focoAbiertoRef.current === focusId) return;
 
-    const existe = inspecciones.some((insp) => insp.id === focusId);
+    const existe = inspeccionesGuardadas.some((insp) => insp.id === focusId);
     if (!existe) return;
 
     focoAbiertoRef.current = focusId;
@@ -106,7 +107,7 @@ const InspeccionesGuardadasPage = () => {
     const next = new URLSearchParams(searchParams);
     next.delete("focusId");
     setSearchParams(next, { replace: true });
-  }, [loading, inspecciones, searchParams, setSearchParams, verDetalle]);
+  }, [loading, inspeccionesGuardadas, searchParams, setSearchParams, verDetalle]);
 
   const eliminarInspeccion = async (id) => {
     if (!window.confirm("¿Seguro que quieres eliminar esta inspección?")) return;
@@ -180,8 +181,8 @@ const InspeccionesGuardadasPage = () => {
         <div className="card-body p-0">
           {loading ? (
             <div className="p-4 text-center text-muted">Cargando inspecciones...</div>
-          ) : inspecciones.length === 0 ? (
-            <div className="p-4 text-center text-muted">No hay inspecciones registradas.</div>
+          ) : inspeccionesGuardadas.length === 0 ? (
+            <div className="p-4 text-center text-muted">No hay inspecciones pendientes registradas.</div>
           ) : (
             <div className="table-responsive sw-inspecciones-table">
               <table className="table table-hover align-middle mb-0">
@@ -200,7 +201,7 @@ const InspeccionesGuardadasPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {inspecciones.map((insp) => (
+                  {inspeccionesGuardadas.map((insp) => (
                     <tr key={insp.id}>
                       <td>#{insp.id}</td>
                       <td>{new Date(insp.fecha_inspeccion).toLocaleString("es-ES")}</td>
@@ -210,8 +211,25 @@ const InspeccionesGuardadasPage = () => {
                       <td>{insp.usuario_nombre || "-"}</td>
                       <td>{insp.fotos_cloudinary?.length || 0}</td>
                       <td>{insp.videos_cloudinary?.length || 0}</td>
-                      <td>
-                        {insp.entregado ? (
+                      <td style={{ minWidth: "160px" }}>
+                        {insp.estado_coche ? (
+                          <div>
+                            <span
+                              className="badge"
+                              style={{
+                                backgroundColor: insp.estado_coche.color,
+                                color: insp.estado_coche.color === "#ffc107" || insp.estado_coche.color === "#adb5bd" ? "#000" : "#fff",
+                              }}
+                            >
+                              {insp.estado_coche.label}
+                            </span>
+                            {insp.estado_coche.parte_obs && (
+                              <div className="small text-muted mt-1" style={{ maxWidth: "180px", whiteSpace: "normal", lineHeight: "1.2" }}>
+                                {insp.estado_coche.parte_obs}
+                              </div>
+                            )}
+                          </div>
+                        ) : insp.entregado ? (
                           <span className="badge bg-success">Entregado</span>
                         ) : (
                           <span className="badge bg-warning text-dark">Pendiente</span>
@@ -305,6 +323,30 @@ const InspeccionesGuardadasPage = () => {
                     </div>
                   </div>
                 </div>
+
+                {detalle.estado_coche && (
+                  <div className="card mb-3">
+                    <div className="card-header py-2" style={{ background: "#d4af37", fontWeight: "600" }}>
+                      📍 Paso actual del coche
+                    </div>
+                    <div className="card-body p-3 d-flex align-items-start gap-3">
+                      <span
+                        className="badge fs-6"
+                        style={{
+                          backgroundColor: detalle.estado_coche.color,
+                          color: detalle.estado_coche.color === "#ffc107" || detalle.estado_coche.color === "#adb5bd" ? "#000" : "#fff",
+                        }}
+                      >
+                        {detalle.estado_coche.label}
+                      </span>
+                      {detalle.estado_coche.parte_obs && (
+                        <span className="text-muted small" style={{ paddingTop: "4px" }}>
+                          {detalle.estado_coche.parte_obs}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {(detalle.firma_cliente_recepcion || detalle.firma_empleado_recepcion) && (
                   <div className="card mb-3">

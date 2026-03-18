@@ -12,6 +12,24 @@ function formatDate(value) {
   return d.toLocaleString();
 }
 
+function formatMinutes(minutes) {
+  const total = Number.isFinite(Number(minutes)) ? Math.max(0, Number(minutes)) : 0;
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0) return `${m} min`;
+  if (m === 0) return `${h} h`;
+  return `${h} h ${m} min`;
+}
+
+function deviationBadge(desviacionMinutos) {
+  if (!Number.isFinite(Number(desviacionMinutos))) return <span className="text-muted">-</span>;
+  const value = Number(desviacionMinutos);
+  let cls = "bg-success";
+  if (value > 30) cls = "bg-danger";
+  else if (value > 10) cls = "bg-warning text-dark";
+  return <span className={`badge ${cls}`}>{`${value > 0 ? "+" : ""}${value} min`}</span>;
+}
+
 export function AdminPartesTrabajoFinalizados() {
   const [partes, setPartes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,6 +40,7 @@ export function AdminPartesTrabajoFinalizados() {
   const [fechaFinFiltro, setFechaFinFiltro] = useState("");
   const [cochesCatalogo, setCochesCatalogo] = useState([]);
   const [empleadosDisponibles, setEmpleadosDisponibles] = useState([]);
+  const [costeHoraInterno, setCosteHoraInterno] = useState("");
 
   const empleadoNombrePorId = useCallback(
     (id) => {
@@ -109,6 +128,22 @@ export function AdminPartesTrabajoFinalizados() {
     return partes.reduce((sum, p) => sum + (typeof p.duracion_horas === "number" ? p.duracion_horas : 0), 0);
   };
 
+  const calcularEstimadoTotalMin = () => {
+    return partes.reduce((sum, p) => sum + (Number.parseInt(p.tiempo_estimado_minutos || 0, 10) || 0), 0);
+  };
+
+  const calcularRealTotalMin = () => {
+    return partes.reduce((sum, p) => {
+      const real = Number.parseInt(p.duracion_minutos || Math.round((Number(p.duracion_horas) || 0) * 60), 10) || 0;
+      return sum + real;
+    }, 0);
+  };
+
+  const costeHora = Number.parseFloat(String(costeHoraInterno || "0").replace(",", "."));
+  const costeHoraSeguro = Number.isFinite(costeHora) && costeHora >= 0 ? costeHora : 0;
+  const costeEstimado = (calcularEstimadoTotalMin() / 60) * costeHoraSeguro;
+  const costeReal = (calcularRealTotalMin() / 60) * costeHoraSeguro;
+
   const analisisEmpleados = useMemo(() => {
     const mapa = new Map();
 
@@ -117,6 +152,8 @@ export function AdminPartesTrabajoFinalizados() {
       const empleado = empleadosDisponibles.find((u) => Number(u.id) === empleadoId);
       const nombre = empleado?.nombre || `ID ${p.empleado_id}`;
       const horas = typeof p.duracion_horas === "number" ? p.duracion_horas : 0;
+      const estimadoMin = Number.parseInt(p.tiempo_estimado_minutos || 0, 10) || 0;
+      const realMin = Number.parseInt(p.duracion_minutos || Math.round(horas * 60), 10) || 0;
       const fecha = p.fecha_fin ? new Date(p.fecha_fin).toLocaleDateString("es-ES") : "Sin fecha";
 
       if (!mapa.has(empleadoId)) {
@@ -124,6 +161,8 @@ export function AdminPartesTrabajoFinalizados() {
           empleado_id: empleadoId,
           nombre,
           total_horas: 0,
+          total_estimado_minutos: 0,
+          total_real_minutos: 0,
           total_partes: 0,
           por_dia: {},
         });
@@ -131,6 +170,8 @@ export function AdminPartesTrabajoFinalizados() {
 
       const fila = mapa.get(empleadoId);
       fila.total_horas += horas;
+      fila.total_estimado_minutos += estimadoMin;
+      fila.total_real_minutos += realMin;
       fila.total_partes += 1;
       fila.por_dia[fecha] = (fila.por_dia[fecha] || 0) + horas;
     }
@@ -139,6 +180,7 @@ export function AdminPartesTrabajoFinalizados() {
       .map((row) => ({
         ...row,
         promedio_horas: row.total_partes > 0 ? row.total_horas / row.total_partes : 0,
+        desviacion_minutos: row.total_real_minutos - row.total_estimado_minutos,
       }))
       .sort((a, b) => a.promedio_horas - b.promedio_horas);
   }, [partes, empleadosDisponibles]);
@@ -212,7 +254,7 @@ export function AdminPartesTrabajoFinalizados() {
         <div className="col-md-4">
           <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
             <div className="card-body">
-              <p className="text-muted mb-2">⏱️ Tiempo total (h)</p>
+              <p className="text-muted mb-2">⏱️ Tiempo real total (h)</p>
               <h4 className="fw-bold" style={{ color: "#d4af37" }}>{calcularTiempoTotal().toFixed(2)}</h4>
             </div>
           </div>
@@ -220,8 +262,38 @@ export function AdminPartesTrabajoFinalizados() {
         <div className="col-md-4">
           <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
             <div className="card-body">
-              <p className="text-muted mb-2">👥 Empleados</p>
-              <h4 className="fw-bold" style={{ color: "#d4af37" }}>{new Set(partes.map((p) => p.empleado_id)).size}</h4>
+              <p className="text-muted mb-2">🎯 Estimado total</p>
+              <h4 className="fw-bold" style={{ color: "#d4af37" }}>{formatMinutes(calcularEstimadoTotalMin())}</h4>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card mb-4 shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
+        <div className="card-body">
+          <h5 className="card-title fw-semibold mb-3">💶 Coste interno por hora (solo gestión)</h5>
+          <div className="row g-3 align-items-end">
+            <div className="col-12 col-md-4">
+              <label className="form-label">Coste por hora (€)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                className="form-control"
+                value={costeHoraInterno}
+                onChange={(e) => setCosteHoraInterno(e.target.value)}
+                placeholder="Ej. 18"
+                style={{ borderRadius: "8px" }}
+              />
+            </div>
+            <div className="col-12 col-md-8">
+              <div className="d-flex flex-wrap gap-3">
+                <span className="badge bg-secondary p-2">Coste estimado: {costeEstimado.toFixed(2)} €</span>
+                <span className="badge bg-dark p-2">Coste real: {costeReal.toFixed(2)} €</span>
+                <span className={`badge p-2 ${costeReal - costeEstimado > 0 ? "bg-danger" : "bg-success"}`}>
+                  Desvío coste: {(costeReal - costeEstimado > 0 ? "+" : "") + (costeReal - costeEstimado).toFixed(2)} €
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -322,7 +394,7 @@ export function AdminPartesTrabajoFinalizados() {
               <div key={row.empleado_id} className="mb-3">
                 <div className="d-flex justify-content-between mb-1">
                   <strong>{row.nombre}</strong>
-                  <small className="text-muted">{row.total_partes} partes · {row.total_horas.toFixed(2)} h</small>
+                  <small className="text-muted">{row.total_partes} partes · {row.total_horas.toFixed(2)} h reales</small>
                 </div>
                 <div className="progress" style={{ height: "6px" }}>
                   <div
@@ -334,7 +406,9 @@ export function AdminPartesTrabajoFinalizados() {
                     }}
                   />
                 </div>
-                <small className="text-muted">Promedio: {row.promedio_horas.toFixed(2)} h/parte</small>
+                <small className="text-muted">
+                  Promedio: {row.promedio_horas.toFixed(2)} h/parte · Desvío total: {deviationBadge(row.desviacion_minutos)}
+                </small>
               </div>
             ))}
 
@@ -387,7 +461,9 @@ export function AdminPartesTrabajoFinalizados() {
                       <th>Trabajo</th>
                       <th>Inicio</th>
                       <th>Fin</th>
+                      <th>Estimado</th>
                       <th>Duración (h)</th>
+                      <th>Desvío</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -399,7 +475,9 @@ export function AdminPartesTrabajoFinalizados() {
                         <td>{p.observaciones || "-"}</td>
                         <td className="small">{formatDate(p.fecha_inicio)}</td>
                         <td className="small">{formatDate(p.fecha_fin)}</td>
+                        <td>{formatMinutes(p.tiempo_estimado_minutos || 0)}</td>
                         <td>{typeof p.duracion_horas === "number" ? p.duracion_horas.toFixed(2) : "-"}</td>
+                        <td>{deviationBadge(p.desviacion_minutos)}</td>
                       </tr>
                     ))}
                   </tbody>
