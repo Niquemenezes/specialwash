@@ -1,7 +1,8 @@
 // src/App.jsx
-import React from "react";
+import React, { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import injectContext from "./store/appContext.js";
+import { touchSessionActivity } from "./utils/authSession";
 
 import NavbarSW from "./component/NavbarSW.jsx";
 import Footer from "./component/Footer.jsx";
@@ -42,6 +43,25 @@ const RedirectIfLogged = ({ children }) =>
   isLogged() ? <Navigate to="/" replace /> : children;
 
 const App = () => {
+  useEffect(() => {
+    let lastTouch = 0;
+    const onActivity = () => {
+      const now = Date.now();
+      // Evita escribir en storage en cada evento continuo
+      if (now - lastTouch < 5000) return;
+      lastTouch = now;
+      touchSessionActivity();
+    };
+
+    const events = ["pointerdown", "keydown", "touchstart", "scroll", "mousemove"];
+    events.forEach((evt) => window.addEventListener(evt, onActivity, { passive: true }));
+    touchSessionActivity();
+
+    return () => {
+      events.forEach((evt) => window.removeEventListener(evt, onActivity));
+    };
+  }, []);
+
   return (
     <BrowserRouter>
       <div className="sw-app">

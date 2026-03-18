@@ -1,5 +1,5 @@
 import React, { useContext, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Context } from "../store/appContext";
 
 export default function Login() {
@@ -9,6 +9,8 @@ export default function Login() {
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const expired = searchParams.get("expired") === "1";
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -65,6 +67,12 @@ export default function Login() {
             {err && (
               <div className="alert alert-danger py-2 small">
                 {err}
+              </div>
+            )}
+
+            {expired && !err && (
+              <div className="alert alert-warning py-2 small">
+                Tu sesión ha expirado por tiempo o inactividad. Vuelve a iniciar sesión.
               </div>
             )}
 

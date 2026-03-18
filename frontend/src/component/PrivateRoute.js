@@ -1,6 +1,6 @@
 import React from "react";
 import { Navigate, Outlet } from "react-router-dom";
-import { getStoredRol, getStoredToken, hasAllowedRole } from "../utils/authSession";
+import { ensureActiveSession, getStoredRol, getStoredToken, hasAllowedRole, clearStoredSession } from "../utils/authSession";
 
 const isDevAuthBypassEnabled = () => {
   const flag = (process.env.REACT_APP_DEV_AUTH_BYPASS || "").toLowerCase().trim();
@@ -13,8 +13,12 @@ export default function PrivateRoute({
   children,            // opcional: puedes pasar children o usar <Outlet/>
 }) {
   const token = getStoredToken();
+  const active = ensureActiveSession();
   const bypass = isDevAuthBypassEnabled();
-  if (!token && !bypass) return <Navigate to="/login" replace />;
+  if ((!token || !active.ok) && !bypass) {
+    clearStoredSession();
+    return <Navigate to="/login?expired=1" replace />;
+  }
 
   const rol = token ? getStoredRol() : "administrador";
 

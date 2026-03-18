@@ -3,18 +3,18 @@
   "name": "SpecialWash Taller",
   "icons": [
     {
-      "src": "specialwash-logo.jpg",
-      "type": "image/jpeg",
+      "src": "logo-specialwash-icon-black.png",
+      "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "specialwash-logo.jpg",
-      "type": "image/jpeg",
+      "src": "logo-specialwash-icon-black.png",
+      "type": "image/png",
       "sizes": "512x512"
     }
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#0e2233",
-  "background_color": "#ffffff"
+  "theme_color": "#050505",
+  "background_color": "#050505"
 }

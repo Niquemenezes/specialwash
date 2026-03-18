@@ -34,6 +34,32 @@ export const getStoredToken = () =>
   (typeof localStorage !== "undefined" && localStorage.getItem("token")) ||
   "";
 
+const DEFAULT_IDLE_TIMEOUT_MINUTES = 60;
+
+const getIdleTimeoutMinutes = () => {
+  const raw = process.env.REACT_APP_SESSION_IDLE_TIMEOUT_MINUTES;
+  const parsed = Number.parseInt(String(raw || ""), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_IDLE_TIMEOUT_MINUTES;
+};
+
+export const SESSION_IDLE_TIMEOUT_MS = getIdleTimeoutMinutes() * 60 * 1000;
+const LAST_ACTIVITY_KEY = "sw_last_activity_at";
+
+export const clearStoredSession = () => {
+  if (typeof localStorage !== "undefined") {
+    localStorage.removeItem("token");
+    localStorage.removeItem("rol");
+    localStorage.removeItem("userId");
+    localStorage.removeItem(LAST_ACTIVITY_KEY);
+  }
+  if (typeof sessionStorage !== "undefined") {
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("rol");
+    sessionStorage.removeItem("userId");
+    sessionStorage.removeItem(LAST_ACTIVITY_KEY);
+  }
+};
+
 const decodeJwtPayload = (token) => {
   try {
     const payloadPart = String(token || "").split(".")[1];
@@ -46,6 +72,52 @@ const decodeJwtPayload = (token) => {
   } catch {
     return null;
   }
+};
+
+const toUnixMs = (value) => {
+  const n = Number.parseInt(String(value || ""), 10);
+  return Number.isFinite(n) ? n : 0;
+};
+
+export const getTokenExpiryMs = (token = getStoredToken()) => {
+  if (!token) return 0;
+  const payload = decodeJwtPayload(token);
+  if (!payload?.exp) return 0;
+  return Number(payload.exp) * 1000;
+};
+
+export const isTokenExpired = (token = getStoredToken(), skewMs = 5000) => {
+  const expMs = getTokenExpiryMs(token);
+  if (!expMs) return false;
+  return Date.now() >= (expMs - skewMs);
+};
+
+export const touchSessionActivity = () => {
+  const now = String(Date.now());
+  if (typeof sessionStorage !== "undefined") sessionStorage.setItem(LAST_ACTIVITY_KEY, now);
+  if (typeof localStorage !== "undefined") localStorage.setItem(LAST_ACTIVITY_KEY, now);
+};
+
+export const getLastActivityMs = () => {
+  const s =
+    (typeof sessionStorage !== "undefined" && sessionStorage.getItem(LAST_ACTIVITY_KEY)) ||
+    (typeof localStorage !== "undefined" && localStorage.getItem(LAST_ACTIVITY_KEY)) ||
+    "";
+  return toUnixMs(s);
+};
+
+export const isSessionIdleExpired = (idleTimeoutMs = SESSION_IDLE_TIMEOUT_MS) => {
+  const last = getLastActivityMs();
+  if (!last) return false;
+  return (Date.now() - last) >= idleTimeoutMs;
+};
+
+export const ensureActiveSession = ({ idleTimeoutMs = SESSION_IDLE_TIMEOUT_MS } = {}) => {
+  const token = getStoredToken();
+  if (!token) return { ok: false, reason: "missing" };
+  if (isTokenExpired(token)) return { ok: false, reason: "jwt" };
+  if (isSessionIdleExpired(idleTimeoutMs)) return { ok: false, reason: "idle" };
+  return { ok: true, reason: "active" };
 };
 
 export const getStoredRol = () => {
