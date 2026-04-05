@@ -11,7 +11,7 @@ import re
 import cloudinary
 import cloudinary.uploader
 
-from models import db, User, Producto, Proveedor, Entrada, Salida, Maquinaria, Cliente, Coche, Servicio, ServicioCliente, InspeccionRecepcion, GastoEmpresa
+from models import db, User, Producto, Proveedor, Entrada, Salida, Maquinaria, Cliente, Coche, Servicio, ServicioCliente, InspeccionRecepcion, GastoEmpresa, ParteTrabajo, Cita
 from models.base import now_madrid
 from utils.auth_utils import role_required
 
@@ -358,7 +358,7 @@ def clientes_list():
 
 
 @api.route("/clientes", methods=["POST"])
-@role_required("administrador", "encargado", "tecnico_comercial")
+@role_required("administrador", "encargado")
 def clientes_create():
     data = request.get_json() or {}
     nombre = (data.get("nombre") or "").strip()
@@ -378,7 +378,7 @@ def clientes_create():
 
 
 @api.route("/clientes/<int:cid>", methods=["PUT"])
-@role_required("administrador", "encargado", "tecnico_comercial")
+@role_required("administrador", "encargado")
 def clientes_update(cid):
     c = Cliente.query.get_or_404(cid)
     data = request.get_json() or {}
@@ -423,6 +423,13 @@ def clientes_delete(cid):
             if insp.coche_id in coche_ids:
                 insp.coche_id = None
 
+        # Limpiar dependencias operativas que bloquean el borrado del cliente.
+        Cita.query.filter_by(cliente_id=cid).delete(synchronize_session=False)
+        if coche_ids:
+            Cita.query.filter(Cita.coche_id.in_(coche_ids)).delete(synchronize_session=False)
+            ParteTrabajo.query.filter(ParteTrabajo.coche_id.in_(coche_ids)).delete(synchronize_session=False)
+            Coche.query.filter(Coche.id.in_(coche_ids)).delete(synchronize_session=False)
+
         db.session.delete(c)
         db.session.commit()
     except Exception as exc:
@@ -456,7 +463,7 @@ def coches_list():
 
 
 @api.route("/coches", methods=["POST"])
-@role_required("administrador", "encargado", "tecnico_comercial")
+@role_required("administrador", "encargado")
 def coches_create():
     data = request.get_json() or {}
     
@@ -485,7 +492,7 @@ def coches_create():
 
 
 @api.route("/coches/<int:cid>", methods=["PUT"])
-@role_required("administrador", "encargado", "tecnico_comercial")
+@role_required("administrador", "encargado")
 def coches_update(cid):
     c = Coche.query.get_or_404(cid)
     data = request.get_json() or {}
@@ -521,11 +528,21 @@ def coches_update(cid):
 def coches_delete(cid):
     c = Coche.query.get_or_404(cid)
     try:
+        # Desvincular inspecciones históricas para conservar trazabilidad sin bloquear borrado.
+        inspecciones = InspeccionRecepcion.query.filter_by(coche_id=cid).all()
+        for insp in inspecciones:
+            insp.coche_id = None
+
+        # Limpiar entidades operativas vinculadas al coche antes de borrarlo.
+        Servicio.query.filter_by(coche_id=cid).delete(synchronize_session=False)
+        ParteTrabajo.query.filter_by(coche_id=cid).delete(synchronize_session=False)
+        Cita.query.filter_by(coche_id=cid).delete(synchronize_session=False)
+
         db.session.delete(c)
         db.session.commit()
-    except Exception:
+    except Exception as exc:
         db.session.rollback()
-        return jsonify({"error": "No se puede eliminar: el coche tiene servicios asociados"}), 400
+        return jsonify({"error": f"No se puede eliminar el coche: {str(exc)}"}), 400
     return jsonify({"msg": "Coche eliminado"}), 200
 
 

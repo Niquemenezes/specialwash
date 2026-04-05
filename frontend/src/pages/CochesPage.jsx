@@ -7,6 +7,7 @@ const CochesPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState(null);
   const [busqueda, setBusqueda] = useState("");
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     actions.getCoches();
@@ -30,7 +31,7 @@ const CochesPage = () => {
       await actions.eliminarCoche(id);
       actions.getCoches();
     } catch (err) {
-      alert("Error al eliminar el coche");
+      setDeleteError("Error al eliminar el coche");
     }
   };
 
@@ -44,20 +45,25 @@ const CochesPage = () => {
   return (
     <div className="container py-4" style={{ maxWidth: "1000px" }}>
       <div
-        className="d-flex justify-content-between align-items-center mb-4 p-3 rounded shadow-sm"
-        style={{ background: "#0f0f0f", color: "white" }}
+        className="d-flex justify-content-between align-items-center mb-4 p-3 rounded shadow-sm sw-header-dark"
       >
-        <h2 className="fw-bold mb-0" style={{ color: "#d4af37" }}>
+        <h2 className="fw-bold mb-0 sw-accent-text">
           🚗 Coches
         </h2>
         <button
-          className="btn"
+          className="btn sw-btn-accent-gold fw-semibold"
           onClick={handleNuevo}
-          style={{ background: "#d4af37", color: "black", fontWeight: "600", borderRadius: "8px" }}
         >
           ➕ Nuevo Coche
         </button>
       </div>
+
+      {deleteError && (
+        <div className="alert alert-danger d-flex justify-content-between align-items-start py-2 mb-3">
+          <span>{deleteError}</span>
+          <button className="btn-close ms-3" onClick={() => setDeleteError("")} />
+        </div>
+      )}
 
       <div className="mb-3">
         <input
@@ -142,6 +148,7 @@ const CocheModal = ({ show, coche, clientes, onClose, onSaved }) => {
     notas: "",
   });
   const [saving, setSaving] = useState(false);
+  const [modalError, setModalError] = useState("");
 
   useEffect(() => {
     if (coche) {
@@ -164,7 +171,7 @@ const CocheModal = ({ show, coche, clientes, onClose, onSaved }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.cliente_id) {
-      alert("Selecciona un cliente");
+      setModalError("Selecciona un cliente");
       return;
     }
     setSaving(true);
@@ -180,10 +187,9 @@ const CocheModal = ({ show, coche, clientes, onClose, onSaved }) => {
       } else {
         await actions.crearCoche(payload);
       }
-      alert(coche ? "Coche actualizado" : "Coche creado");
       onSaved();
     } catch (err) {
-      alert("Error al guardar el coche");
+      setModalError(err?.message || "Error al guardar el coche");
     } finally {
       setSaving(false);
     }
@@ -192,7 +198,7 @@ const CocheModal = ({ show, coche, clientes, onClose, onSaved }) => {
   if (!show) return null;
 
   return (
-    <div className="modal d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+    <div className="modal d-block sw-modal-overlay">
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content">
           <div className="modal-header">
@@ -203,6 +209,12 @@ const CocheModal = ({ show, coche, clientes, onClose, onSaved }) => {
           </div>
           <form onSubmit={handleSubmit}>
             <div className="modal-body">
+              {modalError && (
+                <div className="alert alert-danger d-flex justify-content-between align-items-start py-2 mb-3">
+                  <span>{modalError}</span>
+                  <button className="btn-close ms-3" onClick={() => setModalError("")} />
+                </div>
+              )}
               <div className="mb-3">
                 <label className="form-label">Matrícula *</label>
                 <input
@@ -276,17 +288,15 @@ const CocheModal = ({ show, coche, clientes, onClose, onSaved }) => {
             <div className="modal-footer">
               <button
                 type="button"
-                className="btn btn-sm btn-outline-secondary"
+                className="btn btn-sm btn-outline-secondary rounded"
                 onClick={onClose}
-                style={{ borderRadius: "8px" }}
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="btn btn-sm"
+                className="btn btn-sm sw-btn-accent-gold fw-semibold"
                 disabled={saving}
-                style={{ background: "#d4af37", color: "black", fontWeight: "600", borderRadius: "8px" }}
               >
                 {saving ? "⏳ Guardando..." : coche ? "💾 Guardar" : "✅ Crear"}
               </button>

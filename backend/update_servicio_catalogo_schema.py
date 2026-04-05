@@ -1,46 +1,20 @@
-#!/usr/bin/env python
-"""Actualiza la tabla servicios_catalogo agregando tiempo_estimado_minutos si falta."""
+from sqlalchemy import inspect, text
 
-import sqlite3
-from pathlib import Path
-
-DB_PATH = Path(__file__).resolve().parent / "instance" / "specialwash.db"
-COLUMN_NAME = "tiempo_estimado_minutos"
-COLUMN_DEF = "INTEGER"
+from extensions import db
 
 
-def ensure_servicio_catalogo_schema(db_path: Path = DB_PATH) -> bool:
-    """Retorna True si agrego la columna, False si ya existia o no aplica."""
-    if not db_path.exists():
-        return False
+def ensure_servicio_catalogo_schema():
+    """Agrega columnas nuevas del catalogo si la base ya existia."""
+    engine = db.engine
+    inspector = inspect(engine)
 
-    conn = sqlite3.connect(db_path)
-    try:
-        cur = conn.cursor()
-        cur.execute("PRAGMA table_info(servicios_catalogo)")
-        existing = {row[1] for row in cur.fetchall()}
-
-        if COLUMN_NAME in existing:
-            return False
-
-        cur.execute(f"ALTER TABLE servicios_catalogo ADD COLUMN {COLUMN_NAME} {COLUMN_DEF}")
-        conn.commit()
-        return True
-    finally:
-        conn.close()
-
-
-def main():
-    if not DB_PATH.exists():
-        print(f"No existe la base de datos en: {DB_PATH}")
+    if not inspector.has_table("servicios_catalogo"):
         return
 
-    updated = ensure_servicio_catalogo_schema(DB_PATH)
-    if updated:
-        print(f"Actualizacion completada. Columna agregada: {COLUMN_NAME}")
-    else:
-        print("Esquema al dia, no se agregaron columnas.")
+    existing = {col["name"] for col in inspector.get_columns("servicios_catalogo")}
 
-
-if __name__ == "__main__":
-    main()
+    with engine.begin() as conn:
+        if "rol_responsable" not in existing:
+            conn.execute(text("ALTER TABLE servicios_catalogo ADD COLUMN rol_responsable VARCHAR(30)"))
+        # Backfill seguro para filas antiguas sin rol.
+        conn.execute(text("UPDATE servicios_catalogo SET rol_responsable = 'otro' WHERE rol_responsable IS NULL OR TRIM(rol_responsable) = ''"))

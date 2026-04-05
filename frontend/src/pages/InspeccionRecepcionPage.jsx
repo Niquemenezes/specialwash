@@ -1,10 +1,13 @@
-import React, { useEffect, useState, useContext, useRef } from "react";
+import React, { useEffect, useState, useContext, useRef, useMemo } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Context } from "../store/appContext";
 import SignaturePad from "../component/SignaturePad.jsx";
+import GoldSelect from "../component/GoldSelect.jsx";
+import { getStoredRol, normalizeRol } from "../utils/authSession";
 import "../styles/inspeccion-responsive.css";
 
 const INITIAL_FORM_DATA = {
+  cliente_id: "",
   cliente_nombre: "",
   cliente_telefono: "",
   coche_descripcion: "",
@@ -12,7 +15,6 @@ const INITIAL_FORM_DATA = {
   kilometros: "",
   es_concesionario: false,
   firma_cliente_recepcion: "",
-  firma_empleado_recepcion: "",
   consentimiento_datos_recepcion: false,
   averias_notas: "",
   servicios_aplicados: []
@@ -32,17 +34,50 @@ const parseHoursToMinutes = (rawHours) => {
   return Math.round(value * 60);
 };
 
-const getStored = (k) =>
-  (typeof sessionStorage !== "undefined" && sessionStorage.getItem(k)) ||
-  (typeof localStorage !== "undefined" && localStorage.getItem(k)) || "";
+const ROLE_OPTIONS = [
+  { value: "detailing", label: "Detailing" },
+  { value: "pintura", label: "Pintura" },
+  { value: "tapicero", label: "Tapicería" },
+  { value: "calidad", label: "Calidad" },
+  { value: "otro", label: "Otro" },
+];
 
-const normalizeRol = (r) => {
-  r = (r || "").toLowerCase().trim();
-  if (r === "admin" || r === "administrator") return "administrador";
-  if (r === "employee" || r === "staff") return "empleado";
-  if (r === "manager" || r === "responsable") return "encargado";
-  return r;
+const getRoleBadgeClass = (role) => {
+  switch (normalizeRol(role)) {
+    case "detailing":
+      return "bg-primary";
+    case "pintura":
+      return "bg-danger";
+    case "tapicero":
+      return "bg-warning text-dark";
+    case "calidad":
+      return "bg-info text-dark";
+    default:
+      return "bg-secondary";
+  }
 };
+
+const mapServicioForPayload = (servicio) => {
+  const tipoRaw = servicio?.tipo_tarea || servicio?.rol_responsable || "";
+  const tipo = normalizeRol(tipoRaw) || undefined;
+  return {
+    origen: servicio?.origen || "manual",
+    servicio_catalogo_id: servicio?.servicio_catalogo_id ?? null,
+    nombre: String(servicio?.nombre || "").trim(),
+    precio: Number.parseFloat(servicio?.precio || 0) || 0,
+    tiempo_estimado_minutos: Number.parseInt(servicio?.tiempo_estimado_minutos || 0, 10) || 0,
+    ...(tipo ? { tipo_tarea: tipo } : {}),
+  };
+};
+
+const normalizeText = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+const normalizePhoneDigits = (value) => String(value || "").replace(/\D/g, "");
 
 const InspeccionRecepcionPage = () => {
   const { actions } = useContext(Context);
@@ -63,11 +98,26 @@ const InspeccionRecepcionPage = () => {
   const [guardando, setGuardando] = useState(false);
   const [cargandoEdicion, setCargandoEdicion] = useState(false);
   const [inspeccionCreada, setInspeccionCreada] = useState(null);
+  const [formError, setFormError] = useState("");
+  const [formSuccess, setFormSuccess] = useState("");
+  const [servicioManualError, setServicioManualError] = useState("");
   const [inspeccionEditandoId, setInspeccionEditandoId] = useState(null);
   const [catalogoServicios, setCatalogoServicios] = useState([]);
-  const [servicioManual, setServicioManual] = useState({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "" });
+  const [clientesDisponibles, setClientesDisponibles] = useState([]);
+  const [servicioManual, setServicioManual] = useState({
+    nombre: "",
+    precio: "",
+    tiempo_estimado_minutos: "",
+    tiempo_estimado_horas: "",
+    tipo_tarea: "otro",
+  });
+  const [servicioCatalogoSeleccionado, setServicioCatalogoSeleccionado] = useState({
+    detailing: "",
+    pintura: "",
+    tapicero: "",
+  });
   const [searchParams, setSearchParams] = useSearchParams();
-  const rol = normalizeRol(getStored("rol"));
+  const rol = getStoredRol();
   const isAdmin = rol === "administrador";
 
   useEffect(() => {
@@ -91,6 +141,7 @@ const InspeccionRecepcionPage = () => {
         if (!active || !inspeccion) return;
 
         setFormData({
+          cliente_id: inspeccion.cliente_id ? String(inspeccion.cliente_id) : "",
           cliente_nombre: inspeccion.cliente_nombre || "",
           cliente_telefono: inspeccion.cliente_telefono || "",
           coche_descripcion: inspeccion.coche_descripcion || "",
@@ -98,7 +149,6 @@ const InspeccionRecepcionPage = () => {
           kilometros: inspeccion.kilometros || "",
           es_concesionario: Boolean(inspeccion.es_concesionario),
           firma_cliente_recepcion: inspeccion.firma_cliente_recepcion || "",
-          firma_empleado_recepcion: inspeccion.firma_empleado_recepcion || "",
           consentimiento_datos_recepcion: Boolean(inspeccion.consentimiento_datos_recepcion),
           averias_notas: inspeccion.averias_notas || "",
           servicios_aplicados: Array.isArray(inspeccion.servicios_aplicados)
@@ -111,7 +161,7 @@ const InspeccionRecepcionPage = () => {
         setFotosPreview([]);
         setVideosPreview([]);
       } catch (error) {
-        alert(`No se pudo cargar la inspección para editar: ${error.message}`);
+        setFormError(`No se pudo cargar la inspección para editar: ${error.message}`);
       } finally {
         if (active) setCargandoEdicion(false);
       }
@@ -139,13 +189,107 @@ const InspeccionRecepcionPage = () => {
     };
   }, [actions]);
 
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const clientes = await actions.getClientes();
+        if (active) setClientesDisponibles(Array.isArray(clientes) ? clientes : []);
+      } catch {
+        if (active) setClientesDisponibles([]);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [actions]);
+
+  const buscarClientePorNombre = (nombre) => {
+    const nombreNormalizado = normalizeText(nombre);
+    if (!nombreNormalizado) return null;
+
+    return (
+      clientesDisponibles.find((c) => normalizeText(c?.nombre) === nombreNormalizado) || null
+    );
+  };
+
+  const buscarClientePorTelefono = (telefono) => {
+    const telefonoDigits = normalizePhoneDigits(telefono);
+    if (!telefonoDigits) return null;
+
+    const coincidencias = clientesDisponibles.filter((c) => {
+      const candidatoDigits = normalizePhoneDigits(c?.telefono);
+      if (!candidatoDigits) return false;
+      return (
+        candidatoDigits === telefonoDigits ||
+        candidatoDigits.startsWith(telefonoDigits) ||
+        telefonoDigits.startsWith(candidatoDigits)
+      );
+    });
+
+    if (coincidencias.length === 1) return coincidencias[0];
+
+    const exacta = coincidencias.find((c) => normalizePhoneDigits(c?.telefono) === telefonoDigits);
+    return exacta || null;
+  };
+
+  const handleClienteExistenteChange = (e) => {
+    const selectedId = String(e.target.value || "").trim();
+    if (!selectedId) {
+      setFormData((prev) => ({
+        ...prev,
+        cliente_id: "",
+      }));
+      return;
+    }
+
+    const cliente = clientesDisponibles.find((c) => String(c?.id) === selectedId);
+    if (!cliente) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      cliente_id: selectedId,
+      cliente_nombre: cliente?.nombre || "",
+      cliente_telefono: cliente?.telefono || "",
+    }));
+  };
+
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     const nextValue = type === "checkbox" ? checked : value;
+
+    if (name === "cliente_nombre") {
+      const clienteCoincidente = buscarClientePorNombre(value);
+      setFormData((prev) => ({
+        ...prev,
+        cliente_id: clienteCoincidente?.id ? String(clienteCoincidente.id) : "",
+        cliente_nombre: value,
+        cliente_telefono: clienteCoincidente?.telefono || prev.cliente_telefono
+      }));
+      return;
+    }
+
+    if (name === "cliente_telefono") {
+      const clienteCoincidente = buscarClientePorTelefono(value);
+      setFormData((prev) => ({
+        ...prev,
+        cliente_id: clienteCoincidente?.id ? String(clienteCoincidente.id) : "",
+        cliente_nombre: clienteCoincidente?.nombre || prev.cliente_nombre,
+        cliente_telefono: value,
+      }));
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: nextValue,
-      ...(name === "es_concesionario" && checked ? { firma_cliente_recepcion: "" } : {})
+      ...(name === "es_concesionario" && checked
+        ? {
+            firma_cliente_recepcion: "",
+            consentimiento_datos_recepcion: true,
+          }
+        : {})
     }));
   };
 
@@ -169,6 +313,7 @@ const InspeccionRecepcionPage = () => {
             nombre: servicio.nombre || "Servicio",
             precio: Number(servicio.precio_base || 0),
             tiempo_estimado_minutos: Number.parseInt(servicio.tiempo_estimado_minutos || 0, 10) || 0,
+            tipo_tarea: normalizeRol(servicio.rol_responsable || "") || "otro",
           },
         ],
       };
@@ -176,28 +321,26 @@ const InspeccionRecepcionPage = () => {
   };
 
   const agregarServicioManual = () => {
+    setServicioManualError("");
     const nombre = String(servicioManual.nombre || "").trim();
     const precio = Number.parseFloat(servicioManual.precio || "0");
 
     if (!nombre) {
-      alert("Debes indicar el nombre del servicio manual");
+      setServicioManualError("Debes indicar el nombre del servicio.");
       return;
     }
-
     if (Number.isNaN(precio) || precio < 0) {
-      alert("El precio debe ser 0 o mayor");
+      setServicioManualError("El precio debe ser 0 o mayor.");
       return;
     }
-
     const tiempoEnMinutos = Number.parseInt(servicioManual.tiempo_estimado_minutos || "0", 10);
     if (Number.isNaN(tiempoEnMinutos) || tiempoEnMinutos < 0) {
-      alert("El tiempo estimado debe ser 0 o mayor");
+      setServicioManualError("El tiempo estimado debe ser 0 o mayor.");
       return;
     }
-
     const tiempoDesdeHoras = parseHoursToMinutes(servicioManual.tiempo_estimado_horas);
     if (tiempoDesdeHoras === null) {
-      alert("Las horas estimadas deben ser un número válido mayor o igual a 0");
+      setServicioManualError("Las horas estimadas deben ser un número válido (0 o mayor).");
       return;
     }
     const tiempoEstimado = tiempoDesdeHoras > 0 ? tiempoDesdeHoras : tiempoEnMinutos;
@@ -212,11 +355,12 @@ const InspeccionRecepcionPage = () => {
           nombre,
           precio,
           tiempo_estimado_minutos: tiempoEstimado,
+          tipo_tarea: normalizeRol(servicioManual.tipo_tarea || "") || "otro",
         },
       ],
     }));
 
-    setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "" });
+    setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "", tipo_tarea: "otro" });
   };
 
   const eliminarServicioAplicado = (index) => {
@@ -272,14 +416,12 @@ const InspeccionRecepcionPage = () => {
       videosValidos.push(archivo);
     });
     
-    // Mostrar alertas si hay problemas
-    if (videosGrandes.length > 0) {
-      alert(`⚠️ Los siguientes videos exceden 250 MB y no se añadirán:\n${videosGrandes.join("\n")}`);
-    }
-    
-    if (formatosInvalidos.length > 0) {
-      alert(`⚠️ Formatos no válidos (se aceptan: ${FORMATOS_VIDEO_LABEL}):\n${formatosInvalidos.join("\n")}`);
-    }
+    const avisos = [];
+    if (videosGrandes.length > 0)
+      avisos.push(`Videos demasiado grandes (máx 250 MB): ${videosGrandes.join(", ")}`);
+    if (formatosInvalidos.length > 0)
+      avisos.push(`Formatos no válidos (acepta: ${FORMATOS_VIDEO_LABEL}): ${formatosInvalidos.join(", ")}`);
+    if (avisos.length > 0) setFormError(avisos.join(" · "));
 
     if (videosValidos.length === 0) return;
 
@@ -307,7 +449,6 @@ const InspeccionRecepcionPage = () => {
       if (validarAntes) {
         const error = validarAntes(archivo);
         if (error) {
-          alert(error);
           fallidos++;
           continue;
         }
@@ -328,27 +469,25 @@ const InspeccionRecepcionPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validaciones básicas
-    if (!formData.cliente_nombre || !formData.cliente_telefono || 
-        !formData.coche_descripcion || !formData.matricula || !formData.kilometros ||
-        !formData.firma_empleado_recepcion) {
-      alert("Por favor, completa todos los campos obligatorios");
+    setFormError("");
+    setFormSuccess("");
+
+    if (!formData.cliente_nombre || !formData.cliente_telefono ||
+        !formData.coche_descripcion || !formData.matricula || !formData.kilometros) {
+      setFormError("Completa todos los campos obligatorios antes de guardar.");
       return;
     }
-
     if (!formData.es_concesionario && !formData.firma_cliente_recepcion) {
-      alert("La firma del cliente es obligatoria en la recepcion para flujo normal");
+      setFormError("La firma del cliente es obligatoria para el flujo normal de recepción.");
       return;
     }
-
     if (!formData.consentimiento_datos_recepcion) {
-      alert("Debes aceptar la proteccion de datos para registrar la recepcion");
+      setFormError("Debes aceptar la protección de datos para registrar la recepción.");
       return;
     }
-
     const kilometros = Number.parseInt(formData.kilometros, 10);
     if (Number.isNaN(kilometros) || kilometros < 0) {
-      alert("Por favor, introduce un valor valido de kilometros (0 o mayor)");
+      setFormError("Introduce un valor válido de kilómetros (0 o mayor).");
       return;
     }
 
@@ -357,14 +496,9 @@ const InspeccionRecepcionPage = () => {
     try {
       const payload = {
         ...formData,
+        cliente_id: formData.cliente_id ? Number.parseInt(formData.cliente_id, 10) : null,
         kilometros,
-        servicios_aplicados: (formData.servicios_aplicados || []).map((s) => ({
-          origen: s.origen || "manual",
-          servicio_catalogo_id: s.servicio_catalogo_id ?? null,
-          nombre: String(s.nombre || "").trim(),
-          precio: Number.parseFloat(s.precio || 0) || 0,
-          tiempo_estimado_minutos: Number.parseInt(s.tiempo_estimado_minutos || 0, 10) || 0,
-        }))
+        servicios_aplicados: (formData.servicios_aplicados || []).map(mapServicioForPayload)
       };
 
       let inspeccion = null;
@@ -408,11 +542,12 @@ const InspeccionRecepcionPage = () => {
       if (videosSubidos > 0) mensaje += `\n🎥 ${videosSubidos} video(s) subido(s)`;
       if (videosFallidos > 0) mensaje += `\n⚠️ ${videosFallidos} video(s) fallaron`;
 
-      alert(mensaje);
-      
+      setFormSuccess(mensaje);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+
       // Limpiar formulario
       setFormData(INITIAL_FORM_DATA);
-      setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "" });
+      setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "", tipo_tarea: "otro" });
       setFotos([]);
       setVideos([]);
       setFotosPreview([]);
@@ -424,8 +559,8 @@ const InspeccionRecepcionPage = () => {
       
     } catch (error) {
       const accion = inspeccionEditandoId ? "actualizar" : "crear";
-      console.error(`Error al ${accion} inspección:`, error);
-      alert(`❌ Error al ${accion} la inspección: ${error.message}`);
+      setFormError(`Error al ${accion} la inspección: ${error.message}`);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       setGuardando(false);
     }
@@ -435,7 +570,7 @@ const InspeccionRecepcionPage = () => {
     setInspeccionEditandoId(null);
     setSearchParams({});
     setFormData(INITIAL_FORM_DATA);
-    setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "" });
+    setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "", tipo_tarea: "otro" });
     setFotos([]);
     setVideos([]);
     setFotosPreview([]);
@@ -450,15 +585,61 @@ const InspeccionRecepcionPage = () => {
     navigate("/", { replace: true });
   };
 
+  const serviciosCatalogoPorRol = useMemo(() => {
+    const grupos = {
+      detailing: [],
+      pintura: [],
+      tapicero: [],
+    };
+
+    for (const servicio of catalogoServicios || []) {
+      const rolServicio = normalizeRol(servicio?.rol_responsable || servicio?.tipo_tarea || "");
+      if (rolServicio === "detailing" || rolServicio === "pintura" || rolServicio === "tapicero") {
+        grupos[rolServicio].push(servicio);
+      }
+    }
+
+    return grupos;
+  }, [catalogoServicios]);
+
+  const seleccionarServicioCatalogoPorRol = (rolServicio, servicioId) => {
+    setServicioCatalogoSeleccionado((prev) => ({ ...prev, [rolServicio]: servicioId }));
+  };
+
+  const agregarServicioCatalogoPorRol = (rolServicio) => {
+    const servicioId = servicioCatalogoSeleccionado?.[rolServicio];
+    if (!servicioId) return;
+
+    const servicio = (serviciosCatalogoPorRol[rolServicio] || []).find(
+      (s) => String(s.id) === String(servicioId)
+    );
+    if (!servicio) return;
+
+    agregarServicioCatalogo(servicio);
+    setServicioCatalogoSeleccionado((prev) => ({ ...prev, [rolServicio]: "" }));
+  };
+
   return (
-    <div className="container py-4 sw-inspeccion-page" style={{ maxWidth: "1024px" }}>
-      {/* Header - Responsive */}
+    <div className="container py-4 sw-page-shell sw-inspeccion-page sw-view-stack">
+      {formError && (
+        <div className="alert alert-danger d-flex justify-content-between align-items-start py-2 mb-3">
+          <span>⚠️ {formError}</span>
+          <button className="btn-close ms-3" onClick={() => setFormError("")} />
+        </div>
+      )}
+      {formSuccess && (
+        <div className="alert alert-success d-flex justify-content-between align-items-start py-2 mb-3">
+          <span style={{ whiteSpace: "pre-line" }}>{formSuccess}</span>
+          <button className="btn-close ms-3" onClick={() => setFormSuccess("")} />
+        </div>
+      )}
+
+      {/* Header */}
       <div
-        className="d-flex justify-content-center align-items-center mb-3 mb-md-4 p-3 rounded shadow-sm"
-        style={{ background: "#0f0f0f", color: "white" }}
+        className="d-flex justify-content-center align-items-center mb-3 mb-md-4 p-3 rounded shadow-sm sw-view-header sw-header-dark"
       >
         <div className="w-100 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2">
-          <h2 className="fw-bold mb-0 fs-5 fs-md-3 text-center text-md-start" style={{ color: "#d4af37" }}>
+          <h2 className="fw-bold mb-0 fs-5 fs-md-3 text-center text-md-start sw-accent-text">
             {inspeccionEditandoId ? `✏️ Editar Inspección #${inspeccionEditandoId}` : "🚗 Inspección de Recepción"}
           </h2>
           <div className="d-flex flex-column flex-sm-row gap-2 sw-header-actions">
@@ -477,12 +658,36 @@ const InspeccionRecepcionPage = () => {
       {/* Formulario */}
       <form onSubmit={handleSubmit} className="mb-5">
         <div className="card shadow-sm border-0">
-          <div className="card-header py-3" style={{ background: "#d4af37", fontWeight: "600", fontSize: "1.1rem" }}>
+          <div className="card-header py-3 sw-card-header-gold">
             {inspeccionEditandoId ? "Edición de Inspección" : "Nueva Inspección"}
           </div>
           <div className="card-body p-3 p-md-4">
             <div className="row">
               {/* Nombre Cliente */}
+              <div className="col-12 col-md-6 mb-3">
+                <label className="form-label fw-bold">Cliente existente (opcional)</label>
+                <select
+                  className="form-select form-select-lg"
+                  name="cliente_id"
+                  value={formData.cliente_id}
+                  onChange={handleClienteExistenteChange}
+                >
+                  <option value="">-- Selecciona cliente registrado --</option>
+                  {clientesDisponibles
+                    .slice()
+                    .sort((a, b) => String(a?.nombre || "").localeCompare(String(b?.nombre || ""), "es"))
+                    .map((cliente) => (
+                      <option key={cliente.id} value={cliente.id}>
+                        {cliente.nombre || "Sin nombre"}
+                        {cliente.telefono ? ` · ${cliente.telefono}` : ""}
+                      </option>
+                    ))}
+                </select>
+                <small className="text-muted d-block mt-1">
+                  Si lo seleccionas, se reutiliza ese cliente y evita duplicados.
+                </small>
+              </div>
+
               <div className="col-12 col-md-6 mb-3">
                 <label className="form-label fw-bold">
                   Nombre del Cliente <span className="text-danger">*</span>
@@ -493,9 +698,23 @@ const InspeccionRecepcionPage = () => {
                   name="cliente_nombre"
                   value={formData.cliente_nombre}
                   onChange={handleInputChange}
-                  placeholder="Ej: Juan Pérez"
+                  placeholder="Ej: Taller Acme"
+                  list="clientes-existentes"
+                  autoComplete="off"
                   required
                 />
+                <datalist id="clientes-existentes">
+                  {clientesDisponibles
+                    .map((cliente) => String(cliente?.nombre || "").trim())
+                    .filter((nombre, index, arr) => nombre && arr.indexOf(nombre) === index)
+                    .sort((a, b) => a.localeCompare(b, "es"))
+                    .map((nombre) => (
+                      <option key={nombre} value={nombre} />
+                    ))}
+                </datalist>
+                <small className="text-muted d-block mt-1">
+                  Escribe o selecciona nombre existente para rellenar automaticamente el telefono.
+                </small>
               </div>
 
               {/* Teléfono Cliente */}
@@ -509,9 +728,28 @@ const InspeccionRecepcionPage = () => {
                   name="cliente_telefono"
                   value={formData.cliente_telefono}
                   onChange={handleInputChange}
-                  placeholder="Ej: 600123456"
+                  placeholder="Ej: 600123123"
+                  list="telefonos-existentes"
                   required
                 />
+                <datalist id="telefonos-existentes">
+                  {clientesDisponibles
+                    .map((cliente) => ({
+                      id: cliente?.id,
+                      telefono: String(cliente?.telefono || "").trim(),
+                      nombre: String(cliente?.nombre || "").trim(),
+                    }))
+                    .filter((item) => item.telefono)
+                    .sort((a, b) => a.telefono.localeCompare(b.telefono, "es"))
+                    .map((item) => (
+                      <option key={`${item.id}-${item.telefono}`} value={item.telefono}>
+                        {item.nombre ? `${item.nombre}` : ""}
+                      </option>
+                    ))}
+                </datalist>
+                <small className="text-muted d-block mt-1">
+                  Búsqueda en vivo: al escribir un teléfono existente se vincula el cliente automáticamente.
+                </small>
               </div>
 
               {/* Descripción del Coche */}
@@ -743,48 +981,143 @@ const InspeccionRecepcionPage = () => {
 
               {/* Servicios aplicados */}
               <div className="col-12 mb-3">
-                <div className="card border-0" style={{ background: "#f8f9fa" }}>
+                <div className="card border-0 sw-surface-light">
                   <div className="card-body p-3">
                     <h6 className="fw-bold mb-3">🧾 Servicios para esta recepción</h6>
 
                     <div className="mb-3">
                       <label className="form-label fw-semibold">Catálogo activo</label>
-                      <div className="d-flex flex-wrap gap-2">
+                      <div className="d-flex flex-column gap-2">
                         {catalogoServicios.length === 0 && (
                           <span className="text-muted small">No hay servicios activos en catálogo.</span>
                         )}
-                        {catalogoServicios.map((servicio) => (
-                          <button
-                            key={servicio.id}
-                            type="button"
-                            className="btn btn-outline-dark sw-touch-btn"
-                            onClick={() => agregarServicioCatalogo(servicio)}
-                          >
-                            {servicio.nombre} · {Number(servicio.precio_base || 0).toFixed(2)} €
-                            {Number(servicio.tiempo_estimado_minutos || 0) > 0
-                              ? ` · ${Number(servicio.tiempo_estimado_minutos)} min`
-                              : ""}
-                          </button>
-                        ))}
+
+                        <details className="sw-servicios-group" open>
+                          <summary className="sw-servicios-group__title">🧽 Servicios de Detailing</summary>
+                          <div className="sw-servicios-group__body mt-2">
+                            {serviciosCatalogoPorRol.detailing.length === 0 ? (
+                              <span className="text-muted small">Sin servicios en este grupo.</span>
+                            ) : (
+                              <div className="d-flex flex-column flex-md-row gap-2">
+                                <div className="flex-grow-1">
+                                  <GoldSelect
+                                    value={servicioCatalogoSeleccionado.detailing}
+                                    onChange={(value) => seleccionarServicioCatalogoPorRol("detailing", value)}
+                                    placeholder="Seleccionar servicio de detailing..."
+                                    searchable
+                                    options={serviciosCatalogoPorRol.detailing.map((servicio) => ({
+                                      value: servicio.id,
+                                      label: `${servicio.nombre} · ${Number(servicio.precio_base || 0).toFixed(2)} €${
+                                        Number(servicio.tiempo_estimado_minutos || 0) > 0
+                                          ? ` · ${Number(servicio.tiempo_estimado_minutos)} min`
+                                          : ""
+                                      }`,
+                                    }))}
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  className="btn btn-dark sw-touch-btn"
+                                  onClick={() => agregarServicioCatalogoPorRol("detailing")}
+                                  disabled={!servicioCatalogoSeleccionado.detailing}
+                                >
+                                  Añadir
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </details>
+
+                        <details className="sw-servicios-group" open>
+                          <summary className="sw-servicios-group__title">🎨 Servicios de Pintura</summary>
+                          <div className="sw-servicios-group__body mt-2">
+                            {serviciosCatalogoPorRol.pintura.length === 0 ? (
+                              <span className="text-muted small">Sin servicios en este grupo.</span>
+                            ) : (
+                              <div className="d-flex flex-column flex-md-row gap-2">
+                                <div className="flex-grow-1">
+                                  <GoldSelect
+                                    value={servicioCatalogoSeleccionado.pintura}
+                                    onChange={(value) => seleccionarServicioCatalogoPorRol("pintura", value)}
+                                    placeholder="Seleccionar servicio de pintura..."
+                                    searchable
+                                    options={serviciosCatalogoPorRol.pintura.map((servicio) => ({
+                                      value: servicio.id,
+                                      label: `${servicio.nombre} · ${Number(servicio.precio_base || 0).toFixed(2)} €${
+                                        Number(servicio.tiempo_estimado_minutos || 0) > 0
+                                          ? ` · ${Number(servicio.tiempo_estimado_minutos)} min`
+                                          : ""
+                                      }`,
+                                    }))}
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  className="btn btn-dark sw-touch-btn"
+                                  onClick={() => agregarServicioCatalogoPorRol("pintura")}
+                                  disabled={!servicioCatalogoSeleccionado.pintura}
+                                >
+                                  Añadir
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </details>
+
+                        <details className="sw-servicios-group" open>
+                          <summary className="sw-servicios-group__title">🪑 Servicios de Tapicería</summary>
+                          <div className="sw-servicios-group__body mt-2">
+                            {serviciosCatalogoPorRol.tapicero.length === 0 ? (
+                              <span className="text-muted small">Sin servicios en este grupo.</span>
+                            ) : (
+                              <div className="d-flex flex-column flex-md-row gap-2">
+                                <div className="flex-grow-1">
+                                  <GoldSelect
+                                    value={servicioCatalogoSeleccionado.tapicero}
+                                    onChange={(value) => seleccionarServicioCatalogoPorRol("tapicero", value)}
+                                    placeholder="Seleccionar servicio de tapicería..."
+                                    searchable
+                                    options={serviciosCatalogoPorRol.tapicero.map((servicio) => ({
+                                      value: servicio.id,
+                                      label: `${servicio.nombre} · ${Number(servicio.precio_base || 0).toFixed(2)} €${
+                                        Number(servicio.tiempo_estimado_minutos || 0) > 0
+                                          ? ` · ${Number(servicio.tiempo_estimado_minutos)} min`
+                                          : ""
+                                      }`,
+                                    }))}
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  className="btn btn-dark sw-touch-btn"
+                                  onClick={() => agregarServicioCatalogoPorRol("tapicero")}
+                                  disabled={!servicioCatalogoSeleccionado.tapicero}
+                                >
+                                  Añadir
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </details>
                       </div>
                     </div>
 
                     <div className="mb-3">
                       <label className="form-label fw-semibold">Servicio manual</label>
                       <div className="row g-2">
-                        <div className="col-12 col-md-6">
+                        <div className="col-12 col-lg-5">
                           <input
                             type="text"
-                            className="form-control"
+                            className="form-control form-control-sm"
                             placeholder="Nombre del servicio"
                             value={servicioManual.nombre}
                             onChange={(e) => setServicioManual((prev) => ({ ...prev, nombre: e.target.value }))}
                           />
                         </div>
-                        <div className="col-6 col-md-2">
+                        <div className="col-6 col-lg-2">
                           <input
                             type="number"
-                            className="form-control"
+                            className="form-control form-control-sm text-center"
                             min="0"
                             step="0.01"
                             placeholder="Precio"
@@ -792,41 +1125,64 @@ const InspeccionRecepcionPage = () => {
                             onChange={(e) => setServicioManual((prev) => ({ ...prev, precio: e.target.value }))}
                           />
                         </div>
-                        <div className="col-6 col-md-2">
+                        <div className="col-6 col-lg-1">
                           <input
                             type="number"
-                            className="form-control"
+                            className="form-control form-control-sm text-center"
                             min="0"
                             step="1"
-                            placeholder="Minutos"
+                            placeholder="Min"
                             value={servicioManual.tiempo_estimado_minutos}
                             onChange={(e) => setServicioManual((prev) => ({ ...prev, tiempo_estimado_minutos: e.target.value }))}
                           />
                         </div>
-                        <div className="col-6 col-md-2">
+                        <div className="col-6 col-lg-1">
                           <input
                             type="number"
-                            className="form-control"
+                            className="form-control form-control-sm text-center"
                             min="0"
                             step="0.25"
-                            placeholder="Horas"
+                            placeholder="Hora"
                             value={servicioManual.tiempo_estimado_horas}
                             onChange={(e) => setServicioManual((prev) => ({ ...prev, tiempo_estimado_horas: e.target.value }))}
                           />
                         </div>
-                        <div className="col-12 col-md-2 d-grid">
-                          <button type="button" className="btn btn-dark" onClick={agregarServicioManual}>
+                        <div className="col-8 col-lg-2">
+                          <select
+                            className="form-select form-select-sm"
+                            aria-label="Rol"
+                            value={servicioManual.tipo_tarea}
+                            onChange={(e) => setServicioManual((prev) => ({ ...prev, tipo_tarea: e.target.value }))}
+                          >
+                            {ROLE_OPTIONS.map((role) => (
+                              <option key={role.value} value={role.value}>
+                                {role.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="col-4 col-lg-1 d-grid">
+                          <button type="button" className="btn btn-dark btn-sm" onClick={agregarServicioManual}>
                             Añadir
                           </button>
                         </div>
                       </div>
+                      {servicioManualError && (
+                        <div className="text-danger small mt-1">⚠️ {servicioManualError}</div>
+                      )}
                       <small className="text-muted d-block mt-1">
                         Puedes indicar minutos o horas (ej. 1.5 horas = 90 min). Si completas ambos, se prioriza horas.
+                      </small>
+                      <small className="text-muted d-block mt-1">
+                        El rol seleccionado aquí se guarda como tipo de tarea y se usa para enviar el parte al rol correspondiente.
                       </small>
                     </div>
 
                     <div>
                       <label className="form-label fw-semibold">Servicios añadidos</label>
+                      <div className="alert alert-info py-2 mb-3" role="alert">
+                        Al guardar esta recepción, se crearán automáticamente partes de trabajo por cada servicio según su rol.
+                      </div>
                       {(formData.servicios_aplicados || []).length === 0 ? (
                         <div className="text-muted small">No hay servicios añadidos aún.</div>
                       ) : (
@@ -838,6 +1194,7 @@ const InspeccionRecepcionPage = () => {
                                 <th>Nombre</th>
                                 <th>Precio</th>
                                 <th>Tiempo estimado</th>
+                                <th>Rol</th>
                                 <th className="text-end">Acción</th>
                               </tr>
                             </thead>
@@ -848,6 +1205,11 @@ const InspeccionRecepcionPage = () => {
                                   <td>{servicio.nombre}</td>
                                   <td>{Number(servicio.precio || 0).toFixed(2)} €</td>
                                   <td>{Number(servicio.tiempo_estimado_minutos || 0)} min</td>
+                                  <td>
+                                    <span className={`badge ${getRoleBadgeClass(servicio.tipo_tarea)}`}>
+                                      {ROLE_OPTIONS.find((r) => r.value === normalizeRol(servicio.tipo_tarea || ""))?.label || "Otro"}
+                                    </span>
+                                  </td>
                                   <td className="text-end">
                                     <button
                                       type="button"
@@ -875,6 +1237,7 @@ const InspeccionRecepcionPage = () => {
                                   min
                                 </th>
                                 <th />
+                                <th />
                               </tr>
                             </tfoot>
                           </table>
@@ -886,8 +1249,8 @@ const InspeccionRecepcionPage = () => {
               </div>
 
               {/* Proteccion de datos */}
-              <div className="col-12 mb-3">
-                <div className="border rounded p-3" style={{ background: "#f8f9fa" }}>
+              <div className="col-12 col-lg-6 mb-3 d-flex">
+                <div className="border rounded p-3 sw-surface-light w-100">
                   <h6 className="fw-bold mb-2">Proteccion de datos y consentimiento</h6>
                   <p className="mb-2 small text-muted">
                     Uso interno: los datos del cliente, del vehiculo y la firma digital se registran para gestionar
@@ -902,49 +1265,42 @@ const InspeccionRecepcionPage = () => {
                       type="checkbox"
                       id="consentimiento_datos_recepcion"
                       name="consentimiento_datos_recepcion"
-                      checked={formData.consentimiento_datos_recepcion}
+                      checked={formData.es_concesionario ? true : formData.consentimiento_datos_recepcion}
                       onChange={handleInputChange}
+                      disabled={formData.es_concesionario}
                     />
                     <label className="form-check-label" htmlFor="consentimiento_datos_recepcion">
-                      Confirmo que el cliente acepta este registro interno y la firma digital de recepcion.
+                      {formData.es_concesionario
+                        ? "Consentimiento interno aplicado automáticamente para cliente profesional."
+                        : "Confirmo que el cliente acepta este registro interno y la firma digital de recepcion."}
                     </label>
                   </div>
                 </div>
               </div>
 
               {/* Firmas */}
-              <div className="col-12 mb-3">
-                <div className="card border-0" style={{ background: "#f8f9fa" }}>
+              <div className="col-12 col-lg-6 mb-3 d-flex">
+                <div className="card border-0 sw-surface-light w-100">
                   <div className="card-body p-3">
-                    <h6 className="fw-bold mb-3">Firmas de Revision de Estado (Recepcion)</h6>
-                    <div className="row g-3">
-                      <div className="col-12 col-md-6">
-                        <SignaturePad
-                          title="Firma Empleado"
-                          value={formData.firma_empleado_recepcion}
-                          onChange={(firma) => setFormData((prev) => ({ ...prev, firma_empleado_recepcion: firma }))}
-                        />
+                    <h6 className="fw-bold mb-3">Firma de recepción</h6>
+                    {formData.es_concesionario ? (
+                      <div className="border rounded p-3 h-100 bg-white d-flex align-items-center">
+                        <small className="text-muted mb-0">
+                          En cliente profesional no se solicita firma del cliente en recepción.
+                        </small>
                       </div>
-                      <div className="col-12 col-md-6">
-                        {formData.es_concesionario ? (
-                          <div className="border rounded p-3 h-100 bg-white d-flex align-items-center">
-                            <small className="text-muted mb-0">
-                              En este tipo de recepcion solo se requiere firma de empleado.
-                            </small>
-                          </div>
-                        ) : (
-                          <SignaturePad
-                            title="Firma Cliente"
-                            value={formData.firma_cliente_recepcion}
-                            onChange={(firma) => setFormData((prev) => ({ ...prev, firma_cliente_recepcion: firma }))}
-                          />
-                        )}
-                      </div>
-                    </div>
+                    ) : (
+                      <SignaturePad
+                        title="Firma Cliente"
+                        height={150}
+                        value={formData.firma_cliente_recepcion}
+                        onChange={(firma) => setFormData((prev) => ({ ...prev, firma_cliente_recepcion: firma }))}
+                      />
+                    )}
                     <small className="text-muted">
                       {formData.es_concesionario
-                        ? "En modo concesionario/profesional solo es obligatoria la firma del empleado en recepcion."
-                        : "Ambas firmas son obligatorias para dejar constancia de la revision de estado del coche en recepcion."}
+                        ? "En modo profesional no se requiere firma en recepción; en entrega firma quien repasa y entrega el vehículo."
+                        : "La firma del cliente es obligatoria para dejar constancia de la revisión de estado en recepción."}
                     </small>
                   </div>
                 </div>
@@ -965,8 +1321,7 @@ const InspeccionRecepcionPage = () => {
               )}
               <button
                 type="submit"
-                className="btn btn-lg w-100 sw-btn-md-auto px-5 py-3"
-                style={{ background: "#d4af37", color: "black", fontWeight: "600", fontSize: "1.1rem" }}
+                className="btn btn-lg w-100 sw-btn-md-auto px-5 py-3 sw-btn-accent-gold"
                 disabled={guardando || cargandoEdicion}
               >
                 {cargandoEdicion

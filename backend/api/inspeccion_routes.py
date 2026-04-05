@@ -21,6 +21,7 @@ from models.coche import Coche
 from models.cliente import Cliente
 from models.parte_trabajo import ParteTrabajo, EstadoParte
 from models.gasto_empresa import GastoEmpresa
+from models.servicio_catalogo import ServicioCatalogo
 from models.base import now_madrid
 from utils.auth_utils import normalize_role
 from services.whatsapp_service import enviar_notificacion_inspeccion, enviar_notificacion_entrega_cliente
@@ -33,58 +34,255 @@ inspeccion_bp = Blueprint('inspeccion', __name__, url_prefix='/api')
 # ============ HELPERS ESTADO DEL COCHE ============
 
 _PRIORIDAD_ESTADO_PARTE = {"en_proceso": 0, "en_pausa": 1, "pendiente": 2, "finalizado": 3}
+_COBRO_METODOS_VALIDOS = {"efectivo", "bizum", "tarjeta", "transferencia"}
+
+
+def _parte_recency_key(parte):
+    """Clave de recencia para desempatar entre partes del mismo estado."""
+    ref = parte.fecha_fin or parte.fecha_inicio
+    if ref is None:
+        return (0.0, int(parte.id or 0))
+    return (ref.timestamp(), int(parte.id or 0))
 
 
 def _get_partes_por_coche(coche_ids):
-    """Retorna dict coche_id -> parte más relevante para mostrar estado actual."""
+    """Retorna dict coche_id con parte principal y resumen de partes activos."""
     if not coche_ids:
         return {}
     partes = ParteTrabajo.query.filter(ParteTrabajo.coche_id.in_(coche_ids)).all()
     por_coche = {}
+    resumen_activos = {}
+    resumen_roles_todos = {}
     for parte in partes:
         cid = parte.coche_id
         st = parte.estado.value if parte.estado else "finalizado"
         prioridad = _PRIORIDAD_ESTADO_PARTE.get(st, 99)
+        recency = _parte_recency_key(parte)
+        rol_parte = normalize_role(getattr(parte, "tipo_tarea", "") or "") or "otro"
+
+        bucket_roles = resumen_roles_todos.setdefault(cid, [])
+        if rol_parte not in bucket_roles:
+            bucket_roles.append(rol_parte)
+
+        # Partes activos del coche (sin finalizados) para mostrar carga real.
+        if st in {"pendiente", "en_proceso", "en_pausa"}:
+            bucket = resumen_activos.setdefault(
+                cid,
+                {
+                    "partes_ids": [],
+                    "empleados": [],
+                    "roles": [],
+                    "partes_detalle": [],
+                },
+            )
+            bucket["partes_ids"].append(int(parte.id))
+            empleado_nombre = (getattr(getattr(parte, "empleado", None), "nombre", "") or "").strip()
+            if empleado_nombre and empleado_nombre not in bucket["empleados"]:
+                bucket["empleados"].append(empleado_nombre)
+            if rol_parte not in bucket["roles"]:
+                bucket["roles"].append(rol_parte)
+            bucket["partes_detalle"].append({
+                "id": int(parte.id),
+                "tipo_tarea": rol_parte,
+                "empleado_nombre": empleado_nombre or None,
+            })
+
         if cid not in por_coche:
-            por_coche[cid] = (prioridad, parte)
+            por_coche[cid] = (prioridad, recency, parte)
         else:
-            current_prioridad, _ = por_coche[cid]
+            current_prioridad, current_recency, _ = por_coche[cid]
             if prioridad < current_prioridad:
-                por_coche[cid] = (prioridad, parte)
-    return {cid: parte for cid, (_, parte) in por_coche.items()}
+                por_coche[cid] = (prioridad, recency, parte)
+            elif prioridad == current_prioridad and recency > current_recency:
+                por_coche[cid] = (prioridad, recency, parte)
+
+    out = {}
+    all_coche_ids = set(coche_ids)
+    for cid in all_coche_ids:
+        parte = por_coche.get(cid, (None, None, None))[2]
+        activos = resumen_activos.get(cid, {"partes_ids": [], "empleados": []})
+        out[cid] = {
+            "parte": parte,
+            "partes_activas_count": len(activos["partes_ids"]),
+            "partes_activas_ids": activos["partes_ids"],
+            "partes_activas_empleados": activos["empleados"],
+            "partes_activas_roles": activos.get("roles", []),
+            "partes_activas_detalle": activos.get("partes_detalle", []),
+            "partes_roles_todos": resumen_roles_todos.get(cid, []),
+        }
+    return out
 
 
-def _compute_estado_coche(inspeccion, parte):
+def _compute_estado_coche(
+    inspeccion,
+    parte,
+    partes_activas_count=0,
+    partes_activas_ids=None,
+    partes_activas_empleados=None,
+    partes_activas_roles=None,
+    partes_activas_detalle=None,
+    partes_roles_todos=None,
+):
     """Calcula el estado visual actual del coche en el proceso de taller."""
+    partes_activas_ids = partes_activas_ids or []
+    partes_activas_empleados = partes_activas_empleados or []
+    partes_activas_roles = partes_activas_roles or []
+    partes_activas_detalle = partes_activas_detalle or []
+    partes_roles_todos = partes_roles_todos or []
+
     if inspeccion.entregado:
-        return {"estado": "entregado", "label": "✅ Entregado", "color": "#198754", "parte_id": None, "parte_obs": None}
+        return {
+            "estado": "entregado",
+            "label": "✅ Entregado",
+            "color": "#198754",
+            "parte_id": None,
+            "parte_obs": None,
+            "parte_empleado_id": None,
+            "parte_empleado_nombre": None,
+            "partes_activas_count": 0,
+            "partes_activas_ids": [],
+            "partes_activas_empleados": [],
+            "partes_activas_roles": [],
+            "partes_activas_detalle": [],
+            "partes_roles_todos": [],
+        }
 
     if inspeccion.repaso_completado:
-        return {"estado": "listo_entrega", "label": "🟢 Listo para entrega", "color": "#20c997", "parte_id": None, "parte_obs": None}
+        return {
+            "estado": "listo_entrega",
+            "label": "🟢 Listo para entrega",
+            "color": "#20c997",
+            "parte_id": None,
+            "parte_obs": None,
+            "parte_empleado_id": None,
+            "parte_empleado_nombre": None,
+            "partes_activas_count": 0,
+            "partes_activas_ids": [],
+            "partes_activas_empleados": [],
+            "partes_activas_roles": [],
+            "partes_activas_detalle": [],
+            "partes_roles_todos": [],
+        }
 
     if parte is None:
-        return {"estado": "esperando_parte", "label": "⏳ Esperando parte de trabajo", "color": "#adb5bd", "parte_id": None, "parte_obs": None}
+        return {
+            "estado": "esperando_parte",
+            "label": "⏳ Esperando parte de trabajo",
+            "color": "#adb5bd",
+            "parte_id": None,
+            "parte_obs": None,
+            "parte_empleado_id": None,
+            "parte_empleado_nombre": None,
+            "partes_activas_count": 0,
+            "partes_activas_ids": [],
+            "partes_activas_empleados": [],
+            "partes_activas_roles": [],
+            "partes_activas_detalle": [],
+            "partes_roles_todos": [],
+        }
 
     st = parte.estado.value if parte.estado else "desconocido"
     obs = (parte.observaciones or "").strip()
     short_obs = obs[:60] if obs else None
+    empleado_nombre = (getattr(getattr(parte, "empleado", None), "nombre", "") or "").strip() or None
+    empleado_id = int(parte.empleado_id) if getattr(parte, "empleado_id", None) else None
 
     if st == "en_proceso":
-        return {"estado": "en_proceso", "label": "🔧 En trabajo", "color": "#fd7e14", "parte_id": parte.id, "parte_obs": short_obs}
+        return {
+            "estado": "en_proceso",
+            "label": "🔧 En trabajo",
+            "color": "#ff8a00",
+            "parte_id": parte.id,
+            "parte_obs": short_obs,
+            "parte_empleado_id": empleado_id,
+            "parte_empleado_nombre": empleado_nombre,
+            "partes_activas_count": int(partes_activas_count or 0),
+            "partes_activas_ids": partes_activas_ids,
+            "partes_activas_empleados": partes_activas_empleados,
+            "partes_activas_roles": partes_activas_roles,
+            "partes_activas_detalle": partes_activas_detalle,
+            "partes_roles_todos": partes_roles_todos,
+        }
     if st == "en_pausa":
-        return {"estado": "en_pausa", "label": "⏸️ En pausa", "color": "#ffc107", "parte_id": parte.id, "parte_obs": short_obs}
+        return {
+            "estado": "en_pausa",
+            "label": "⏸️ En pausa",
+            "color": "#ffc107",
+            "parte_id": parte.id,
+            "parte_obs": short_obs,
+            "parte_empleado_id": empleado_id,
+            "parte_empleado_nombre": empleado_nombre,
+            "partes_activas_count": int(partes_activas_count or 0),
+            "partes_activas_ids": partes_activas_ids,
+            "partes_activas_empleados": partes_activas_empleados,
+            "partes_activas_roles": partes_activas_roles,
+            "partes_activas_detalle": partes_activas_detalle,
+            "partes_roles_todos": partes_roles_todos,
+        }
     if st == "pendiente":
-        return {"estado": "parte_pendiente", "label": "📋 Parte asignado", "color": "#6f42c1", "parte_id": parte.id, "parte_obs": short_obs}
+        return {
+            "estado": "parte_pendiente",
+            "label": "📋 Parte asignado",
+            "color": "#6f42c1",
+            "parte_id": parte.id,
+            "parte_obs": short_obs,
+            "parte_empleado_id": empleado_id,
+            "parte_empleado_nombre": empleado_nombre,
+            "partes_activas_count": int(partes_activas_count or 0),
+            "partes_activas_ids": partes_activas_ids,
+            "partes_activas_empleados": partes_activas_empleados,
+            "partes_activas_roles": partes_activas_roles,
+            "partes_activas_detalle": partes_activas_detalle,
+            "partes_roles_todos": partes_roles_todos,
+        }
     if st == "finalizado":
-        return {"estado": "parte_finalizado", "label": "🏁 Trabajos finalizados", "color": "#0d6efd", "parte_id": parte.id, "parte_obs": short_obs}
+        return {
+            "estado": "en_repaso",
+            "label": "🧽 En repaso",
+            "color": "#0b5ed7",
+            "parte_id": parte.id,
+            "parte_obs": short_obs,
+            "parte_empleado_id": empleado_id,
+            "parte_empleado_nombre": empleado_nombre,
+            "partes_activas_count": int(partes_activas_count or 0),
+            "partes_activas_ids": partes_activas_ids,
+            "partes_activas_empleados": partes_activas_empleados,
+            "partes_activas_roles": partes_activas_roles,
+            "partes_activas_detalle": partes_activas_detalle,
+            "partes_roles_todos": partes_roles_todos,
+        }
 
-    return {"estado": "desconocido", "label": "❓ Desconocido", "color": "#6c757d", "parte_id": None, "parte_obs": None}
+    return {
+        "estado": "desconocido",
+        "label": "❓ Desconocido",
+        "color": "#6c757d",
+        "parte_id": None,
+        "parte_obs": None,
+        "parte_empleado_id": None,
+        "parte_empleado_nombre": None,
+        "partes_activas_count": int(partes_activas_count or 0),
+        "partes_activas_ids": partes_activas_ids,
+        "partes_activas_empleados": partes_activas_empleados,
+        "partes_activas_roles": partes_activas_roles,
+        "partes_activas_detalle": partes_activas_detalle,
+        "partes_roles_todos": partes_roles_todos,
+    }
 
 
 def _serialize_inspeccion_con_estado(inspeccion, partes_por_coche):
     data = inspeccion.to_dict()
-    parte = partes_por_coche.get(inspeccion.coche_id)
-    data["estado_coche"] = _compute_estado_coche(inspeccion, parte)
+    partes_info = partes_por_coche.get(inspeccion.coche_id, {}) if isinstance(partes_por_coche, dict) else {}
+    parte = partes_info.get("parte") if isinstance(partes_info, dict) else None
+    data["estado_coche"] = _compute_estado_coche(
+        inspeccion,
+        parte,
+        partes_activas_count=partes_info.get("partes_activas_count", 0) if isinstance(partes_info, dict) else 0,
+        partes_activas_ids=partes_info.get("partes_activas_ids", []) if isinstance(partes_info, dict) else [],
+        partes_activas_empleados=partes_info.get("partes_activas_empleados", []) if isinstance(partes_info, dict) else [],
+        partes_activas_roles=partes_info.get("partes_activas_roles", []) if isinstance(partes_info, dict) else [],
+        partes_activas_detalle=partes_info.get("partes_activas_detalle", []) if isinstance(partes_info, dict) else [],
+        partes_roles_todos=partes_info.get("partes_roles_todos", []) if isinstance(partes_info, dict) else [],
+    )
     data["cobro"] = _build_cobro_info(inspeccion)
     return data
 
@@ -102,6 +300,7 @@ def _jwt_user_id():
 
 INSPECCION_ALLOWED_ROLES = {"administrador", "detailing", "calidad"}
 INSPECCION_MANAGER_ROLES = {"administrador", "calidad"}
+PARTE_TIPO_TAREA_VALUES = {"detailing", "pintura", "tapicero", "calidad", "otro"}
 
 
 def _is_inspeccion_role(user):
@@ -156,12 +355,18 @@ def _normalize_servicios_aplicados(raw):
         except (TypeError, ValueError):
             servicio_catalogo_id = None
 
+        tipo_tarea_raw = item.get("tipo_tarea") or item.get("rol") or item.get("rol_responsable")
+        tipo_tarea = normalize_role(str(tipo_tarea_raw or "").strip()) if tipo_tarea_raw else None
+        if tipo_tarea and tipo_tarea not in PARTE_TIPO_TAREA_VALUES:
+            tipo_tarea = "otro"
+
         normalized.append({
             "origen": origen,
             "servicio_catalogo_id": servicio_catalogo_id,
             "nombre": nombre,
             "precio": precio,
             "tiempo_estimado_minutos": tiempo_estimado_minutos,
+            "tipo_tarea": tipo_tarea,
         })
 
     return normalized
@@ -173,6 +378,95 @@ def _safe_servicios_aplicados(inspeccion):
         return raw if isinstance(raw, list) else []
     except Exception:
         return []
+
+
+def _resolve_tipo_tarea_servicio(servicio_item):
+    raw_tipo = servicio_item.get("tipo_tarea")
+    tipo = normalize_role(str(raw_tipo or "").strip()) if raw_tipo else ""
+    if tipo in PARTE_TIPO_TAREA_VALUES:
+        return tipo
+
+    servicio_catalogo = None
+    servicio_catalogo_id = servicio_item.get("servicio_catalogo_id")
+    try:
+        if servicio_catalogo_id is not None:
+            servicio_catalogo = ServicioCatalogo.query.get(int(servicio_catalogo_id))
+    except (TypeError, ValueError):
+        servicio_catalogo = None
+
+    if servicio_catalogo is None:
+        nombre = str(servicio_item.get("nombre") or "").strip()
+        if nombre:
+            servicio_catalogo = ServicioCatalogo.query.filter(
+                ServicioCatalogo.nombre.ilike(nombre)
+            ).first()
+
+    if servicio_catalogo and servicio_catalogo.rol_responsable:
+        role = normalize_role(servicio_catalogo.rol_responsable)
+        if role in PARTE_TIPO_TAREA_VALUES:
+            return role
+
+    return "otro"
+
+
+def _crear_partes_automaticos_desde_servicios(inspeccion, servicios_aplicados):
+    """Crea partes pendientes por cada servicio segun su tipo de tarea (rol)."""
+    if not inspeccion or not inspeccion.coche_id:
+        return []
+
+    if not isinstance(servicios_aplicados, list):
+        return []
+
+    creados = []
+    for item in servicios_aplicados:
+        if not isinstance(item, dict):
+            continue
+
+        nombre = str(item.get("nombre") or "").strip()
+        if not nombre:
+            continue
+
+        tipo_tarea = _resolve_tipo_tarea_servicio(item)
+
+        servicio_catalogo_id = item.get("servicio_catalogo_id")
+        try:
+            servicio_catalogo_id = int(servicio_catalogo_id) if servicio_catalogo_id is not None else None
+        except (TypeError, ValueError):
+            servicio_catalogo_id = None
+
+        try:
+            tiempo_estimado_minutos = int(item.get("tiempo_estimado_minutos") or 0)
+        except (TypeError, ValueError):
+            tiempo_estimado_minutos = 0
+        if tiempo_estimado_minutos < 0:
+            tiempo_estimado_minutos = 0
+
+        query = ParteTrabajo.query.filter_by(
+            coche_id=inspeccion.coche_id,
+            inspeccion_id=inspeccion.id,
+            tipo_tarea=tipo_tarea,
+            observaciones=nombre,
+        )
+        if servicio_catalogo_id is not None:
+            query = query.filter_by(servicio_catalogo_id=servicio_catalogo_id)
+
+        if query.first():
+            continue
+
+        parte = ParteTrabajo(
+            coche_id=inspeccion.coche_id,
+            inspeccion_id=inspeccion.id,
+            servicio_catalogo_id=servicio_catalogo_id,
+            empleado_id=None,
+            estado=EstadoParte.pendiente,
+            observaciones=nombre,
+            tiempo_estimado_minutos=tiempo_estimado_minutos,
+            tipo_tarea=tipo_tarea,
+        )
+        db.session.add(parte)
+        creados.append(parte)
+
+    return creados
 
 
 def _importe_total_inspeccion(inspeccion):
@@ -225,6 +519,79 @@ def _build_cobro_info(inspeccion):
         "metodo": inspeccion.cobro_metodo,
         "referencia": inspeccion.cobro_referencia,
         "observaciones": inspeccion.cobro_observaciones,
+    }
+
+
+def _to_bool(value):
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, (int, float)):
+        return value != 0
+    return str(value).strip().lower() in {"1", "true", "si", "sí", "yes", "on"}
+
+
+def _aplicar_cobro_inspeccion(inspeccion, payload):
+    """Aplica un cobro parcial/total sobre la inspección y registra ingreso en finanzas."""
+    data = payload or {}
+    accion = str(data.get("accion") or "abono").strip().lower()
+
+    total = _importe_total_inspeccion(inspeccion)
+    pagado_actual = float(inspeccion.cobro_importe_pagado or 0)
+
+    if accion == "marcar_pagado_total":
+        importe = max(total - pagado_actual, 0.0)
+    else:
+        try:
+            importe = float(data.get("importe"))
+        except (TypeError, ValueError):
+            raise ValueError("Debes indicar un importe válido")
+
+    if importe < 0:
+        raise ValueError("El importe no puede ser negativo")
+
+    metodo_raw = (data.get("metodo") or "").strip().lower()
+    metodo = metodo_raw or None
+    if metodo and metodo not in _COBRO_METODOS_VALIDOS:
+        raise ValueError("Metodo de cobro invalido. Usa: efectivo, bizum, tarjeta o transferencia")
+
+    referencia = (data.get("referencia") or "").strip() or None
+    observaciones = (data.get("observaciones") or "").strip() or None
+
+    nuevo_pagado = round(max(pagado_actual + importe, 0.0), 2)
+    if total > 0:
+        nuevo_pagado = min(nuevo_pagado, total)
+
+    inspeccion.cobro_importe_pagado = nuevo_pagado
+    inspeccion.cobro_fecha_ultimo_pago = now_madrid() if importe > 0 else inspeccion.cobro_fecha_ultimo_pago
+    inspeccion.cobro_metodo = metodo
+    inspeccion.cobro_referencia = referencia
+    inspeccion.cobro_observaciones = observaciones
+
+    cobro = _build_cobro_info(inspeccion)
+    inspeccion.cobro_estado = cobro["estado"]
+
+    if importe > 0:
+        ingreso = GastoEmpresa(
+            fecha=now_madrid(),
+            concepto=f"Cobro inspección #{inspeccion.id} · {inspeccion.matricula or '-'}",
+            categoria="ingreso_cobro_inspeccion",
+            importe=round(float(importe), 2),
+            proveedor=inspeccion.cliente_nombre,
+            observaciones=(
+                f"metodo={metodo or '-'} | referencia={referencia or '-'} | "
+                f"tipo={'profesional' if inspeccion.es_concesionario else 'particular'}"
+            ),
+        )
+        db.session.add(ingreso)
+
+    return {
+        "accion": accion,
+        "importe": round(float(importe), 2),
+        "metodo": metodo,
+        "referencia": referencia,
+        "observaciones": observaciones,
     }
 
 CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME", "").strip()
@@ -293,6 +660,7 @@ def crear_inspeccion():
     """
     Crear una nueva inspección de recepción.
     Campos requeridos:
+    - cliente_id (int, opcional)
     - cliente_nombre (str)
     - cliente_telefono (str)
     - coche_descripcion (str)
@@ -310,14 +678,25 @@ def crear_inspeccion():
     try:
         es_concesionario = bool(data.get("es_concesionario", False))
 
+        cliente_id_raw = data.get("cliente_id")
+        cliente_id = None
+        if cliente_id_raw not in (None, ""):
+            try:
+                cliente_id = int(cliente_id_raw)
+            except (TypeError, ValueError):
+                return jsonify({"msg": "cliente_id inválido"}), 400
+
+        cliente_nombre = (data.get("cliente_nombre") or "").strip()
+        cliente_telefono = (data.get("cliente_telefono") or "").strip()
+        matricula = (data.get("matricula") or "").upper().strip()
+        kilometros = data.get("kilometros")
+        consentimiento_datos_recepcion = bool(data.get("consentimiento_datos_recepcion", False))
+
         # Validar campos requeridos
         required_fields = [
-            "cliente_nombre",
-            "cliente_telefono",
             "coche_descripcion",
             "matricula",
             "kilometros",
-            "firma_empleado_recepcion",
         ]
         for field in required_fields:
             if not data.get(field):
@@ -325,12 +704,6 @@ def crear_inspeccion():
 
         if not es_concesionario and not data.get("firma_cliente_recepcion"):
             return jsonify({"msg": "Campo requerido: firma_cliente_recepcion"}), 400
-        
-        cliente_nombre = data.get("cliente_nombre").strip()
-        cliente_telefono = data.get("cliente_telefono").strip()
-        matricula = data.get("matricula").upper().strip()
-        kilometros = data.get("kilometros")
-        consentimiento_datos_recepcion = bool(data.get("consentimiento_datos_recepcion", False))
 
         if not consentimiento_datos_recepcion:
             return jsonify({"msg": "Debe aceptarse la proteccion de datos en recepcion"}), 400
@@ -342,8 +715,25 @@ def crear_inspeccion():
         except (TypeError, ValueError):
             return jsonify({"msg": "El campo kilometros debe ser un numero entero"}), 400
         
-        # 1. Buscar o crear cliente (prioridad por telefono para evitar duplicados)
-        cliente = Cliente.query.filter_by(telefono=cliente_telefono).first()
+        # 1. Resolver cliente: prioridad por cliente_id para evitar duplicados.
+        cliente = Cliente.query.get(cliente_id) if cliente_id else None
+
+        if cliente_id and not cliente:
+            return jsonify({"msg": "Cliente no encontrado para cliente_id proporcionado"}), 400
+
+        if cliente:
+            if not cliente_nombre:
+                cliente_nombre = (cliente.nombre or "").strip()
+            if not cliente_telefono:
+                cliente_telefono = (cliente.telefono or "").strip()
+            if not (cliente.nombre or "").strip() and cliente_nombre:
+                cliente.nombre = cliente_nombre
+            if not (cliente.telefono or "").strip() and cliente_telefono:
+                cliente.telefono = cliente_telefono
+
+        # Si no viene cliente_id, intentar localizar por teléfono/nombre para no duplicar.
+        if not cliente and cliente_telefono:
+            cliente = Cliente.query.filter_by(telefono=cliente_telefono).first()
 
         if not cliente:
             telefono_digits = _telefono_digits(cliente_telefono)
@@ -372,6 +762,16 @@ def crear_inspeccion():
             # Si existe el cliente pero viene sin nombre, se completa con el de inspeccion.
             if not (cliente.nombre or "").strip() and cliente_nombre:
                 cliente.nombre = cliente_nombre
+
+        if not cliente_nombre:
+            cliente_nombre = (cliente.nombre or "").strip()
+        if not cliente_telefono:
+            cliente_telefono = (cliente.telefono or "").strip()
+
+        if not cliente_nombre:
+            return jsonify({"msg": "Campo requerido: cliente_nombre"}), 400
+        if not cliente_telefono:
+            return jsonify({"msg": "Campo requerido: cliente_telefono"}), 400
         
         # 2. Buscar o crear coche
         coche = Coche.query.filter_by(matricula=matricula).first()
@@ -391,6 +791,8 @@ def crear_inspeccion():
             db.session.add(coche)
             db.session.flush()
         
+        servicios_aplicados = _normalize_servicios_aplicados(data.get("servicios_aplicados"))
+
         # 3. Crear inspección vinculada
         inspeccion = InspeccionRecepcion(
             usuario_id=user_id,
@@ -406,13 +808,16 @@ def crear_inspeccion():
             firma_empleado_recepcion=data.get("firma_empleado_recepcion"),
             consentimiento_datos_recepcion=consentimiento_datos_recepcion,
             averias_notas=data.get("averias_notas", ""),
-            servicios_aplicados=json.dumps(_normalize_servicios_aplicados(data.get("servicios_aplicados"))),
+            servicios_aplicados=json.dumps(servicios_aplicados),
             fotos_cloudinary="[]",
             videos_cloudinary="[]",
             confirmado=False
         )
         
         db.session.add(inspeccion)
+        db.session.flush()
+
+        _crear_partes_automaticos_desde_servicios(inspeccion, servicios_aplicados)
 
         # Notificación interna en sistema
         try:
@@ -596,6 +1001,24 @@ def actualizar_inspeccion(inspeccion_id):
     data = request.get_json()
     
     try:
+        if "cliente_id" in data:
+            cliente_id_raw = data.get("cliente_id")
+            if cliente_id_raw in (None, ""):
+                inspeccion.cliente_id = None
+            else:
+                try:
+                    cliente_id = int(cliente_id_raw)
+                except (TypeError, ValueError):
+                    return jsonify({"msg": "cliente_id inválido"}), 400
+                cliente = Cliente.query.get(cliente_id)
+                if not cliente:
+                    return jsonify({"msg": "Cliente no encontrado"}), 404
+                inspeccion.cliente_id = cliente.id
+                if not (data.get("cliente_nombre") or "").strip():
+                    inspeccion.cliente_nombre = (cliente.nombre or "").strip()
+                if not (data.get("cliente_telefono") or "").strip():
+                    inspeccion.cliente_telefono = (cliente.telefono or "").strip()
+
         # Permitir actualizar solo ciertos campos
         if "cliente_nombre" in data:
             inspeccion.cliente_nombre = data["cliente_nombre"]
@@ -641,6 +1064,7 @@ def actualizar_inspeccion(inspeccion_id):
         if "servicios_aplicados" in data:
             servicios_aplicados = _normalize_servicios_aplicados(data.get("servicios_aplicados"))
             inspeccion.servicios_aplicados = json.dumps(servicios_aplicados)
+            _crear_partes_automaticos_desde_servicios(inspeccion, servicios_aplicados)
         
         # Solo admin puede confirmar
         if "confirmado" in data and user.rol == "administrador":
@@ -658,7 +1082,7 @@ def actualizar_inspeccion(inspeccion_id):
 
 
 @inspeccion_bp.route("/inspeccion-recepcion/<int:inspeccion_id>/cobro", methods=["POST"])
-@role_required("administrador", "calidad")
+@role_required("administrador", "calidad", "detailing")
 def registrar_cobro_inspeccion(inspeccion_id):
     """Registrar cobro parcial o total y reflejarlo en caja (finanzas)."""
     inspeccion = InspeccionRecepcion.query.get(inspeccion_id)
@@ -666,66 +1090,24 @@ def registrar_cobro_inspeccion(inspeccion_id):
         return jsonify({"msg": "Inspección no encontrada"}), 404
 
     data = request.get_json(silent=True) or {}
-    accion = str(data.get("accion") or "abono").strip().lower()
-
-    total = _importe_total_inspeccion(inspeccion)
-    pagado_actual = float(inspeccion.cobro_importe_pagado or 0)
-
-    if accion == "marcar_pagado_total":
-        importe = max(total - pagado_actual, 0.0)
-    else:
-        try:
-            importe = float(data.get("importe"))
-        except (TypeError, ValueError):
-            return jsonify({"msg": "Debes indicar un importe válido"}), 400
-
-    if importe < 0:
-        return jsonify({"msg": "El importe no puede ser negativo"}), 400
-
-    metodo = (data.get("metodo") or "").strip() or None
-    referencia = (data.get("referencia") or "").strip() or None
-    observaciones = (data.get("observaciones") or "").strip() or None
 
     try:
-        nuevo_pagado = round(max(pagado_actual + importe, 0.0), 2)
-        if total > 0:
-            nuevo_pagado = min(nuevo_pagado, total)
-
-        inspeccion.cobro_importe_pagado = nuevo_pagado
-        inspeccion.cobro_fecha_ultimo_pago = now_madrid() if importe > 0 else inspeccion.cobro_fecha_ultimo_pago
-        inspeccion.cobro_metodo = metodo
-        inspeccion.cobro_referencia = referencia
-        inspeccion.cobro_observaciones = observaciones
-
-        cobro = _build_cobro_info(inspeccion)
-        inspeccion.cobro_estado = cobro["estado"]
-
-        # Registra ingreso real en finanzas para reflejar dinero en caja.
-        if importe > 0:
-            ingreso = GastoEmpresa(
-                fecha=now_madrid(),
-                concepto=f"Cobro inspección #{inspeccion.id} · {inspeccion.matricula or '-'}",
-                categoria="ingreso_cobro_inspeccion",
-                importe=round(float(importe), 2),
-                proveedor=inspeccion.cliente_nombre,
-                observaciones=(
-                    f"metodo={metodo or '-'} | referencia={referencia or '-'} | "
-                    f"tipo={'profesional' if inspeccion.es_concesionario else 'particular'}"
-                ),
-            )
-            db.session.add(ingreso)
+        _aplicar_cobro_inspeccion(inspeccion, data)
 
         db.session.commit()
 
         partes = _get_partes_por_coche([inspeccion.coche_id] if inspeccion.coche_id else [])
         return jsonify(_serialize_inspeccion_con_estado(inspeccion, partes)), 200
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"msg": str(e)}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({"msg": f"Error al registrar cobro: {str(e)}"}), 500
 
 
 @inspeccion_bp.route("/inspeccion-recepcion/cobros/profesionales", methods=["GET"])
-@role_required("administrador", "calidad")
+@role_required("administrador")
 def listar_cobros_profesionales():
     """Listado agrupado por cliente profesional para seguimiento de deuda/cobro."""
     solo_pendientes = str(request.args.get("solo_pendientes", "1")).strip().lower() not in {"0", "false", "no"}
@@ -822,6 +1204,12 @@ def registrar_entrega(inspeccion_id):
     - firma_empleado_entrega (base64)
     - consentimiento_datos_entrega (bool)
     - conformidad_revision_entrega (bool)
+    - registrar_cobro (bool)
+    - cobro_accion (abono|marcar_pagado_total)
+    - cobro_importe (float, cuando accion=abono)
+    - cobro_metodo (efectivo|bizum|tarjeta|transferencia)
+    - cobro_referencia (str)
+    - cobro_observaciones (str)
     """
     inspeccion = InspeccionRecepcion.query.get(inspeccion_id)
     if not inspeccion:
@@ -841,6 +1229,8 @@ def registrar_entrega(inspeccion_id):
         return jsonify({"msg": "Debe aceptarse la proteccion de datos en entrega"}), 400
 
     conformidad_revision_entrega = bool(data.get("conformidad_revision_entrega", False))
+    registrar_cobro = _to_bool(data.get("registrar_cobro", False))
+    cobro_registrado_en_entrega = False
 
     try:
         trabajos_realizados = data.get("trabajos_realizados")
@@ -854,6 +1244,19 @@ def registrar_entrega(inspeccion_id):
         inspeccion.conformidad_revision_entrega = conformidad_revision_entrega if not es_concesionario else False
         inspeccion.entregado = True
         inspeccion.fecha_entrega = now_madrid()
+
+        if registrar_cobro and not es_concesionario:
+            _aplicar_cobro_inspeccion(
+                inspeccion,
+                {
+                    "accion": data.get("cobro_accion") or "abono",
+                    "importe": data.get("cobro_importe"),
+                    "metodo": data.get("cobro_metodo"),
+                    "referencia": data.get("cobro_referencia"),
+                    "observaciones": data.get("cobro_observaciones"),
+                },
+            )
+            cobro_registrado_en_entrega = True
 
         # Notificación interna al admin/encargado
         try:
@@ -869,7 +1272,8 @@ def registrar_entrega(inspeccion_id):
         except Exception:
             pass
 
-        # Crear/actualizar snapshot de acta final entregada con firmas.
+        # Crear/actualizar snapshot de acta final entregada.
+        # En profesionales se conserva el acta técnica, pero sin firma de cliente.
         acta = ActaEntrega.query.filter_by(inspeccion_id=inspeccion.id).first()
         if not acta:
             acta = ActaEntrega(inspeccion_id=inspeccion.id)
@@ -880,10 +1284,10 @@ def registrar_entrega(inspeccion_id):
         acta.matricula = inspeccion.matricula or "-"
         acta.trabajos_realizados = inspeccion.trabajos_realizados or ""
         acta.entrega_observaciones = inspeccion.entrega_observaciones
-        acta.firma_cliente_entrega = inspeccion.firma_cliente_entrega
+        acta.firma_cliente_entrega = inspeccion.firma_cliente_entrega or ""
         acta.firma_empleado_entrega = inspeccion.firma_empleado_entrega
-        acta.consentimiento_datos_entrega = consentimiento_datos_entrega
-        acta.conformidad_revision_entrega = conformidad_revision_entrega
+        acta.consentimiento_datos_entrega = consentimiento_datos_entrega if not es_concesionario else False
+        acta.conformidad_revision_entrega = conformidad_revision_entrega if not es_concesionario else False
         acta.fecha_entrega = inspeccion.fecha_entrega or now_madrid()
 
         db.session.commit()
@@ -900,10 +1304,83 @@ def registrar_entrega(inspeccion_id):
         except Exception:
             pass  # Nunca bloquear la respuesta por el WhatsApp
 
-        return jsonify(inspeccion.to_dict()), 200
+        payload = inspeccion.to_dict()
+        payload["cobro_entrega_registrado"] = cobro_registrado_en_entrega
+        return jsonify(payload), 200
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"msg": str(e)}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({"msg": f"Error al registrar entrega: {str(e)}"}), 500
+
+
+# ============ REGISTRAR PAGO PROFESIONAL ============
+@inspeccion_bp.route("/inspeccion-recepcion/<int:inspeccion_id>/pago-profesional", methods=["POST"])
+@jwt_required()
+def registrar_pago_profesional(inspeccion_id):
+    """
+    Registrar pago de entrega para profesionales/concesionarios entregados.
+    Solo admin puede hacer esto.
+    Payload:
+    - cobro_importe_pagado (float, required)
+    - cobro_metodo (efectivo|bizum|tarjeta|transferencia)
+    - cobro_referencia (str, optional)
+    """
+    user_id = _jwt_user_id()
+    if user_id is None:
+        return jsonify({"msg": "Token inválido"}), 401
+    user = User.query.get(user_id)
+    if not user or normalize_role(user.rol) != "administrador":
+        return jsonify({"msg": "Solo administrador puede registrar pagos"}), 403
+
+    inspeccion = InspeccionRecepcion.query.get(inspeccion_id)
+    if not inspeccion:
+        return jsonify({"msg": "Inspección no encontrada"}), 404
+
+    if not inspeccion.es_concesionario:
+        return jsonify({"msg": "Este flujo solo es para profesionales/concesionarios"}), 400
+
+    if not inspeccion.entregado:
+        return jsonify({"msg": "El coche debe estar entregado para registrar pago"}), 400
+
+    data = request.get_json() or {}
+
+    try:
+        importe_pagado = float(data.get("cobro_importe_pagado") or 0)
+        if importe_pagado <= 0:
+            return jsonify({"msg": "El importe pagado debe ser mayor que 0"}), 400
+
+        metodo = data.get("cobro_metodo", "efectivo").lower()
+        if metodo not in _COBRO_METODOS_VALIDOS:
+            return jsonify({"msg": f"Método no válido. Usa: {', '.join(_COBRO_METODOS_VALIDOS)}"}), 400
+
+        referencia = (data.get("cobro_referencia") or "").strip()
+
+        inspeccion.cobro_importe_pagado = importe_pagado
+        inspeccion.cobro_metodo = metodo
+        inspeccion.cobro_referencia = referencia
+
+        # Crear entrada en finanzas
+        total = _importe_total_inspeccion(inspeccion)
+        gasto = GastoEmpresa(
+            categoria="ingreso_cobro_inspeccion",
+            concepto=f"Pago profesional: {inspeccion.cliente_nombre} ({inspeccion.matricula})",
+            importe=importe_pagado,
+            referencia=f"Insp#{inspeccion.id}",
+        )
+        db.session.add(gasto)
+
+        db.session.commit()
+
+        payload = inspeccion.to_dict()
+        return jsonify(payload), 200
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"msg": str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"msg": f"Error al registrar pago: {str(e)}"}), 500
 
 
 @inspeccion_bp.route("/inspeccion-recepcion/<int:inspeccion_id>/repaso", methods=["POST"])
@@ -1369,13 +1846,22 @@ def eliminar_inspeccion(inspeccion_id):
     if not _is_inspeccion_role(user):
         return jsonify({"msg": "No tienes permiso para esta acción"}), 403
 
-    if user.rol != "administrador":
+    can_delete_any = user.rol in {"administrador", "encargado"}
+
+    if not can_delete_any:
         if inspeccion.usuario_id != user_id:
             return jsonify({"msg": "No tienes permiso para eliminar esta inspección"}), 403
         if inspeccion.entregado:
             return jsonify({"msg": "No se puede eliminar una inspección ya entregada"}), 400
     
     try:
+        # Si existe acta de entrega asociada, eliminarla antes de borrar la inspección
+        # para evitar violación de FK NOT NULL en acta_entrega.inspeccion_id.
+        acta = ActaEntrega.query.filter_by(inspeccion_id=inspeccion.id).first()
+        if acta:
+            db.session.delete(acta)
+            db.session.flush()
+
         db.session.delete(inspeccion)
         db.session.commit()
         
@@ -1501,3 +1987,115 @@ def eliminar_video(inspeccion_id, video_index):
     except Exception as e:
         db.session.rollback()
         return jsonify({"msg": f"Error al eliminar video: {str(e)}"}), 500
+
+
+# ============ PAGOS DE PROFESIONALES (COCHES CONCESIONARIO ENTREGADOS) ============
+@inspeccion_bp.route("/inspeccion-recepcion/profesionales/pagos-pendientes", methods=["GET"])
+@role_required("administrador", "detailing", "calidad")
+def listar_pagos_profesionales_pendientes_detalle():
+    """
+    Lista coches de profesionales entregados pendientes de pago.
+    Importante: No incluye coches ya con cobro registrado.
+    """
+    try:
+        inspecciones = (
+            InspeccionRecepcion.query
+            .filter(
+                InspeccionRecepcion.es_concesionario == True,
+                InspeccionRecepcion.entregado == True,
+                or_(
+                    InspeccionRecepcion.cobro_importe_pagado.is_(None),
+                    InspeccionRecepcion.cobro_importe_pagado <= 0,
+                ),
+            )
+            .order_by(InspeccionRecepcion.fecha_entrega.desc())
+            .all()
+        )
+        
+        result = []
+        for inspeccion in inspecciones:
+            importe_total = _importe_total_inspeccion(inspeccion)
+            result.append({
+                "id": inspeccion.id,
+                "cliente_nombre": inspeccion.cliente_nombre,
+                "coche_descripcion": inspeccion.coche_descripcion,
+                "matricula": inspeccion.matricula,
+                "fecha_entrega": inspeccion.fecha_entrega.isoformat() if inspeccion.fecha_entrega else None,
+                "importe_total": importe_total,
+                "cobro_importe_pagado": inspeccion.cobro_importe_pagado or 0.0,
+                "cobro_metodo": inspeccion.cobro_metodo,
+                "cobro_referencia": inspeccion.cobro_referencia,
+            })
+        
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"msg": f"Error al listar pagos: {str(e)}"}), 500
+
+
+@inspeccion_bp.route("/inspeccion-recepcion/<int:inspeccion_id>/registrar-pago-profesional", methods=["POST"])
+@role_required("administrador", "detailing", "calidad")
+def registrar_pago_profesional_detalle(inspeccion_id):
+    """
+    Registra el pago de un profesional y genera ingreso en finanzas.
+    """
+    inspeccion = InspeccionRecepcion.query.get(inspeccion_id)
+    if not inspeccion:
+        return jsonify({"msg": "Inspección no encontrada"}), 404
+    
+    if not inspeccion.es_concesionario:
+        return jsonify({"msg": "Esta inspección no es de un profesional"}), 400
+    
+    if not inspeccion.entregado:
+        return jsonify({"msg": "El coche aún no ha sido entregado"}), 400
+    
+    try:
+        data = request.get_json() or {}
+        importe = float(data.get("importe", 0))
+        metodo = (data.get("metodo") or "").strip().lower()
+        referencia = (data.get("referencia") or "").strip()
+        observaciones = (data.get("observaciones") or "").strip()
+        
+        if importe <= 0:
+            return jsonify({"msg": "El importe debe ser mayor que 0"}), 400
+        
+        if metodo not in _COBRO_METODOS_VALIDOS:
+            return jsonify({"msg": f"Método de pago no válido: {metodo}"}), 400
+        
+        # Registrar pago en inspección
+        inspeccion.cobro_importe_pagado = round(max(importe, 0.0), 2)
+        inspeccion.cobro_metodo = metodo
+        inspeccion.cobro_referencia = referencia
+        inspeccion.cobro_observaciones = observaciones
+        
+        # Crear ingreso en finanzas
+        try:
+            matricula = inspeccion.matricula or f"coche #{inspeccion.coche_id}"
+            cliente = inspeccion.cliente_nombre or "Profesional"
+            concepto = f"Cobro profesional {cliente} - {matricula}"
+            
+            gasto = GastoEmpresa(
+                fecha=now_madrid(),
+                concepto=concepto,
+                categoria="ingreso_cobro_profesional",
+                importe=importe,
+                responsable_id=_jwt_user_id(),
+                observaciones=observaciones if observaciones else f"Ref: {referencia}" if referencia else None,
+            )
+            db.session.add(gasto)
+        except Exception as e:
+            # No bloquear si falla finanzas
+            pass
+        
+        db.session.commit()
+        
+        partes = _get_partes_por_coche([inspeccion.coche_id] if inspeccion.coche_id else [])
+        resultado = _serialize_inspeccion_con_estado(inspeccion, partes)
+        resultado["cobro_entrega_registrado"] = True
+        
+        return jsonify(resultado), 200
+    
+    except ValueError:
+        return jsonify({"msg": "Importe inválido"}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"msg": f"Error al registrar pago: {str(e)}"}), 500

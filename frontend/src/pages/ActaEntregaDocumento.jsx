@@ -103,7 +103,7 @@ const ActaEntregaDocumento = () => {
         const data = await actions.getInspeccion(id);
         if (active) setInspeccion(data);
       } catch (err) {
-        if (active) setError(err.message || "No se pudo cargar el acta");
+        if (active) setError(err.message || "No se pudo cargar la hoja de intervencion");
       } finally {
         if (active) setLoading(false);
       }
@@ -140,7 +140,7 @@ const ActaEntregaDocumento = () => {
     }
   }, [inspeccion, location.search, printTriggered]);
 
-  if (loading) return <div className="container py-4">Cargando acta...</div>;
+  if (loading) return <div className="container py-4">Cargando hoja de intervencion...</div>;
   if (error) return <div className="container py-4"><div className="alert alert-danger">{error}</div></div>;
   if (!inspeccion) return <div className="container py-4">No se encontro la inspeccion.</div>;
 
@@ -222,6 +222,22 @@ const ActaEntregaDocumento = () => {
             font-size: 14px;
             letter-spacing: 0.4px;
             color: #6b6354;
+          }
+          .print-acta-page .btn-outline-secondary {
+            color: #5c5447 !important;
+            border-color: #bbb09e !important;
+            background: #fff !important;
+          }
+          .print-acta-page .btn-outline-secondary:hover,
+          .print-acta-page .btn-outline-secondary:focus {
+            color: #2a231b !important;
+            border-color: #9f937f !important;
+            background: #f7f2e8 !important;
+          }
+          .print-acta-page .btn-outline-secondary:disabled {
+            color: #8f8678 !important;
+            border-color: #d5cdbc !important;
+            background: #faf8f3 !important;
           }
           .doc-subtle { color: #6a665f; }
           .doc-line { border-top: 1px solid #d9d2c7; margin: 18px 0; }

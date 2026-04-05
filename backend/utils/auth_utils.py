@@ -6,37 +6,36 @@ from flask_jwt_extended import get_jwt, jwt_required
 
 ALLOWED_ROLES = {
     "administrador",
-    "empleado",
     "encargado",
-    "tecnico_comercial",
     "detailing",
     "calidad",
     "pintura",
+    "tapicero",
 }
 
-# Roles operativos con mismos permisos base que "empleado".
-WORKSHOP_ROLES = {"empleado", "detailing", "calidad", "pintura"}
+# Roles operativos del taller.
+WORKSHOP_ROLES = {"detailing", "calidad", "pintura", "tapicero"}
 
 
 def normalize_role(role):
     r = (role or "").lower().strip()
     if r in ("admin", "administrator"):
         return "administrador"
-    if r in ("employee", "staff"):
-        return "empleado"
+    if r in ("employee", "staff", "empleado"):
+        return "detailing"
     if r in ("manager", "responsable"):
         return "encargado"
     if r in ("quality",):
         return "calidad"
     if r in ("paint", "painter"):
         return "pintura"
+    if r in ("tapiceria", "tapicería", "upholstery", "upholsterer"):
+        return "tapicero"
     return r
 
 
 def expand_allowed_roles(roles):
     normalized = {normalize_role(r) for r in roles}
-    if "empleado" in normalized:
-        normalized |= WORKSHOP_ROLES
     return normalized
 
 

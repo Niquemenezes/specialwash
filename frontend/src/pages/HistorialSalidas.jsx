@@ -127,22 +127,15 @@ export default function HistorialSalidas() {
       <div className="container py-4" style={{ maxWidth: "1100px" }}>
         {/* CABECERA */}
         <div
-          className="d-flex justify-content-between align-items-center p-3 mb-4 shadow-sm no-print"
-          style={{ background: "#0f0f0f", borderRadius: "12px", color: "white" }}
+          className="d-flex justify-content-between align-items-center p-3 mb-4 shadow-sm no-print sw-header-dark"
         >
-        <h2 className="fw-bold mb-0" style={{ color: "#d4af37" }}>
+        <h2 className="fw-bold mb-0 sw-accent-text">
           📦 Historial de Salidas
         </h2>
 
         <button
           onClick={imprimir}
-          className="btn"
-          style={{
-            background: "#d4af37",
-            color: "black",
-            fontWeight: "600",
-            borderRadius: "8px",
-          }}
+          className="btn sw-btn-accent-gold"
         >
           🖨️ Imprimir
         </button>

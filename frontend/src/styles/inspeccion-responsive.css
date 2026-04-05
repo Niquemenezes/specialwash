@@ -1,3 +1,7 @@
+.sw-page-shell {
+  max-width: 1024px;
+}
+
 .sw-inspeccion-page .form-control,
 .sw-inspeccion-page .form-select,
 .sw-inspeccion-page textarea {
@@ -13,6 +17,37 @@
   min-height: 42px;
   padding: 0.45rem 0.8rem;
   font-size: 0.95rem;
+}
+
+.sw-inspeccion-page .sw-servicios-group {
+  border: 1px solid var(--sw-border);
+  border-radius: 10px;
+  background: var(--sw-surface);
+  padding: 0.5rem 0.65rem;
+}
+
+.sw-inspeccion-page .sw-servicios-group__title {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--sw-accent);
+  font-size: 0.95rem;
+  list-style: none;
+}
+
+.sw-inspeccion-page .sw-servicios-group__title::-webkit-details-marker {
+  display: none;
+}
+
+.sw-inspeccion-page .sw-servicios-group__title::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 0.5rem;
+  transform: rotate(0deg);
+  transition: transform 0.15s ease;
+}
+
+.sw-inspeccion-page .sw-servicios-group[open] .sw-servicios-group__title::before {
+  transform: rotate(90deg);
 }
 
 .sw-inspeccion-page .sw-btn-md-auto {
@@ -75,5 +110,185 @@
 @media (min-width: 1200px) {
   .sw-inspecciones-page .sw-inspecciones-table .table {
     min-width: 0;
+  }
+}
+
+/* ── Tablet touch UX (repaso / firma entrega) ─────────────────────── */
+
+/* Tabs más grandes y fáciles de tocar */
+.sw-repaso-page .nav-tabs .nav-link {
+  font-size: 1rem;
+  padding: 0.65rem 1.1rem;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+}
+
+/* Items de lista de coches: altura mínima cómoda para dedo */
+.sw-repaso-page .sw-coche-item {
+  min-height: 64px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  cursor: pointer;
+  border-bottom: 1px solid var(--sw-border);
+  background: var(--sw-surface);
+  color: var(--sw-text);
+  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.sw-repaso-page .sw-coche-item.activo {
+  background: color-mix(in srgb, var(--sw-accent) 22%, var(--sw-surface));
+  color: var(--sw-text);
+  border-color: color-mix(in srgb, var(--sw-accent) 45%, var(--sw-border));
+}
+.sw-repaso-page .sw-coche-item:hover {
+  background: var(--sw-surface-2);
+}
+.sw-repaso-page .sw-coche-item.activo:hover {
+  background: color-mix(in srgb, var(--sw-accent) 28%, var(--sw-surface));
+}
+.sw-repaso-page .sw-coche-item .text-muted {
+  color: var(--sw-muted) !important;
+}
+.sw-repaso-page .sw-coche-item.activo .text-muted,
+.sw-repaso-page .sw-coche-item.activo .small,
+.sw-repaso-page .sw-coche-item.activo .opacity-75 {
+  color: var(--sw-text) !important;
+  opacity: 0.88;
+}
+
+/* Checklist: cada ítem es una zona táctil grande */
+.sw-repaso-page .sw-check-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1.5px solid var(--sw-border);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  min-height: 54px;
+  cursor: pointer;
+  background: var(--sw-surface);
+  color: var(--sw-text);
+  transition: background 0.12s, border-color 0.12s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.sw-repaso-page .sw-check-item.checked {
+  background: color-mix(in srgb, var(--sw-success) 16%, var(--sw-surface));
+  border-color: var(--sw-success);
+}
+.sw-repaso-page .sw-check-item input[type="checkbox"] {
+  width: 1.4rem;
+  height: 1.4rem;
+  min-width: 1.4rem;
+  cursor: pointer;
+  accent-color: #198754;
+}
+.sw-repaso-page .sw-check-item label {
+  font-size: 0.97rem;
+  cursor: pointer;
+  margin: 0;
+  line-height: 1.3;
+}
+
+/* Botones de acción: tamaño cómodo para touch */
+.sw-repaso-page .sw-action-btn {
+  min-height: 48px;
+  font-size: 1rem;
+  padding: 0.55rem 1.1rem;
+}
+
+/* Tarjetas de firma (reemplaza tabla) */
+.sw-firma-card {
+  border: 1.5px solid var(--sw-border);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  background: var(--sw-surface);
+  color: var(--sw-text);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.sw-repaso-page .sw-repaso-resumen {
+  background: var(--sw-surface-2) !important;
+  border-color: var(--sw-border) !important;
+  color: var(--sw-text);
+}
+
+.sw-repaso-page .sw-repaso-resumen .text-success {
+  color: var(--sw-success) !important;
+}
+.sw-firma-card .sw-firma-btn {
+  min-height: 52px;
+  font-size: 1rem;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .sw-firma-card {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .sw-firma-card .sw-firma-btn {
+    width: auto;
+    min-width: 170px;
+    margin-top: 0;
+  }
+}
+
+/* ── Móvil (<576px): ajustes extra ─────────────────────────────────── */
+@media (max-width: 575.98px) {
+  /* Reducir padding de contenedor en móvil */
+  .sw-repaso-page .container {
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
+  }
+
+  /* Título más compacto */
+  .sw-repaso-page h2 {
+    font-size: 1.25rem;
+  }
+
+  /* Tabs: scroll horizontal si no caben */
+  .sw-repaso-page .nav-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+  .sw-repaso-page .nav-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .sw-repaso-page .nav-tabs .nav-link {
+    font-size: 0.9rem;
+    padding: 0.6rem 0.85rem;
+    white-space: nowrap;
+  }
+
+  /* Botones de acción: ancho completo en móvil */
+  .sw-repaso-page .sw-action-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Checklist: una columna en móvil (ya es col-12 en JSX) */
+  .sw-repaso-page .sw-check-item {
+    min-height: 52px;
+  }
+
+  /* Tarjeta de firma: botón ancho completo (ya está definido) */
+  .sw-firma-card {
+    padding: 0.85rem;
+  }
+
+  /* Info del coche seleccionado: fuente más pequeña */
+  .sw-repaso-page .sw-repaso-resumen {
+    font-size: 0.88rem;
   }
 }

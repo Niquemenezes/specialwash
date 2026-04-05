@@ -3,33 +3,14 @@
 __pycache__/
 *.pyo
 *.pyd
+*.db
 *.sqlite3
 .env
-.env.production
-.env.local
-.env.*.local
 .venv/
-.DS_Store
-
-# Virtual environments - NUNCA versionar
-venv/
-env/
 backend/venv/
-backend/env/
-*.egg-info/
-
-# Logs - pueden exponer datos internos
-*.log
-backend/app.log
-
-# Database
-!backend/instance/
-*.db
-/backend/specialwash.db
-
-# Instance folder
-instance/*
-!instance/.gitkeep
+instance/
+backend/media/
+.DS_Store
 
 # Node/React
 node_modules/
@@ -46,11 +27,10 @@ yarn-error.log*
 .vscode/
 
 # Otros
+*.log
 *.bak
 *.swp
 *.swo
 .idea/
-
-# Evitar artefactos locales accidentales
-/backend/backend/
-/package-lock.json
+*.tar.gz
+deploy-hoy-*.txt

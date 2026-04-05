@@ -11,6 +11,7 @@ greenlet==3.3.0
 itsdangerous==2.2.0
 Jinja2==3.1.6
 MarkupSafe==3.0.3
+openpyxl==3.1.5
 PyJWT==2.10.1
 Pillow==11.1.0
 pytesseract==0.3.13
@@ -19,3 +20,4 @@ requests>=2.31.0
 SQLAlchemy==2.0.45
 typing_extensions==4.15.0
 Werkzeug==3.1.4
+WTForms==2.3.3

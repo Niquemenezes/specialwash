@@ -18,6 +18,7 @@ const safeNumber = (value) => {
 };
 
 const SIGNER_PREFIX = "[firmante_entrega]:";
+const COBRO_METODOS = ["efectivo", "bizum", "tarjeta", "transferencia"];
 
 const splitObservaciones = (texto = "") => {
   const lines = String(texto || "").split("\n");
@@ -102,10 +103,18 @@ const ActaEntregaView = () => {
   const [consentimiento, setConsentimiento] = useState(false);
   const [conformidad, setConformidad] = useState(false);
   const [printTriggered, setPrintTriggered] = useState(false);
+  const [registrarCobroEntrega, setRegistrarCobroEntrega] = useState(true);
+  const [cobroAccion, setCobroAccion] = useState("marcar_pagado_total");
+  const [cobroImporte, setCobroImporte] = useState("");
+  const [cobroMetodo, setCobroMetodo] = useState("efectivo");
+  const [cobroReferencia, setCobroReferencia] = useState("");
+  const [cobroObservaciones, setCobroObservaciones] = useState("");
+  const [entregaFlash, setEntregaFlash] = useState("");
+  const [formError, setFormError] = useState("");
 
   useEffect(() => {
     const previousTitle = document.title;
-    document.title = "Acta Tecnica de Entrega - Special Wash";
+    document.title = "Hoja de intervencion tecnica de entrega - Special Wash";
     return () => {
       document.title = previousTitle;
     };
@@ -126,8 +135,15 @@ const ActaEntregaView = () => {
         setNombreFirmante(parsedObs.firmante || data?.cliente_nombre || "");
         setConsentimiento(Boolean(data?.consentimiento_datos_entrega));
         setConformidad(Boolean(data?.conformidad_revision_entrega));
+        setCobroMetodo(data?.cobro?.metodo || data?.cobro_metodo || "efectivo");
+        setCobroReferencia(data?.cobro?.referencia || data?.cobro_referencia || "");
+        setCobroObservaciones(data?.cobro?.observaciones || data?.cobro_observaciones || "");
+        // Precarga el importe total si es "marcar_pagado_total"
+        if (data?.cobro?.importe_total && data?.cobro?.importe_total > 0) {
+          setCobroImporte(String(data.cobro.importe_total));
+        }
       } catch (err) {
-        if (active) setError(err.message || "No se pudo cargar la acta");
+        if (active) setError(err.message || "No se pudo cargar la hoja de intervencion");
       } finally {
         if (active) setLoading(false);
       }
@@ -173,26 +189,34 @@ const ActaEntregaView = () => {
 
   const finalizarEntrega = async () => {
     if (!inspeccion) return;
+    setFormError("");
     if (!esConcesionario && !(inspeccion.trabajos_realizados || "").trim()) {
-      alert("Debes preparar y guardar el acta antes de finalizar la entrega.");
+      setFormError("Debes preparar y guardar la hoja de intervencion antes de finalizar la entrega.");
       return;
     }
     if (!nombreFirmante.trim()) {
-      alert("Debes indicar el nombre de la persona que firma la recepcion del vehiculo.");
+      setFormError("Debes indicar el nombre de la persona que firma la recepcion del vehiculo.");
       return;
     }
     if (!esConcesionario && !firmaCliente) {
-      alert("La firma del cliente es obligatoria para finalizar la entrega.");
+      setFormError("La firma del cliente es obligatoria para finalizar la entrega.");
       return;
     }
     if (!esConcesionario && !consentimiento) {
-      alert("Debes confirmar la proteccion de datos.");
+      setFormError("Debes confirmar la proteccion de datos.");
       return;
+    }
+    if (!esConcesionario && registrarCobroEntrega && cobroAccion === "abono") {
+      const importe = Number(cobroImporte);
+      if (!Number.isFinite(importe) || importe <= 0) {
+        setFormError("Debes indicar un importe de abono válido.");
+        return;
+      }
     }
 
     setGuardando(true);
     try {
-      await actions.registrarEntregaInspeccion(inspeccion.id, {
+      const updated = await actions.registrarEntregaInspeccion(inspeccion.id, {
         trabajos_realizados: esConcesionario
           ? String(inspeccion.trabajos_realizados || "").trim()
           : inspeccion.trabajos_realizados,
@@ -203,13 +227,31 @@ const ActaEntregaView = () => {
         firma_cliente_entrega: esConcesionario ? null : firmaCliente,
         consentimiento_datos_entrega: esConcesionario ? false : consentimiento,
         conformidad_revision_entrega: esConcesionario ? false : conformidad,
+        registrar_cobro: !esConcesionario && registrarCobroEntrega,
+        cobro_accion: !esConcesionario && registrarCobroEntrega ? cobroAccion : undefined,
+        cobro_importe:
+          !esConcesionario && registrarCobroEntrega && cobroAccion === "abono"
+            ? Number(cobroImporte)
+            : undefined,
+        cobro_metodo: !esConcesionario && registrarCobroEntrega ? cobroMetodo : undefined,
+        cobro_referencia: !esConcesionario && registrarCobroEntrega ? cobroReferencia : undefined,
+        cobro_observaciones: !esConcesionario && registrarCobroEntrega ? cobroObservaciones : undefined,
       });
-      alert("Entrega finalizada correctamente");
-      navigate(rol === "empleado" ? "/" : "/entregados", { replace: true });
+      setInspeccion(updated || inspeccion);
+
+      if (updated?.cobro_entrega_registrado) {
+        setEntregaFlash("Entrada en finanzas creada correctamente por el cobro de entrega.");
+      } else {
+        setEntregaFlash("Entrega finalizada correctamente.");
+      }
+
+      setTimeout(() => {
+        navigate(rol === "empleado" ? "/" : "/entregados", { replace: true });
+      }, 1400);
     } catch (err) {
-      alert(`Error al finalizar entrega: ${err.message}`);
+      setFormError(`Error al finalizar entrega: ${err.message}`);
     } finally {
-      navigate(isEmployeeRole(rol) ? "/" : "/entregados", { replace: true });
+      setGuardando(false);
     }
   };
 
@@ -229,6 +271,44 @@ const ActaEntregaView = () => {
             color: #1e1b16;
             font-family: "Georgia", "Times New Roman", serif;
             background-image: none;
+          }
+          .delivery-doc .text-muted,
+          .delivery-doc .form-text {
+            color: #5f574a !important;
+          }
+          .delivery-doc .form-label,
+          .delivery-doc .form-check-label,
+          .delivery-doc label {
+            color: #2b241b;
+          }
+          .delivery-doc .form-control,
+          .delivery-doc .form-select {
+            background: #fff;
+            color: #1e1b16;
+            border-color: #cfc5b3;
+          }
+          .delivery-doc .form-control::placeholder {
+            color: #7a7266;
+          }
+          .delivery-doc .form-check-input {
+            background-color: #fff;
+            border-color: #bfb6a6;
+          }
+          .delivery-doc .btn-outline-secondary {
+            color: #5c5447 !important;
+            border-color: #bbb09e !important;
+            background: #fff !important;
+          }
+          .delivery-doc .btn-outline-secondary:hover,
+          .delivery-doc .btn-outline-secondary:focus {
+            color: #2a231b !important;
+            border-color: #9f937f !important;
+            background: #f7f2e8 !important;
+          }
+          .delivery-doc .btn-outline-secondary:disabled {
+            color: #8f8678 !important;
+            border-color: #d5cdbc !important;
+            background: #faf8f3 !important;
           }
           .delivery-doc .single-header {
             border-bottom: 1px solid #ded6c7;
@@ -379,6 +459,11 @@ const ActaEntregaView = () => {
      
 
       <div className="delivery-doc print-acta-document mb-4">
+        {entregaFlash && (
+          <div className="alert alert-success no-print" role="alert">
+            {entregaFlash}
+          </div>
+        )}
         <div className="single-header avoid-break">
           <div className="header-wrap">
             <div>
@@ -484,7 +569,103 @@ const ActaEntregaView = () => {
             ) : (
               <SignaturePad title="Firma cliente (entrega)" value={firmaCliente} onChange={setFirmaCliente} />
             )}
+
+            {!isEntregado && (
+              <div className="border rounded p-3 mt-3" style={{ background: "#fffdf8", borderColor: "#ddd3c2" }}>
+                <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-2">
+                  <div>
+                    <div className="fw-bold">Cobro en entrega</div>
+                    {inspeccion?.cobro?.importe_total > 0 && (
+                      <div className="small text-muted mt-1">
+                        Importe total a pagar: <strong style={{ color: "#d4af37", fontSize: "1.1em" }}>{Number(inspeccion.cobro.importe_total).toFixed(2)} €</strong>
+                      </div>
+                    )}
+                  </div>
+                  <div className="form-check mb-0">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id="registrar-cobro-entrega"
+                      checked={registrarCobroEntrega}
+                      onChange={(e) => setRegistrarCobroEntrega(e.target.checked)}
+                    />
+                    <label className="form-check-label" htmlFor="registrar-cobro-entrega">
+                      Registrar cobro ahora
+                    </label>
+                  </div>
+                </div>
+
+                {registrarCobroEntrega && (
+                  <div className="row g-2">
+                    <div className="col-12 col-md-3">
+                      <label className="form-label small mb-1">Tipo de cobro</label>
+                      <select
+                        className="form-select form-select-sm"
+                        value={cobroAccion}
+                        onChange={(e) => setCobroAccion(e.target.value)}
+                      >
+                        <option value="marcar_pagado_total">Pagado total</option>
+                        <option value="abono">Abono parcial</option>
+                      </select>
+                    </div>
+                    <div className="col-12 col-md-3">
+                      <label className="form-label small mb-1">Metodo</label>
+                      <select
+                        className="form-select form-select-sm"
+                        value={cobroMetodo}
+                        onChange={(e) => setCobroMetodo(e.target.value)}
+                      >
+                        {COBRO_METODOS.map((m) => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-12 col-md-3">
+                      <label className="form-label small mb-1">
+                        Importe {cobroAccion === "abono" ? "(abono)" : "(total)"}
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="form-control form-control-sm"
+                        value={cobroImporte}
+                        onChange={(e) => setCobroImporte(e.target.value)}
+                        placeholder={inspeccion?.cobro?.importe_total ? String(Number(inspeccion.cobro.importe_total).toFixed(2)) : "0.00"}
+                      />
+                    </div>
+                    <div className="col-12 col-md-3">
+                      <label className="form-label small mb-1">Referencia</label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        value={cobroReferencia}
+                        onChange={(e) => setCobroReferencia(e.target.value)}
+                        placeholder="Operacion / ticket"
+                      />
+                    </div>
+                    <div className="col-12">
+                      <label className="form-label small mb-1">Observaciones de cobro</label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        value={cobroObservaciones}
+                        onChange={(e) => setCobroObservaciones(e.target.value)}
+                        placeholder="Nota interna del cobro"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </>
+        )}
+
+        {formError && (
+          <div className="alert alert-danger d-flex justify-content-between align-items-start py-2 mt-3 no-print">
+            <span>{formError}</span>
+            <button className="btn-close ms-3" onClick={() => setFormError("")} />
+          </div>
         )}
 
         <div className="d-flex gap-2 justify-content-end mt-3 no-print">

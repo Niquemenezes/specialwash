@@ -1,6 +1,7 @@
 // utils/parteTrabajoApi.js
 import { buildApiUrl } from "./apiBase";
 import { getStoredToken } from "./authSession";
+import { normalizeRol } from "./authSession";
 
 async function apiFetch(path, options = {}) {
   const { auth = true, headers = {}, ...rest } = options;
@@ -35,20 +36,37 @@ async function apiFetch(path, options = {}) {
 }
 
 // Crear parte de trabajo
-export async function crearParteTrabajo({ coche_id, empleado_id, observaciones, tiempo_estimado_minutos, servicios = [] }) {
+export async function crearParteTrabajo({ coche_id, empleado_id, observaciones, tiempo_estimado_minutos, tipo_tarea, servicios = [] }) {
   return apiFetch("/api/parte_trabajo", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ coche_id, empleado_id, observaciones, tiempo_estimado_minutos, servicios })
+    body: JSON.stringify({ coche_id, empleado_id, observaciones, tiempo_estimado_minutos, tipo_tarea, servicios })
+  });
+}
+
+export async function crearParteInterno({ observaciones, tiempo_estimado_minutos = 0, tipo_tarea }) {
+  return apiFetch("/api/parte_trabajo/interno", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ observaciones, tiempo_estimado_minutos, tipo_tarea }),
+  });
+}
+
+export async function sumarmeACoche({ coche_id, observaciones = "", tiempo_estimado_minutos = 0, tipo_tarea }) {
+  return apiFetch(`/api/parte_trabajo/coche/${coche_id}/sumarme`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ observaciones, tiempo_estimado_minutos, tipo_tarea }),
   });
 }
 
 // Listar partes de trabajo (con filtros)
-export async function listarPartesTrabajo({ estado, empleado_id, coche_id } = {}) {
+export async function listarPartesTrabajo({ estado, empleado_id, coche_id, tipo_tarea } = {}) {
   const params = [];
   if (estado) params.push(`estado=${estado}`);
   if (empleado_id) params.push(`empleado_id=${empleado_id}`);
   if (coche_id) params.push(`coche_id=${coche_id}`);
+    if (tipo_tarea) params.push(`tipo_tarea=${encodeURIComponent(tipo_tarea)}`);
   const query = params.length ? `?${params.join("&")}` : "";
   return apiFetch(`/api/parte_trabajo${query}`);
 }
@@ -59,6 +77,13 @@ export async function cambiarEstadoParte(parte_id, estado) {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ estado })
+  });
+}
+
+// Tomar un parte pendiente y asignarlo al usuario actual
+export async function tomarParteTrabajo(parte_id) {
+  return apiFetch(`/api/parte_trabajo/${parte_id}/tomar`, {
+    method: "PUT",
   });
 }
 
@@ -77,6 +102,12 @@ export async function editarParteTrabajo(parte_id, { empleado_id, observaciones,
   });
 }
 
+export async function eliminarParteTrabajo(parte_id) {
+  return apiFetch(`/api/parte_trabajo/${parte_id}`, {
+    method: "DELETE",
+  });
+}
+
 // Analítica por empleado y fechas
 export async function analiticaPartes({ empleado_id, fecha_inicio, fecha_fin } = {}) {
   const params = [];
@@ -90,12 +121,13 @@ export async function analiticaPartes({ empleado_id, fecha_inicio, fecha_fin } =
 export async function listarEmpleadosDisponibles() {
   const users = await apiFetch("/api/usuarios");
   const list = Array.isArray(users) ? users : [];
+  const WORKSHOP_ROLES = new Set(["tapicero", "detailing", "calidad", "pintura"]);
 
   return list.filter(
     (u) =>
       u &&
       u.activo !== false &&
-      ["empleado", "encargado", "detailing", "pintura"].includes((u.rol || "").toLowerCase())
+      WORKSHOP_ROLES.has(normalizeRol(u.rol || ""))
   );
 }
 
@@ -126,8 +158,12 @@ export async function listarCochesParaCrearParte() {
     ...(Array.isArray(partesEnProceso) ? partesEnProceso : []),
     ...(Array.isArray(partesEnPausa) ? partesEnPausa : []),
   ];
-
-  const cochesAsignados = new Set(partesActivas.map((p) => Number(p?.coche_id)).filter((id) => Number.isFinite(id)));
+  const partesActivasPorCoche = new Map();
+  for (const parte of partesActivas) {
+    const cocheId = Number(parte?.coche_id);
+    if (!Number.isFinite(cocheId)) continue;
+    partesActivasPorCoche.set(cocheId, (partesActivasPorCoche.get(cocheId) || 0) + 1);
+  }
 
   const latestInspeccionByCoche = new Map();
   const listaInspecciones = Array.isArray(inspecciones) ? inspecciones : [];
@@ -150,7 +186,6 @@ export async function listarCochesParaCrearParte() {
   for (const coche of listaCoches) {
     const cocheId = Number(coche?.coche_id);
     if (!Number.isFinite(cocheId)) continue;
-    if (cochesAsignados.has(cocheId)) continue;
 
     const ultima = latestInspeccionByCoche.get(cocheId) || null;
     const fechaUltima = ultima?.fecha_inspeccion || ultima?.created_at || null;
@@ -162,6 +197,7 @@ export async function listarCochesParaCrearParte() {
       cliente_nombre: coche?.cliente_nombre || "",
       fecha_inspeccion: fechaUltima,
       ultima_inspeccion_id: ultima?.id || null,
+      partes_activas: partesActivasPorCoche.get(cocheId) || 0,
     });
   }
 
@@ -196,4 +232,47 @@ export async function obtenerUltimaInspeccionPorCoche(cocheId) {
     });
 
   return candidatas[0] || null;
+}
+
+export async function reporteEmpleados({ fecha_inicio, fecha_fin } = {}) {
+  const params = [];
+  if (fecha_inicio) params.push(`fecha_inicio=${fecha_inicio}`);
+  if (fecha_fin) params.push(`fecha_fin=${fecha_fin}`);
+  const query = params.length ? `?${params.join("&")}` : "";
+  return apiFetch(`/api/parte_trabajo/reporte_empleados${query}`);
+}
+
+// ─── Utilidades de formato compartidas ────────────────────────────────────────
+
+export function formatDate(value) {
+  if (!value) return "-";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? "-" : d.toLocaleString();
+}
+
+export function formatShortDate(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("es-ES", {
+    day: "2-digit", month: "2-digit", year: "2-digit",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
+export function formatMinutes(minutes) {
+  const total = Number.isFinite(Number(minutes)) ? Math.max(0, Number(minutes)) : 0;
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0) return `${m} min`;
+  if (m === 0) return `${h} h`;
+  return `${h} h ${m} min`;
+}
+
+export function parseHoursToMinutes(hoursValue) {
+  const raw = String(hoursValue ?? "").trim();
+  if (!raw) return 0;
+  const hours = Number(raw.replace(",", "."));
+  if (!Number.isFinite(hours) || hours < 0) return null;
+  return Math.round(hours * 60);
 }

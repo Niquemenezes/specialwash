@@ -148,7 +148,7 @@ const CochesEntregadosPage = () => {
       const data = await actions.getInspeccion(id);
       setDetalle(data || null);
     } catch (err) {
-      alert(err?.message || "No se pudo cargar el detalle de inspección");
+      setError(err?.message || "No se pudo cargar el detalle de inspección");
     } finally {
       setLoadingDetalle(false);
     }
@@ -163,17 +163,16 @@ const CochesEntregadosPage = () => {
     try {
       await actions.eliminarInspeccion(item.id);
       await cargarInspecciones();
-      alert("Inspeccion eliminada correctamente.");
     } catch (err) {
-      alert(err?.message || "No se pudo eliminar la inspeccion.");
+      setError(err?.message || "No se pudo eliminar la inspeccion.");
     }
   };
 
   return (
     <div className="container py-4" style={{ maxWidth: "1000px" }}>
-      <div className="d-flex justify-content-center align-items-center mb-4 p-3 rounded shadow-sm" style={{ background: "#0f0f0f", color: "#d4af37" }}>
+      <div className="d-flex justify-content-center align-items-center mb-4 p-3 rounded shadow-sm sw-header-dark">
         <div className="w-100 d-flex justify-content-between align-items-center gap-2">
-          <h2 className="fw-bold mb-0 text-center">Coches Entregados</h2>
+          <h2 className="fw-bold mb-0 text-center sw-accent-text">Coches Entregados</h2>
           <button type="button" className="btn btn-outline-light btn-sm" onClick={volver}>
             Volver
           </button>
@@ -181,7 +180,7 @@ const CochesEntregadosPage = () => {
       </div>
 
       <div className="card shadow-sm border-0 mb-4">
-        <div className="card-header py-3" style={{ background: "#d4af37", fontWeight: 600 }}>
+        <div className="card-header py-3 sw-card-header-gold">
           Filtros
         </div>
         <div className="card-body p-3">
@@ -254,7 +253,7 @@ const CochesEntregadosPage = () => {
       </div>
 
       <div className="card shadow-sm border-0">
-        <div className="card-header py-3 d-flex justify-content-between align-items-center" style={{ background: "#d4af37", fontWeight: 600 }}>
+        <div className="card-header py-3 d-flex justify-content-between align-items-center sw-card-header-gold">
           <span>Listado de coches entregados</span>
           <button className="btn btn-outline-dark btn-sm" onClick={cargarInspecciones}>
             Actualizar
@@ -294,7 +293,7 @@ const CochesEntregadosPage = () => {
                       <td>
                         <div className="d-flex gap-2">
                           <Link className="btn btn-outline-success btn-sm" to={`/acta-entrega/${item.id}`}>
-                            Ver acta firmada
+                            Ver hoja de intervencion firmada
                           </Link>
                           <a
                             className="btn btn-outline-secondary btn-sm"
@@ -338,10 +337,10 @@ const CochesEntregadosPage = () => {
       </div>
 
       {detalle && (
-        <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.75)" }}>
+        <div className="modal show d-block sw-modal-overlay-strong">
           <div className="modal-dialog modal-xl modal-dialog-scrollable modal-fullscreen-md-down">
             <div className="modal-content">
-              <div className="modal-header py-3" style={{ background: "#0f0f0f", color: "#d4af37" }}>
+              <div className="modal-header py-3 sw-modal-header-dark">
                 <h5 className="modal-title fw-bold fs-6 fs-md-5">
                   🚗 Inspección #{detalle.id} - {detalle.matricula}
                 </h5>
@@ -355,7 +354,7 @@ const CochesEntregadosPage = () => {
 
               <div className="modal-body p-3">
                 <div className="card mb-3">
-                  <div className="card-header py-2" style={{ background: "#d4af37", fontWeight: "600" }}>
+                  <div className="card-header py-2 sw-card-header-gold">
                     👤 Datos de la recepción
                   </div>
                   <div className="card-body p-3">
@@ -371,7 +370,7 @@ const CochesEntregadosPage = () => {
 
                 {Array.isArray(detalle.fotos_cloudinary) && detalle.fotos_cloudinary.length > 0 && (
                   <div className="card mb-3">
-                    <div className="card-header py-2" style={{ background: "#d4af37", fontWeight: "600" }}>
+                    <div className="card-header py-2 sw-card-header-gold">
                       📸 Fotos de inspección ({detalle.fotos_cloudinary.length})
                     </div>
                     <div className="card-body p-2 p-md-3">
@@ -399,7 +398,7 @@ const CochesEntregadosPage = () => {
 
                 {Array.isArray(detalle.videos_cloudinary) && detalle.videos_cloudinary.length > 0 && (
                   <div className="card mb-3">
-                    <div className="card-header py-2" style={{ background: "#d4af37", fontWeight: "600" }}>
+                    <div className="card-header py-2 sw-card-header-gold">
                       🎥 Videos de inspección ({detalle.videos_cloudinary.length})
                     </div>
                     <div className="card-body p-2 p-md-3">

@@ -316,7 +316,7 @@ const CochesPendientesEntrega = () => {
 
   const cargarPendientes = useCallback(async () => {
     setLoading(true);
-    const data = await actions.getMisInspecciones();
+    const data = await actions.getPendientesEntrega();
     setInspecciones(Array.isArray(data) ? data : []);
     setLoading(false);
   }, [actions]);
@@ -541,7 +541,7 @@ const CochesPendientesEntrega = () => {
   return (
     <div className="container py-4" style={{ maxWidth: "900px" }}>
       <div className="card shadow-sm border-0">
-        <div className="card-header py-3" style={{ background: "#d4af37", fontWeight: 600 }}>
+        <div className="card-header py-3 sw-card-header-gold">
           <div className="d-flex justify-content-between align-items-center">
             <span>Coches Pendientes de Entrega</span>
             <div className="d-flex gap-2">
@@ -579,8 +579,7 @@ const CochesPendientesEntrega = () => {
                     <th>Cliente</th>
                     <th>Coche</th>
                     <th>Matricula</th>
-                    <th>Fecha inspeccion</th>
-                    <th>Estado acta</th>
+                    <th>Fecha inspeccion</th>                    <th>Estado operativo</th>                    <th>Estado acta</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -593,11 +592,30 @@ const CochesPendientesEntrega = () => {
                       <td>{inspeccion.matricula || "-"}</td>
                       <td>{formatFecha(inspeccion.fecha_inspeccion)}</td>
                       <td>
+                        {inspeccion.estado_coche ? (
+                          <div className="d-flex align-items-center gap-2">
+                            <span
+                              className="badge p-2"
+                              style={{ backgroundColor: inspeccion.estado_coche.color, color: "#fff" }}
+                            >
+                              {inspeccion.estado_coche.label}
+                            </span>
+                            {inspeccion.estado_coche.parte_empleado_nombre && (
+                              <small className="text-muted">
+                                Con: {inspeccion.estado_coche.parte_empleado_nombre}
+                              </small>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted">-</span>
+                        )}
+                      </td>
+                      <td>
                         {inspeccion.es_concesionario ? (
                           <span className="badge bg-info text-dark">No requerida (profesional)</span>
                         ) : (inspeccion.trabajos_realizados || "").trim() ? (
                           <div className="d-flex flex-column gap-2">
-                            <span className="badge bg-success align-self-start">Acta guardada</span>
+                            <span className="badge bg-success align-self-start">Hoja de intervencion guardada</span>
                             <div className="d-flex gap-2 flex-wrap">
                               <a
                                 className="btn btn-outline-secondary btn-sm"
@@ -618,7 +636,7 @@ const CochesPendientesEntrega = () => {
                             </div>
                           </div>
                         ) : (
-                          <span className="badge bg-secondary">Sin acta</span>
+                          <span className="badge bg-secondary">Sin hoja de intervencion</span>
                         )}
                       </td>
                       <td>
@@ -629,7 +647,7 @@ const CochesPendientesEntrega = () => {
                               className="btn btn-outline-primary btn-sm"
                               onClick={() => abrirPrepararActa(inspeccion.id)}
                             >
-                              Preparar acta
+                              Preparar hoja de intervencion
                             </button>
                           </div>
                         )}
@@ -644,11 +662,39 @@ const CochesPendientesEntrega = () => {
       </div>
 
       {showActaModal && inspeccionActa && (
-        <div className="modal d-block" style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>
+        <div className="modal d-block sw-acta-editor-modal" style={{ backgroundColor: "var(--sw-overlay-bg)" }}>
+          <style>{`
+            .sw-acta-editor-modal .modal-header {
+              color: #1f1b16;
+            }
+            .sw-acta-editor-modal .modal-title {
+              color: #1f1b16;
+            }
+            .sw-acta-editor-modal .sw-light-panel {
+              border: 1px solid #e6dece;
+              background: #fffdf9;
+              color: #1f1b16;
+            }
+            .sw-acta-editor-modal .sw-light-panel .text-muted,
+            .sw-acta-editor-modal .sw-light-panel .form-text {
+              color: #6e6658 !important;
+            }
+            .sw-acta-editor-modal .sw-light-panel .form-control,
+            .sw-acta-editor-modal .sw-light-panel .form-select,
+            .sw-acta-editor-modal .sw-light-panel textarea {
+              background: #ffffff;
+              color: #1f1b16;
+              border-color: #cfc5b3;
+            }
+            .sw-acta-editor-modal .sw-light-panel .form-control::placeholder,
+            .sw-acta-editor-modal .sw-light-panel textarea::placeholder {
+              color: #7f776a;
+            }
+          `}</style>
           <div className="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: "linear-gradient(120deg, #f8f2e6 0%, #fffdfa 55%, #f4ead8 100%)" }}>
-                <h5 className="modal-title fw-bold">Preparar acta #{inspeccionActa.id}</h5>
+                <h5 className="modal-title fw-bold">Preparar hoja de intervencion #{inspeccionActa.id}</h5>
                 <button type="button" className="btn-close" onClick={cerrarPrepararActa}></button>
               </div>
 
@@ -671,7 +717,7 @@ const CochesPendientesEntrega = () => {
                   </div>
                 </div>
 
-                <div className="mb-3 p-3 rounded" style={{ border: "1px solid #e6dece", background: "#fffdf9" }}>
+                <div className="mb-3 p-3 rounded sw-light-panel">
                   <div className="d-flex flex-wrap justify-content-between gap-2 mb-2">
                     <div><strong>Cliente:</strong> {inspeccionActa.cliente_nombre || "-"}</div>
                     <div><strong>Telefono:</strong> {inspeccionActa.cliente_telefono || "-"}</div>
@@ -702,7 +748,7 @@ const CochesPendientesEntrega = () => {
                 )}
 
                 {sections.map((section, idx) => (
-                  <div key={section.id} className="mb-3 p-3 rounded" style={{ border: "1px solid #e6dece", background: "#fff" }}>
+                  <div key={section.id} className="mb-3 p-3 rounded sw-light-panel" style={{ background: "#fff" }}>
                     <div className="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-2">
                       <div className="d-flex align-items-center gap-2 flex-grow-1">
                         <span className="badge text-bg-light border">{idx + 1}</span>
@@ -775,7 +821,7 @@ const CochesPendientesEntrega = () => {
                     Cancelar
                   </button>
                   <button type="button" className="btn btn-primary" onClick={guardarActa} disabled={guardandoActa}>
-                    {guardandoActa ? "Guardando..." : "Guardar acta"}
+                    {guardandoActa ? "Guardando..." : "Guardar hoja de intervencion"}
                   </button>
                 </div>
               </div>

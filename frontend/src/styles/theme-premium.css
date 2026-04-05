@@ -1,0 +1,446 @@
+/* Premium Theme Layer (day/night)
+   Este archivo centraliza tokens y acabados visuales modernos sin romper componentes existentes.
+*/
+
+:root,
+:root[data-theme="dark"] {
+  --sw-bg: #090b10;
+  --sw-surface: #10141d;
+  --sw-surface-2: #171d28;
+  --sw-surface-light: #1f2836;
+  --sw-border: #2a3240;
+  --sw-text: #eef2f7;
+  --sw-text-on-accent: #111111;
+  --sw-muted: #c8d1e0;
+  --sw-max-width: 1140px;
+  --sw-accent: #d4af37;
+  --sw-accent-2: #f0c85a;
+  --sw-success: #22c55e;
+  --sw-danger: #ef4444;
+  --sw-warning: #f59e0b;
+  --sw-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  --sw-overlay-bg: rgba(0, 0, 0, 0.5);
+  --sw-overlay-bg-strong: rgba(0, 0, 0, 0.75);
+}
+
+:root[data-theme="light"] {
+  --sw-bg: #f2f5fb;
+  --sw-surface: #ffffff;
+  --sw-surface-2: #f8fbff;
+  --sw-surface-light: #fafafa;
+  --sw-border: #dbe3ef;
+  --sw-text: #0f172a;
+  --sw-text-on-accent: #000000;
+  --sw-muted: #3d4f62;
+  --sw-max-width: 1140px;
+  --sw-accent: #be8d00;
+  --sw-accent-2: #8f6a00;
+  --sw-success: #16a34a;
+  --sw-danger: #dc2626;
+  --sw-warning: #d97706;
+  --sw-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  --sw-overlay-bg: rgba(0, 0, 0, 0.5);
+  --sw-overlay-bg-strong: rgba(0, 0, 0, 0.75);
+}
+
+html,
+body,
+#root,
+.sw-app,
+.sw-main {
+  background: var(--sw-bg) !important;
+  color: var(--sw-text);
+}
+
+.sw-main {
+  background-image:
+    radial-gradient(circle at 15% -10%, color-mix(in srgb, var(--sw-accent) 12%, transparent), transparent 38%),
+    radial-gradient(circle at 85% -25%, color-mix(in srgb, #4f46e5 12%, transparent), transparent 34%);
+  background-attachment: fixed;
+}
+
+/* Surface system */
+.card,
+.modal-content,
+.dropdown-menu,
+.alert,
+.list-group-item,
+.table,
+.form-control,
+.form-select,
+.input-group-text {
+  background-color: var(--sw-surface);
+  color: var(--sw-text);
+  border-color: var(--sw-border);
+}
+
+.card,
+.modal-content,
+.dropdown-menu {
+  box-shadow: var(--sw-shadow);
+}
+
+.table-light,
+.table thead,
+.table thead th {
+  background: var(--sw-surface-2) !important;
+  color: var(--sw-text) !important;
+  border-color: var(--sw-border) !important;
+}
+
+.table td,
+.table th,
+.table tbody tr {
+  border-color: var(--sw-border) !important;
+}
+
+.table-hover tbody tr:hover {
+  background: color-mix(in srgb, var(--sw-accent) 8%, transparent) !important;
+}
+
+.text-muted,
+.small,
+.form-text,
+.sw-footer-copy,
+.sw-footer-muted {
+  color: var(--sw-muted) !important;
+}
+
+/* Navbar premium */
+.sw-navbar {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--sw-surface) 94%, black),
+    color-mix(in srgb, var(--sw-surface-2) 94%, black)
+  ) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--sw-accent) 35%, var(--sw-border));
+}
+
+.sw-navlink,
+.navbar .dropdown-item {
+  color: var(--sw-text) !important;
+}
+
+.navbar .dropdown-item:hover,
+.navbar .dropdown-item:focus {
+  background: color-mix(in srgb, var(--sw-accent) 14%, transparent);
+  color: var(--sw-text) !important;
+}
+
+.sw-role-pill {
+  border: 1px solid var(--sw-border);
+  background: color-mix(in srgb, var(--sw-surface-2) 85%, transparent);
+  color: var(--sw-text);
+  border-radius: 999px;
+  padding: 0.34rem 0.72rem;
+  font-size: 0.78rem;
+}
+
+/* Theme toggle */
+.sw-theme-toggle {
+  min-height: 40px;
+  min-width: 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--sw-accent) 55%, var(--sw-border));
+  background: color-mix(in srgb, var(--sw-surface) 82%, transparent);
+  color: var(--sw-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.12s ease, filter 0.12s ease, background 0.12s ease;
+}
+
+.sw-theme-toggle:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+  background: color-mix(in srgb, var(--sw-accent) 15%, var(--sw-surface));
+}
+
+/* Buttons */
+.btn-primary,
+.sw-btn-gold {
+  background: linear-gradient(135deg, var(--sw-accent), var(--sw-accent-2)) !important;
+  border-color: color-mix(in srgb, var(--sw-accent-2) 70%, black) !important;
+  color: #111 !important;
+  font-weight: 700;
+}
+
+.btn-outline-secondary,
+.btn-outline-dark,
+.btn-outline-light {
+  border-color: var(--sw-border) !important;
+  color: var(--sw-text) !important;
+}
+
+.btn-outline-secondary:hover,
+.btn-outline-dark:hover,
+.btn-outline-light:hover {
+  background: color-mix(in srgb, var(--sw-accent) 12%, transparent) !important;
+}
+
+/* Forms */
+.form-control,
+.form-select,
+textarea {
+  border-radius: 10px;
+}
+
+.form-control::placeholder,
+textarea::placeholder {
+  color: color-mix(in srgb, var(--sw-muted) 80%, transparent);
+}
+
+.form-select:focus,
+.form-control:focus,
+textarea:focus {
+  border-color: color-mix(in srgb, var(--sw-accent) 75%, var(--sw-border)) !important;
+  box-shadow: 0 0 0 0.18rem color-mix(in srgb, var(--sw-accent) 24%, transparent) !important;
+}
+
+/* Tabs */
+.nav-tabs {
+  border-bottom-color: var(--sw-border);
+}
+
+.nav-tabs .nav-link {
+  color: var(--sw-muted);
+  border-color: transparent;
+}
+
+.nav-tabs .nav-link.active {
+  color: var(--sw-text);
+  background: var(--sw-surface);
+  border-color: var(--sw-border) var(--sw-border) transparent;
+}
+
+/* Badges */
+.badge.bg-dark {
+  background: color-mix(in srgb, #0f172a 88%, var(--sw-surface)) !important;
+}
+
+/* Footer */
+.sw-footer {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--sw-surface) 95%, black), color-mix(in srgb, var(--sw-surface-2) 95%, black));
+  border-top-color: var(--sw-border);
+}
+
+/* ── Bootstrap utility overrides para que respeten el tema ─────────────────── */
+
+/* bg-dark, bg-secondary → superficie del tema */
+.bg-dark {
+  background-color: var(--sw-surface) !important;
+  color: var(--sw-text) !important;
+}
+.bg-secondary {
+  background-color: var(--sw-surface-2) !important;
+  color: var(--sw-text) !important;
+}
+.bg-light {
+  background-color: var(--sw-surface-2) !important;
+  color: var(--sw-text) !important;
+}
+.bg-white {
+  background-color: var(--sw-surface) !important;
+  color: var(--sw-text) !important;
+}
+
+/* Textos */
+.text-light  { color: var(--sw-text)  !important; }
+.text-dark   { color: var(--sw-text)  !important; }
+.text-black  { color: var(--sw-text)  !important; }
+.text-white  { color: var(--sw-text)  !important; }
+
+/* Bordes */
+.border-secondary { border-color: var(--sw-border) !important; }
+.border-dark      { border-color: var(--sw-border) !important; }
+
+/* Tablas Bootstrap: variables que Bootstrap expone para personalizar */
+.table {
+  --bs-table-color:          var(--sw-text);
+  --bs-table-bg:             var(--sw-surface);
+  --bs-table-striped-color:  var(--sw-text);
+  --bs-table-striped-bg:     var(--sw-surface-2);
+  --bs-table-hover-color:    var(--sw-text);
+  --bs-table-hover-bg:       color-mix(in srgb, var(--sw-accent) 8%, transparent);
+  --bs-table-border-color:   var(--sw-border);
+  --bs-table-active-bg:      color-mix(in srgb, var(--sw-accent) 12%, transparent);
+  color: var(--sw-text);
+}
+
+/* Modales Bootstrap */
+.modal-header {
+  background: var(--sw-surface-2);
+  color: var(--sw-text);
+  border-bottom-color: var(--sw-border);
+}
+.modal-footer {
+  background: var(--sw-surface-2);
+  border-top-color: var(--sw-border);
+}
+
+/* Alerts */
+.alert-info    { background: color-mix(in srgb, #3b82f6 15%, var(--sw-surface)); border-color: #3b82f6; color: var(--sw-text); }
+.alert-warning { background: color-mix(in srgb, var(--sw-warning) 15%, var(--sw-surface)); border-color: var(--sw-warning); color: var(--sw-text); }
+.alert-success { background: color-mix(in srgb, var(--sw-success) 15%, var(--sw-surface)); border-color: var(--sw-success); color: var(--sw-text); }
+.alert-danger  { background: color-mix(in srgb, var(--sw-danger) 15%, var(--sw-surface)); border-color: var(--sw-danger); color: var(--sw-text); }
+
+/* Mobile polish */
+@media (max-width: 767.98px) {
+  .sw-theme-toggle {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Utility classes for common inline style patterns */
+
+/* Headers and backgrounds */
+.sw-header-dark {
+  background: var(--sw-surface-2);
+  color: var(--sw-text);
+  border-radius: 12px;
+}
+
+.sw-card-header-gold {
+  background: var(--sw-accent);
+  color: var(--sw-text-on-accent);
+  font-weight: 600;
+}
+
+.sw-modal-header-dark {
+  background: var(--sw-surface-2);
+  color: var(--sw-accent);
+  border-radius: 12px 12px 0 0;
+}
+
+.sw-modal-overlay {
+  background-color: var(--sw-overlay-bg);
+}
+
+.sw-modal-overlay-strong {
+  background-color: var(--sw-overlay-bg-strong);
+}
+
+/* Surface variations */
+.sw-surface-light {
+  background: var(--sw-surface-light);
+}
+
+.sw-surface-white {
+  background: var(--sw-surface);
+}
+
+.sw-surface-warm {
+  background: #fffdf8;
+  border-color: #ddd3c2;
+}
+
+.sw-surface-warm-light {
+  background: #fff9e7;
+}
+
+.sw-surface-cream {
+  background: #fafafa;
+}
+
+/* Text colors */
+.sw-accent-text {
+  color: var(--sw-accent);
+}
+
+.sw-text-muted {
+  color: var(--sw-muted);
+}
+
+.sw-text-light {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.sw-text-lighter {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* Accent buttons as inline styles */
+.sw-btn-accent-gold {
+  background: var(--sw-accent);
+  color: var(--sw-text-on-accent);
+  border-radius: 10px;
+}
+
+.sw-btn-accent-sm {
+  background: var(--sw-accent);
+  color: var(--sw-text-on-accent);
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+/* Table header */
+.sw-table-header {
+  background: var(--sw-surface-light);
+}
+
+/* Badges and status */
+.sw-badge-light {
+  background: #222;
+  color: #fff;
+  border: 1px solid #444;
+}
+
+.sw-badge-success {
+  background: #25D366;
+  color: white;
+  border: none;
+}
+
+.sw-badge-warning {
+  background: #222;
+  color: #fff;
+  border: 1px solid #444;
+}
+
+/* Cards */
+.sw-data-card {
+  background: var(--sw-surface);
+  border: 1.5px solid var(--sw-accent);
+  border-radius: 8px;
+}
+
+.sw-card-section {
+  background: #1a1200;
+  border: 1px solid #f59e0b;
+}
+
+/* Modal common */
+.sw-modal-content-dark {
+  background: var(--sw-surface);
+  color: var(--sw-text);
+}
+
+/* Gradient backgrounds */
+.sw-gradient-warm {
+  background: linear-gradient(120deg, #f8f2e6 0%, #fffdfa 55%, #f4ead8 100%);
+}
+
+/* Status colors */
+.sw-status-pending {
+  color: #f59e0b;
+}
+
+.sw-status-error {
+  color: #f87171;
+}
+
+.sw-status-success {
+  color: #4ade80;
+}
+
+/* Text styles */
+.sw-text-uppercase-muted {
+  text-transform: uppercase;
+  color: rgba(212, 175, 55, 0.7);
+  letter-spacing: 0.08em;
+}

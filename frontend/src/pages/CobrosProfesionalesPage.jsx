@@ -2,14 +2,17 @@ import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Context } from "../store/appContext";
 
 const money = (n) => `${Number(n || 0).toFixed(2)} EUR`;
+const COBRO_METODOS = ["transferencia", "efectivo", "bizum", "tarjeta"];
 
 export default function CobrosProfesionalesPage() {
   const { actions } = useContext(Context);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState(null);
+  const [actionError, setActionError] = useState("");
   const [soloPendientes, setSoloPendientes] = useState(true);
   const [clientes, setClientes] = useState([]);
   const [abonos, setAbonos] = useState({});
+  const [cobroMeta, setCobroMeta] = useState({});
 
   const cargar = async (nextSoloPendientes = soloPendientes) => {
     setLoading(true);
@@ -45,24 +48,39 @@ export default function CobrosProfesionalesPage() {
     setAbonos((prev) => ({ ...prev, [inspeccionId]: value }));
   };
 
+  const onChangeCobroMeta = (inspeccionId, field, value) => {
+    setCobroMeta((prev) => ({
+      ...prev,
+      [inspeccionId]: {
+        metodo: prev[inspeccionId]?.metodo || "transferencia",
+        referencia: prev[inspeccionId]?.referencia || "",
+        [field]: value,
+      },
+    }));
+  };
+
   const registrarAbono = async (inspeccionId) => {
     const importe = Number(abonos[inspeccionId]);
     if (!Number.isFinite(importe) || importe < 0) {
-      alert("El importe debe ser válido y mayor o igual a 0");
+      setActionError("El importe debe ser válido y mayor o igual a 0");
       return;
     }
+    setActionError("");
 
     setSavingId(inspeccionId);
     try {
+      const metodo = cobroMeta[inspeccionId]?.metodo || "transferencia";
+      const referencia = (cobroMeta[inspeccionId]?.referencia || "").trim();
       await actions.registrarCobroInspeccion(inspeccionId, {
         accion: "abono",
         importe,
-        metodo: "transferencia",
+        metodo,
+        referencia,
       });
       setAbonos((prev) => ({ ...prev, [inspeccionId]: "" }));
       await cargar(soloPendientes);
     } catch (err) {
-      alert(`No se pudo registrar el abono: ${err?.message || "error"}`);
+      setActionError(`No se pudo registrar el abono: ${err?.message || "error"}`);
     } finally {
       setSavingId(null);
     }
@@ -73,13 +91,16 @@ export default function CobrosProfesionalesPage() {
 
     setSavingId(inspeccionId);
     try {
+      const metodo = cobroMeta[inspeccionId]?.metodo || "transferencia";
+      const referencia = (cobroMeta[inspeccionId]?.referencia || "").trim();
       await actions.registrarCobroInspeccion(inspeccionId, {
         accion: "marcar_pagado_total",
-        metodo: "transferencia",
+        metodo,
+        referencia,
       });
       await cargar(soloPendientes);
     } catch (err) {
-      alert(`No se pudo marcar pagado: ${err?.message || "error"}`);
+      setActionError(`No se pudo marcar pagado: ${err?.message || "error"}`);
     } finally {
       setSavingId(null);
     }
@@ -87,6 +108,12 @@ export default function CobrosProfesionalesPage() {
 
   return (
     <div className="container mt-4">
+      {actionError && (
+        <div className="alert alert-danger d-flex justify-content-between align-items-start py-2 mb-3">
+          <span>{actionError}</span>
+          <button className="btn-close ms-3" onClick={() => setActionError("")} />
+        </div>
+      )}
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2 className="mb-0">Cobros Profesionales</h2>
         <div className="d-flex gap-2">
@@ -191,6 +218,16 @@ export default function CobrosProfesionalesPage() {
                       </td>
                       <td>
                         <div className="d-flex gap-2">
+                          <select
+                            className="form-select form-select-sm"
+                            style={{ width: "130px" }}
+                            value={cobroMeta[insp.id]?.metodo || "transferencia"}
+                            onChange={(e) => onChangeCobroMeta(insp.id, "metodo", e.target.value)}
+                          >
+                            {COBRO_METODOS.map((m) => (
+                              <option key={m} value={m}>{m}</option>
+                            ))}
+                          </select>
                           <input
                             type="number"
                             min="0"
@@ -200,6 +237,14 @@ export default function CobrosProfesionalesPage() {
                             placeholder="Abono"
                             value={abonos[insp.id] ?? ""}
                             onChange={(e) => onChangeAbono(insp.id, e.target.value)}
+                          />
+                          <input
+                            type="text"
+                            className="form-control form-control-sm"
+                            style={{ width: "140px" }}
+                            placeholder="Referencia"
+                            value={cobroMeta[insp.id]?.referencia || ""}
+                            onChange={(e) => onChangeCobroMeta(insp.id, "referencia", e.target.value)}
                           />
                           <button
                             className="btn btn-sm btn-outline-primary"

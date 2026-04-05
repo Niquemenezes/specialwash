@@ -376,7 +376,7 @@ def entrada_delete(eid):
 
 
 @almacen_bp.route("/registro-salida", methods=["POST"])
-@role_required("administrador", "empleado", "calidad")
+@role_required("administrador", "encargado", "detailing", "calidad", "pintura", "tapicero")
 def registrar_salida():
     data = request.get_json() or {}
 
@@ -388,7 +388,7 @@ def registrar_salida():
         return jsonify({"msg": "La cantidad debe ser un numero entero"}), 400
 
     if (not producto_id and not codigo_barras) or cantidad <= 0:
-        return jsonify({"msg": "Datos inválidos"}), 400
+        return jsonify({"msg": "Debes especificar producto y cantidad mayor a 0"}), 400
 
     producto = None
     if producto_id:
@@ -403,8 +403,14 @@ def registrar_salida():
     if not producto:
         return jsonify({"msg": "Producto no encontrado"}), 404
 
+    # Validación de stock
     if producto.stock_actual < cantidad:
-        return jsonify({"msg": "Stock insuficiente"}), 400
+        return jsonify({
+            "msg": f"Stock insuficiente. Stock disponible: {producto.stock_actual}, solicitado: {cantidad}",
+            "codigo": "STOCK_INSUFICIENTE",
+            "stock_disponible": producto.stock_actual,
+            "cantidad_solicitada": cantidad
+        }), 400
 
     current_uid = int(get_jwt_identity())
     current_role = normalize_role((get_jwt() or {}).get("rol"))
@@ -422,6 +428,7 @@ def registrar_salida():
     precio_unitario = calcular_precio_salida_desde_ultima_entrada(producto.id)
     precio_total = round(precio_unitario * cantidad, 2) if precio_unitario is not None else None
 
+    # ACTUALIZAR STOCK AUTOMÁTICAMENTE
     actualizar_stock_salida(producto, cantidad)
 
     salida = Salida(
@@ -437,7 +444,11 @@ def registrar_salida():
     db.session.add(salida)
     db.session.commit()
 
-    return jsonify({**salida.to_dict(), "producto": producto.to_dict()}), 201
+    return jsonify({
+        **salida.to_dict(),
+        "producto": producto.to_dict(),
+        "msg": f"✅ Salida registrada. Stock actual: {producto.stock_actual}"
+    }), 201
 
 
 @almacen_bp.route("/salidas", methods=["GET"])
@@ -458,19 +469,45 @@ def salida_update(sid):
     cambio_cantidad = nueva_cantidad != cantidad_original
 
     if nuevo_producto_id and nuevo_producto_id != salida.producto_id:
+        nuevo_producto = Producto.query.get_or_404(nuevo_producto_id)
+
+        if nuevo_producto.stock_actual < nueva_cantidad:
+            return jsonify({
+                "msg": f"Stock insuficiente para el nuevo producto. Stock disponible: {nuevo_producto.stock_actual}, solicitado: {nueva_cantidad}",
+                "codigo": "STOCK_INSUFICIENTE",
+                "stock_disponible": nuevo_producto.stock_actual,
+                "cantidad_solicitada": nueva_cantidad,
+            }), 400
+
         producto_anterior = Producto.query.get(salida.producto_id)
         if producto_anterior:
             revertir_stock_salida(producto_anterior, salida.cantidad)
 
-        nuevo_producto = Producto.query.get_or_404(nuevo_producto_id)
         actualizar_stock_salida(nuevo_producto, nueva_cantidad)
         salida.producto_id = nuevo_producto_id
         salida.producto_nombre = nuevo_producto.nombre
     elif cambio_cantidad:
         producto = Producto.query.get(salida.producto_id)
         if producto:
-            diferencia = cantidad_original - nueva_cantidad
-            actualizar_stock_entrada(producto, diferencia)
+            # Si la nueva cantidad es menor, había salido menos (revertir parte)
+            # Si la nueva cantidad es mayor, había salido más (actualizar más)
+            if nueva_cantidad < cantidad_original:
+                # Se sacó menos, devolvemos la diferencia al stock
+                diferencia = cantidad_original - nueva_cantidad
+                revertir_stock_salida(producto, diferencia)
+            else:
+                # Se sacó más, restamos la diferencia adicional
+                diferencia = nueva_cantidad - cantidad_original
+
+                if producto.stock_actual < diferencia:
+                    return jsonify({
+                        "msg": f"Stock insuficiente para aumentar la salida. Stock disponible: {producto.stock_actual}, incremento solicitado: {diferencia}",
+                        "codigo": "STOCK_INSUFICIENTE",
+                        "stock_disponible": producto.stock_actual,
+                        "cantidad_solicitada": diferencia,
+                    }), 400
+
+                actualizar_stock_salida(producto, diferencia)
 
     salida.cantidad = nueva_cantidad
     salida.observaciones = data.get("observaciones", salida.observaciones)

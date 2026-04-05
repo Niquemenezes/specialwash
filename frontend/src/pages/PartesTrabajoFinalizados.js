@@ -3,23 +3,12 @@ import {
   listarPartesTrabajo,
   listarCochesCatalogo,
   listarEmpleadosDisponibles,
+  listarServiciosCatalogo,
+  editarParteTrabajo,
+  eliminarParteTrabajo,
+  formatDate,
+  formatMinutes,
 } from "../utils/parteTrabajoApi";
-
-function formatDate(value) {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleString();
-}
-
-function formatMinutes(minutes) {
-  const total = Number.isFinite(Number(minutes)) ? Math.max(0, Number(minutes)) : 0;
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-  if (h === 0) return `${m} min`;
-  if (m === 0) return `${h} h`;
-  return `${h} h ${m} min`;
-}
 
 function deviationBadge(desviacionMinutos) {
   if (!Number.isFinite(Number(desviacionMinutos))) return <span className="text-muted">-</span>;
@@ -40,7 +29,12 @@ export function AdminPartesTrabajoFinalizados() {
   const [fechaFinFiltro, setFechaFinFiltro] = useState("");
   const [cochesCatalogo, setCochesCatalogo] = useState([]);
   const [empleadosDisponibles, setEmpleadosDisponibles] = useState([]);
+  const [serviciosCatalogo, setServiciosCatalogo] = useState([]);
   const [costeHoraInterno, setCosteHoraInterno] = useState("");
+  const [editandoId, setEditandoId] = useState(null);
+  const [editEmpleadoId, setEditEmpleadoId] = useState("");
+  const [editServicioId, setEditServicioId] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
 
   const empleadoNombrePorId = useCallback(
     (id) => {
@@ -60,13 +54,34 @@ export function AdminPartesTrabajoFinalizados() {
   );
 
   const groupByDate = (partesArray) => {
-    const grupos = {};
+    const grupos = new Map();
+
     partesArray.forEach((p) => {
-      const fecha = p.fecha_fin ? new Date(p.fecha_fin).toLocaleDateString("es-ES") : "Sin fecha";
-      if (!grupos[fecha]) grupos[fecha] = [];
-      grupos[fecha].push(p);
+      const fechaFin = p?.fecha_fin ? new Date(p.fecha_fin) : null;
+      const esValida = fechaFin && !Number.isNaN(fechaFin.getTime());
+      const key = esValida ? fechaFin.toISOString().slice(0, 10) : "sin-fecha";
+      const label = esValida ? fechaFin.toLocaleDateString("es-ES") : "Sin fecha";
+
+      if (!grupos.has(key)) {
+        grupos.set(key, { label, partes: [] });
+      }
+      grupos.get(key).partes.push(p);
     });
-    return Object.entries(grupos).sort((a, b) => new Date(b[0]) - new Date(a[0]));
+
+    return Array.from(grupos.entries())
+      .sort(([aKey], [bKey]) => {
+        if (aKey === "sin-fecha") return 1;
+        if (bKey === "sin-fecha") return -1;
+        return bKey.localeCompare(aKey);
+      })
+      .map(([, group]) => [
+        group.label,
+        group.partes.sort((a, b) => {
+          const aTime = a?.fecha_fin ? new Date(a.fecha_fin).getTime() : 0;
+          const bTime = b?.fecha_fin ? new Date(b.fecha_fin).getTime() : 0;
+          return bTime - aTime;
+        }),
+      ]);
   };
 
   const cargarPartes = useCallback(async () => {
@@ -107,16 +122,19 @@ export function AdminPartesTrabajoFinalizados() {
   const cargarRecursos = useCallback(async () => {
     setError("");
     try {
-      const [cochesAll, empleados] = await Promise.all([
+      const [cochesAll, empleados, catalogo] = await Promise.all([
         listarCochesCatalogo(),
         listarEmpleadosDisponibles(),
+        listarServiciosCatalogo(true),
       ]);
       setCochesCatalogo(Array.isArray(cochesAll) ? cochesAll : []);
       setEmpleadosDisponibles(Array.isArray(empleados) ? empleados : []);
+      setServiciosCatalogo(Array.isArray(catalogo) ? catalogo : []);
     } catch (e) {
       setError(e?.message || "No se pudieron cargar coches/empleados.");
       setCochesCatalogo([]);
       setEmpleadosDisponibles([]);
+      setServiciosCatalogo([]);
     }
   }, []);
 
@@ -222,21 +240,83 @@ export function AdminPartesTrabajoFinalizados() {
     return Math.max(10, Math.min(100, score));
   };
 
+  const onAbrirEditar = (parte) => {
+    setEditandoId(parte.id);
+    setEditEmpleadoId(parte.empleado_id ? String(parte.empleado_id) : "");
+    const observacionActual = String(parte.observaciones || "").trim().toLowerCase();
+    const servicioActual = serviciosCatalogo.find(
+      (s) => String(s.nombre || "").trim().toLowerCase() === observacionActual
+    );
+    setEditServicioId(servicioActual ? String(servicioActual.id) : "");
+  };
+
+  const onCancelarEditar = () => {
+    setEditandoId(null);
+    setEditEmpleadoId("");
+    setEditServicioId("");
+  };
+
+  const onGuardarEdicion = async () => {
+    if (!editEmpleadoId) {
+      setError("Debes seleccionar un empleado.");
+      return;
+    }
+
+    if (!editServicioId) {
+      setError("Debes seleccionar un servicio.");
+      return;
+    }
+
+    const servicioElegido = serviciosCatalogo.find((s) => Number(s.id) === Number(editServicioId));
+    const trabajo = String(servicioElegido?.nombre || "").trim();
+    if (!trabajo) {
+      setError("Servicio no válido. Selecciona uno de la lista.");
+      return;
+    }
+
+    setEditLoading(true);
+    setError("");
+    try {
+      await editarParteTrabajo(editandoId, {
+        empleado_id: Number(editEmpleadoId),
+        observaciones: trabajo,
+        tiempo_estimado_minutos: Number.parseInt(servicioElegido?.tiempo_estimado_minutos || 0, 10) || 0,
+      });
+      await cargarPartes();
+      onCancelarEditar();
+    } catch (e) {
+      setError(e?.message || "No se pudo editar el parte.");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const onEliminarParte = async (parte) => {
+    const confirmado = window.confirm(
+      `Vas a eliminar el parte #${parte.id} (${cocheTextoPorId(parte.coche_id)}). Esta acción no se puede deshacer.\n\n¿Deseas continuar?`
+    );
+    if (!confirmado) return;
+
+    setError("");
+    try {
+      await eliminarParteTrabajo(parte.id);
+      await cargarPartes();
+    } catch (e) {
+      setError(e?.message || "No se pudo eliminar el parte.");
+    }
+  };
+
   return (
     <div className="container py-4" style={{ maxWidth: "1200px" }}>
       {/* HEADER PREMIUM */}
       <div
-        className="d-flex justify-content-between align-items-center p-3 mb-4 shadow-sm"
-        style={{
-          background: "#0f0f0f",
-          borderRadius: "12px",
-          color: "white",
-        }}
+        className="d-flex justify-content-between align-items-center p-3 mb-4 shadow-sm sw-header-dark"
+        style={{ borderRadius: "12px" }}
       >
-        <h2 className="fw-bold m-0" style={{ color: "#d4af37", fontSize: "clamp(1.2rem, 4vw, 1.75rem)" }}>
+        <h2 className="fw-bold m-0 sw-accent-text" style={{ fontSize: "clamp(1.2rem, 4vw, 1.75rem)" }}>
           ✅ Partes Finalizados
         </h2>
-        <p className="m-0 d-none d-md-block" style={{ fontSize: "0.85rem", color: "#aaa" }}>
+        <p className="m-0 d-none d-md-block" style={{ fontSize: "0.85rem", color: "var(--sw-muted)" }}>
           Historial de trabajos completados y entregas finales
         </p>
       </div>
@@ -244,32 +324,32 @@ export function AdminPartesTrabajoFinalizados() {
       {/* STATS CARDS */}
       <div className="row g-3 mb-4">
         <div className="col-md-4">
-          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
+          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid var(--sw-border)" }}>
             <div className="card-body">
               <p className="text-muted mb-2">📦 Total finalizados</p>
-              <h4 className="fw-bold" style={{ color: "#d4af37" }}>{partes.length}</h4>
+              <h4 className="fw-bold sw-accent-text">{partes.length}</h4>
             </div>
           </div>
         </div>
         <div className="col-md-4">
-          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
+          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid var(--sw-border)" }}>
             <div className="card-body">
               <p className="text-muted mb-2">⏱️ Tiempo real total (h)</p>
-              <h4 className="fw-bold" style={{ color: "#d4af37" }}>{calcularTiempoTotal().toFixed(2)}</h4>
+              <h4 className="fw-bold sw-accent-text">{calcularTiempoTotal().toFixed(2)}</h4>
             </div>
           </div>
         </div>
         <div className="col-md-4">
-          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
+          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid var(--sw-border)" }}>
             <div className="card-body">
               <p className="text-muted mb-2">🎯 Estimado total</p>
-              <h4 className="fw-bold" style={{ color: "#d4af37" }}>{formatMinutes(calcularEstimadoTotalMin())}</h4>
+              <h4 className="fw-bold sw-accent-text">{formatMinutes(calcularEstimadoTotalMin())}</h4>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="card mb-4 shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
+      <div className="card mb-4 shadow-sm" style={{ borderRadius: "12px", border: "1px solid var(--sw-border)" }}>
         <div className="card-body">
           <h5 className="card-title fw-semibold mb-3">💶 Coste interno por hora (solo gestión)</h5>
           <div className="row g-3 align-items-end">
@@ -307,7 +387,7 @@ export function AdminPartesTrabajoFinalizados() {
       )}
 
       {/* FILTERS */}
-      <div className="card mb-4 shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
+      <div className="card mb-4 shadow-sm" style={{ borderRadius: "12px", border: "1px solid var(--sw-border)" }}>
         <div className="card-body">
           <h5 className="card-title fw-semibold mb-3">🔎 Filtros</h5>
           <div className="row g-3">
@@ -369,20 +449,20 @@ export function AdminPartesTrabajoFinalizados() {
 
       {/* PERFORMANCE ANALYSIS */}
       {!loading && analisisEmpleados.length > 0 && (
-        <div className="card mb-4 shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
+        <div className="card mb-4 shadow-sm" style={{ borderRadius: "12px", border: "1px solid var(--sw-border)" }}>
           <div className="card-body">
             <h5 className="card-title fw-semibold mb-3">📊 Análisis de rendimiento</h5>
 
             <div className="row g-3 mb-4">
               <div className="col-md-6">
-                <div className="p-3" style={{ background: "#f0f8f5", borderRadius: "8px" }}>
+                <div className="p-3" style={{ background: "color-mix(in srgb, var(--sw-success, #198754) 10%, var(--sw-surface))", borderRadius: "8px", border: "1px solid var(--sw-border)" }}>
                   <p className="text-muted mb-1">⚡ Más rápido</p>
                   <h6 className="fw-bold">{ranking.rapido?.nombre || "-"}</h6>
                   <small className="text-muted">{ranking.rapido ? `${ranking.rapido.promedio_horas.toFixed(2)} h/parte` : "-"}</small>
                 </div>
               </div>
               <div className="col-md-6">
-                <div className="p-3" style={{ background: "#fff5f5", borderRadius: "8px" }}>
+                <div className="p-3" style={{ background: "color-mix(in srgb, var(--sw-danger, #dc3545) 10%, var(--sw-surface))", borderRadius: "8px", border: "1px solid var(--sw-border)" }}>
                   <p className="text-muted mb-1">🐢 Más lento</p>
                   <h6 className="fw-bold">{ranking.lento?.nombre || "-"}</h6>
                   <small className="text-muted">{ranking.lento ? `${ranking.lento.promedio_horas.toFixed(2)} h/parte` : "-"}</small>
@@ -417,7 +497,7 @@ export function AdminPartesTrabajoFinalizados() {
             <h6 className="fw-semibold mt-3 mb-3">Detalle por día</h6>
             <div className="table-responsive">
               <table className="table table-sm table-hover">
-                <thead style={{ background: "#f8f9fa" }}>
+                <thead className="sw-table-header">
                   <tr>
                     <th>Empleado</th>
                     <th>Fecha</th>
@@ -450,10 +530,10 @@ export function AdminPartesTrabajoFinalizados() {
         <div>
           {groupByDate(partes).map(([fecha, grupoPartes]) => (
             <div key={fecha} className="mb-4">
-              <h5 className="mb-3" style={{ color: "#d4af37", fontWeight: "600" }}>📅 {fecha}</h5>
+              <h5 className="mb-3 sw-accent-text" style={{ fontWeight: "600" }}>📅 {fecha}</h5>
               <div className="table-responsive">
                 <table className="table table-hover" style={{ borderRadius: "12px", overflow: "hidden" }}>
-                  <thead style={{ background: "#f8f9fa" }}>
+                  <thead className="sw-table-header">
                     <tr>
                       <th>ID</th>
                       <th>Coche</th>
@@ -464,6 +544,7 @@ export function AdminPartesTrabajoFinalizados() {
                       <th>Estimado</th>
                       <th>Duración (h)</th>
                       <th>Desvío</th>
+                      <th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -472,12 +553,27 @@ export function AdminPartesTrabajoFinalizados() {
                         <td>#{p.id}</td>
                         <td>{cocheTextoPorId(p.coche_id)}</td>
                         <td>{empleadoNombrePorId(p.empleado_id)}</td>
-                        <td>{p.observaciones || "-"}</td>
+                        <td>
+                          <div>{p.observaciones || "-"}</div>
+                          <div className="small text-muted">
+                            Estimado: {formatMinutes(p.tiempo_estimado_minutos || 0)}
+                          </div>
+                        </td>
                         <td className="small">{formatDate(p.fecha_inicio)}</td>
                         <td className="small">{formatDate(p.fecha_fin)}</td>
                         <td>{formatMinutes(p.tiempo_estimado_minutos || 0)}</td>
                         <td>{typeof p.duracion_horas === "number" ? p.duracion_horas.toFixed(2) : "-"}</td>
                         <td>{deviationBadge(p.desviacion_minutos)}</td>
+                        <td>
+                          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                            <button className="btn btn-sm btn-outline-secondary" onClick={() => onAbrirEditar(p)}>
+                              ✏️ Editar
+                            </button>
+                            <button className="btn btn-sm btn-outline-danger" onClick={() => onEliminarParte(p)}>
+                              🗑️ Borrar
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -485,6 +581,69 @@ export function AdminPartesTrabajoFinalizados() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {editandoId && (
+        <div className="modal d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+            <div className="modal-content">
+              <div className="modal-header sw-modal-header-dark" style={{ borderBottom: "none" }}>
+                <h5 className="modal-title fw-bold sw-accent-text">✏️ Editar Parte #{editandoId}</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={onCancelarEditar}></button>
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <label className="form-label">Empleado</label>
+                  <select
+                    className="form-select"
+                    value={editEmpleadoId}
+                    onChange={(e) => setEditEmpleadoId(e.target.value)}
+                    disabled={editLoading}
+                    style={{ borderRadius: "8px" }}
+                  >
+                    <option value="">Selecciona empleado...</option>
+                    {empleadosDisponibles.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.nombre} ({u.rol})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Servicio *</label>
+                  <select
+                    className="form-select"
+                    value={editServicioId}
+                    onChange={(e) => setEditServicioId(e.target.value)}
+                    disabled={editLoading}
+                    style={{ borderRadius: "8px" }}
+                  >
+                    <option value="">Selecciona servicio...</option>
+                    {serviciosCatalogo.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.nombre} {s.precio_base != null ? `(${Number(s.precio_base).toFixed(2)}€)` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {serviciosCatalogo.length === 0 && (
+                    <div className="form-text text-muted">
+                      No hay servicios en el catálogo. Crea servicios antes de editar el parte.
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={onCancelarEditar} disabled={editLoading}>
+                  Cancelar
+                </button>
+                <button type="button" className="btn btn-dark" style={{ borderColor: "#d4af37" }} onClick={onGuardarEdicion} disabled={editLoading}>
+                  {editLoading ? "Guardando..." : "✅ Guardar"}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

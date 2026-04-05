@@ -1,22 +1,13 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Context } from "../store/appContext";
-
-// Normalización de roles
-const normalizeRol = (r) => {
-  r = (r || "").toLowerCase().trim();
-  if (["admin", "administrator"].includes(r)) return "administrador";
-  if (["employee", "staff"].includes(r)) return "empleado";
-  if (["manager", "responsable"].includes(r)) return "encargado";
-  if (["quality"].includes(r)) return "calidad";
-  if (["paint", "painter"].includes(r)) return "pintura";
-  return r;
-};
+import { normalizeRol } from "../utils/authSession";
 
 export default function Usuarios() {
   const { store, actions } = useContext(Context);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
   const [filter, setFilter] = useState("");
   const [editing, setEditing] = useState(null);
 
@@ -24,7 +15,7 @@ export default function Usuarios() {
     nombre: "",
     email: "",
     password: "",
-    rol: "empleado",
+    rol: "detailing",
     activo: true,
   });
 
@@ -68,12 +59,13 @@ export default function Usuarios() {
   // Acciones
   // ================================
   const startCreate = () => {
+    setFormError("");
     setEditing({});
     setForm({
       nombre: "",
       email: "",
       password: "",
-      rol: "empleado",
+      rol: "detailing",
       activo: true,
     });
   };
@@ -84,18 +76,19 @@ export default function Usuarios() {
       nombre: u.nombre || "",
       email: u.email || "",
       password: "",
-      rol: normalizeRol(u.rol) || "empleado",
+      rol: normalizeRol(u.rol) || "detailing",
       activo: "activo" in u ? !!u.activo : true,
     });
   };
 
   const cancel = () => {
+    setFormError("");
     setEditing(null);
     setForm({
       nombre: "",
       email: "",
       password: "",
-      rol: "empleado",
+      rol: "detailing",
       activo: true,
     });
   };
@@ -103,10 +96,10 @@ export default function Usuarios() {
   const save = async (e) => {
     e?.preventDefault?.();
 
-    if (!form.nombre.trim()) return alert("El nombre es obligatorio");
-    if (!form.email.trim()) return alert("El email es obligatorio");
-    if (!editing?.id && !form.password.trim())
-      return alert("La contraseña es obligatoria al crear");
+    if (!form.nombre.trim()) { setFormError("El nombre es obligatorio"); return; }
+    if (!form.email.trim()) { setFormError("El email es obligatorio"); return; }
+    if (!editing?.id && !form.password.trim()) { setFormError("La contraseña es obligatoria al crear"); return; }
+    setFormError("");
 
     try {
       const payload = {
@@ -124,7 +117,7 @@ export default function Usuarios() {
       }
       cancel();
     } catch (err) {
-      alert(err.message);
+      setFormError(err.message);
     }
   };
 
@@ -133,7 +126,7 @@ export default function Usuarios() {
     try {
       await actions.deleteUsuario(u.id);
     } catch (err) {
-      alert(err.message);
+      setError(err.message);
     }
   };
 
@@ -226,13 +219,12 @@ export default function Usuarios() {
                   required
                   style={{ borderRadius: "8px" }}
                 >
-                  <option value="empleado">Empleado</option>
                   <option value="detailing">Detailing</option>
                   <option value="calidad">Calidad</option>
                   <option value="pintura">Pintura</option>
+                  <option value="tapicero">Tapicero</option>
                   <option value="administrador">Administrador</option>
                   <option value="encargado">Encargado</option>
-                  <option value="tecnico_comercial">Técnico Comercial</option>
                 </select>
               </div>
 
@@ -264,6 +256,15 @@ export default function Usuarios() {
                     <label className="form-check-label" htmlFor="user-activo">
                       Usuario activo
                     </label>
+                  </div>
+                </div>
+              )}
+
+              {formError && (
+                <div className="col-12">
+                  <div className="alert alert-danger d-flex justify-content-between align-items-start py-2 mb-0">
+                    <span>{formError}</span>
+                    <button className="btn-close ms-3" onClick={() => setFormError("")} />
                   </div>
                 </div>
               )}

@@ -2,18 +2,18 @@ import React, { useCallback, useContext, useEffect, useMemo, useState } from "re
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Context } from "../store/appContext";
 import FirmaEntregaPage from "./FirmaEntregaPage";
+import EstadoCochesPage from "./EstadoCochesPage";
+import "../styles/inspeccion-responsive.css";
 
 const CHECKLIST_ITEMS = [
-  { key: "lavado_exterior", label: "Lavado exterior final" },
+  { key: "lavado_exterior", label: "Detallado exterior y interior" },
   { key: "aspirado_interior", label: "Aspirado y limpieza interior" },
   { key: "cristales", label: "Cristales limpios sin marcas" },
   { key: "llantas", label: "Llantas y neumáticos revisados" },
-  { key: "niveles", label: "Niveles básicos revisados" },
   { key: "luces", label: "Luces y señales funcionando" },
   { key: "testigo_tablero", label: "Sin testigos de fallo en tablero" },
   { key: "documentacion", label: "Documentación y llaves listas" },
   { key: "revision_trabajos", label: "Trabajos solicitados verificados" },
-  { key: "prueba_corta", label: "Prueba corta de validación" },
 ];
 
 const safeDate = (value) => {
@@ -45,6 +45,7 @@ export default function RepasoEntregaPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState(null); // { type, msg }
   const [inspecciones, setInspecciones] = useState([]);
   const [busqueda, setBusqueda] = useState("");
   const [selectedId, setSelectedId] = useState(null);
@@ -149,28 +150,40 @@ export default function RepasoEntregaPage() {
         marcar_listo: marcarListo,
       });
       await cargar();
-      alert(marcarListo ? "Checklist completado. Coche marcado como listo para entrega." : "Checklist guardado.");
+      setFeedback({
+        type: "success",
+        msg: marcarListo ? "✅ Coche marcado como listo para entrega." : "💾 Checklist guardado correctamente.",
+      });
     } catch (err) {
-      alert(`No se pudo guardar el repaso: ${err?.message || "error"}`);
+      setFeedback({ type: "danger", msg: `No se pudo guardar el repaso: ${err?.message || "error"}` });
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="container py-4">
+    <div className="container py-3 py-md-4 sw-repaso-page">
       <div className="d-flex justify-content-between align-items-center mb-3">
-        <h2 className="mb-0">Repaso y Firma de Entrega</h2>
+        <h2 className="mb-0">Repaso y Entrega</h2>
       </div>
 
-      <ul className="nav nav-tabs mb-3">
+      <ul className="nav nav-tabs mb-3 sw-tabs-wrap">
+        <li className="nav-item">
+          <button
+            type="button"
+            className={`nav-link ${activeTab === "estado" ? "active" : ""}`}
+            onClick={() => switchTab("estado")}
+          >
+            🚗 Estado
+          </button>
+        </li>
         <li className="nav-item">
           <button
             type="button"
             className={`nav-link ${activeTab === "repaso" ? "active" : ""}`}
             onClick={() => switchTab("repaso")}
           >
-            ✅ Repaso pre-entrega
+            ✅ Repaso
           </button>
         </li>
         <li className="nav-item">
@@ -179,171 +192,199 @@ export default function RepasoEntregaPage() {
             className={`nav-link ${activeTab === "firma" ? "active" : ""}`}
             onClick={() => switchTab("firma")}
           >
-            ✍️ Firma entrega
+            ✍️ Firma
           </button>
         </li>
       </ul>
 
+      {feedback && (
+        <div className={`alert alert-${feedback.type} d-flex justify-content-between align-items-start py-2 mb-3`}>
+          <span>{feedback.msg}</span>
+          <button className="btn-close ms-3" onClick={() => setFeedback(null)} />
+        </div>
+      )}
+
       {activeTab === "repaso" && (
         <>
           <div className="d-flex justify-content-end mb-2">
-            <button className="btn btn-outline-dark btn-sm" onClick={cargar} disabled={loading}>
-              {loading ? "Actualizando..." : "Actualizar"}
+            <button className="btn btn-outline-dark btn-sm sw-action-btn" onClick={cargar} disabled={loading}>
+              {loading ? "Actualizando..." : "🔄 Actualizar"}
             </button>
           </div>
-          <div className="alert alert-info py-2">
-            Checklist final antes de entregar el coche. Acceso habilitado para todos los roles.
-          </div>
+
+          {/* Layout tablet: lista arriba en móvil/tablet portrait, lado a lado en landscape/desktop */}
           <div className="row g-3">
-        <div className="col-lg-4">
-          <div className="card h-100">
-            <div className="card-header fw-semibold">Coches por repasar</div>
-            <div className="card-body">
-              <input
-                className="form-control mb-3"
-                placeholder="Buscar cliente, coche o matrícula"
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-              />
-
-              {loading && <p className="text-muted mb-0">Cargando...</p>}
-
-              {!loading && !pendientesRepaso.length && (
-                <p className="text-muted mb-0">No hay coches pendientes de entrega.</p>
-              )}
-
-              {!loading && pendientesRepaso.length > 0 && (
-                <div className="list-group" style={{ maxHeight: 520, overflow: "auto" }}>
-                  {pendientesRepaso.map((p) => (
-                    <button
-                      key={p.id}
-                      className={`list-group-item list-group-item-action ${selectedId === p.id ? "active" : ""}`}
-                      onClick={() => setSelectedId(p.id)}
-                    >
-                      <div className="fw-semibold">#{p.id} - {p.matricula || "-"}</div>
-                      <div className="small">{p.cliente_nombre || "-"}</div>
-                      <div className="small text-muted">{p.coche_descripcion || "-"}</div>
-                    </button>
-                  ))}
+            <div className="col-12 col-lg-4">
+              <div className="card h-100">
+                <div className="card-header fw-semibold d-flex justify-content-between align-items-center">
+                  <span>Coches ({pendientesRepaso.length + listosEntrega.length})</span>
+                  {selectedId && (
+                    <button className="btn btn-outline-secondary btn-sm" onClick={() => setSelectedId(null)}>✕ Cerrar</button>
+                  )}
                 </div>
-              )}
+                <div className="card-body p-2">
+                  <input
+                    className="form-control mb-2"
+                    style={{ fontSize: "1rem", minHeight: 44 }}
+                    placeholder="Buscar matrícula o cliente..."
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                  />
 
-              {!loading && listosEntrega.length > 0 && (
-                <>
-                  <hr />
-                  <div className="fw-semibold mb-2">Listos para entrega</div>
-                  <div className="list-group" style={{ maxHeight: 220, overflow: "auto" }}>
-                    {listosEntrega.map((p) => (
-                      <button
-                        key={`listo-${p.id}`}
-                        className={`list-group-item list-group-item-action ${selectedId === p.id ? "active" : ""}`}
-                        onClick={() => setSelectedId(p.id)}
-                      >
-                        <div className="fw-semibold">#{p.id} - {p.matricula || "-"}</div>
-                        <div className="small">{p.cliente_nombre || "-"}</div>
-                        <div className="small text-muted">
-                          Listo por {p.repaso_completado_por_nombre || "usuario"} ({safeDate(p.repaso_completado_at)})
+                  {loading && <p className="text-muted mb-0 px-2">Cargando...</p>}
+
+                  {!loading && !pendientesRepaso.length && !listosEntrega.length && (
+                    <p className="text-muted mb-0 px-2">No hay coches pendientes.</p>
+                  )}
+
+                  {!loading && pendientesRepaso.length > 0 && (
+                    <div style={{ maxHeight: 420, overflowY: "auto" }}>
+                      {pendientesRepaso.map((p) => (
+                        <div
+                          key={p.id}
+                          className={`sw-coche-item ${selectedId === p.id ? "activo" : ""}`}
+                          onClick={() => setSelectedId(p.id)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => e.key === "Enter" && setSelectedId(p.id)}
+                        >
+                          <div className="fw-semibold">{p.matricula || "-"} <span className="fw-normal text-muted small">#{p.id}</span></div>
+                          <div className="small">{p.cliente_nombre || "-"}</div>
+                          <div className="small opacity-75">{p.coche_descripcion || "-"}</div>
                         </div>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
+                      ))}
+                    </div>
+                  )}
+
+                  {!loading && listosEntrega.length > 0 && (
+                    <>
+                      <div className="px-2 pt-2 pb-1 fw-semibold small text-success">✅ Listos para entrega</div>
+                      <div style={{ maxHeight: 260, overflowY: "auto" }}>
+                        {listosEntrega.map((p) => (
+                          <div
+                            key={`listo-${p.id}`}
+                            className={`sw-coche-item ${selectedId === p.id ? "activo" : ""}`}
+                            onClick={() => setSelectedId(p.id)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => e.key === "Enter" && setSelectedId(p.id)}
+                          >
+                            <div className="fw-semibold">{p.matricula || "-"} <span className="fw-normal text-muted small">#{p.id}</span></div>
+                            <div className="small">{p.cliente_nombre || "-"}</div>
+                            <div className="small opacity-75">Por {p.repaso_completado_por_nombre || "-"}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="col-12 col-lg-8">
+              <div className="card h-100">
+                <div className="card-header d-flex justify-content-between align-items-center">
+                  <span className="fw-semibold">
+                    {selected ? `${selected.matricula || "Coche"} — Checklist` : "Checklist de repaso"}
+                  </span>
+                  {selected && (
+                    <span className={`badge ${progress.pct === 100 ? "bg-success" : "bg-dark"}`}>
+                      {progress.done}/{progress.total} ({progress.pct}%)
+                    </span>
+                  )}
+                </div>
+                <div className="card-body">
+                  {!selected && (
+                    <div className="text-center text-muted py-5">
+                      <div style={{ fontSize: "2.5rem" }}>👆</div>
+                      <div>Selecciona un coche de la lista</div>
+                    </div>
+                  )}
+
+                  {selected && (
+                    <>
+                      <div className="mb-3 p-3 rounded border sw-repaso-resumen" style={{ fontSize: "0.95rem" }}>
+                        <div><strong>Cliente:</strong> {selected.cliente_nombre || "-"}</div>
+                        <div><strong>Vehículo:</strong> {selected.coche_descripcion || "-"}</div>
+                        <div><strong>Matrícula:</strong> {selected.matricula || "-"}</div>
+                        {selected.repaso_completado && (
+                          <div className="text-success fw-semibold mt-1">
+                            ✅ Listo por {selected.repaso_completado_por_nombre || "-"}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="row g-2 mb-3">
+                        {CHECKLIST_ITEMS.map((item) => (
+                          <div className="col-12 col-sm-6" key={item.key}>
+                            <div
+                              className={`sw-check-item ${checklistDraft[item.key] ? "checked" : ""}`}
+                              onClick={() => toggleItem(item.key, !checklistDraft[item.key])}
+                            >
+                              <input
+                                id={`chk-${selected.id}-${item.key}`}
+                                type="checkbox"
+                                className="form-check-input"
+                                checked={Boolean(checklistDraft[item.key])}
+                                onChange={(e) => toggleItem(item.key, e.target.checked)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                              <label className="form-check-label" htmlFor={`chk-${selected.id}-${item.key}`}>
+                                {item.label}
+                              </label>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mb-3">
+                        <label className="form-label fw-semibold">Notas de repaso</label>
+                        <textarea
+                          className="form-control"
+                          style={{ fontSize: "1rem" }}
+                          rows={3}
+                          value={notasDraft || ""}
+                          onChange={(e) => setNotasDraft(e.target.value)}
+                          placeholder="Detalles detectados antes de la entrega"
+                        />
+                      </div>
+
+                      <div className="d-flex flex-column flex-sm-row flex-wrap gap-2">
+                        <button type="button" className="btn btn-outline-secondary sw-action-btn" onClick={() => guardarRepaso(false)} disabled={saving}>
+                          {saving ? "Guardando..." : "💾 Guardar"}
+                        </button>
+                        <button type="button" className="btn btn-outline-dark sw-action-btn" onClick={marcarTodo}>
+                          ✅ Marcar todo
+                        </button>
+                        <button type="button" className="btn btn-outline-secondary sw-action-btn" onClick={limpiarTodo}>
+                          🗑 Limpiar
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-success sw-action-btn"
+                          onClick={() => guardarRepaso(true)}
+                          disabled={saving || progress.done < progress.total}
+                        >
+                          🏁 Listo para entrega
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-primary sw-action-btn"
+                          onClick={() => navigate(`/acta-entrega/${selected.id}`)}
+                        >
+                          📋 Ir a Hoja de intervencion / Entrega
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-
-        <div className="col-lg-8">
-          <div className="card h-100">
-            <div className="card-header d-flex justify-content-between align-items-center">
-              <span className="fw-semibold">Checklist de repaso</span>
-              {selected && (
-                <span className="badge bg-dark">{progress.done}/{progress.total} ({progress.pct}%)</span>
-              )}
-            </div>
-            <div className="card-body">
-              {!selected && <p className="text-muted mb-0">Selecciona un coche para empezar el repaso.</p>}
-
-              {selected && (
-                <>
-                  <div className="mb-3 p-2 rounded border bg-light">
-                    <div><strong>Cliente:</strong> {selected.cliente_nombre || "-"}</div>
-                    <div><strong>Vehículo:</strong> {selected.coche_descripcion || "-"}</div>
-                    <div><strong>Matrícula:</strong> {selected.matricula || "-"}</div>
-                    <div><strong>Fecha inspección:</strong> {safeDate(selected.fecha_inspeccion)}</div>
-                    <div><strong>Estado:</strong> {selected.repaso_completado ? "Listo para entrega" : "Pendiente de repaso"}</div>
-                    {selected.repaso_completado && (
-                      <div>
-                        <strong>Checklist hecho por:</strong> {selected.repaso_completado_por_nombre || "-"} ({safeDate(selected.repaso_completado_at)})
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="row g-2 mb-3">
-                    {CHECKLIST_ITEMS.map((item) => (
-                      <div className="col-md-6" key={item.key}>
-                        <div className="form-check border rounded p-2 h-100">
-                          <input
-                            id={`chk-${selected.id}-${item.key}`}
-                            type="checkbox"
-                            className="form-check-input"
-                            checked={Boolean(checklistDraft[item.key])}
-                            onChange={(e) => toggleItem(item.key, e.target.checked)}
-                          />
-                          <label className="form-check-label" htmlFor={`chk-${selected.id}-${item.key}`}>
-                            {item.label}
-                          </label>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold">Notas de repaso</label>
-                    <textarea
-                      className="form-control"
-                      rows={3}
-                      value={notasDraft || ""}
-                      onChange={(e) => setNotasDraft(e.target.value)}
-                      placeholder="Detalles detectados antes de la entrega"
-                    />
-                  </div>
-
-                  <div className="d-flex flex-wrap gap-2">
-                    <button type="button" className="btn btn-primary" onClick={() => guardarRepaso(false)} disabled={saving}>
-                      {saving ? "Guardando..." : "Guardar checklist"}
-                    </button>
-                    <button type="button" className="btn btn-success" onClick={marcarTodo}>
-                      Marcar todo OK
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-success"
-                      onClick={() => guardarRepaso(true)}
-                      disabled={saving || progress.done < progress.total}
-                    >
-                      Marcar listo para entrega
-                    </button>
-                    <button type="button" className="btn btn-outline-secondary" onClick={limpiarTodo}>
-                      Limpiar checklist
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={() => navigate(`/acta-entrega/${selected.id}`)}
-                    >
-                      Ir a Acta / Entrega
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
         </>
       )}
 
+      {activeTab === "estado" && <EstadoCochesPage />}
       {activeTab === "firma" && <FirmaEntregaPage />}
     </div>
   );

@@ -7,6 +7,7 @@ export default function Proveedores() {
 
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("");
+  const [formError, setFormError] = useState("");
   const [editing, setEditing] = useState(null); // null = oculto, {} = nuevo, obj = editar
 
   const [form, setForm] = useState({
@@ -73,6 +74,7 @@ export default function Proveedores() {
   };
 
   const cancel = () => {
+    setFormError("");
     setEditing(null);
     setForm({
       nombre: "",
@@ -87,7 +89,8 @@ export default function Proveedores() {
   const save = async (e) => {
     e?.preventDefault?.();
 
-    if (!form.nombre.trim()) return alert("El nombre es obligatorio");
+    if (!form.nombre.trim()) { setFormError("El nombre es obligatorio"); return; }
+    setFormError("");
 
     try {
       const payload = {
@@ -107,7 +110,7 @@ export default function Proveedores() {
 
       cancel();
     } catch (err) {
-      alert(err.message);
+      setFormError(err.message);
     }
   };
 
@@ -117,7 +120,7 @@ export default function Proveedores() {
     try {
       await actions.deleteProveedor(p.id);
     } catch (err) {
-      alert(err.message);
+      setFormError(err.message);
     }
   };
 
@@ -254,6 +257,15 @@ export default function Proveedores() {
                   style={{ borderRadius: "10px" }}
                 />
               </div>
+
+              {formError && (
+                <div className="col-12">
+                  <div className="alert alert-danger d-flex justify-content-between align-items-start py-2 mb-0">
+                    <span>{formError}</span>
+                    <button className="btn-close ms-3" onClick={() => setFormError("")} />
+                  </div>
+                </div>
+              )}
 
               {/* Botones */}
               <div className="col-12 d-flex gap-2 mt-2">

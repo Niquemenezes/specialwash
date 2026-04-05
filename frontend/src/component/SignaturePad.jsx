@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 
-const SignaturePad = ({ title, value, onChange }) => {
+const SignaturePad = ({ title, value, onChange, height = 180 }) => {
   const canvasRef = useRef(null);
   const [drawing, setDrawing] = useState(false);
 
@@ -10,15 +10,15 @@ const SignaturePad = ({ title, value, onChange }) => {
 
     const ratio = window.devicePixelRatio || 1;
     const width = canvas.offsetWidth;
-    const height = 180;
+    const boxHeight = Number(height) || 180;
 
     canvas.width = Math.floor(width * ratio);
-    canvas.height = Math.floor(height * ratio);
+    canvas.height = Math.floor(boxHeight * ratio);
 
     const ctx = canvas.getContext("2d");
     ctx.scale(ratio, ratio);
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, width, height);
+    ctx.fillRect(0, 0, width, boxHeight);
     ctx.lineWidth = 2;
     ctx.lineCap = "round";
     ctx.strokeStyle = "#111";
@@ -26,11 +26,11 @@ const SignaturePad = ({ title, value, onChange }) => {
     if (value) {
       const img = new Image();
       img.onload = () => {
-        ctx.drawImage(img, 0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, boxHeight);
       };
       img.src = value;
     }
-  }, [value]);
+  }, [value, height]);
 
   const getPosition = (event) => {
     const canvas = canvasRef.current;
@@ -80,7 +80,7 @@ const SignaturePad = ({ title, value, onChange }) => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.offsetWidth, 180);
+    ctx.fillRect(0, 0, canvas.offsetWidth, Number(height) || 180);
     onChange("");
   };
 
@@ -90,7 +90,7 @@ const SignaturePad = ({ title, value, onChange }) => {
       <div className="border rounded p-2" style={{ background: "#fff" }}>
         <canvas
           ref={canvasRef}
-          style={{ width: "100%", height: "180px", touchAction: "none", cursor: "crosshair" }}
+          style={{ width: "100%", height: `${Number(height) || 180}px`, touchAction: "none", cursor: "crosshair" }}
           onMouseDown={startDrawing}
           onMouseMove={draw}
           onMouseUp={stopDrawing}

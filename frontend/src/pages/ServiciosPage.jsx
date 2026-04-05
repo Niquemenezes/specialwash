@@ -17,6 +17,7 @@ const ServiciosPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState(null);
   const [busqueda, setBusqueda] = useState("");
+  const [deleteError, setDeleteError] = useState("");
   const [cocheFilter, setCocheFilter] = useState("");
 
   useEffect(() => {
@@ -47,7 +48,7 @@ const ServiciosPage = () => {
       await actions.eliminarServicio(id);
       actions.getServicios();
     } catch (err) {
-      alert("Error al eliminar el servicio");
+      setDeleteError(err?.message || "Error al eliminar el servicio");
     }
   };
 
@@ -79,6 +80,13 @@ const ServiciosPage = () => {
           ➕ Nuevo Servicio
         </button>
       </div>
+
+      {deleteError && (
+        <div className="alert alert-danger d-flex justify-content-between align-items-start py-2 mb-3">
+          <span>{deleteError}</span>
+          <button className="btn-close ms-3" onClick={() => setDeleteError("")} />
+        </div>
+      )}
 
       <div className="row mb-3">
         <div className="col-md-8">
@@ -184,6 +192,7 @@ const ServicioModal = ({ show, servicio, coches, onClose, onSaved }) => {
     observaciones: "",
   });
   const [saving, setSaving] = useState(false);
+  const [modalError, setModalError] = useState("");
   const [tarifasCliente, setTarifasCliente] = useState([]);
   const [loadingTarifas, setLoadingTarifas] = useState(false);
   // eslint-disable-next-line no-unused-vars

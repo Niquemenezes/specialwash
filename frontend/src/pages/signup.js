@@ -7,7 +7,7 @@ export default function Signup() {
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [rol, setRol] = useState("empleado"); // por defecto
+  const [rol, setRol] = useState("detailing");
   const [err, setErr] = useState("");
   const [ok, setOk] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -85,7 +85,7 @@ export default function Signup() {
                   value={rol}
                   onChange={(e) => setRol(e.target.value)}
                 >
-                  <option value="empleado">Empleado</option>
+                  <option value="detailing">Detailing</option>
                   <option value="administrador">Administrador</option>
                 </select>
                 <small className="sw-auth-hint">
