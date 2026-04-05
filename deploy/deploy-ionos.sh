@@ -1,0 +1,121 @@
+#!/bin/bash
+
+# Deploy Script para SpecialWash en IONOS VPS
+# =============================================
+
+set -e
+
+echo "╔════════════════════════════════════════════════════════════════╗"
+echo "║          🚀 DEPLOY SPECIALWASH A IONOS 🚀                     ║"
+echo "╚════════════════════════════════════════════════════════════════╝"
+echo ""
+
+# Colores
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Variables
+APP_DIR="/var/www/specialwash/app"
+DATA_DIR="/var/www/specialwash/data"
+LOG_DIR="/var/www/specialwash/logs"
+VENV_DIR="$APP_DIR/venv"
+
+echo -e "${BLUE}📂 Paso 1: Crear estructura de directorios${NC}"
+mkdir -p "$APP_DIR" "$DATA_DIR" "$LOG_DIR"
+echo -e "${GREEN}✅ Directorios creados${NC}"
+echo ""
+
+echo -e "${BLUE}📥 Paso 2: Preparar aplicación${NC}"
+cd "$APP_DIR"
+
+# Si existe repo, hacer pull; si no, crear estructura
+if [ -d ".git" ]; then
+  echo "  Actualizando código..."
+  git pull origin main || echo "  ⚠️  Pull failed, continuando..."
+else
+  echo "  ℹ️  Repo no encontrado, verificar código copiado/clonado"
+fi
+
+echo -e "${GREEN}✅ Código preparado${NC}"
+echo ""
+
+echo -e "${BLUE}🔐 Paso 3: Crear .env${NC}"
+cat > backend/.env << 'EOF'
+FLASK_ENV=production
+SECRET_KEY=1KhLYdAAE756l5M-Vi3uxrNXlBq4ZE3HK2biDvh6FB0
+JWT_SECRET_KEY=PNjqxbysLopHwF217sT3dq9z00cZrNhtRoJh-owmACs
+DATABASE_URL=sqlite:////var/www/specialwash/data/specialwash.db
+FRONTEND_URLS=https://specialwash.studio,https://www.specialwash.studio
+DEBUG=False
+EOF
+chmod 600 backend/.env
+echo -e "${GREEN}✅ .env creado (solo lectura para root)${NC}"
+echo ""
+
+echo -e "${BLUE}🐍 Paso 4: Instalar dependencias Python${NC}"
+if [ ! -d "$VENV_DIR" ]; then
+  python3 -m venv "$VENV_DIR"
+  echo "  Virtualenv creado"
+fi
+
+source "$VENV_DIR/bin/activate"
+pip install --upgrade pip setuptools wheel >/dev/null 2>&1
+pip install -r backend/requirements.txt >/dev/null 2>&1
+echo -e "${GREEN}✅ Dependencias Python instaladas${NC}"
+echo ""
+
+echo -e "${BLUE}🗄️  Paso 5: Inicializar base de datos${NC}"
+if [ ! -f "$DATA_DIR/specialwash.db" ]; then
+  cd backend
+  python init_db.py >/dev/null 2>&1 || echo "  ⚠️  init_db puede requerir configuración extra"
+  cd ..
+  echo "  BD creada"
+else
+  echo "  BD ya existe"
+fi
+echo -e "${GREEN}✅ Base de datos lista${NC}"
+echo ""
+
+echo -e "${BLUE}🌐 Paso 6: Configurar Nginx${NC}"
+cp deploy/nginx-specialwash.conf /etc/nginx/sites-available/specialwash.conf
+ln -sf /etc/nginx/sites-available/specialwash.conf /etc/nginx/sites-enabled/specialwash.conf
+nginx -t >/dev/null 2>&1 && systemctl restart nginx
+echo -e "${GREEN}✅ Nginx configurado${NC}"
+echo ""
+
+echo -e "${BLUE}⚙️  Paso 7: Crear servicio systemd${NC}"
+cp deploy/specialwash-backend.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable specialwash-backend.service
+systemctl restart specialwash-backend.service
+systemctl status specialwash-backend.service | head -3
+echo -e "${GREEN}✅ Servicio systemd activado${NC}"
+echo ""
+
+echo -e "${BLUE}✨ Paso 8: Crear carpetas de logs${NC}"
+touch "$LOG_DIR/backend.log" "$LOG_DIR/nginx.log"
+chmod 755 "$LOG_DIR"
+echo -e "${GREEN}✅ Logs configurados${NC}"
+echo ""
+
+echo "═════════════════════════════════════════════════════════════════"
+echo ""
+echo -e "${GREEN}✅ DEPLOY COMPLETADO${NC}"
+echo ""
+echo -e "${YELLOW}📋 Próximos pasos:${NC}"
+echo ""
+echo "1️⃣  Generar SSL (ejecutar en el servidor):"
+echo "    certbot certonly --standalone \\"
+echo "      -d specialwash.studio -d www.specialwash.studio \\"
+echo "      --agree-tos --non-interactive -m admin@specialwash.studio"
+echo ""
+echo "2️⃣  Verificar estado:"
+echo "    bash deploy/monitor.sh"
+echo ""
+echo "3️⃣  Acceder a:"
+echo -e "    ${BLUE}https://specialwash.studio${NC}"
+echo ""
+echo "═════════════════════════════════════════════════════════════════"

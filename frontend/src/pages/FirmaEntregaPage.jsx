@@ -1,6 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Context } from "../store/appContext";
+import "../styles/inspeccion-responsive.css";
 
 const formatFecha = (value) => {
   if (!value) return "-";
@@ -58,9 +59,9 @@ const FirmaEntregaPage = () => {
             </div>
           </div>
         </div>
-        <div className="card-body p-4">
-          <p className="text-muted">
-            Esta vista esta pensada para que el personal de entrega pueda firmar y cerrar el coche cuando el acta ya este preparada.
+        <div className="card-body p-3">
+          <p className="text-muted mb-3" style={{ fontSize: "0.95rem" }}>
+            Coches con hoja de intervencion lista. Pulsa el boton para abrirla y firmar.
           </p>
 
           {loading && <p className="text-muted mb-0">Cargando pendientes...</p>}
@@ -70,55 +71,40 @@ const FirmaEntregaPage = () => {
           )}
 
           {!loading && pendientes.length > 0 && (
-            <div className="table-responsive">
-              <table className="table table-hover align-middle mb-0">
-                <thead className="table-light">
-                  <tr>
-                    <th>#</th>
-                    <th>Cliente</th>
-                    <th>Coche</th>
-                    <th>Matricula</th>
-                    <th>Fecha inspeccion</th>
-                    <th>Estado acta</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendientes.map((item) => {
-                    const esConcesionario = Boolean(item.es_concesionario);
-                    const actaLista = esConcesionario || Boolean((item.trabajos_realizados || "").trim());
-                    return (
-                      <tr key={item.id}>
-                        <td>{item.id}</td>
-                        <td>{item.cliente_nombre || "-"}</td>
-                        <td>{item.coche_descripcion || "-"}</td>
-                        <td>{item.matricula || "-"}</td>
-                        <td>{formatFecha(item.fecha_inspeccion)}</td>
-                        <td>
-                          {esConcesionario ? (
-                            <span className="badge bg-info text-dark">Sin acta cliente (profesional)</span>
-                          ) : actaLista ? (
-                            <span className="badge bg-success">Lista para firmar</span>
-                          ) : (
-                            <span className="badge bg-secondary">Acta pendiente</span>
-                          )}
-                        </td>
-                        <td>
-                          {actaLista ? (
-                            <Link className="btn btn-outline-success btn-sm" to={`/acta-entrega/${item.id}`}>
-                              {esConcesionario ? "Cerrar entrega" : "Firmar entrega"}
-                            </Link>
-                          ) : (
-                            <button className="btn btn-outline-secondary btn-sm" disabled>
-                              Esperando acta
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="d-flex flex-column gap-3">
+              {pendientes.map((item) => {
+                const esConcesionario = Boolean(item.es_concesionario);
+                const actaLista = esConcesionario || Boolean((item.trabajos_realizados || "").trim());
+                return (
+                  <div key={item.id} className="sw-firma-card">
+                    <div>
+                      <div className="fw-bold" style={{ fontSize: "1.05rem" }}>
+                        {item.matricula || "-"}
+                        {esConcesionario && (
+                          <span className="badge bg-info text-dark ms-2" style={{ fontSize: "0.75rem" }}>Profesional</span>
+                        )}
+                      </div>
+                      <div>{item.cliente_nombre || "-"}</div>
+                      <div className="text-muted small">{item.coche_descripcion || "-"}</div>
+                      <div className="text-muted small">{formatFecha(item.fecha_inspeccion)}</div>
+                    </div>
+                    <div>
+                      {actaLista ? (
+                        <Link
+                          className="btn btn-success sw-firma-btn"
+                          to={`/acta-entrega/${item.id}`}
+                        >
+                          {esConcesionario ? "💼 Cerrar entrega" : "✍️ Firmar entrega"}
+                        </Link>
+                      ) : (
+                        <button className="btn btn-outline-secondary sw-firma-btn" disabled>
+                          ⏳ Hoja de intervencion pendiente
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

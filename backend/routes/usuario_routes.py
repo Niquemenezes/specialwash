@@ -21,7 +21,7 @@ def usuarios_create():
     nombre = (data.get("nombre") or "").strip()
     email = (data.get("email") or "").strip().lower()
     password = data.get("password") or ""
-    rol = normalize_role(data.get("rol", "empleado"))
+    rol = normalize_role(data.get("rol", "detailing"))
 
     if not nombre or not email or not password:
         return jsonify({"msg": "Faltan campos obligatorios (nombre, email, password)"}), 400

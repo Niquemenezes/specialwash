@@ -25,10 +25,20 @@ const fmtDateTime = (v) => {
 /* ======================
    Componente
 ====================== */
+const Feedback = ({ msg, type, onClose }) => {
+  if (!msg) return null;
+  return (
+    <div className={`alert alert-${type} d-flex justify-content-between align-items-start py-2 mb-3`}>
+      <span>{msg}</span>
+      <button className="btn-close ms-3" onClick={onClose} />
+    </div>
+  );
+};
+
 const RegistrarEntradaPage = () => {
   const { store, actions } = useContext(Context);
 
-
+  const [feedback, setFeedback] = useState(null); // { type, msg }
 
   const [form, setForm] = useState({
     producto_id: "",
@@ -88,11 +98,12 @@ const RegistrarEntradaPage = () => {
     e.preventDefault();
 
     if (!form.producto_id || !form.cantidad || !form.precio_unitario) {
-      alert("Producto, cantidad y precio unitario son obligatorios");
+      setFeedback({ type: "warning", msg: "Producto, cantidad y precio unitario son obligatorios." });
       return;
     }
 
     setSaving(true);
+    setFeedback(null);
     try {
       const body = {
         producto_id: Number(form.producto_id),
@@ -105,22 +116,16 @@ const RegistrarEntradaPage = () => {
       };
 
       const res = await actions.registrarEntrada(body);
-      alert(
-        "Entrada registrada. Stock actual: " +
-          (res?.producto?.stock_actual ?? "-")
-      );
+      setFeedback({
+        type: "success",
+        msg: `✅ Entrada registrada correctamente. Stock actual: ${res?.producto?.stock_actual ?? "-"}`,
+      });
 
-      setForm((f) => ({
-        ...f,
-        cantidad: "",
-        numero_documento: "",
-        precio_unitario: "",
-      }));
-
+      setForm((f) => ({ ...f, cantidad: "", numero_documento: "", precio_unitario: "" }));
       actions.getEntradas();
       actions.getProductos();
     } catch (err) {
-      alert("Error al registrar la entrada");
+      setFeedback({ type: "danger", msg: "❌ Error al registrar la entrada. Inténtalo de nuevo." });
     } finally {
       setSaving(false);
     }
@@ -136,11 +141,11 @@ const RegistrarEntradaPage = () => {
     
     try {
       await actions.eliminarEntrada(entradaId);
-      alert("Entrada eliminada");
+      setFeedback({ type: "success", msg: "Entrada eliminada correctamente." });
       actions.getEntradas();
       actions.getProductos();
     } catch (err) {
-      alert("Error al eliminar la entrada");
+      setFeedback({ type: "danger", msg: "Error al eliminar la entrada." });
     }
   };
 
@@ -201,6 +206,7 @@ const RegistrarEntradaPage = () => {
   ====================== */
   return (
     <div className="container py-4" style={{ maxWidth: "1000px" }}>
+      <Feedback msg={feedback?.msg} type={feedback?.type} onClose={() => setFeedback(null)} />
       <form onSubmit={handleSubmit} className="mb-4 p-3 rounded shadow-sm bg-light">
         <div className="row g-3 align-items-end">
           <div className="col-12">
@@ -471,7 +477,6 @@ const RegistrarEntradaPage = () => {
 const EditarEntradaModal = ({ show, entrada, productos, proveedores, onClose, onSaved }) => {
   const { actions } = useContext(Context);
 
-  // Deducir precio unitario a partir de los datos guardados
   const precioUnitarioInicial = entrada.cantidad > 0 && entrada.precio_sin_iva > 0
     ? +(entrada.precio_sin_iva / entrada.cantidad).toFixed(4)
     : "";
@@ -486,6 +491,7 @@ const EditarEntradaModal = ({ show, entrada, productos, proveedores, onClose, on
     iva_porcentaje: entrada.porcentaje_iva || "21",
   });
   const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
 
   // Cálculos en tiempo real
   const cantidad = Number(form.cantidad) || 0;
@@ -506,10 +512,11 @@ const EditarEntradaModal = ({ show, entrada, productos, proveedores, onClose, on
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.producto_id || !form.cantidad || !form.precio_unitario) {
-      alert("Producto, cantidad y precio unitario son obligatorios");
+      setErr("Producto, cantidad y precio unitario son obligatorios.");
       return;
     }
     setSaving(true);
+    setErr("");
     try {
       await actions.actualizarEntrada(entrada.id, {
         producto_id: Number(form.producto_id),
@@ -520,10 +527,9 @@ const EditarEntradaModal = ({ show, entrada, productos, proveedores, onClose, on
         porcentaje_iva: ivaPct,
         descuento_porcentaje: descuentoPct,
       });
-      alert("Entrada actualizada");
       onSaved();
-    } catch (err) {
-      alert("Error al actualizar la entrada");
+    } catch {
+      setErr("Error al actualizar la entrada.");
     } finally {
       setSaving(false);
     }
@@ -541,6 +547,7 @@ const EditarEntradaModal = ({ show, entrada, productos, proveedores, onClose, on
           </div>
           <form onSubmit={handleSubmit}>
             <div className="modal-body">
+              {err && <div className="alert alert-danger py-2 mb-3">{err}</div>}
               <div className="row g-3">
                 <div className="col-md-6">
                   <label className="form-label">Producto *</label>

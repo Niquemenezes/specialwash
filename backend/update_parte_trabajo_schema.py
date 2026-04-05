@@ -1,46 +1,22 @@
-#!/usr/bin/env python
-"""Actualiza la tabla parte_trabajo agregando tiempo_estimado_minutos si falta."""
+from sqlalchemy import inspect, text
 
-import sqlite3
-from pathlib import Path
-
-DB_PATH = Path(__file__).resolve().parent / "instance" / "specialwash.db"
-COLUMN_NAME = "tiempo_estimado_minutos"
-COLUMN_DEF = "INTEGER NOT NULL DEFAULT 0"
+from extensions import db
 
 
-def ensure_parte_trabajo_schema(db_path: Path = DB_PATH) -> bool:
-    """Retorna True si agrego la columna, False si ya existia o no aplica."""
-    if not db_path.exists():
-        return False
+def ensure_parte_trabajo_schema():
+    """Agrega columnas nuevas de parte_trabajo si la base ya existia."""
+    engine = db.engine
+    inspector = inspect(engine)
 
-    conn = sqlite3.connect(db_path)
-    try:
-        cur = conn.cursor()
-        cur.execute("PRAGMA table_info(parte_trabajo)")
-        existing = {row[1] for row in cur.fetchall()}
-
-        if COLUMN_NAME in existing:
-            return False
-
-        cur.execute(f"ALTER TABLE parte_trabajo ADD COLUMN {COLUMN_NAME} {COLUMN_DEF}")
-        conn.commit()
-        return True
-    finally:
-        conn.close()
-
-
-def main():
-    if not DB_PATH.exists():
-        print(f"No existe la base de datos en: {DB_PATH}")
+    if not inspector.has_table("parte_trabajo"):
         return
 
-    updated = ensure_parte_trabajo_schema(DB_PATH)
-    if updated:
-        print(f"Actualizacion completada. Columna agregada: {COLUMN_NAME}")
-    else:
-        print("Esquema al dia, no se agregaron columnas.")
+    existing = {col["name"] for col in inspector.get_columns("parte_trabajo")}
 
-
-if __name__ == "__main__":
-    main()
+    with engine.begin() as conn:
+        if "inspeccion_id" not in existing:
+            conn.execute(text("ALTER TABLE parte_trabajo ADD COLUMN inspeccion_id INTEGER"))
+        if "servicio_catalogo_id" not in existing:
+            conn.execute(text("ALTER TABLE parte_trabajo ADD COLUMN servicio_catalogo_id INTEGER"))
+        if "es_tarea_interna" not in existing:
+            conn.execute(text("ALTER TABLE parte_trabajo ADD COLUMN es_tarea_interna BOOLEAN DEFAULT 0"))

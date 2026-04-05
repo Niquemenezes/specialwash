@@ -14,14 +14,21 @@ class ParteTrabajo(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     coche_id = db.Column(db.Integer, db.ForeignKey("coches.id"), nullable=False)
-    empleado_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    inspeccion_id = db.Column(db.Integer, db.ForeignKey("inspeccion_recepcion.id"), nullable=True)
+    servicio_catalogo_id = db.Column(db.Integer, db.ForeignKey("servicios_catalogo.id"), nullable=True)
+    empleado_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     estado = db.Column(db.Enum(EstadoParte), default=EstadoParte.pendiente, nullable=False)
     fecha_inicio = db.Column(db.DateTime)
     fecha_fin = db.Column(db.DateTime)
     observaciones = db.Column(db.String)
     tiempo_estimado_minutos = db.Column(db.Integer, nullable=False, default=0)
+    lote_uid = db.Column(db.String(36), nullable=True, index=True)
+    tipo_tarea = db.Column(db.String(30), nullable=True)  # pintura | detailing | tapiceria | otro
+    es_tarea_interna = db.Column(db.Boolean, nullable=False, default=False)
 
     coche = db.relationship("Coche")
+    inspeccion = db.relationship("InspeccionRecepcion")
+    servicio_catalogo = db.relationship("ServicioCatalogo")
     empleado = db.relationship("User")
 
     # Pausas: lista de tuplas (inicio, fin)
@@ -37,14 +44,22 @@ class ParteTrabajo(db.Model):
         self.fecha_fin = datetime.now()
 
     def poner_en_pausa(self, inicio_pausa):
+        import json
         self.estado = EstadoParte.en_pausa
-        # Agregar inicio de pausa
-        # Implementar lógica para guardar pausas
+        pausas = json.loads(self.pausas) if self.pausas else []
+        pausas.append([inicio_pausa.isoformat(), None])
+        self.pausas = json.dumps(pausas)
 
     def quitar_pausa(self, fin_pausa):
+        import json
         self.estado = EstadoParte.en_proceso
-        # Agregar fin de pausa
-        # Implementar lógica para guardar pausas
+        pausas = json.loads(self.pausas) if self.pausas else []
+        # Cerrar la última pausa abierta (fin = None)
+        for pausa in reversed(pausas):
+            if pausa and len(pausa) >= 1 and pausa[1] is None:
+                pausa[1] = fin_pausa.isoformat()
+                break
+        self.pausas = json.dumps(pausas)
 
     def duracion_total(self):
         if not self.fecha_inicio:

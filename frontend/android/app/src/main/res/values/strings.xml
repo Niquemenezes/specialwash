@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">specialwash</string>
-    <string name="title_activity_main">specialwash</string>
-    <string name="package_name">com.specialwash.app</string>
-    <string name="custom_url_scheme">com.specialwash.app</string>
-</resources>

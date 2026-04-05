@@ -1,7 +1,8 @@
-import React, { useCallback, useContext, useEffect, useRef, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Context } from "../store/appContext";
 import CochesPendientesEntrega from "./CochesPendientesEntrega";
+import CochesEntregadosPage from "./CochesEntregadosPage";
 import { getApiBase } from "../utils/apiBase";
 import "../styles/inspeccion-responsive.css";
 
@@ -46,17 +47,41 @@ const getFotoUrl = (item, inspeccionId) => {
 
 const phoneToDigits = (value) => (value || "").replace(/\D/g, "");
 
+const ESTADO_FILTERS = [
+  { key: "todos", label: "Todos" },
+  { key: "en_proceso", label: "En trabajo" },
+  { key: "en_pausa", label: "En pausa" },
+  { key: "en_repaso", label: "En repaso" },
+  { key: "listo_entrega", label: "Listo entrega" },
+  { key: "esperando_parte", label: "Sin parte" },
+];
+
 const InspeccionesGuardadasPage = () => {
   const { actions } = useContext(Context);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [inspecciones, setInspecciones] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [guardandoCobro, setGuardandoCobro] = useState(false);
   const [detalle, setDetalle] = useState(null);
+  const [actionError, setActionError] = useState("");
+  const [estadoFiltro, setEstadoFiltro] = useState("todos");
   const focoAbiertoRef = useRef(null);
   const activeTab = searchParams.get("tab") || "guardadas";
   const inspeccionesGuardadas = inspecciones.filter((insp) => !insp?.entregado);
+
+  const conteoPorEstado = useMemo(() => {
+    const acc = { todos: inspeccionesGuardadas.length };
+    for (const insp of inspeccionesGuardadas) {
+      const estado = insp?.estado_coche?.estado || "sin_estado";
+      acc[estado] = (acc[estado] || 0) + 1;
+    }
+    return acc;
+  }, [inspeccionesGuardadas]);
+
+  const inspeccionesFiltradas = useMemo(() => {
+    if (estadoFiltro === "todos") return inspeccionesGuardadas;
+    return inspeccionesGuardadas.filter((insp) => insp?.estado_coche?.estado === estadoFiltro);
+  }, [inspeccionesGuardadas, estadoFiltro]);
 
   const switchTab = (tab) => {
     const next = new URLSearchParams(searchParams);
@@ -87,7 +112,7 @@ const InspeccionesGuardadasPage = () => {
       setDetalle(data || null);
     } catch (error) {
       console.error("Error al cargar detalle:", error);
-      alert(`No se pudo cargar el detalle: ${error.message}`);
+      setActionError(`No se pudo cargar el detalle: ${error.message}`);
     }
   }, [actions]);
 
@@ -117,53 +142,15 @@ const InspeccionesGuardadasPage = () => {
       await actions.eliminarInspeccion(id);
       await cargarInspecciones();
       if (detalle?.id === id) setDetalle(null);
-      alert("Inspección eliminada correctamente");
     } catch (error) {
       console.error("Error al eliminar inspección:", error);
-      alert(`No se pudo eliminar: ${error.message}`);
+      setActionError(`No se pudo eliminar: ${error.message}`);
     }
   };
 
   const irAEditar = (id) => {
     setDetalle(null);
     navigate(`/inspeccion-recepcion?editId=${id}`);
-  };
-
-  const registrarCobroDetalle = async (id, accion) => {
-    if (!detalle || !id) return;
-
-    let payload;
-    if (accion === "marcar_pagado_total") {
-      if (!window.confirm("Marcar este trabajo como pagado al 100%?")) return;
-      payload = {
-        accion,
-        metodo: "efectivo",
-      };
-    } else {
-      const raw = window.prompt("Importe cobrado (EUR)", "0");
-      if (raw == null) return;
-      const importe = Number(raw);
-      if (!Number.isFinite(importe) || importe < 0) {
-        alert("Importe inválido");
-        return;
-      }
-      payload = {
-        accion: "abono",
-        importe,
-        metodo: "efectivo",
-      };
-    }
-
-    setGuardandoCobro(true);
-    try {
-      const updated = await actions.registrarCobroInspeccion(id, payload);
-      setDetalle(updated);
-      await cargarInspecciones();
-    } catch (error) {
-      alert(`No se pudo registrar el cobro: ${error?.message || "error"}`);
-    } finally {
-      setGuardandoCobro(false);
-    }
   };
 
   const volver = () => {
@@ -175,7 +162,7 @@ const InspeccionesGuardadasPage = () => {
   };
 
   return (
-    <div className="container py-4 sw-inspecciones-page">
+    <div className="container py-4 sw-page-shell sw-inspecciones-page sw-view-stack">
       <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
         <h2 className="mb-0">Inspecciones y Pendientes</h2>
         <button className="btn btn-outline-secondary" onClick={volver}>
@@ -199,17 +186,48 @@ const InspeccionesGuardadasPage = () => {
             className={`nav-link ${activeTab === "pendientes" ? "active" : ""}`}
             onClick={() => switchTab("pendientes")}
           >
-            🚗 Pendientes / Acta
+            🚗 Pendientes / Hoja de intervencion
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            type="button"
+            className={`nav-link ${activeTab === "entregados" ? "active" : ""}`}
+            onClick={() => switchTab("entregados")}
+          >
+            ✅ Entregados
           </button>
         </li>
       </ul>
 
       {activeTab === "guardadas" && (
         <>
+          {actionError && (
+            <div className="alert alert-danger d-flex justify-content-between align-items-start py-2 mb-3">
+              <span>{actionError}</span>
+              <button className="btn-close ms-3" onClick={() => setActionError("")} />
+            </div>
+          )}
           <div className="d-flex justify-content-end mb-2">
             <button className="btn btn-outline-dark btn-sm" onClick={cargarInspecciones}>
               Recargar
             </button>
+          </div>
+          <div className="d-flex flex-wrap gap-2 mb-3">
+            {ESTADO_FILTERS.map((f) => {
+              const total = conteoPorEstado[f.key] || 0;
+              const active = estadoFiltro === f.key;
+              return (
+                <button
+                  key={f.key}
+                  type="button"
+                  className={`btn btn-sm ${active ? "btn-dark" : "btn-outline-secondary"}`}
+                  onClick={() => setEstadoFiltro(f.key)}
+                >
+                  {f.label} ({total})
+                </button>
+              );
+            })}
           </div>
           <p className="text-muted">
             Esta vista centraliza los datos guardados de inspección. Acceso exclusivo para administradores.
@@ -219,8 +237,12 @@ const InspeccionesGuardadasPage = () => {
         <div className="card-body p-0">
           {loading ? (
             <div className="p-4 text-center text-muted">Cargando inspecciones...</div>
-          ) : inspeccionesGuardadas.length === 0 ? (
-            <div className="p-4 text-center text-muted">No hay inspecciones pendientes registradas.</div>
+          ) : inspeccionesFiltradas.length === 0 ? (
+            <div className="p-4 text-center text-muted">
+              {inspeccionesGuardadas.length === 0
+                ? "No hay inspecciones pendientes registradas."
+                : "No hay inspecciones para el estado seleccionado."}
+            </div>
           ) : (
             <div className="table-responsive sw-inspecciones-table">
               <table className="table table-hover align-middle mb-0">
@@ -240,7 +262,14 @@ const InspeccionesGuardadasPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {inspeccionesGuardadas.map((insp) => (
+                  {inspeccionesFiltradas.map((insp) => {
+                    const estado = insp?.estado_coche || null;
+                    const nombresServicios = Array.isArray(insp?.servicios_aplicados)
+                      ? insp.servicios_aplicados
+                          .map((s) => String(s?.nombre || "").trim())
+                          .filter(Boolean)
+                      : [];
+                    return (
                     <tr key={insp.id}>
                       <td>#{insp.id}</td>
                       <td>{new Date(insp.fecha_inspeccion).toLocaleString("es-ES")}</td>
@@ -251,20 +280,20 @@ const InspeccionesGuardadasPage = () => {
                       <td>{insp.fotos_cloudinary?.length || 0}</td>
                       <td>{insp.videos_cloudinary?.length || 0}</td>
                       <td style={{ minWidth: "160px" }}>
-                        {insp.estado_coche ? (
+                        {estado ? (
                           <div>
                             <span
                               className="badge"
                               style={{
-                                backgroundColor: insp.estado_coche.color,
-                                color: insp.estado_coche.color === "#ffc107" || insp.estado_coche.color === "#adb5bd" ? "#000" : "#fff",
+                                backgroundColor: estado.color,
+                                color: estado.color === "#ffc107" || estado.color === "#adb5bd" ? "#000" : "#fff",
                               }}
                             >
-                              {insp.estado_coche.label}
+                              {estado.label}
                             </span>
-                            {insp.estado_coche.parte_obs && (
-                              <div className="small text-muted mt-1" style={{ maxWidth: "180px", whiteSpace: "normal", lineHeight: "1.2" }}>
-                                {insp.estado_coche.parte_obs}
+                            {nombresServicios.length > 0 && (
+                              <div className="small text-muted mt-1" style={{ maxWidth: "220px", whiteSpace: "normal", lineHeight: "1.2" }}>
+                                {nombresServicios.map((nombre) => `${nombre}: ${estado.label}`).join(" | ")}
                               </div>
                             )}
                           </div>
@@ -288,6 +317,11 @@ const InspeccionesGuardadasPage = () => {
                             </span>
                             <div className="small text-muted mt-1">
                               {Number(insp.cobro.importe_pagado || 0).toFixed(2)} / {Number(insp.cobro.importe_total || 0).toFixed(2)} EUR
+                            </div>
+                            <div className="small mt-1">
+                              <span className="badge bg-light text-dark border">
+                                Metodo: {insp.cobro.metodo || "-"}
+                              </span>
                             </div>
                           </div>
                         ) : (
@@ -320,7 +354,8 @@ const InspeccionesGuardadasPage = () => {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -389,6 +424,14 @@ const InspeccionesGuardadasPage = () => {
                       📍 Paso actual del coche
                     </div>
                     <div className="card-body p-3 d-flex align-items-start gap-3">
+                      {(() => {
+                        const nombresServicios = Array.isArray(detalle.servicios_aplicados)
+                          ? detalle.servicios_aplicados
+                              .map((s) => String(s?.nombre || "").trim())
+                              .filter(Boolean)
+                          : [];
+                        return (
+                          <>
                       <span
                         className="badge fs-6"
                         style={{
@@ -398,11 +441,14 @@ const InspeccionesGuardadasPage = () => {
                       >
                         {detalle.estado_coche.label}
                       </span>
-                      {detalle.estado_coche.parte_obs && (
+                      {nombresServicios.length > 0 && (
                         <span className="text-muted small" style={{ paddingTop: "4px" }}>
-                          {detalle.estado_coche.parte_obs}
+                          {nombresServicios.map((nombre) => `${nombre}: ${detalle.estado_coche.label}`).join(" | ")}
                         </span>
                       )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 )}
@@ -429,24 +475,12 @@ const InspeccionesGuardadasPage = () => {
                           {Number(detalle.cobro.importe_pendiente || 0).toFixed(2)} EUR
                         </span>
                       </div>
+                      <div className="small text-muted mb-3">
+                        Metodo: {detalle.cobro.metodo || "-"} | Referencia: {detalle.cobro.referencia || "-"}
+                      </div>
                       {!detalle.es_concesionario && (
-                        <div className="d-flex gap-2">
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-primary"
-                            onClick={() => registrarCobroDetalle(detalle.id, "abono")}
-                            disabled={guardandoCobro}
-                          >
-                            Registrar abono
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-success"
-                            onClick={() => registrarCobroDetalle(detalle.id, "marcar_pagado_total")}
-                            disabled={guardandoCobro}
-                          >
-                            Marcar pagado total
-                          </button>
+                        <div className="small text-muted">
+                          El cobro se registra durante la firma de entrega del cliente.
                         </div>
                       )}
                     </div>
@@ -611,6 +645,7 @@ const InspeccionesGuardadasPage = () => {
       )}
 
       {activeTab === "pendientes" && <CochesPendientesEntrega />}
+      {activeTab === "entregados" && <CochesEntregadosPage />}
     </div>
   );
 };

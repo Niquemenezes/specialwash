@@ -26,17 +26,20 @@ export function getApiBase() {
 
   if (typeof window !== "undefined") {
     const { protocol, hostname } = window.location;
+    const isDev = process.env.NODE_ENV !== "production";
 
-    // Desarrollo local: si el frontend corre en :3000 y no hay base explícita,
-    // usar backend Flask en :5000 para evitar "Failed to fetch".
-    if (hostname === "localhost" || hostname === "127.0.0.1") {
-      return `${protocol}//${hostname}:5000`;
-    }
+    // En desarrollo, apuntar explícitamente al backend Flask.
+    // Evita 404 cuando el dev server de React no tiene proxy configurado.
+    if (isDev) {
+      if (hostname === "localhost" || hostname === "127.0.0.1") {
+        return `${protocol}//${hostname}:5000`;
+      }
 
-    if (hostname.endsWith(".app.github.dev")) {
-      const backendHost = hostname.replace(/-3000\./, "-5000.");
-      if (backendHost !== hostname) {
-        return `${protocol}//${backendHost}`;
+      if (hostname.endsWith(".app.github.dev")) {
+        const backendHost = hostname.replace(/-3000\./, "-5000.");
+        if (backendHost !== hostname) {
+          return `${protocol}//${backendHost}`;
+        }
       }
     }
   }

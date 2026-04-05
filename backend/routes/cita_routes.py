@@ -98,7 +98,7 @@ def obtener_cita(cita_id):
 
 # ── Crear cita ────────────────────────────────────────────────────────────────
 @citas_bp.route("/citas", methods=["POST"])
-@role_required("administrador", "encargado", "tecnico_comercial", "calidad", "detailing")
+@role_required("administrador", "encargado", "calidad", "detailing")
 def crear_cita():
     """Permitir operaciones de Citas para rol detailing en backend."""
     """
@@ -155,7 +155,7 @@ def crear_cita():
 
 # ── Editar cita ───────────────────────────────────────────────────────────────
 @citas_bp.route("/citas/<int:cita_id>", methods=["PUT"])
-@role_required("administrador", "encargado", "tecnico_comercial", "calidad", "detailing")
+@role_required("administrador", "encargado", "calidad", "detailing")
 def editar_cita(cita_id):
     """Permitir operaciones de Citas para rol detailing en backend."""
     cita = Cita.query.get_or_404(cita_id)
@@ -202,7 +202,7 @@ def editar_cita(cita_id):
 
 # ── Cambiar solo el estado ─────────────────────────────────────────────────────
 @citas_bp.route("/citas/<int:cita_id>/estado", methods=["PATCH"])
-@role_required("administrador", "encargado", "tecnico_comercial", "calidad", "detailing")
+@role_required("administrador", "encargado", "calidad", "detailing")
 def cambiar_estado_cita(cita_id):
     """Permitir operaciones de Citas para rol detailing en backend."""
     cita = Cita.query.get_or_404(cita_id)

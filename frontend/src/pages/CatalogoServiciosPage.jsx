@@ -19,7 +19,36 @@ async function apiFetch(path, options = {}) {
   return data;
 }
 
-const EMPTY_FORM = { nombre: "", descripcion: "", precio_base: "", tiempo_estimado_minutos: "" };
+const EMPTY_FORM = {
+  nombre: "",
+  descripcion: "",
+  precio_base: "",
+  tiempo_estimado_minutos: "",
+  rol_responsable: "detailing",
+};
+
+const ROLE_OPTIONS = [
+  { value: "detailing", label: "Detailing" },
+  { value: "pintura", label: "Pintura" },
+  { value: "tapicero", label: "Tapicería" },
+  { value: "calidad", label: "Calidad" },
+  { value: "otro", label: "Otro" },
+];
+
+const getRoleBadgeClass = (role) => {
+  switch (role) {
+    case "detailing":
+      return "bg-primary";
+    case "pintura":
+      return "bg-danger";
+    case "tapicero":
+      return "bg-warning text-dark";
+    case "calidad":
+      return "bg-info text-dark";
+    default:
+      return "bg-secondary";
+  }
+};
 
 export default function CatalogoServiciosPage() {
   const [servicios, setServicios] = useState([]);
@@ -73,6 +102,7 @@ export default function CatalogoServiciosPage() {
       precio_base: s.precio_base != null ? String(s.precio_base) : "",
       tiempo_estimado_minutos:
         s.tiempo_estimado_minutos != null ? String(s.tiempo_estimado_minutos) : "",
+      rol_responsable: s.rol_responsable || "detailing",
     });
     setModalError("");
     setShowModal(true);
@@ -89,6 +119,12 @@ export default function CatalogoServiciosPage() {
     e.preventDefault();
     const nombre = form.nombre.trim();
     if (!nombre) { setModalError("El nombre es obligatorio."); return; }
+    const tiempoRaw = String(form.tiempo_estimado_minutos ?? "").trim();
+    const tiempo = Number.parseInt(tiempoRaw, 10);
+    if (!Number.isFinite(tiempo) || tiempo <= 0) {
+      setModalError("El tiempo estimado es obligatorio y debe ser mayor que 0 minutos.");
+      return;
+    }
     setSaving(true);
     setModalError("");
     try {
@@ -96,10 +132,8 @@ export default function CatalogoServiciosPage() {
         nombre,
         descripcion: form.descripcion.trim() || null,
         precio_base: form.precio_base !== "" ? parseFloat(form.precio_base) : null,
-        tiempo_estimado_minutos:
-          form.tiempo_estimado_minutos !== ""
-            ? parseInt(form.tiempo_estimado_minutos, 10)
-            : null,
+        tiempo_estimado_minutos: tiempo,
+        rol_responsable: String(form.rol_responsable || "").trim() || null,
       };
       if (editandoId) {
         await apiFetch(`/api/servicios_catalogo/${editandoId}`, {
@@ -147,10 +181,10 @@ export default function CatalogoServiciosPage() {
     <div className="container py-4" style={{ maxWidth: "960px" }}>
       {/* ENCABEZADO */}
       <div
-        className="d-flex flex-wrap align-items-center p-3 mb-4 shadow-sm"
-        style={{ background: "#0f0f0f", color: "#fff", borderRadius: "12px", gap: "12px" }}
+        className="d-flex flex-wrap align-items-center p-3 mb-4 shadow-sm sw-header-dark"
+        style={{ borderRadius: "12px", gap: "12px" }}
       >
-        <h2 className="fw-bold mb-0 me-auto" style={{ color: "#d4af37" }}>
+        <h2 className="fw-bold mb-0 me-auto sw-accent-text">
           🛠️ Catálogo de Servicios
         </h2>
         <input
@@ -173,8 +207,8 @@ export default function CatalogoServiciosPage() {
           </label>
         </div>
         <button
-          className="btn fw-semibold"
-          style={{ background: "#d4af37", color: "#000", borderRadius: "10px", whiteSpace: "nowrap" }}
+          className="btn fw-semibold sw-btn-accent-gold"
+          style={{ borderRadius: "10px", whiteSpace: "nowrap" }}
           onClick={abrirCrear}
         >
           ➕ Nuevo servicio
@@ -198,13 +232,14 @@ export default function CatalogoServiciosPage() {
       <div className="card shadow-sm" style={{ borderRadius: "12px" }}>
         <div className="table-responsive">
           <table className="table align-middle mb-0">
-            <thead style={{ background: "#f5f5f5" }}>
+            <thead className="sw-table-header">
               <tr>
                 <th style={{ width: 48 }}>#</th>
                 <th>Nombre</th>
                 <th>Descripción</th>
                 <th className="text-end" style={{ width: 110 }}>Precio base</th>
                 <th className="text-end" style={{ width: 130 }}>Tiempo estimado</th>
+                <th style={{ width: 120 }}>Rol</th>
                 <th className="text-center" style={{ width: 90 }}>Estado</th>
                 <th className="text-end" style={{ width: 200 }}>Acciones</th>
               </tr>
@@ -212,12 +247,12 @@ export default function CatalogoServiciosPage() {
             <tbody>
               {loading && (
                 <tr>
-                  <td colSpan={7} className="text-center py-4">Cargando…</td>
+                  <td colSpan={8} className="text-center py-4">Cargando…</td>
                 </tr>
               )}
               {!loading && serviciosFiltrados.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center py-4 text-muted">
+                  <td colSpan={8} className="text-center py-4 text-muted">
                     No hay servicios{filtro ? " que coincidan con la búsqueda" : ""}.
                   </td>
                 </tr>
@@ -239,6 +274,11 @@ export default function CatalogoServiciosPage() {
                       {s.tiempo_estimado_minutos != null
                         ? `${Number(s.tiempo_estimado_minutos)} min`
                         : <span className="fst-italic text-muted">—</span>}
+                    </td>
+                    <td>
+                      <span className={`badge ${getRoleBadgeClass(s.rol_responsable)}`}>
+                        {ROLE_OPTIONS.find((r) => r.value === s.rol_responsable)?.label || "Otro"}
+                      </span>
                     </td>
                     <td className="text-center">
                       <span className={`badge ${s.activo ? "bg-success" : "bg-secondary"}`}>
@@ -290,15 +330,15 @@ export default function CatalogoServiciosPage() {
             tabIndex="-1"
             role="dialog"
             onClick={(e) => { if (e.target === e.currentTarget) cerrarModal(); }}
-            style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+            style={{ backgroundColor: "var(--sw-overlay-bg)" }}
           >
             <div className="modal-dialog modal-dialog-centered" role="document">
               <div className="modal-content" style={{ borderRadius: "12px" }}>
                 <div
-                  className="modal-header"
-                  style={{ background: "#0f0f0f", borderRadius: "12px 12px 0 0" }}
+                  className="modal-header sw-modal-header-dark"
+                  style={{ borderRadius: "12px 12px 0 0" }}
                 >
-                  <h5 className="modal-title fw-bold" style={{ color: "#d4af37" }}>
+                  <h5 className="modal-title fw-bold sw-accent-text">
                     {editandoId ? "✏️ Editar servicio" : "➕ Nuevo servicio"}
                   </h5>
                   <button
@@ -347,18 +387,34 @@ export default function CatalogoServiciosPage() {
                       />
                     </div>
                     <div className="mt-3 mb-1">
-                      <label className="form-label fw-semibold">Tiempo estimado (min)</label>
+                      <label className="form-label fw-semibold">Tiempo estimado (min) *</label>
                       <input
                         className="form-control"
                         type="number"
                         step="1"
-                        min="0"
+                        min="1"
                         value={form.tiempo_estimado_minutos}
                         onChange={(e) =>
                           setForm({ ...form, tiempo_estimado_minutos: e.target.value })
                         }
                         placeholder="Ej.: 60"
+                        required
                       />
+                    </div>
+                    <div className="mt-3 mb-1">
+                      <label className="form-label fw-semibold">Rol responsable *</label>
+                      <select
+                        className="form-select"
+                        value={form.rol_responsable}
+                        onChange={(e) => setForm({ ...form, rol_responsable: e.target.value })}
+                        required
+                      >
+                        {ROLE_OPTIONS.map((role) => (
+                          <option key={role.value} value={role.value}>
+                            {role.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                   <div className="modal-footer">
@@ -372,8 +428,8 @@ export default function CatalogoServiciosPage() {
                     </button>
                     <button
                       type="submit"
-                      className="btn fw-semibold"
-                      style={{ background: "#d4af37", color: "#000", borderRadius: "8px" }}
+                      className="btn fw-semibold sw-btn-accent-gold"
+                      style={{ borderRadius: "8px" }}
                       disabled={saving}
                     >
                       {saving ? "Guardando…" : editandoId ? "💾 Guardar cambios" : "✅ Crear servicio"}

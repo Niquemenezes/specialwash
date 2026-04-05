@@ -1,0 +1,58 @@
+# ══════════════════════════════════════════════════════════════
+# Systemd service file for SpecialWash backend
+# Copy to: /etc/systemd/system/specialwash-backend.service
+# Then: systemctl daemon-reload && systemctl enable specialwash-backend
+# ══════════════════════════════════════════════════════════════
+
+[Unit]
+Description=SpecialWash Backend (Gunicorn + Flask)
+Documentation=https://specialwash.studio
+After=network.target
+Wants=specialwash-logs.service
+
+[Service]
+Type=notify
+User=root
+Group=www-data
+
+# Working directory
+WorkingDirectory=/var/www/specialwash/app/backend
+
+# Environment
+Environment="PATH=/var/www/specialwash/app/backend/venv/bin"
+EnvironmentFile=/var/www/specialwash/app/backend/.env
+
+# Gunicorn startup command
+ExecStart=/var/www/specialwash/app/backend/venv/bin/gunicorn \
+    --workers 4 \
+    --worker-class sync \
+    --bind 127.0.0.1:8000 \
+    --timeout 120 \
+    --keep-alive 5 \
+    --max-requests 1000 \
+    --max-requests-jitter 100 \
+    --access-logfile /var/www/specialwash/logs/gunicorn-access.log \
+    --error-logfile /var/www/specialwash/logs/gunicorn-error.log \
+    --log-level info \
+    "app:create_app()"
+
+# Restart policy
+Restart=always
+RestartSec=10
+StartLimitInterval=600
+StartLimitBurst=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=specialwash-backend
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/www/specialwash/data /var/www/specialwash/logs /tmp
+
+[Install]
+WantedBy=multi-user.target

@@ -369,21 +369,21 @@ export default function CitasPage() {
   const servicioSeleccionadoId = serviciosCatalogo.find((s) => s.nombre === form.motivo)?.id || "";
 
   return (
-    <div className="container py-4" style={{ maxWidth: "1100px" }}>
+    <div className="container py-4 sw-page-shell sw-view-stack" style={{ maxWidth: "1100px" }}>
       {/* HEADER */}
       <div
-        className="d-flex flex-wrap align-items-center gap-3 p-3 mb-4 shadow-sm"
-        style={{ background: "#0f0f0f", borderRadius: "12px" }}
+        className="d-flex flex-wrap align-items-center gap-3 p-3 mb-4 shadow-sm sw-view-header sw-header-dark"
+        style={{ borderRadius: "12px" }}
       >
-        <h2 className="fw-bold mb-0 me-auto" style={{ color: "#d4af37", fontSize: "clamp(1.2rem, 4vw, 1.75rem)" }}>
+        <h2 className="fw-bold mb-0 me-auto sw-accent-text" style={{ fontSize: "clamp(1.2rem, 4vw, 1.75rem)" }}>
           📅 Gestión de Citas
         </h2>
-        <p className="mb-0 d-none d-md-block" style={{ color: "#aaa", fontSize: "0.85rem" }}>
+        <p className="mb-0 d-none d-md-block sw-text-muted" style={{ fontSize: "0.85rem" }}>
           Agenda y seguimiento de citas con clientes
         </p>
         <button
-          className="btn fw-semibold"
-          style={{ background: "#d4af37", color: "#000", borderRadius: "10px" }}
+          className="btn fw-semibold sw-btn-accent-gold"
+          style={{ borderRadius: "10px" }}
           onClick={abrirCrear}
         >
           ➕ Nueva cita
@@ -400,7 +400,7 @@ export default function CitasPage() {
           <div className="col-md-4" key={s.label}>
             <div className="card shadow-sm" style={{ borderRadius: "12px" }}>
               <div className="card-body">
-                <p className="text-muted mb-1">{s.label}</p>
+                <p className="sw-text-muted mb-1">{s.label}</p>
                 <h4 className="fw-bold mb-0" style={{ color: s.color }}>{s.value}</h4>
               </div>
             </div>
@@ -418,7 +418,7 @@ export default function CitasPage() {
               {" - "}
               {new Date(finSemana.getTime() - 1).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit" })}
             </span>
-            <span className="badge" style={{ background: "#d4af37", color: "#000" }}>
+            <span className="badge sw-btn-accent-gold">
               Total: {citasSemana.length}
             </span>
           </div>
@@ -428,7 +428,7 @@ export default function CitasPage() {
               <div className="col-6 col-md" key={dia.key}>
                 <div
                   className="border rounded p-2 h-100 text-center"
-                  style={{ background: dia.total > 0 ? "#fff9e7" : "#f8f9fa" }}
+                  style={{ background: dia.total > 0 ? "#fff9e7" : "var(--sw-surface-light)" }}
                 >
                   <div className="small text-muted">{dia.nombre}</div>
                   <div className="fw-semibold">{dia.diaNumero}</div>
@@ -532,24 +532,24 @@ export default function CitasPage() {
       ) : (
         Object.entries(citasPorFecha).map(([fecha, grupo]) => (
           <div key={fecha} className="mb-4">
-            <h5 className="fw-semibold mb-3" style={{ color: "#d4af37" }}>📆 {fecha}</h5>
+            <h5 className="fw-semibold mb-3 sw-accent-text">📆 {fecha}</h5>
 
             {/* Cards en móvil */}
             <div className="d-md-none">
               {grupo.map((cita) => (
-                <div key={cita.id} className="card mb-3 shadow-sm" style={{ borderRadius: "12px", borderLeft: "4px solid #d4af37" }}>
+                <div key={cita.id} className="card mb-3 shadow-sm" style={{ borderRadius: "12px", borderLeft: "4px solid var(--sw-accent)" }}>
                   <div className="card-body">
                     <div className="d-flex justify-content-between align-items-start mb-2">
                       <div>
                         <strong>{cita.cliente_nombre}</strong>
                         {cita.coche_matricula && (
-                          <span className="text-muted ms-2 small">🚗 {cita.coche_matricula}</span>
+                          <span className="sw-text-muted ms-2 small">🚗 {cita.coche_matricula}</span>
                         )}
                       </div>
                       <EstadoBadge estado={cita.estado} />
                     </div>
                     <p className="mb-1 small"><strong>🕐</strong> {formatFechaHora(cita.fecha_hora)}</p>
-                    <p className="mb-2 small text-muted">{cita.motivo}</p>
+                    <p className="mb-2 small sw-text-muted">{cita.motivo}</p>
                     <div className="d-flex flex-wrap gap-2">
                       <select
                         className="form-select form-select-sm w-auto"
@@ -570,7 +570,7 @@ export default function CitasPage() {
             {/* Tabla en desktop */}
             <div className="d-none d-md-block table-responsive">
               <table className="table table-hover align-middle" style={{ borderRadius: "12px", overflow: "hidden" }}>
-                <thead style={{ background: "#f8f9fa" }}>
+                <thead style={{ background: "var(--sw-surface-light)" }}>
                   <tr>
                     <th>Cliente</th>
                     <th>Coche</th>
@@ -586,10 +586,10 @@ export default function CitasPage() {
                       <td>
                         <strong>{cita.cliente_nombre}</strong>
                         {cita.cliente_telefono && (
-                          <div className="text-muted small">📞 {cita.cliente_telefono}</div>
+                          <div className="sw-text-muted small">📞 {cita.cliente_telefono}</div>
                         )}
                       </td>
-                      <td className="small text-muted">
+                      <td className="small sw-text-muted">
                         {cita.coche_matricula
                           ? `${cita.coche_matricula}${cita.coche_descripcion ? ` · ${cita.coche_descripcion}` : ""}`
                           : "—"}
@@ -628,10 +628,9 @@ export default function CitasPage() {
       {/* MODAL CREAR / EDITAR */}
       {showModal && (
         <div
-          className="modal fade show d-block"
+          className="modal fade show d-block sw-modal-overlay"
           tabIndex="-1"
           onClick={(e) => { if (e.target === e.currentTarget) cerrarModal(); }}
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
         >
           <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
             <div
@@ -643,8 +642,8 @@ export default function CitasPage() {
                 flexDirection: "column",
               }}
             >
-              <div className="modal-header" style={{ background: "#0f0f0f", borderRadius: "12px 12px 0 0" }}>
-                <h5 className="modal-title fw-bold" style={{ color: "#d4af37" }}>
+              <div className="modal-header sw-header-dark" style={{ borderRadius: "12px 12px 0 0" }}>
+                <h5 className="modal-title fw-bold sw-accent-text">
                   {editandoId ? "✏️ Editar cita" : "➕ Nueva cita"}
                 </h5>
                 <button type="button" className="btn-close btn-close-white" onClick={cerrarModal} />
@@ -660,7 +659,7 @@ export default function CitasPage() {
                   }}
                 >
                   {modalError && (
-                    <div className="alert alert-danger py-2" style={{ borderRadius: "8px" }}>{modalError}</div>
+                    <div className="alert alert-danger py-2 sw-alert-error" style={{ borderRadius: "8px" }}>{modalError}</div>
                   )}
 
                   {!editandoId && (
@@ -718,7 +717,7 @@ export default function CitasPage() {
                   )}
 
                   {(!editandoId && clienteModo === "existente" && form.cliente_id) && (
-                    <div className="mb-3 border rounded p-2" style={{ background: "#fafafa" }}>
+                    <div className="mb-3 border rounded p-2 sw-surface-light" style={{}}>
                       <div className="form-check mb-2">
                         <input
                           className="form-check-input"
@@ -735,7 +734,7 @@ export default function CitasPage() {
                   )}
 
                   {(clienteModo === "nuevo" || actualizarClienteExistente) && (
-                    <div className="mb-3 border rounded p-3" style={{ background: "#fafafa" }}>
+                    <div className="mb-3 border rounded p-3 sw-surface-light" style={{}}>
                       <h6 className="fw-semibold mb-3">👤 Datos del cliente</h6>
                       <div className="row g-2">
                         <div className="col-md-6">
@@ -852,7 +851,7 @@ export default function CitasPage() {
                     )}
 
                     {!editandoId && cocheModo === "nuevo" && (
-                      <div className="border rounded p-3" style={{ background: "#fafafa" }}>
+                      <div className="border rounded p-3 sw-surface-light" style={{}}>
                         <h6 className="fw-semibold mb-3">🚗 Nuevo coche</h6>
                         <div className="row g-2">
                           <div className="col-md-6">
@@ -955,8 +954,8 @@ export default function CitasPage() {
                   </button>
                   <button
                     type="submit"
-                    className="btn fw-semibold"
-                    style={{ background: "#d4af37", color: "#000", borderRadius: "8px" }}
+                    className="btn fw-semibold sw-btn-accent-gold"
+                    style={{ borderRadius: "8px" }}
                     disabled={saving}
                   >
                     {saving ? "Guardando..." : editandoId ? "💾 Guardar cambios" : "✅ Crear cita"}

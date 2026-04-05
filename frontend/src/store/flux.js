@@ -99,7 +99,7 @@ const getState = ({ getStore, getActions, setStore }) => {
     }
     const user = data?.user || null;
     if (user) {
-      const rol = (user.rol || user.role || "empleado").toLowerCase();
+      const rol = (user.rol || user.role || "detailing").toLowerCase();
       if (typeof sessionStorage !== "undefined") sessionStorage.setItem("rol", rol);
       if (typeof localStorage !== "undefined") localStorage.setItem("rol", rol);
        if (user.id) {
@@ -151,7 +151,7 @@ const getState = ({ getStore, getActions, setStore }) => {
       },
 
       // ===== AUTH
-      signup: async (nombre, email, password, rol = "empleado") => {
+      signup: async (nombre, email, password, rol = "detailing") => {
         try {
           await apiFetch("/api/signup", {
             method: "POST",
@@ -209,7 +209,7 @@ const getState = ({ getStore, getActions, setStore }) => {
           const data = await apiFetch("/api/auth/me");
           const user = data?.user || null;
           if (user) {
-            const rol = (user.rol || user.role || "empleado").toLowerCase();
+            const rol = (user.rol || user.role || "detailing").toLowerCase();
             sessionStorage.setItem("rol", rol);
             localStorage.setItem("rol", rol);
              if (user.id) {
@@ -979,6 +979,16 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
       },
 
+      getDashboard: async (anio = new Date().getFullYear()) => {
+        try {
+          const data = await apiFetch(`/api/dashboard?anio=${anio}`);
+          return data;
+        } catch (err) {
+          console.error("getDashboard:", err);
+          throw err;
+        }
+      },
+
       getCobrosProfesionales: async ({ soloPendientes = true } = {}) => {
         try {
           const params = new URLSearchParams();
@@ -988,6 +998,43 @@ const getState = ({ getStore, getActions, setStore }) => {
         } catch (err) {
           console.error("getCobrosProfesionales:", err);
           return [];
+        }
+      },
+
+      // Compatibilidad con pantallas antiguas de pagos profesionales
+      getPagosProfesionalesPendientes: async () => {
+        try {
+          const data = await apiFetch("/api/inspeccion-recepcion/profesionales/pagos-pendientes");
+          return Array.isArray(data) ? data : [];
+        } catch (err) {
+          console.error("getPagosProfesionalesPendientes:", err);
+          return [];
+        }
+      },
+
+      registrarPagoProfesional: async (id, payload) => {
+        try {
+          const data = await apiFetch(`/api/inspeccion-recepcion/${id}/registrar-pago-profesional`, {
+            method: "POST",
+            body: payload,
+          });
+          return data;
+        } catch (err) {
+          console.error("registrarPagoProfesional:", err);
+          throw err;
+        }
+      },
+
+      registrarPagoProesional: async (id, payload) => {
+        try {
+          const data = await apiFetch(`/api/inspeccion-recepcion/${id}/pago-profesional`, {
+            method: "POST",
+            body: payload,
+          });
+          return data;
+        } catch (err) {
+          console.error("registrarPagoProesional:", err);
+          throw err;
         }
       },
 

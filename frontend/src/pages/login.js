@@ -24,20 +24,7 @@ export default function Login() {
         return;
       }
 
-      // guarda token/rol (el action ya te los devuelve)
-      if (res.token) {
-        sessionStorage.setItem("token", res.token);
-        localStorage.setItem("token", res.token);
-      }
-      const rol = (res.user?.rol || "empleado").toLowerCase();
-      sessionStorage.setItem("rol", rol);
-      localStorage.setItem("rol", rol);
-
-        if (res.user?.id) {
-          sessionStorage.setItem("userId", res.user.id);
-          localStorage.setItem("userId", res.user.id);
-        }
-
+      // flux.js saveTokenAndUser ya persiste token, rol y userId en storage
       navigate("/", { replace: true });
     } catch (error) {
       setErr("Error de conexión. Inténtelo de nuevo.");

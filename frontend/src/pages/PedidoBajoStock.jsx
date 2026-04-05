@@ -2,7 +2,7 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Context } from "../store/appContext";
 import { useNavigate } from "react-router-dom";
-import logo from "../img/Logo Special-Wash Studio.png";
+import logo from "../img/logo-specialwash-icon-black.png";
 
 export default function PedidoBajoStock() {
   const { store, actions } = useContext(Context);
@@ -17,6 +17,7 @@ export default function PedidoBajoStock() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [cantidadesPedido, setCantidadesPedido] = useState({});
   const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState(null); // { type, msg }
 
   useEffect(() => {
     actions.getProductos();
@@ -154,9 +155,9 @@ export default function PedidoBajoStock() {
         })
       );
       await actions.getProductos();
-      alert("Productos marcados como pedido en curso.");
+      setFeedback({ type: "success", msg: "Productos marcados como pedido en curso." });
     } catch (err) {
-      alert(`No se pudo marcar el pedido: ${err?.message || "error"}`);
+      setFeedback({ type: "danger", msg: `No se pudo marcar el pedido: ${err?.message || "error"}` });
     } finally {
       setSaving(false);
     }
@@ -171,7 +172,7 @@ export default function PedidoBajoStock() {
       });
       await actions.getProductos();
     } catch (err) {
-      alert(`No se pudo actualizar: ${err?.message || "error"}`);
+      setFeedback({ type: "danger", msg: `No se pudo actualizar: ${err?.message || "error"}` });
     } finally {
       setSaving(false);
     }
@@ -179,7 +180,7 @@ export default function PedidoBajoStock() {
 
   const abrirWhatsApp = () => {
     if (!proveedorSeleccionado?.telefono) {
-      alert("Selecciona un proveedor con teléfono para abrir WhatsApp.");
+      setFeedback({ type: "warning", msg: "Selecciona un proveedor con teléfono para abrir WhatsApp." });
       return;
     }
     const telefono = String(proveedorSeleccionado.telefono).replace(/[^\d]/g, "");
@@ -189,7 +190,7 @@ export default function PedidoBajoStock() {
 
   const abrirEmail = () => {
     if (!proveedorSeleccionado?.email) {
-      alert("Selecciona un proveedor con email para enviar correo.");
+      setFeedback({ type: "warning", msg: "Selecciona un proveedor con email para enviar correo." });
       return;
     }
     const subject = encodeURIComponent(nombrePedido || "Pedido de reposicion - SpecialWash");
@@ -407,6 +408,14 @@ export default function PedidoBajoStock() {
               placeholder="Ej: Pedido semanal proveedor"
             />
           </div>
+          {feedback && (
+            <div className="col-12">
+              <div className={`alert alert-${feedback.type} d-flex justify-content-between align-items-start py-2 mb-0`}>
+                <span>{feedback.msg}</span>
+                <button className="btn-close ms-3" onClick={() => setFeedback(null)} />
+              </div>
+            </div>
+          )}
           <div className="col-12 d-flex align-items-end gap-2 flex-wrap">
             <button
               type="button"

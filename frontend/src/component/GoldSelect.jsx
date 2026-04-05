@@ -9,6 +9,7 @@ import React, { useState, useRef, useEffect } from "react";
  *  - placeholder: texto por defecto
  *  - className: clases extra para el wrapper
  *  - disabled
+ *  - searchable: fuerza mostrar buscador aunque haya pocas opciones
  */
 const GoldSelect = ({
   options = [],
@@ -17,6 +18,7 @@ const GoldSelect = ({
   placeholder = "-- Seleccione --",
   className = "",
   disabled = false,
+  searchable = false,
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -43,6 +45,8 @@ const GoldSelect = ({
     o.label.toLowerCase().includes(search.toLowerCase())
   );
 
+  const showSearch = searchable || options.length > 6;
+
   return (
     <div
       ref={ref}
@@ -62,7 +66,7 @@ const GoldSelect = ({
       {/* Dropdown */}
       {open && (
         <div className="gold-select-dropdown">
-          {options.length > 6 && (
+          {showSearch && (
             <input
               ref={inputRef}
               type="text"

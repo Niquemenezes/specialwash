@@ -1,8 +1,9 @@
 // src/App.jsx
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import injectContext from "./store/appContext.js";
-import { touchSessionActivity } from "./utils/authSession";
+import { touchSessionActivity, getStoredRol, isEmployeeRole } from "./utils/authSession";
+import { obtenerHoy } from "./utils/horarioApi";
 
 import NavbarSW from "./component/NavbarSW.jsx";
 import Footer from "./component/Footer.jsx";
@@ -34,16 +35,25 @@ import { AdminPartesTrabajoFinalizados } from "./pages/PartesTrabajoFinalizados"
 import CatalogoServiciosPage from "./pages/CatalogoServiciosPage";
 import CitasPage from "./pages/CitasPage";
 import GastosEmpresaPage from "./pages/GastosEmpresaPage.jsx";
-import CobrosProfesionalesPage from "./pages/CobrosProfesionalesPage.jsx";
+import ProfesionalesPage from "./pages/ProfesionalesPage.jsx";
+import DashboardPage from "./pages/DashboardPage.jsx";
 import RepasoEntregaPage from "./pages/RepasoEntregaPage.jsx";
+import FicharPage from "./pages/FicharPage.jsx";
+import HorariosAdminPage from "./pages/HorariosAdminPage.jsx";
 
 const isLogged = () =>
   Boolean(sessionStorage.getItem("token") || localStorage.getItem("token"));
+
+// Usa sessionStorage primero (sesión de pestaña), igual que token y rol
+const getStoredUserId = () =>
+  sessionStorage.getItem("userId") || localStorage.getItem("userId") || "";
 
 const RedirectIfLogged = ({ children }) =>
   isLogged() ? <Navigate to="/" replace /> : children;
 
 const App = () => {
+  const [recordatorio, setRecordatorio] = useState("");
+
   useEffect(() => {
     let lastTouch = 0;
     const onActivity = () => {
@@ -63,10 +73,65 @@ const App = () => {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelado = false;
+
+    const getRecordatorioPendiente = (registro) => {
+      if (!registro || !registro.entrada) return "Recuerda fichar tu entrada.";
+      if (registro.inicio_comida && !registro.fin_comida) return "Recuerda fichar el fin de comida.";
+      if (!registro.salida) return "Recuerda fichar tu salida al finalizar.";
+      return "";
+    };
+
+    const lanzarRecordatorioDiario = async () => {
+      const token = sessionStorage.getItem("token") || localStorage.getItem("token");
+      if (!token) return;
+
+      const rol = getStoredRol();
+      if (!isEmployeeRole(rol)) return;
+
+      const userId = getStoredUserId() || "anon";
+      const hoy = new Date().toISOString().slice(0, 10);
+      const key = `sw_recordatorio_fichaje_${userId}_${hoy}`;
+      const yaMostrado = sessionStorage.getItem(key) || localStorage.getItem(key);
+      if (yaMostrado) return;
+
+      try {
+        const registro = await obtenerHoy();
+        if (cancelado) return;
+
+        const msg = getRecordatorioPendiente(registro);
+        if (!msg) return;
+
+        setRecordatorio(msg);
+        sessionStorage.setItem(key, "1");
+        localStorage.setItem(key, "1");
+      } catch {
+        // Silencioso para no romper carga inicial por fallo de red.
+      }
+    };
+
+    lanzarRecordatorioDiario();
+    return () => { cancelado = true; };
+  }, []);
+
   return (
     <BrowserRouter>
       <div className="sw-app">
         <NavbarSW />
+
+        {recordatorio && (
+          <div className="alert alert-warning alert-dismissible mb-0 rounded-0" role="alert">
+            {recordatorio}{" "}
+            <a href="/fichar" className="alert-link">Abrir pantalla de Fichar.</a>
+            <button
+              type="button"
+              className="btn-close"
+              onClick={() => setRecordatorio("")}
+              aria-label="Cerrar"
+            />
+          </div>
+        )}
 
         <main className="sw-main">
           <Routes>
@@ -102,7 +167,7 @@ const App = () => {
             <Route
               path="/salidas"
               element={
-                <PrivateRoute allow={["administrador", "empleado", "encargado", "calidad"]}>
+                <PrivateRoute allow={["administrador", "encargado", "calidad", "detailing", "pintura", "tapicero"]}>
                   <RegistrarSalidaPage />
                 </PrivateRoute>
               }
@@ -201,12 +266,10 @@ const App = () => {
             <Route
               path="/mis-partes-trabajo"
               element={
-                <PrivateRoute allow={["empleado", "detailing", "pintura"]}>
+                <PrivateRoute allow={["detailing", "pintura"]}>
                   <EmpleadoPartesTrabajo
-                    empleadoId={
-                      localStorage.getItem("userId") ||
-                      sessionStorage.getItem("userId")
-                    }
+                    empleadoId={getStoredUserId()}
+                    userRol={getStoredRol()}
                   />
                 </PrivateRoute>
               }
@@ -215,12 +278,24 @@ const App = () => {
             <Route
               path="/flujo-trabajo"
               element={
-                <PrivateRoute allow={["empleado", "detailing", "pintura"]}>
+                <PrivateRoute allow={["detailing", "pintura"]}>
                   <EmpleadoPartesTrabajo
-                    empleadoId={
-                      localStorage.getItem("userId") ||
-                      sessionStorage.getItem("userId")
-                    }
+                    empleadoId={getStoredUserId()}
+                    userRol={getStoredRol()}
+                  />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/flujo-trabajo-tapicero"
+              element={
+                <PrivateRoute allow={["tapicero"]}>
+                  <EmpleadoPartesTrabajo
+                    empleadoId={getStoredUserId()}
+                    panelTitle="🪑 Mis Partes de Tapicería"
+                    panelSubtitle="Gestiona el avance de los trabajos de tapicería asignados"
+                    userRol={getStoredRol()}
                   />
                 </PrivateRoute>
               }
@@ -247,7 +322,7 @@ const App = () => {
             <Route
               path="/citas"
               element={
-                <PrivateRoute allow={["administrador", "encargado", "tecnico_comercial", "calidad", "detailing"]}>
+                <PrivateRoute allow={["administrador", "encargado", "calidad", "detailing"]}>
                   <CitasPage />
                 </PrivateRoute>
               }
@@ -258,6 +333,15 @@ const App = () => {
               element={
                 <PrivateRoute allow={["administrador"]}>
                   <ResumenClientesPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard"
+              element={
+                <PrivateRoute allow={["administrador"]}>
+                  <DashboardPage />
                 </PrivateRoute>
               }
             />
@@ -275,7 +359,16 @@ const App = () => {
               path="/administracion/cobros-profesionales"
               element={
                 <PrivateRoute allow={["administrador"]}>
-                  <CobrosProfesionalesPage />
+                  <ProfesionalesPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/pagos-profesionales"
+              element={
+                <PrivateRoute allow={["administrador", "detailing", "calidad"]}>
+                  <Navigate to="/administracion/cobros-profesionales" replace />
                 </PrivateRoute>
               }
             />
@@ -301,7 +394,7 @@ const App = () => {
             <Route
               path="/acta-entrega/:id"
               element={
-                <PrivateRoute allow={["administrador", "empleado", "encargado"]}>
+                <PrivateRoute allow={["administrador", "encargado", "detailing", "calidad"]}>
                   <ActaEntregaView />
                 </PrivateRoute>
               }
@@ -332,7 +425,35 @@ const App = () => {
             />
 
             <Route
+              path="/estado-coches"
+              element={<Navigate to="/repaso-entrega?tab=estado" replace />}
+            />
+
+            <Route
+              path="/fichar"
+              element={
+                <PrivateRoute allow={["administrador", "encargado", "detailing", "calidad", "pintura", "tapicero"]}>
+                  <FicharPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/horarios"
+              element={
+                <PrivateRoute allow={["administrador", "encargado"]}>
+                  <HorariosAdminPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
               path="/entregados"
+              element={<Navigate to="/inspecciones-guardadas?tab=entregados" replace />}
+            />
+
+            <Route
+              path="/entregados-page"
               element={
                 <PrivateRoute allow={["administrador"]}>
                   <CochesEntregadosPage />

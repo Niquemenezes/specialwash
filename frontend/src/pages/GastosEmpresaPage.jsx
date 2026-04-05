@@ -23,8 +23,24 @@ const fmtDate = (raw) => {
 export default function GastosEmpresaPage() {
   const { actions } = useContext(Context);
 
+  const darkPanel = {
+    background: "var(--sw-surface)",
+    border: "1px solid var(--sw-border)",
+    color: "var(--sw-text)",
+  };
+
+  const darkInputStyle = {
+    background: "var(--sw-surface-2)",
+    border: "1px solid var(--sw-border)",
+    color: "var(--sw-text)",
+  };
+
+  const darkInputClass = "form-control";
+  const darkSelectClass = "form-select";
+
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
   const [mostrarManuales, setMostrarManuales] = useState(true);
   const [mostrarAutomaticos, setMostrarAutomaticos] = useState(true);
 
@@ -255,17 +271,12 @@ export default function GastosEmpresaPage() {
   const crearGasto = async (e) => {
     e.preventDefault();
 
-    if (!form.concepto.trim()) {
-      alert("El concepto es obligatorio");
-      return;
-    }
+    if (!form.concepto.trim()) { setFormError("El concepto es obligatorio"); return; }
 
     const importe = Number(form.importe);
-    if (!Number.isFinite(importe) || importe < 0) {
-      alert("El importe debe ser un numero valido mayor o igual a 0");
-      return;
-    }
+    if (!Number.isFinite(importe) || importe < 0) { setFormError("El importe debe ser un número válido mayor o igual a 0"); return; }
 
+    setFormError("");
     setSaving(true);
     try {
       await actions.createGastoEmpresa({
@@ -279,7 +290,7 @@ export default function GastosEmpresaPage() {
       limpiarForm();
       await cargarDatos();
     } catch (err) {
-      alert(`No se pudo guardar el gasto: ${err?.message || "error"}`);
+      setFormError(`No se pudo guardar el gasto: ${err?.message || "error"}`);
     } finally {
       setSaving(false);
     }
@@ -291,31 +302,31 @@ export default function GastosEmpresaPage() {
       await actions.deleteGastoEmpresa(id);
       await cargarDatos();
     } catch (err) {
-      alert(`No se pudo eliminar: ${err?.message || "error"}`);
+      setFormError(`No se pudo eliminar: ${err?.message || "error"}`);
     }
   };
 
   return (
-    <div className="container mt-4">
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h2 className="mb-0">Finanzas Empresa</h2>
+    <div className="container py-4 sw-page-shell sw-view-stack" style={{ color: "var(--sw-text)" }}>
+      <div className="d-flex justify-content-between align-items-center mb-3 sw-view-header">
+        <h2 className="mb-0" style={{ color: "var(--sw-text)" }}>Finanzas Empresa</h2>
         <div className="d-flex gap-2">
           <button
-            className="btn btn-outline-secondary"
+            className="btn btn-outline-light"
             onClick={exportarCSV}
             disabled={loading || !movimientosFiltrados.length}
           >
             Exportar Excel (CSV)
           </button>
           <button
-            className="btn btn-outline-secondary"
+            className="btn btn-outline-light"
             onClick={exportarPDF}
             disabled={loading || !movimientosFiltrados.length}
           >
             Exportar PDF
           </button>
           <button
-            className="btn btn-outline-dark"
+            className="btn btn-outline-warning"
             onClick={() => cargarDatos()}
             disabled={loading}
           >
@@ -333,7 +344,7 @@ export default function GastosEmpresaPage() {
             checked={mostrarManuales}
             onChange={(e) => setMostrarManuales(e.target.checked)}
           />
-          <label className="form-check-label" htmlFor="mov-manual">
+          <label className="form-check-label" htmlFor="mov-manual" style={{ color: "#dee2e6" }}>
             Mostrar manuales
           </label>
         </div>
@@ -345,7 +356,7 @@ export default function GastosEmpresaPage() {
             checked={mostrarAutomaticos}
             onChange={(e) => setMostrarAutomaticos(e.target.checked)}
           />
-          <label className="form-check-label" htmlFor="mov-auto">
+          <label className="form-check-label" htmlFor="mov-auto" style={{ color: "#dee2e6" }}>
             Mostrar automáticos (productos y maquinaria)
           </label>
         </div>
@@ -353,48 +364,53 @@ export default function GastosEmpresaPage() {
 
       <div className="row g-3 mb-4">
         <div className="col-md-3">
-          <label className="form-label fw-semibold">Mes</label>
+          <label className="form-label fw-semibold" style={{ color: "var(--sw-text)" }}>Mes</label>
           <input
             type="month"
-            className="form-control"
+            className={darkInputClass}
+            style={darkInputStyle}
             value={mesSeleccionado}
             onChange={(e) => setMesSeleccionado(e.target.value)}
           />
         </div>
         <div className="col-md-2">
-          <label className="form-label fw-semibold">Desde</label>
+          <label className="form-label fw-semibold" style={{ color: "var(--sw-text)" }}>Desde</label>
           <input
             type="date"
-            className="form-control"
+            className={darkInputClass}
+            style={darkInputStyle}
             value={desde}
             onChange={(e) => setDesde(e.target.value)}
           />
         </div>
         <div className="col-md-2">
-          <label className="form-label fw-semibold">Hasta</label>
+          <label className="form-label fw-semibold" style={{ color: "var(--sw-text)" }}>Hasta</label>
           <input
             type="date"
-            className="form-control"
+            className={darkInputClass}
+            style={darkInputStyle}
             value={hasta}
             onChange={(e) => setHasta(e.target.value)}
           />
         </div>
         <div className="col-md-2">
-          <label className="form-label fw-semibold">Categoria</label>
+          <label className="form-label fw-semibold" style={{ color: "var(--sw-text)" }}>Categoria</label>
           <input
             type="text"
-            className="form-control"
+            className={darkInputClass}
+            style={darkInputStyle}
             placeholder="general, nomina..."
             value={categoria}
             onChange={(e) => setCategoria(e.target.value)}
           />
         </div>
         <div className="col-md-3">
-          <label className="form-label fw-semibold">Buscar</label>
+          <label className="form-label fw-semibold" style={{ color: "var(--sw-text)" }}>Buscar</label>
           <div className="d-flex gap-2">
             <input
               type="text"
-              className="form-control"
+              className={darkInputClass}
+              style={darkInputStyle}
               placeholder="concepto, proveedor..."
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -412,31 +428,31 @@ export default function GastosEmpresaPage() {
 
       <div className="row g-3 mb-4">
         <div className="col-md-4">
-          <div className="card border-success h-100">
+          <div className="card border-success h-100" style={darkPanel}>
             <div className="card-body">
-              <div className="text-muted small">Facturacion del periodo (auto)</div>
+              <div className="small" style={{ color: "var(--sw-muted)" }}>Facturacion del periodo (auto)</div>
               <div className="fs-4 fw-bold text-success">{money(ingresosAutomaticos)}</div>
-              <div className="small text-muted">Calculado desde servicios facturados</div>
+              <div className="small" style={{ color: "var(--sw-muted)" }}>Calculado desde servicios facturados</div>
             </div>
           </div>
         </div>
         <div className="col-md-4">
-          <div className="card border-info h-100">
+          <div className="card border-info h-100" style={darkPanel}>
             <div className="card-body">
-              <div className="text-muted small">Ingresos cobrados (caja real)</div>
+              <div className="small" style={{ color: "var(--sw-muted)" }}>Ingresos cobrados (caja real)</div>
               <div className="fs-4 fw-bold text-info">{money(totales.ingresosCobrados)}</div>
-              <div className="small text-muted">Incluye cobros de inspecciones y manuales</div>
+              <div className="small" style={{ color: "var(--sw-muted)" }}>Incluye cobros de inspecciones y manuales</div>
             </div>
           </div>
         </div>
         <div className="col-md-4">
-          <div className={`card h-100 ${totales.balanceCaja >= 0 ? "border-primary" : "border-warning"}`}>
+          <div className={`card h-100 ${totales.balanceCaja >= 0 ? "border-primary" : "border-warning"}`} style={darkPanel}>
             <div className="card-body">
-              <div className="text-muted small">Resultado caja (cobrado - gastos)</div>
+              <div className="small" style={{ color: "var(--sw-muted)" }}>Resultado caja (cobrado - gastos)</div>
               <div className={`fs-4 fw-bold ${totales.balanceCaja >= 0 ? "text-primary" : "text-warning"}`}>
                 {money(totales.balanceCaja)}
               </div>
-              <div className="small text-muted">
+              <div className="small" style={{ color: "var(--sw-muted)" }}>
                 Cobrado {money(totales.ingresosCobrados)} - Gastos {money(totales.totalGastos)}
               </div>
             </div>
@@ -446,22 +462,22 @@ export default function GastosEmpresaPage() {
 
       <div className="row g-3 mb-4">
         <div className="col-md-6">
-          <div className="card border-danger h-100">
+          <div className="card border-danger h-100" style={darkPanel}>
             <div className="card-body">
-              <div className="text-muted small">Gastos del periodo (total)</div>
+              <div className="small" style={{ color: "var(--sw-muted)" }}>Gastos del periodo (total)</div>
               <div className="fs-5 fw-bold text-danger">{money(totales.totalGastos)}</div>
-              <div className="small text-muted">
+              <div className="small" style={{ color: "var(--sw-muted)" }}>
                 Manuales {money(totales.totalGastosManuales)} | Productos auto {money(totales.totalGastosEntradasAuto)} | Maquinaria auto {money(totales.totalGastosMaquinariaAuto)}
               </div>
             </div>
           </div>
         </div>
         <div className="col-md-6">
-          <div className="card border-success h-100">
+          <div className="card border-success h-100" style={darkPanel}>
             <div className="card-body">
-              <div className="text-muted small">Facturación estimada del periodo</div>
+              <div className="small" style={{ color: "var(--sw-muted)" }}>Facturación estimada del periodo</div>
               <div className="fs-5 fw-bold text-success">{money(totales.ingresosFacturados)}</div>
-              <div className="small text-muted">
+              <div className="small" style={{ color: "var(--sw-muted)" }}>
                 Balance devengado: {money(totales.balanceDevengado)} | Pendiente profesional: {money(totales.pendienteProfesionales)}
               </div>
             </div>
@@ -469,19 +485,22 @@ export default function GastosEmpresaPage() {
         </div>
       </div>
 
-      <div className="card mb-4">
-        <div className="card-header fw-semibold">Registrar movimiento manual</div>
+      <div className="card mb-4" style={darkPanel}>
+        <div className="card-header fw-semibold" style={{ background: "var(--sw-surface-light)", color: "var(--sw-text)", borderBottom: "1px solid var(--sw-border)" }}>
+          Registrar movimiento manual
+        </div>
         <div className="card-body">
           <form className="row g-3" onSubmit={crearGasto}>
             <div className="col-md-2">
-              <label className="form-label">Fecha</label>
-              <input type="date" name="fecha" className="form-control" value={form.fecha} onChange={onChangeForm} required />
+              <label className="form-label" style={{ color: "var(--sw-text)" }}>Fecha</label>
+              <input type="date" name="fecha" className={darkInputClass} style={darkInputStyle} value={form.fecha} onChange={onChangeForm} required />
             </div>
             <div className="col-md-2">
-              <label className="form-label">Tipo</label>
+              <label className="form-label" style={{ color: "var(--sw-text)" }}>Tipo</label>
               <select
                 name="tipo_movimiento"
-                className="form-select"
+                className={darkSelectClass}
+                style={darkInputStyle}
                 value={form.tipo_movimiento}
                 onChange={onChangeForm}
               >
@@ -490,32 +509,41 @@ export default function GastosEmpresaPage() {
               </select>
             </div>
             <div className="col-md-3">
-              <label className="form-label">Concepto</label>
-              <input type="text" name="concepto" className="form-control" value={form.concepto} onChange={onChangeForm} required />
+              <label className="form-label" style={{ color: "var(--sw-text)" }}>Concepto</label>
+              <input type="text" name="concepto" className={darkInputClass} style={darkInputStyle} value={form.concepto} onChange={onChangeForm} required />
             </div>
             <div className="col-md-2">
-              <label className="form-label">Categoria</label>
+              <label className="form-label" style={{ color: "var(--sw-text)" }}>Categoria</label>
               <input
                 type="text"
                 name="categoria"
-                className="form-control"
+                className={darkInputClass}
+                style={darkInputStyle}
                 value={form.categoria}
                 onChange={onChangeForm}
                 disabled={form.tipo_movimiento === "ingreso"}
               />
             </div>
             <div className="col-md-2">
-              <label className="form-label">Importe</label>
-              <input type="number" min="0" step="0.01" name="importe" className="form-control" value={form.importe} onChange={onChangeForm} required />
+              <label className="form-label" style={{ color: "var(--sw-text)" }}>Importe</label>
+              <input type="number" min="0" step="0.01" name="importe" className={darkInputClass} style={darkInputStyle} value={form.importe} onChange={onChangeForm} required />
             </div>
             <div className="col-md-3">
-              <label className="form-label">Proveedor / Destino</label>
-              <input type="text" name="proveedor" className="form-control" value={form.proveedor} onChange={onChangeForm} />
+              <label className="form-label" style={{ color: "var(--sw-text)" }}>Proveedor / Destino</label>
+              <input type="text" name="proveedor" className={darkInputClass} style={darkInputStyle} value={form.proveedor} onChange={onChangeForm} />
             </div>
             <div className="col-12">
-              <label className="form-label">Observaciones</label>
-              <textarea name="observaciones" className="form-control" rows="2" value={form.observaciones} onChange={onChangeForm} />
+              <label className="form-label" style={{ color: "var(--sw-text)" }}>Observaciones</label>
+              <textarea name="observaciones" className={darkInputClass} style={darkInputStyle} rows="2" value={form.observaciones} onChange={onChangeForm} />
             </div>
+            {formError && (
+              <div className="col-12">
+                <div className="alert alert-danger d-flex justify-content-between align-items-start py-2 mb-0">
+                  <span>{formError}</span>
+                  <button className="btn-close ms-3" onClick={() => setFormError("")} />
+                </div>
+              </div>
+            )}
             <div className="col-12 d-flex gap-2">
               <button type="submit" className="btn btn-primary" disabled={saving}>
                 {saving ? "Guardando..." : "Guardar gasto"}
@@ -528,13 +556,18 @@ export default function GastosEmpresaPage() {
         </div>
       </div>
 
-      <div className="card">
-        <div className="card-header d-flex justify-content-between align-items-center">
+      <div className="card" style={darkPanel}>
+        <div className="card-header d-flex justify-content-between align-items-center" style={{ background: "var(--sw-surface-light)", color: "var(--sw-text)", borderBottom: "1px solid var(--sw-border)" }}>
           <span className="fw-semibold">Movimientos (manuales + automaticos)</span>
-          <span className="badge bg-dark">{movimientosFiltrados.length} items</span>
+          <span className="badge" style={{ background: "#d4af37", color: "#111" }}>{movimientosFiltrados.length} items</span>
         </div>
         <div className="table-responsive">
-          <table className="table table-sm table-striped mb-0">
+          <table
+            className="table table-sm table-striped mb-0"
+style={{
+              color: "var(--sw-text)",
+            }}
+          >
             <thead>
               <tr>
                 <th>Fecha</th>
@@ -578,7 +611,9 @@ export default function GastosEmpresaPage() {
                   <td>
                     {String(g.origen || "") === "entrada" && <span className="badge bg-secondary">Productos</span>}
                     {String(g.origen || "") === "maquinaria" && <span className="badge bg-secondary">Maquinaria</span>}
-                    {String(g.origen || "") === "manual" && <span className="badge bg-dark">Manual</span>}
+                    {String(g.origen || "") === "manual" && (
+                      <span className="badge" style={{ background: "#495057", color: "#fff" }}>Manual</span>
+                    )}
                   </td>
                   <td>{g.concepto}</td>
                   <td style={{ textTransform: "capitalize" }}>{g.categoria || "-"}</td>
@@ -600,14 +635,14 @@ export default function GastosEmpresaPage() {
                         Eliminar
                       </button>
                     ) : (
-                      <span className="text-muted small">Automatico</span>
+                      <span className="small" style={{ color: "#cbd3da" }}>Automatico</span>
                     )}
                   </td>
                 </tr>
               ))}
               {!loading && !movimientosFiltrados.length && (
                 <tr>
-                  <td colSpan={9} className="text-center py-4 text-muted">
+                  <td colSpan={9} className="text-center py-4" style={{ color: "#cbd3da" }}>
                     No hay movimientos para los filtros seleccionados.
                   </td>
                 </tr>

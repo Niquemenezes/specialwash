@@ -8,6 +8,7 @@ const ClientesPage = () => {
   const [busqueda, setBusqueda] = useState("");
   const [showCochesModal, setShowCochesModal] = useState(false);
   const [clienteCochesSeleccionado, setClienteCochesSeleccionado] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     actions.getClientes();
@@ -33,10 +34,9 @@ const ClientesPage = () => {
 
     try {
       await actions.eliminarCliente(cliente.id);
-      alert(`Cliente "${nombre}" eliminado correctamente.`);
       actions.getClientes();
     } catch (err) {
-      alert(err?.message || "No se pudo eliminar el cliente");
+      setDeleteError(err?.message || "No se pudo eliminar el cliente");
     }
   };
 
@@ -52,22 +52,27 @@ const ClientesPage = () => {
   );
 
   return (
-    <div className="container py-4" style={{ maxWidth: "1000px" }}>
+    <div className="container py-4" style={{ maxWidth: "var(--sw-max-width)" }}>
       <div
-        className="d-flex justify-content-between align-items-center mb-4 p-3 rounded shadow-sm"
-        style={{ background: "#0f0f0f", color: "white" }}
+        className="d-flex justify-content-between align-items-center mb-4 p-3 rounded shadow-sm sw-header-dark"
       >
-        <h2 className="fw-bold mb-0" style={{ color: "#d4af37" }}>
+        <h2 className="fw-bold mb-0 sw-accent-text">
           👥 Clientes
         </h2>
         <button
-          className="btn"
+          className="btn sw-btn-accent-gold fw-semibold"
           onClick={handleNuevo}
-          style={{ background: "#d4af37", color: "black", fontWeight: "600", borderRadius: "8px" }}
         >
           ➕ Nuevo Cliente
         </button>
       </div>
+
+      {deleteError && (
+        <div className="alert alert-danger d-flex justify-content-between align-items-start py-2 mb-3">
+          <span>{deleteError}</span>
+          <button className="btn-close ms-3" onClick={() => setDeleteError("")} />
+        </div>
+      )}
 
       <div className="mb-3">
         <input
@@ -80,8 +85,8 @@ const ClientesPage = () => {
       </div>
 
       <div className="table-responsive">
-        <table className="table table-striped table-hover">
-          <thead className="table-dark">
+        <table className="table table-hover">
+          <thead>
             <tr>
               <th>Nombre</th>
               <th>CIF/NIF</th>
@@ -103,25 +108,25 @@ const ClientesPage = () => {
                 <td>{c.direccion || "-"}</td>
                 <td className="text-center">
                   <button
-                    className="btn btn-sm btn-outline-primary me-2"
+                    className="btn btn-sm btn-outline-secondary me-2"
                     onClick={() => handleGestionarCoches(c)}
                     title="Ver coches"
                   >
-                    🚗
+                    <i className="fas fa-car"></i>
                   </button>
                   <button
-                    className="btn btn-sm btn-outline-warning me-2"
+                    className="btn btn-sm btn-outline-secondary me-2"
                     onClick={() => handleEditar(c)}
                     title="Editar"
                   >
-                    ✏️
+                    <i className="fas fa-pencil-alt"></i>
                   </button>
                   <button
                     className="btn btn-sm btn-outline-danger"
                     onClick={() => handleEliminar(c)}
                     title="Eliminar"
                   >
-                    🗑️
+                    <i className="fas fa-trash"></i>
                   </button>
                 </td>
               </tr>
@@ -171,6 +176,7 @@ const ClienteModal = ({ show, cliente, onClose, onSaved }) => {
     notas: "",
   });
   const [saving, setSaving] = useState(false);
+  const [modalError, setModalError] = useState("");
 
   useEffect(() => {
     if (cliente) {
@@ -199,10 +205,9 @@ const ClienteModal = ({ show, cliente, onClose, onSaved }) => {
       } else {
         await actions.crearCliente(form);
       }
-      alert(cliente ? "Cliente actualizado" : "Cliente creado");
       onSaved();
     } catch (err) {
-      alert("Error al guardar el cliente");
+      setModalError(err?.message || "Error al guardar el cliente");
     } finally {
       setSaving(false);
     }
@@ -211,7 +216,7 @@ const ClienteModal = ({ show, cliente, onClose, onSaved }) => {
   if (!show) return null;
 
   return (
-    <div className="modal d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+    <div className="modal d-block sw-modal-overlay">
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content">
           <div className="modal-header">
@@ -222,6 +227,12 @@ const ClienteModal = ({ show, cliente, onClose, onSaved }) => {
           </div>
           <form onSubmit={handleSubmit}>
             <div className="modal-body">
+              {modalError && (
+                <div className="alert alert-danger d-flex justify-content-between align-items-start py-2 mb-3">
+                  <span>{modalError}</span>
+                  <button className="btn-close ms-3" onClick={() => setModalError("")} />
+                </div>
+              )}
               <div className="mb-3">
                 <label className="form-label">Nombre *</label>
                 <input
@@ -293,17 +304,15 @@ const ClienteModal = ({ show, cliente, onClose, onSaved }) => {
             <div className="modal-footer">
               <button
                 type="button"
-                className="btn btn-sm btn-outline-secondary"
+                className="btn btn-sm btn-outline-secondary rounded"
                 onClick={onClose}
-                style={{ borderRadius: "8px" }}
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="btn btn-sm"
+                className="btn btn-sm sw-btn-accent-gold fw-semibold"
                 disabled={saving}
-                style={{ background: "#d4af37", color: "black", fontWeight: "600", borderRadius: "8px" }}
               >
                 {saving ? "⏳ Guardando..." : cliente ? "💾 Guardar" : "✅ Crear"}
               </button>
@@ -322,6 +331,7 @@ const CochesClienteModal = ({ show, cliente, onClose }) => {
   const [loading, setLoading] = useState(true);
   const [showFormModal, setShowFormModal] = useState(false);
   const [editando, setEditando] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     if (show && cliente) {
@@ -360,16 +370,15 @@ const CochesClienteModal = ({ show, cliente, onClose }) => {
     try {
       await actions.eliminarCoche(cocheId);
       await cargarCoches();
-      alert("Coche eliminado");
     } catch (err) {
-      alert("Error al eliminar el coche");
+      setDeleteError("Error al eliminar el coche");
     }
   };
 
   if (!show) return null;
 
   return (
-    <div className="modal d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+    <div className="modal d-block sw-modal-overlay">
       <div className="modal-dialog modal-lg modal-dialog-centered">
         <div className="modal-content">
           <div className="modal-header">
@@ -378,11 +387,16 @@ const CochesClienteModal = ({ show, cliente, onClose }) => {
           </div>
 
           <div className="modal-body">
+            {deleteError && (
+              <div className="alert alert-danger d-flex justify-content-between align-items-start py-2 mb-3">
+                <span>{deleteError}</span>
+                <button className="btn-close ms-3" onClick={() => setDeleteError("")} />
+              </div>
+            )}
             <div className="d-flex justify-content-end mb-3">
               <button
-                className="btn btn-sm"
+                className="btn btn-sm sw-btn-accent-gold fw-semibold"
                 onClick={handleNuevo}
-                style={{ background: "#d4af37", color: "black", fontWeight: "600", borderRadius: "8px" }}
               >
                 ➕ Nuevo coche
               </button>
@@ -446,9 +460,8 @@ const CochesClienteModal = ({ show, cliente, onClose }) => {
           <div className="modal-footer">
             <button
               type="button"
-              className="btn btn-sm btn-outline-secondary"
+              className="btn btn-sm btn-outline-secondary rounded"
               onClick={onClose}
-              style={{ borderRadius: "8px" }}
             >
               Cerrar
             </button>
@@ -478,6 +491,7 @@ const CochesClienteModal = ({ show, cliente, onClose }) => {
 
 const FormCocheClienteModal = ({ show, cliente, coche, onClose, onSaved }) => {
   const { actions } = useContext(Context);
+  const [modalError, setModalError] = useState("");
   const [form, setForm] = useState({
     matricula: "",
     marca: "",
@@ -524,14 +538,12 @@ const FormCocheClienteModal = ({ show, cliente, coche, onClose, onSaved }) => {
 
       if (coche) {
         await actions.actualizarCoche(coche.id, payload);
-        alert("Coche actualizado");
       } else {
         await actions.crearCoche(payload);
-        alert("Coche creado");
       }
       onSaved();
     } catch (err) {
-      alert("Error al guardar el coche: " + err.message);
+      setModalError("Error al guardar el coche: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -540,7 +552,7 @@ const FormCocheClienteModal = ({ show, cliente, coche, onClose, onSaved }) => {
   if (!show) return null;
 
   return (
-    <div className="modal d-block" style={{ backgroundColor: "rgba(0,0,0,0.7)", zIndex: 1060 }}>
+    <div className="modal d-block sw-modal-overlay-strong" style={{ zIndex: 1060 }}>
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content">
           <div className="modal-header">
@@ -551,6 +563,12 @@ const FormCocheClienteModal = ({ show, cliente, coche, onClose, onSaved }) => {
           </div>
           <form onSubmit={handleSubmit}>
             <div className="modal-body">
+              {modalError && (
+                <div className="alert alert-danger d-flex justify-content-between align-items-start py-2 mb-3">
+                  <span>{modalError}</span>
+                  <button className="btn-close ms-3" onClick={() => setModalError("")} />
+                </div>
+              )}
               <div className="mb-3">
                 <label className="form-label">Matrícula *</label>
                 <input
@@ -611,17 +629,15 @@ const FormCocheClienteModal = ({ show, cliente, coche, onClose, onSaved }) => {
             <div className="modal-footer">
               <button
                 type="button"
-                className="btn btn-sm btn-outline-secondary"
+                className="btn btn-sm btn-outline-secondary rounded"
                 onClick={onClose}
-                style={{ borderRadius: "8px" }}
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="btn btn-sm"
+                className="btn btn-sm sw-btn-accent-gold fw-semibold"
                 disabled={saving}
-                style={{ background: "#d4af37", color: "black", fontWeight: "600", borderRadius: "8px" }}
               >
                 {saving ? "⏳ Guardando..." : coche ? "💾 Guardar" : "✅ Crear"}
               </button>

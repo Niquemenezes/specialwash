@@ -2,20 +2,41 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
 from models.parte_trabajo import ParteTrabajo, EstadoParte
 from models.coche import Coche
+from models.cliente import Cliente
 from models.user import User
 from models.notificacion import Notificacion
+from models.servicio_catalogo import ServicioCatalogo
 from extensions import db
 from datetime import datetime
+from uuid import uuid4
 import json
 
-from utils.auth_utils import WORKSHOP_ROLES, normalize_role, role_required
+from utils.auth_utils import WORKSHOP_ROLES, normalize_role, role_required, _dev_auth_bypass_enabled
 
 bp = Blueprint('parte_trabajo', __name__)
 
 
 def _current_role():
     claims = get_jwt() or {}
-    return normalize_role(claims.get('rol'))
+    role = normalize_role(claims.get('rol'))
+    if role:
+        return role
+
+    try:
+        user_id = int(get_jwt_identity())
+    except (TypeError, ValueError):
+        user_id = None
+
+    if user_id:
+        user = User.query.get(user_id)
+        role = normalize_role(getattr(user, 'rol', ''))
+        if role:
+            return role
+
+    if _dev_auth_bypass_enabled():
+        return 'administrador'
+
+    return ''
 
 
 def _can_manage_all_partes():
@@ -49,6 +70,24 @@ def _sum_tiempo_servicios(servicios):
             mins = int(raw)
         except (TypeError, ValueError):
             mins = 0
+        if mins <= 0:
+            servicio_catalogo_id = item.get('servicio_catalogo_id')
+            servicio_catalogo = None
+            try:
+                if servicio_catalogo_id is not None:
+                    servicio_catalogo = ServicioCatalogo.query.get(int(servicio_catalogo_id))
+            except (TypeError, ValueError):
+                servicio_catalogo = None
+
+            if servicio_catalogo is None:
+                nombre = str(item.get('nombre') or '').strip()
+                if nombre:
+                    servicio_catalogo = ServicioCatalogo.query.filter(
+                        ServicioCatalogo.nombre.ilike(nombre)
+                    ).first()
+
+            if servicio_catalogo and servicio_catalogo.tiempo_estimado_minutos:
+                mins = int(servicio_catalogo.tiempo_estimado_minutos)
         if mins > 0:
             total += mins
     return total
@@ -58,14 +97,29 @@ def _serialize_parte(parte, include_sensitive=False):
     duracion_horas = parte.duracion_total()
     duracion_minutos = int(round(duracion_horas * 60))
     tiempo_estimado = int(parte.tiempo_estimado_minutos or 0)
+
+    coche = parte.coche
+    empleado = parte.empleado
+
     payload = {
         'id': parte.id,
         'coche_id': parte.coche_id,
+        'inspeccion_id': parte.inspeccion_id,
+        'servicio_catalogo_id': parte.servicio_catalogo_id,
+        'matricula': coche.matricula if coche else None,
+        'marca': coche.marca if coche else None,
+        'modelo': coche.modelo if coche else None,
+        'cliente_nombre': (coche.cliente.nombre if coche and coche.cliente else None),
         'empleado_id': parte.empleado_id,
+        'empleado_nombre': empleado.nombre if empleado else None,
         'estado': parte.estado.value,
         'fecha_inicio': parte.fecha_inicio.isoformat() if parte.fecha_inicio else None,
         'fecha_fin': parte.fecha_fin.isoformat() if parte.fecha_fin else None,
         'observaciones': parte.observaciones,
+        'tipo_tarea': getattr(parte, 'tipo_tarea', None),
+        'es_tarea_interna': bool(getattr(parte, 'es_tarea_interna', False)),
+        'lote_uid': getattr(parte, 'lote_uid', None),
+        'pausas': parte.pausas,
         'duracion_horas': duracion_horas,
     }
     if include_sensitive:
@@ -92,61 +146,298 @@ def _parse_query_datetime(raw_value, end_of_day=False):
     except ValueError:
         return None
 
-# Crear parte de trabajo (solo admin)
+
+def _get_or_create_internal_coche_id():
+    """Retorna un coche técnico para registrar tareas internas sin coche operativo."""
+    internal_plate = "INT-TAREAS"
+    coche = Coche.query.filter_by(matricula=internal_plate).first()
+    if coche:
+        return coche.id
+
+    cliente = Cliente.query.filter_by(nombre="TAREAS INTERNAS").first()
+    if not cliente:
+        cliente = Cliente(
+            nombre="TAREAS INTERNAS",
+            telefono="000000000",
+            email=None,
+            cif=None,
+            direccion=None,
+            notas="Cliente técnico para partes sin coche",
+        )
+        db.session.add(cliente)
+        db.session.flush()
+
+    coche = Coche(
+        matricula=internal_plate,
+        marca="INTERNO",
+        modelo="TAREA",
+        color=None,
+        cliente_id=cliente.id,
+        notas="Coche técnico para registrar tareas internas",
+    )
+    db.session.add(coche)
+    db.session.flush()
+    return coche.id
+
+
+@bp.route('/parte_trabajo/interno', methods=['POST'])
+@jwt_required()
+def crear_parte_interno():
+    """Permite registrar trabajo interno (sin coche operativo) y empezar a contar tiempo."""
+    current_role = normalize_role(_current_role())
+    allowed_roles = set(WORKSHOP_ROLES) | {'encargado', 'calidad', 'administrador'}
+    if current_role not in allowed_roles:
+        return jsonify({'msg': 'Acceso denegado'}), 403
+
+    data = request.get_json() or {}
+    observaciones = (data.get('observaciones') or '').strip()
+    if not observaciones:
+        return jsonify({'msg': 'Debes indicar la tarea realizada (ej. limpiar baño)'}), 400
+
+    try:
+        tiempo_estimado = _parse_tiempo_estimado_minutos(data.get('tiempo_estimado_minutos'))
+    except ValueError as e:
+        return jsonify({'msg': str(e)}), 400
+
+    tipo_tarea_payload = normalize_role((data.get('tipo_tarea') or '').strip())
+    tipo_tarea = tipo_tarea_payload or (current_role if current_role in WORKSHOP_ROLES else 'otro')
+
+    try:
+        current_user_id = int(get_jwt_identity())
+    except (TypeError, ValueError):
+        return jsonify({'msg': 'Usuario inválido'}), 401
+
+    coche_id = _get_or_create_internal_coche_id()
+    parte = ParteTrabajo(
+        coche_id=coche_id,
+        empleado_id=current_user_id,
+        estado=EstadoParte.en_proceso,
+        fecha_inicio=datetime.now(),
+        observaciones=observaciones,
+        tiempo_estimado_minutos=tiempo_estimado,
+        lote_uid=str(uuid4()),
+        tipo_tarea=tipo_tarea,
+        es_tarea_interna=True,
+    )
+    db.session.add(parte)
+    db.session.commit()
+    return jsonify(_serialize_parte(parte, include_sensitive=True)), 201
+
+
+@bp.route('/parte_trabajo/coche/<int:coche_id>/sumarme', methods=['POST'])
+@jwt_required()
+def sumarme_a_coche_activo(coche_id):
+    """Permite a un empleado crear e iniciar su propio parte en un coche con trabajo en curso."""
+    current_role = normalize_role(_current_role())
+    allowed_roles = set(WORKSHOP_ROLES) | {'encargado', 'calidad', 'administrador'}
+    if current_role not in allowed_roles:
+        return jsonify({'msg': 'Acceso denegado'}), 403
+
+    coche = Coche.query.get(coche_id)
+    if not coche:
+        return jsonify({'msg': 'Coche no encontrado'}), 404
+
+    data = request.get_json() or {}
+    observaciones = (data.get('observaciones') or '').strip()
+    if not observaciones:
+        observaciones = 'Apoyo en trabajo del coche'
+
+    try:
+        tiempo_estimado = _parse_tiempo_estimado_minutos(data.get('tiempo_estimado_minutos'))
+    except ValueError as e:
+        return jsonify({'msg': str(e)}), 400
+
+    try:
+        current_user_id = int(get_jwt_identity())
+    except (TypeError, ValueError):
+        return jsonify({'msg': 'Usuario inválido'}), 401
+
+    # Si el usuario ya está activo en este coche, devolvemos ese parte para evitar duplicados.
+    existente = ParteTrabajo.query.filter(
+        ParteTrabajo.coche_id == coche_id,
+        ParteTrabajo.empleado_id == current_user_id,
+        ParteTrabajo.estado.in_([EstadoParte.en_proceso, EstadoParte.en_pausa]),
+    ).order_by(ParteTrabajo.id.desc()).first()
+    if existente:
+        return jsonify(_serialize_parte(existente, include_sensitive=True)), 200
+
+    tipo_tarea_payload = normalize_role((data.get('tipo_tarea') or '').strip())
+    tipo_tarea = tipo_tarea_payload or (current_role if current_role in WORKSHOP_ROLES else 'otro')
+
+    parte = ParteTrabajo(
+        coche_id=coche_id,
+        empleado_id=current_user_id,
+        estado=EstadoParte.en_proceso,
+        fecha_inicio=datetime.now(),
+        observaciones=observaciones,
+        tiempo_estimado_minutos=tiempo_estimado,
+        lote_uid=str(uuid4()),
+        tipo_tarea=tipo_tarea,
+        es_tarea_interna=False,
+    )
+    db.session.add(parte)
+    db.session.commit()
+    return jsonify(_serialize_parte(parte, include_sensitive=True)), 201
+
+# Crear parte de trabajo (solo admin/calidad)
 @bp.route('/parte_trabajo', methods=['POST'])
 @role_required('administrador', 'calidad')
 def crear_parte_trabajo():
     data = request.get_json() or {}
 
     coche_id = data.get('coche_id')
+    inspeccion_id = data.get('inspeccion_id')
+    servicio_catalogo_id = data.get('servicio_catalogo_id')
     empleado_id = data.get('empleado_id')
+    # opcional: None = sin asignar aún; el empleado lo tomará al hacer "Iniciar"
     observaciones = (data.get('observaciones') or '').strip()
+    tipo_tarea_payload = (data.get('tipo_tarea') or '').strip()
+    tipo_tarea = normalize_role(tipo_tarea_payload) or None
     servicios = data.get('servicios') if isinstance(data.get('servicios'), list) else []
     try:
         tiempo_estimado_payload = _parse_tiempo_estimado_minutos(data.get('tiempo_estimado_minutos'))
     except ValueError as e:
         return jsonify({'msg': str(e)}), 400
 
-    # Prioriza el cálculo por servicios cuando llegan desde frontend para evitar
-    # desajustes de UI y asegurar sumatorio consistente.
     tiempo_estimado_minutos = _sum_tiempo_servicios(servicios) if servicios else tiempo_estimado_payload
 
-    if coche_id is None or empleado_id is None:
-        return jsonify({'msg': 'Debes indicar coche_id y empleado_id'}), 400
+    if coche_id is None:
+        return jsonify({'msg': 'Debes indicar el coche_id'}), 400
+
+    try:
+        inspeccion_id = int(inspeccion_id) if inspeccion_id not in (None, '') else None
+    except (TypeError, ValueError):
+        return jsonify({'msg': 'inspeccion_id inválido'}), 400
+
+    try:
+        servicio_catalogo_id = int(servicio_catalogo_id) if servicio_catalogo_id not in (None, '') else None
+    except (TypeError, ValueError):
+        return jsonify({'msg': 'servicio_catalogo_id inválido'}), 400
 
     coche = Coche.query.get(coche_id)
     if not coche:
         return jsonify({'msg': 'Coche no encontrado'}), 404
 
-    empleado = User.query.get(empleado_id)
-    if not empleado:
-        return jsonify({'msg': 'Empleado no encontrado'}), 404
-    if not getattr(empleado, 'activo', True):
-        return jsonify({'msg': 'El empleado está inactivo'}), 400
-    if normalize_role(getattr(empleado, 'rol', '')) not in ASSIGNABLE_PARTE_ROLES:
-        return jsonify({'msg': 'Solo se puede asignar a roles operativos'}), 400
+    # Validar empleado solo si fue indicado; si no, el parte queda sin asignar
+    if empleado_id is not None:
+        empleado = User.query.get(empleado_id)
+        if not empleado:
+            return jsonify({'msg': 'Empleado no encontrado'}), 404
+        if not getattr(empleado, 'activo', True):
+            return jsonify({'msg': 'El empleado está inactivo'}), 400
+        if normalize_role(getattr(empleado, 'rol', '')) not in ASSIGNABLE_PARTE_ROLES:
+            return jsonify({'msg': 'Solo se puede asignar a roles operativos'}), 400
 
-    parte_activa = ParteTrabajo.query.filter(
-        ParteTrabajo.coche_id == int(coche_id),
-        ParteTrabajo.estado.in_([
-            EstadoParte.pendiente,
-            EstadoParte.en_proceso,
-            EstadoParte.en_pausa,
-        ])
-    ).first()
-    if parte_activa:
-        return jsonify({'msg': 'Ese coche ya tiene un parte activo'}), 400
+    # Creación en lote (varios servicios / trabajos a la vez)
+    if servicios:
+        # Si llegan servicios de distintas áreas, se separan en lotes por tipo_tarea.
+        lote_uid_por_tipo = {}
+        partes_creados = []
 
+        for item in servicios:
+            if not isinstance(item, dict):
+                continue
+            tarea = (item.get('nombre') or '').strip()
+            if not tarea:
+                continue
+
+            item_empleado_id = item.get('empleado_id', empleado_id)
+            item_raw_emp = item.get('empleado_id')
+            item_empleado_id = item_raw_emp if item_raw_emp is not None else empleado_id
+            if item_empleado_id is not None:
+                item_empleado = User.query.get(item_empleado_id)
+                if not item_empleado:
+                    return jsonify({'msg': f'Empleado no encontrado para tarea: {tarea}'}), 404
+                if not getattr(item_empleado, 'activo', True):
+                    return jsonify({'msg': f'El empleado asignado a {tarea} está inactivo'}), 400
+                if normalize_role(getattr(item_empleado, 'rol', '')) not in ASSIGNABLE_PARTE_ROLES:
+                    return jsonify({'msg': f'Rol inválido para tarea: {tarea}'}), 400
+
+            try:
+                tiempo_item = _parse_tiempo_estimado_minutos(item.get('tiempo_estimado_minutos'))
+            except ValueError:
+                tiempo_item = 0
+
+            item_inspeccion_id = item.get('inspeccion_id', inspeccion_id)
+            item_servicio_catalogo_id = item.get('servicio_catalogo_id', servicio_catalogo_id)
+            try:
+                item_inspeccion_id = int(item_inspeccion_id) if item_inspeccion_id not in (None, '') else None
+            except (TypeError, ValueError):
+                return jsonify({'msg': f'inspeccion_id inválido para tarea: {tarea}'}), 400
+            try:
+                item_servicio_catalogo_id = int(item_servicio_catalogo_id) if item_servicio_catalogo_id not in (None, '') else None
+            except (TypeError, ValueError):
+                return jsonify({'msg': f'servicio_catalogo_id inválido para tarea: {tarea}'}), 400
+
+            item_tipo_tarea_raw = (item.get('tipo_tarea') or '').strip()
+            item_tipo_tarea = normalize_role(item_tipo_tarea_raw)
+
+            # Fallback: si no llega tipo en el item, inferimos desde el servicio de catálogo.
+            if not item_tipo_tarea and item_servicio_catalogo_id:
+                servicio_catalogo = ServicioCatalogo.query.get(item_servicio_catalogo_id)
+                if servicio_catalogo:
+                    item_tipo_tarea = normalize_role(getattr(servicio_catalogo, 'rol_responsable', ''))
+
+            # Fallback final: tipo de la petición o "otro" para evitar nulos ambiguos.
+            item_tipo_tarea = item_tipo_tarea or tipo_tarea or 'otro'
+
+            lote_uid_item = lote_uid_por_tipo.get(item_tipo_tarea)
+            if not lote_uid_item:
+                lote_uid_item = str(uuid4())
+                lote_uid_por_tipo[item_tipo_tarea] = lote_uid_item
+
+            parte_item = ParteTrabajo(
+                coche_id=int(coche_id),
+                inspeccion_id=item_inspeccion_id,
+                servicio_catalogo_id=item_servicio_catalogo_id,
+                empleado_id=int(item_empleado_id) if item_empleado_id is not None else None,
+                estado=EstadoParte.pendiente,
+                observaciones=tarea,
+                tiempo_estimado_minutos=tiempo_item,
+                lote_uid=lote_uid_item,
+                tipo_tarea=item_tipo_tarea,
+            )
+            db.session.add(parte_item)
+            partes_creados.append(parte_item)
+
+        if not partes_creados:
+            return jsonify({'msg': 'Debes incluir al menos un servicio/tarea válido'}), 400
+
+        lote_uid = partes_creados[0].lote_uid if len(partes_creados) == 1 else None
+        db.session.commit()
+        return jsonify({
+            'lote_uid': lote_uid,
+            'lotes_por_tipo': lote_uid_por_tipo,
+            'total_partes': len(partes_creados),
+            'partes': [
+                {
+                    'id': p.id,
+                    'coche_id': p.coche_id,
+                    'empleado_id': p.empleado_id,
+                    'estado': p.estado.value,
+                    'observaciones': p.observaciones,
+                    'tipo_tarea': p.tipo_tarea,
+                    'tiempo_estimado_minutos': int(p.tiempo_estimado_minutos or 0),
+                }
+                for p in partes_creados
+            ],
+        }), 201
+
+    # Creación individual
     parte = ParteTrabajo(
         coche_id=int(coche_id),
-        empleado_id=int(empleado_id),
+        inspeccion_id=inspeccion_id,
+        servicio_catalogo_id=servicio_catalogo_id,
+        empleado_id=int(empleado_id) if empleado_id is not None else None,
         estado=EstadoParte.pendiente,
         observaciones=observaciones,
         tiempo_estimado_minutos=tiempo_estimado_minutos,
+        lote_uid=str(uuid4()),
+        tipo_tarea=tipo_tarea or 'otro',
     )
     db.session.add(parte)
     db.session.commit()
-    return jsonify({'id': parte.id}), 201
+    return jsonify({'id': parte.id, 'lote_uid': parte.lote_uid, 'total_partes': 1}), 201
 
 # Listar partes de trabajo (filtros por estado, coche, empleado)
 @bp.route('/parte_trabajo', methods=['GET'])
@@ -155,10 +446,31 @@ def listar_partes_trabajo():
     estado = request.args.get('estado')
     empleado_id = request.args.get('empleado_id')
     coche_id = request.args.get('coche_id')
+    tipo_tarea_filtro = request.args.get('tipo_tarea')
     query = ParteTrabajo.query
+    tipo_tarea_normalizado = normalize_role(tipo_tarea_filtro) if tipo_tarea_filtro else ""
 
+    from sqlalchemy import or_ as _or
     if not _can_manage_all_partes():
-        query = query.filter(ParteTrabajo.empleado_id == int(get_jwt_identity()))
+        current_user_id = int(get_jwt_identity())
+        current_role = normalize_role(_current_role())
+        # Empleados ven sus propios partes + todos los pendientes (para poder tomarlos)
+        if estado == 'pendiente':
+            pass  # sin filtro de empleado: todos los pendientes son visibles
+        elif estado in ('en_proceso', 'en_pausa'):
+            # Si filtra por su propio rol/tipo, permitimos ver activos de su rol
+            # para coordinar trabajos en el mismo coche entre varios empleados.
+            if tipo_tarea_normalizado and tipo_tarea_normalizado == current_role:
+                pass
+            else:
+                query = query.filter(ParteTrabajo.empleado_id == current_user_id)
+        else:
+            query = query.filter(
+                _or(
+                    ParteTrabajo.empleado_id == current_user_id,
+                    ParteTrabajo.estado == EstadoParte.pendiente,
+                )
+            )
 
     if estado:
         try:
@@ -179,13 +491,20 @@ def listar_partes_trabajo():
         except (TypeError, ValueError):
             return jsonify({'msg': 'coche_id inválido'}), 400
         query = query.filter(ParteTrabajo.coche_id == coche_id_int)
+    if tipo_tarea_filtro:
+        tipo_normalizado = tipo_tarea_normalizado
+        if tipo_normalizado == 'tapicero':
+            # Compatibilidad con registros legacy que guardaron "tapiceria".
+            query = query.filter(ParteTrabajo.tipo_tarea.in_(['tapicero', 'tapiceria']))
+        else:
+            query = query.filter(ParteTrabajo.tipo_tarea == tipo_normalizado)
     partes = query.all()
     include_sensitive = _can_manage_all_partes()
     return jsonify([_serialize_parte(p, include_sensitive=include_sensitive) for p in partes])
 
 
 @bp.route('/parte_trabajo/<int:parte_id>', methods=['PUT'])
-@role_required('administrador', 'calidad')
+@role_required('administrador', 'calidad', 'encargado')
 def editar_parte_trabajo(parte_id):
     parte = ParteTrabajo.query.get_or_404(parte_id)
     data = request.get_json() or {}
@@ -218,6 +537,20 @@ def editar_parte_trabajo(parte_id):
 
     return jsonify(_serialize_parte(parte, include_sensitive=True))
 
+
+@bp.route('/parte_trabajo/<int:parte_id>', methods=['DELETE'])
+@role_required('administrador', 'calidad', 'encargado')
+def eliminar_parte_trabajo(parte_id):
+    parte = ParteTrabajo.query.get_or_404(parte_id)
+
+    try:
+        db.session.delete(parte)
+        db.session.commit()
+        return jsonify({'msg': 'Parte eliminado correctamente'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'msg': f'No se pudo eliminar el parte: {str(e)}'}), 400
+
 # Cambiar estado de parte de trabajo
 @bp.route('/parte_trabajo/<int:parte_id>/estado', methods=['PUT'])
 @jwt_required()
@@ -225,8 +558,12 @@ def cambiar_estado_parte(parte_id):
     data = request.get_json() or {}
     parte = ParteTrabajo.query.get_or_404(parte_id)
     current_user_id = int(get_jwt_identity())
-    if not _can_manage_all_partes() and parte.empleado_id != current_user_id:
-        return jsonify({'msg': 'Acceso denegado'}), 403
+    if not _can_manage_all_partes():
+        if parte.empleado_id is None:
+            # Parte sin asignar: el empleado que lo inicia se lo auto-asigna
+            parte.empleado_id = current_user_id
+        elif parte.empleado_id != current_user_id:
+            return jsonify({'msg': 'Acceso denegado'}), 403
 
     nuevo_estado = data['estado']
     if nuevo_estado == 'en_proceso':
@@ -265,6 +602,24 @@ def cambiar_estado_parte(parte_id):
         parte.estado = EstadoParte.pendiente
     db.session.commit()
     return jsonify({'estado': parte.estado.value})
+
+
+@bp.route('/parte_trabajo/<int:parte_id>/tomar', methods=['PUT'])
+@jwt_required()
+def tomar_parte_trabajo(parte_id):
+    parte = ParteTrabajo.query.get_or_404(parte_id)
+    current_user_id = int(get_jwt_identity())
+
+    if parte.estado != EstadoParte.pendiente:
+        if parte.empleado_id == current_user_id:
+            return jsonify({'ok': True, 'msg': 'Parte ya asignado a ti'}), 200
+        return jsonify({'msg': 'Solo se pueden tomar partes pendientes'}), 409
+
+    if parte.empleado_id != current_user_id:
+        parte.empleado_id = current_user_id
+        db.session.commit()
+
+    return jsonify({'ok': True, 'empleado_id': parte.empleado_id}), 200
 
 # Quitar pausa (empleado vuelve a en_proceso)
 @bp.route('/parte_trabajo/<int:parte_id>/quitar_pausa', methods=['PUT'])
@@ -328,4 +683,70 @@ def analitica_partes():
                 'duracion_minutos': int(round(p.duracion_total() * 60)),
             } for p in partes
         ]
+
+
     })
+
+
+@bp.route('/parte_trabajo/reporte_empleados', methods=['GET'])
+@role_required('administrador', 'calidad')
+def reporte_empleados():
+    """Tiempo trabajado por empleado con detalle de coche y tipo de tarea."""
+    from collections import defaultdict
+    fecha_inicio = request.args.get('fecha_inicio')
+    fecha_fin = request.args.get('fecha_fin')
+    query = ParteTrabajo.query.filter(ParteTrabajo.empleado_id.isnot(None))
+    if fecha_inicio:
+        dt = _parse_query_datetime(fecha_inicio)
+        if dt:
+            query = query.filter(ParteTrabajo.fecha_inicio >= dt)
+    if fecha_fin:
+        dt = _parse_query_datetime(fecha_fin, end_of_day=True)
+        if dt:
+            query = query.filter(ParteTrabajo.fecha_inicio <= dt)
+    partes = query.all()
+    por_empleado = defaultdict(list)
+    for p in partes:
+        por_empleado[p.empleado_id].append(p)
+    resultado = []
+    for emp_id, lista in por_empleado.items():
+        emp = User.query.get(emp_id)
+        nombre = emp.nombre if emp else f'ID {emp_id}'
+        rol = getattr(emp, 'rol', '') if emp else ''
+        total_minutos = sum(int(round(p.duracion_total() * 60)) for p in lista)
+        total_minutos_interno = sum(
+            int(round(p.duracion_total() * 60))
+            for p in lista
+            if bool(getattr(p, 'es_tarea_interna', False))
+        )
+        total_minutos_coche = max(total_minutos - total_minutos_interno, 0)
+        detalle = []
+        for p in lista:
+            coche = p.coche
+            es_interno = bool(getattr(p, 'es_tarea_interna', False))
+            detalle.append({
+                'parte_id': p.id,
+                'coche_id': p.coche_id,
+                'matricula': coche.matricula if coche else None,
+                'marca': coche.marca if coche else None,
+                'modelo': coche.modelo if coche else None,
+                'tipo_tarea': p.tipo_tarea,
+                'es_tarea_interna': es_interno,
+                'estado': p.estado.value,
+                'duracion_minutos': int(round(p.duracion_total() * 60)),
+                'tiempo_estimado_minutos': int(p.tiempo_estimado_minutos or 0),
+                'fecha_inicio': p.fecha_inicio.isoformat() if p.fecha_inicio else None,
+                'fecha_fin': p.fecha_fin.isoformat() if p.fecha_fin else None,
+            })
+        resultado.append({
+            'empleado_id': emp_id,
+            'nombre': nombre,
+            'rol': rol,
+            'total_partes': len(lista),
+            'total_minutos': total_minutos,
+            'total_minutos_coche': total_minutos_coche,
+            'total_minutos_interno': total_minutos_interno,
+            'partes': detalle,
+        })
+    resultado.sort(key=lambda x: x['total_minutos'], reverse=True)
+    return jsonify(resultado)

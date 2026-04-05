@@ -1,15 +1,16 @@
 export const normalizeRol = (r) => {
   const value = (r || "").toLowerCase().trim();
   if (value === "admin" || value === "administrator") return "administrador";
-  if (value === "employee" || value === "staff") return "empleado";
+  if (value === "employee" || value === "staff" || value === "empleado") return "detailing";
   if (value === "manager" || value === "responsable") return "encargado";
   if (value === "deteiling") return "detailing";
+  if (value === "tapiceria" || value === "tapicería" || value === "upholstery" || value === "upholsterer") return "tapicero";
   return value;
 };
 
 export const isEmployeeRole = (rol) => {
   const value = normalizeRol(rol);
-  return value === "empleado" || value === "detailing" || value === "pintura";
+  return value === "detailing" || value === "pintura" || value === "tapicero";
 };
 
 export const roleMatches = (currentRol, allowedRol) => {

@@ -207,6 +207,153 @@ body {
   background-color: #050505;
 }
 
+/* ================================
+   RESPONSIVE GLOBAL (Mobile/Tablet)
+================================ */
+
+/* Patrón único de ancho para las vistas de contenido */
+.sw-main .container.py-3,
+.sw-main .container.py-4,
+.sw-main .container.py-5 {
+  max-width: 1024px !important;
+}
+
+/* Ritmo vertical común entre bloques de cada vista */
+.sw-main .sw-view-stack > * + * {
+  margin-top: 1rem;
+}
+
+/* Cabecera estándar para vistas de gestión */
+.sw-main .sw-view-header {
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Patrón visual unificado de cajas */
+.sw-main .card {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.sw-main .card .card-header {
+  padding: 0.85rem 1rem;
+  font-weight: 600;
+}
+
+.sw-main .card .card-body {
+  padding: 1rem;
+}
+
+.sw-main h1,
+.sw-main h2 {
+  font-size: clamp(1.25rem, 1.2rem + 0.7vw, 1.8rem);
+}
+
+/* Inputs y botones con tamaño táctil consistente */
+.sw-main .form-control,
+.sw-main .form-select,
+.sw-main .btn {
+  min-height: 42px;
+}
+
+.sw-main .btn-sm {
+  min-height: 40px;
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+}
+
+/* Tablas siempre desplazables horizontalmente en pantallas pequeñas */
+.sw-main .table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sw-main .table {
+  margin-bottom: 0;
+}
+
+.sw-main .table th,
+.sw-main .table td {
+  vertical-align: middle;
+}
+
+@media (max-width: 991.98px) {
+  .sw-main .container.py-3,
+  .sw-main .container.py-4,
+  .sw-main .container.py-5 {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .sw-main .nav-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .sw-main .nav-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sw-main .nav-tabs .nav-link {
+    white-space: nowrap;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .sw-main .card .card-header {
+    padding: 0.75rem 0.9rem;
+  }
+
+  .sw-main .card .card-body {
+    padding: 0.85rem;
+  }
+
+  .sw-main .sw-view-stack > * + * {
+    margin-top: 0.85rem;
+  }
+
+  .sw-main .sw-view-header {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .sw-main h1,
+  .sw-main h2 {
+    line-height: 1.2;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .sw-main .container.py-3,
+  .sw-main .container.py-4,
+  .sw-main .container.py-5 {
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
+  }
+
+  .sw-main .btn,
+  .sw-main .form-control,
+  .sw-main .form-select {
+    font-size: 0.98rem;
+  }
+
+  .sw-main .btn {
+    min-height: 44px;
+  }
+
+  .sw-main .d-flex.gap-2,
+  .sw-main .d-flex.gap-3 {
+    row-gap: 0.5rem !important;
+  }
+
+  .sw-main .sw-view-stack > * + * {
+    margin-top: 0.7rem;
+  }
+}
+
 /* Footer siempre abajo */
 .sw-footer {
   flex-shrink: 0;
@@ -511,16 +658,17 @@ button {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
 }
 
-/* Logo un pelín más pequeño */
+/* Logo dentro del contenedor */
 .sw-logo-wrap {
-  width: 30px;
-  height: 30px;
+  width: 42px;
+  height: 42px;
   border-radius: 999px;
   overflow: hidden;
-  border: 1px solid rgba(212, 175, 55, 0.7);
+  border: 1.5px solid var(--sw-accent);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .sw-logo-img {
@@ -609,23 +757,23 @@ button {
   color: #000000 !important;
 }
 
-/* Pill de rol más sutil */
+/* Pill de rol más compacto */
 .sw-role-pill {
-  font-size: 0.72rem;
+  font-size: 0.65rem;
   text-transform: uppercase;
-  letter-spacing: 0.09em;
-  color: #e9e9e9;
-  padding: 0.18rem 0.6rem;
+  letter-spacing: 0.07em;
+  color: var(--sw-text);
+  padding: 0.12rem 0.45rem;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--sw-border);
+  background: var(--sw-surface-2);
 }
 
 /* Ajuste compacto solo para el lado derecho del navbar */
 .sw-nav-right .sw-role-pill {
-  font-size: 0.64rem;
+  font-size: 0.60rem;
   letter-spacing: 0.05em;
-  padding: 0.14rem 0.45rem;
+  padding: 0.10rem 0.35rem;
   white-space: nowrap;
 }
 
@@ -636,25 +784,25 @@ button {
   white-space: nowrap;
 }
 
-/* Dropdown del Navbar – tema oscuro / dorado */
+/* Dropdown del Navbar – responde al tema */
 .sw-navbar .dropdown-menu {
-  --bs-dropdown-bg: #1a1a1a;
-  --bs-dropdown-link-color: #cfcfcf;
-  --bs-dropdown-link-hover-color: #f5e19a;
-  --bs-dropdown-link-hover-bg: rgba(212, 175, 55, 0.15);
-  --bs-dropdown-link-active-color: #f5e19a;
-  --bs-dropdown-link-active-bg: rgba(212, 175, 55, 0.25);
-  --bs-dropdown-divider-bg: rgba(255, 255, 255, 0.1);
-  --bs-dropdown-border-color: rgba(212, 175, 55, 0.3);
-  background: #1a1a1a;
-  border: 1px solid rgba(212, 175, 55, 0.3);
+  --bs-dropdown-bg: var(--sw-surface);
+  --bs-dropdown-link-color: var(--sw-text);
+  --bs-dropdown-link-hover-color: var(--sw-accent);
+  --bs-dropdown-link-hover-bg: color-mix(in srgb, var(--sw-accent) 12%, transparent);
+  --bs-dropdown-link-active-color: var(--sw-accent);
+  --bs-dropdown-link-active-bg: color-mix(in srgb, var(--sw-accent) 20%, transparent);
+  --bs-dropdown-divider-bg: var(--sw-border);
+  --bs-dropdown-border-color: var(--sw-border);
+  background: var(--sw-surface);
+  border: 1px solid var(--sw-border);
   border-radius: 10px;
   padding: 0.35rem 0;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--sw-shadow);
 }
 
 .sw-navbar .dropdown-menu .dropdown-item {
-  color: #cfcfcf;
+  color: var(--sw-text);
   font-size: 0.82rem;
   padding: 0.45rem 1rem;
   transition: background 0.15s, color 0.15s;
@@ -663,20 +811,30 @@ button {
 
 .sw-navbar .dropdown-menu .dropdown-item:hover,
 .sw-navbar .dropdown-menu .dropdown-item:focus {
-  background: rgba(212, 175, 55, 0.15) !important;
-  color: #f5e19a !important;
+  background: color-mix(in srgb, var(--sw-accent) 12%, transparent) !important;
+  color: var(--sw-accent) !important;
 }
 
 .sw-navbar .dropdown-menu .dropdown-item.active,
 .sw-navbar .dropdown-menu .dropdown-item:active,
 .sw-navbar .dropdown-menu a.dropdown-item.active,
 .sw-navbar .dropdown-menu a.dropdown-item:active {
-  background: rgba(212, 175, 55, 0.25) !important;
-  color: #f5e19a !important;
+  background: color-mix(in srgb, var(--sw-accent) 20%, transparent) !important;
+  color: var(--sw-accent) !important;
 }
 
 .sw-navbar .dropdown-menu .dropdown-divider {
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: var(--sw-border);
+}
+
+/* Dropdown header - legible en ambos modos */
+.sw-navbar .dropdown-menu .dropdown-header {
+  color: var(--sw-accent);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  padding: 0.5rem 1rem 0.35rem 1rem;
 }
 
 /* Dropdown toggle – quitar azul de btn-link focus/show */
@@ -685,7 +843,7 @@ button {
 .sw-navbar .dropdown-toggle.btn-link:active,
 .sw-navbar .dropdown-toggle.btn-link.show,
 .sw-navbar .nav-item.dropdown.show > .dropdown-toggle {
-  color: #f5e19a !important;
+  color: var(--sw-accent) !important;
   box-shadow: none !important;
   text-decoration: none !important;
   outline: none !important;
@@ -731,6 +889,74 @@ button {
   .sw-nav-right .sw-role-pill {
     display: block;
     text-align: center;
+  }
+
+  .sw-navbar .sw-navlink {
+    font-size: 0.9rem;
+    letter-spacing: 0.03em;
+    font-weight: 600;
+    padding: 0.58rem 0.72rem !important;
+    color: #f4f4f4 !important;
+  }
+
+  .sw-navbar .dropdown-menu .dropdown-item {
+    font-size: 0.9rem;
+    line-height: 1.35;
+    padding: 0.55rem 0.9rem;
+  }
+
+  .sw-navbar .dropdown-menu .dropdown-header {
+    font-size: 0.78rem;
+    letter-spacing: 0.05em;
+  }
+
+  .sw-nav-right .sw-role-pill {
+    font-size: 0.76rem;
+    letter-spacing: 0.03em;
+    padding: 0.38rem 0.6rem;
+  }
+
+  .sw-nav-right .sw-btn-gold {
+    font-size: 0.82rem;
+    padding: 0.45rem 0.72rem;
+  }
+
+  .sw-nav-right .sw-theme-toggle {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1199.98px) {
+  .sw-navbar .sw-navlink {
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+    padding-inline: 0.56rem !important;
+    padding-block: 0.42rem !important;
+    color: #efefef !important;
+  }
+
+  .sw-navbar .dropdown-menu .dropdown-item {
+    font-size: 0.86rem;
+    line-height: 1.3;
+    padding: 0.5rem 0.9rem;
+  }
+
+  .sw-navbar .dropdown-menu .dropdown-header {
+    font-size: 0.76rem;
+    letter-spacing: 0.05em;
+  }
+
+  .sw-role-pill {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.48rem;
+  }
+
+  .sw-nav-right .sw-btn-gold {
+    font-size: 0.72rem;
+    padding: 0.34rem 0.64rem;
   }
 }
 
@@ -830,3 +1056,212 @@ button {
 .sw-auth-card .alert {
   border-radius: 12px;
 }
+
+/* ================================
+   FLUJO DE TRABAJO — vista empleado (tablet)
+================================ */
+
+.sw-flujo-shell {
+  min-height: 100vh;
+  background: #0a0a0a;
+  padding: 1rem;
+}
+
+.sw-flujo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: #111;
+  border-radius: 12px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+.sw-flujo-title {
+  color: #d4af37;
+  font-size: clamp(1.2rem, 4vw, 1.75rem);
+  font-weight: 700;
+  margin: 0;
+}
+
+.sw-flujo-refresh {
+  background: transparent;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  color: #d4af37;
+  border-radius: 8px;
+  padding: 0.45rem 1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+.sw-flujo-refresh:hover:not(:disabled) {
+  background: rgba(212, 175, 55, 0.1);
+  border-color: #d4af37;
+}
+.sw-flujo-refresh:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sw-flujo-loading,
+.sw-flujo-empty {
+  text-align: center;
+  padding: 4rem 1rem;
+  color: #888;
+}
+
+.sw-flujo-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.sw-flujo-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: #d4af37;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.9rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+.sw-flujo-section-icon {
+  font-size: 1.3rem;
+}
+
+.sw-flujo-section-count {
+  margin-left: auto;
+  background: rgba(212, 175, 55, 0.15);
+  color: #d4af37;
+  border-radius: 20px;
+  padding: 0.1rem 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.sw-flujo-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+/* ── Tarjeta de parte ─────────────────────────────────────────── */
+.sw-parte-card {
+  background: #141414;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  transition: border-color 0.2s;
+}
+
+.sw-parte-card--active {
+  border-color: #28a745;
+  box-shadow: 0 0 0 1px rgba(40, 167, 69, 0.2);
+}
+
+.sw-parte-card--paused {
+  border-color: #ffc107;
+  box-shadow: 0 0 0 1px rgba(255, 193, 7, 0.15);
+}
+
+.sw-parte-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.sw-parte-card__matricula {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.sw-parte-card__desc,
+.sw-parte-card__cliente {
+  font-size: 0.85rem;
+  color: #aaa;
+}
+
+.sw-parte-card__obs {
+  font-size: 0.9rem;
+  color: #ccc;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  padding: 0.4rem 0.65rem;
+}
+
+.sw-parte-card__otro-emp {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.sw-parte-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.sw-parte-card__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* ── Cronómetro ───────────────────────────────────────────────── */
+.sw-timer {
+  font-family: "Courier New", monospace;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+}
+
+.sw-timer-running { color: #28a745; background: rgba(40, 167, 69, 0.1); }
+.sw-timer-paused  { color: #ffc107; background: rgba(255, 193, 7, 0.1); }
+.sw-timer-done    { color: #6c757d; background: rgba(108, 117, 125, 0.1); }
+
+/* ── Botones grandes tablet ───────────────────────────────────── */
+.sw-parte-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem 1.1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  min-width: 100px;
+  min-height: 44px;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.sw-parte-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.sw-parte-btn:not(:disabled):active { transform: scale(0.97); }
+
+.sw-parte-btn--start  { background: #28a745; color: #fff; }
+.sw-parte-btn--start:hover:not(:disabled)  { background: #218838; }
+.sw-parte-btn--pause  { background: #ffc107; color: #212529; }
+.sw-parte-btn--pause:hover:not(:disabled)  { background: #e0a800; }
+.sw-parte-btn--resume { background: #17a2b8; color: #fff; }
+.sw-parte-btn--resume:hover:not(:disabled) { background: #138496; }
+.sw-parte-btn--finish { background: #d4af37; color: #000; }
+.sw-parte-btn--finish:hover:not(:disabled) { background: #b8972e; }
+
+@media (min-width: 576px) and (max-width: 1024px) {
+  .sw-flujo-cards { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+  .sw-parte-btn { padding: 0.7rem 1.4rem; font-size: 1rem; min-height: 52px; }
+  .sw-timer { font-size: 1.05rem; }
+  .sw-parte-card { padding: 1.3rem 1.5rem; }
+}
+

@@ -1,22 +1,22 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import logo from "../img/Logo Special-Wash Studio.png";
+import logo from "../img/logo-specialwash-icon-black.png";
 import { buildApiUrl } from "../utils/apiBase";
-import { getStoredRol, getStoredToken, isEmployeeRole } from "../utils/authSession";
+import { clearStoredSession, getStoredRol, getStoredToken, isEmployeeRole } from "../utils/authSession";
 
 // ─── Campana de notificaciones ───────────────────────────────────────────────
 const CampanaNotificaciones = ({ token }) => {
   const [count, setCount] = useState(0);
   const [lista, setLista] = useState([]);
   const [abierto, setAbierto] = useState(false);
+  const [ocultarLeidas, setOcultarLeidas] = useState(false);
   const ref = useRef(null);
   const navigate = useNavigate();
 
   const cargar = useCallback(async () => {
     if (!token) return;
     try {
-      const t = sessionStorage.getItem("token") || localStorage.getItem("token");
-      const headers = { Authorization: `Bearer ${t}` };
+      const headers = { Authorization: `Bearer ${token}` };
       const [rCount, rLista] = await Promise.all([
         fetch(buildApiUrl("/api/notificaciones/no-leidas"), { headers }),
         fetch(buildApiUrl("/api/notificaciones"), { headers }),
@@ -42,9 +42,8 @@ const CampanaNotificaciones = ({ token }) => {
 
   const marcarLeida = async (id) => {
     try {
-      const t = sessionStorage.getItem("token") || localStorage.getItem("token");
       await fetch(buildApiUrl(`/api/notificaciones/${id}/leida`), {
-        method: "PATCH", headers: { Authorization: `Bearer ${t}` }
+        method: "PATCH", headers: { Authorization: `Bearer ${token}` }
       });
       await cargar();
     } catch { /* silencioso */ }
@@ -52,9 +51,8 @@ const CampanaNotificaciones = ({ token }) => {
 
   const marcarTodas = async () => {
     try {
-      const t = sessionStorage.getItem("token") || localStorage.getItem("token");
       await fetch(buildApiUrl("/api/notificaciones/marcar-todas"), {
-        method: "PATCH", headers: { Authorization: `Bearer ${t}` }
+        method: "PATCH", headers: { Authorization: `Bearer ${token}` }
       });
       await cargar();
     } catch { /* silencioso */ }
@@ -94,19 +92,21 @@ const CampanaNotificaciones = ({ token }) => {
     catch { return ""; }
   };
 
+  const listaVisible = ocultarLeidas ? lista.filter((n) => !n.leida) : lista;
+
   return (
     <li className="nav-item position-relative" ref={ref}>
       <button
         className="btn p-0 sw-campana"
         onClick={() => { setAbierto(o => !o); if (!abierto) cargar(); }}
         title="Notificaciones"
-        style={{ background: "none", border: "none", color: "#cfcfcf", fontSize: "1.1rem", lineHeight: 1, position: "relative" }}
+        style={{ background: "none", border: "none", color: "var(--sw-muted)", fontSize: "1.1rem", lineHeight: 1, position: "relative" }}
       >
-        🔔
+        <i className="fas fa-bell"></i>
         {count > 0 && (
           <span style={{
             position: "absolute", top: -4, right: -6,
-            background: "#e63946", color: "#fff", borderRadius: "50%",
+            background: "var(--sw-danger)", color: "#fff", borderRadius: "50%",
             fontSize: "0.6rem", fontWeight: 700, minWidth: 16, height: 16,
             display: "flex", alignItems: "center", justifyContent: "center",
             padding: "0 3px", lineHeight: 1,
@@ -120,40 +120,52 @@ const CampanaNotificaciones = ({ token }) => {
         <div style={{
           position: "absolute", right: 0, top: "calc(100% + 8px)",
           width: 320, maxHeight: 420, overflowY: "auto",
-          background: "#1e2128", border: "1px solid #2e3340",
-          borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.45)",
+          background: "var(--sw-surface)", border: "1px solid var(--sw-border)",
+          borderRadius: 10, boxShadow: "var(--sw-shadow)",
           zIndex: 9999,
         }}>
-          <div style={{ padding: "10px 14px", borderBottom: "1px solid #2e3340", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ color: "#e2c97e", fontWeight: 700, fontSize: "0.78rem" }}>Notificaciones</span>
-            {count > 0 && (
-              <button onClick={marcarTodas} style={{ background: "none", border: "none", color: "#aaa", fontSize: "0.68rem", cursor: "pointer", padding: 0 }}>
-                Marcar todas leídas
-              </button>
-            )}
+          <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--sw-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ color: "var(--sw-accent)", fontWeight: 700, fontSize: "0.78rem" }}>Notificaciones</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {lista.some((n) => n.leida) && (
+                <button
+                  onClick={() => setOcultarLeidas((prev) => !prev)}
+                  style={{ background: "none", border: "none", color: "var(--sw-muted)", fontSize: "0.68rem", cursor: "pointer", padding: 0 }}
+                >
+                  {ocultarLeidas ? "Mostrar leídas" : "Apagar leídas"}
+                </button>
+              )}
+              {count > 0 && (
+                <button onClick={marcarTodas} style={{ background: "none", border: "none", color: "var(--sw-muted)", fontSize: "0.68rem", cursor: "pointer", padding: 0 }}>
+                  Borrar todas
+                </button>
+              )}
+            </div>
           </div>
-          {lista.length === 0 ? (
-            <div style={{ padding: 16, color: "#888", fontSize: "0.75rem", textAlign: "center" }}>Sin notificaciones</div>
-          ) : lista.map(n => (
+          {listaVisible.length === 0 ? (
+            <div style={{ padding: 16, color: "var(--sw-muted)", fontSize: "0.75rem", textAlign: "center" }}>
+              {ocultarLeidas ? "No hay notificaciones pendientes" : "Sin notificaciones"}
+            </div>
+          ) : listaVisible.map(n => (
             <div
               key={n.id}
               onClick={() => onClickNotificacion(n)}
               style={{
                 padding: "10px 14px",
-                borderBottom: "1px solid #2a2d36",
+                borderBottom: "1px solid var(--sw-border)",
                 cursor: "pointer",
-                background: n.leida ? "transparent" : "rgba(226,201,126,0.07)",
+                background: n.leida ? "transparent" : "color-mix(in srgb, var(--sw-accent) 7%, transparent)",
                 transition: "background 0.15s",
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 6 }}>
-                <span style={{ color: n.leida ? "#888" : "#e2e2e2", fontSize: "0.74rem", fontWeight: n.leida ? 400 : 600 }}>
+                <span style={{ color: n.leida ? "var(--sw-muted)" : "var(--sw-text)", fontSize: "0.74rem", fontWeight: n.leida ? 400 : 600 }}>
                   {getIconoNotificacion(n.tipo)} {n.titulo}
                 </span>
-                {!n.leida && <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#e63946", flexShrink: 0, marginTop: 3 }} />}
+                {!n.leida && <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--sw-danger)", flexShrink: 0, marginTop: 3 }} />}
               </div>
-              {n.cuerpo && <div style={{ color: "#888", fontSize: "0.67rem", marginTop: 2 }}>{n.cuerpo}</div>}
-              <div style={{ color: "#555", fontSize: "0.63rem", marginTop: 3 }}>{formatHora(n.created_at)}</div>
+              {n.cuerpo && <div style={{ color: "var(--sw-muted)", fontSize: "0.67rem", marginTop: 2 }}>{n.cuerpo}</div>}
+              <div style={{ color: "var(--sw-muted)", fontSize: "0.63rem", marginTop: 3, opacity: 0.7 }}>{formatHora(n.created_at)}</div>
             </div>
           ))}
         </div>
@@ -167,12 +179,17 @@ const NavbarSW = () => {
   const navigate = useNavigate();
   const token = getStoredToken();
   const rol = getStoredRol();
-  const rolRaw = (
-    sessionStorage.getItem("rol") ||
-    localStorage.getItem("rol") ||
-    ""
-  ).toLowerCase().trim();
-  const isPintura = rolRaw === "pintura";
+
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem("sw-theme") || document.documentElement.getAttribute("data-theme") || "dark"
+  );
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    document.documentElement.setAttribute("data-theme", next);
+    localStorage.setItem("sw-theme", next);
+  };
+
   const isEmpleadoOperativo = isEmployeeRole(rol);
   const handleLogout = async () => {
     try {
@@ -181,13 +198,12 @@ const NavbarSW = () => {
         credentials: "include",
       });
     } catch (_) {}
-    sessionStorage.removeItem("token"); sessionStorage.removeItem("rol");
-    localStorage.removeItem("token");   localStorage.removeItem("rol");
+    clearStoredSession();
     navigate("/login", { replace: true });
   };
 
   return (
-    <nav className="navbar navbar-expand-md sw-navbar shadow-sm">
+    <nav className="navbar navbar-expand-lg sw-navbar shadow-sm">
       <div className="container">
         {/* Brand */}
         <Link
@@ -220,7 +236,7 @@ const NavbarSW = () => {
             <ul className="navbar-nav me-auto mt-3 mt-md-0 sw-nav-left">
               {rol === "administrador" && (
                 <>
-                  {/* Dropdown Flujo Entrega */}
+                  {/* Dropdown Flujo Vehículos */}
                   <li className="nav-item dropdown">
                     <button
                       className="nav-link dropdown-toggle sw-navlink btn btn-link"
@@ -229,31 +245,46 @@ const NavbarSW = () => {
                       data-bs-toggle="dropdown"
                       aria-expanded="false"
                     >
-                      Flujo Entrega
+                      Flujo Vehículos
                     </button>
                     <ul className="dropdown-menu" aria-labelledby="navFlujoEntrega">
-                      <li><h6 className="dropdown-header">Pre-entrega</h6></li>
+                      <li><h6 className="dropdown-header">Entrada de Vehículos</h6></li>
                       <li>
                         <NavLink to="/inspeccion-recepcion" className="dropdown-item">
-                          1) Inspección recepción (todos)
+                          1) Inspección previa
+                        </NavLink>
+                      </li>
+                      <li>
+                        <NavLink to="/partes-trabajo" className="dropdown-item">
+                          2) Partes de trabajo
                         </NavLink>
                       </li>
                       <li>
                         <NavLink to="/inspecciones-guardadas" className="dropdown-item">
-                          2) Inspecciones + Pendientes (admin)
+                          3) Inspecciones Pendientes
                         </NavLink>
                       </li>
                       <li><hr className="dropdown-divider" /></li>
                       <li><h6 className="dropdown-header">Entrega</h6></li>
                       <li>
+                        <NavLink to="/partes-trabajo-finalizados" className="dropdown-item">
+                          4) Partes finalizados
+                        </NavLink>
+                      </li>
+                      <li>
+                        <NavLink to="/repaso-entrega?tab=estado" className="dropdown-item">
+                          5) Estado coches
+                        </NavLink>
+                      </li>
+                      <li>
                         <NavLink to="/repaso-entrega" className="dropdown-item">
-                          3) Repaso + Firma
+                          6) Repaso + Firma
                         </NavLink>
                       </li>
                       <li><hr className="dropdown-divider" /></li>
                       <li>
-                        <NavLink to="/entregados" className="dropdown-item">
-                          4) Coches entregados
+                        <NavLink to="/inspecciones-guardadas?tab=entregados" className="dropdown-item">
+                          7) Coches entregados
                         </NavLink>
                       </li>
                     </ul>
@@ -273,28 +304,30 @@ const NavbarSW = () => {
                     <ul className="dropdown-menu" aria-labelledby="navInventario">
                       <li>
                         <NavLink to="/productos" className="dropdown-item">
-                          Productos
+                          📦 Productos
                         </NavLink>
                       </li>
                       <li>
                         <NavLink to="/entradas" className="dropdown-item">
+                          <span className="me-2" aria-hidden="true">⤓</span>
                           Entradas
                         </NavLink>
                       </li>
                       <li>
                         <NavLink to="/salidas" className="dropdown-item">
+                          <span className="me-2" aria-hidden="true">⤒</span>
                           Salidas
                         </NavLink>
                       </li>
                       <li><hr className="dropdown-divider" /></li>
                       <li>
                         <NavLink to="/resumen-entradas" className="dropdown-item">
-                          Resumen Entradas
+                          🧾 Resumen Entradas
                         </NavLink>
                       </li>
                       <li>
                         <NavLink to="/historial-salidas" className="dropdown-item">
-                          Historial Salidas
+                          📚 Historial Salidas
                         </NavLink>
                       </li>
                     </ul>
@@ -313,75 +346,61 @@ const NavbarSW = () => {
                     </button>
                     <ul className="dropdown-menu" aria-labelledby="navAdministracion">
                       <li>
+                        <NavLink to="/dashboard" className="dropdown-item">
+                          📊 Dashboard
+                        </NavLink>
+                      </li>
+                      <li><hr className="dropdown-divider" /></li>
+                      <li>
                         <NavLink to="/clientes" className="dropdown-item">
-                          Clientes
+                          👥 Clientes
                         </NavLink>
                       </li>
                       <li>
                         <NavLink to="/coches" className="dropdown-item">
-                          Coches
+                          🚗 Coches
                         </NavLink>
                       </li>
                       <li>
                         <NavLink to="/resumen-clientes" className="dropdown-item">
-                          Resumen Clientes
+                          📋 Resumen Clientes
                         </NavLink>
                       </li>
                       <li><hr className="dropdown-divider" /></li>
                       <li>
                         <NavLink to="/administracion/finanzas" className="dropdown-item">
-                          Finanzas
+                          💶 Finanzas
                         </NavLink>
                       </li>
                       <li>
                         <NavLink to="/administracion/cobros-profesionales" className="dropdown-item">
-                          Cobros profesionales
+                          👥 Clientes Profesionales
                         </NavLink>
                       </li>
                       <li>
                         <NavLink to="/maquinaria" className="dropdown-item">
-                          Maquinaria
+                          🏭 Maquinaria
                         </NavLink>
                       </li>
                       <li>
                         <NavLink to="/usuarios" className="dropdown-item">
-                          Usuarios
+                          👤 Usuarios
                         </NavLink>
                       </li>
                       <li>
                         <NavLink to="/proveedores" className="dropdown-item">
-                          Proveedores
-                        </NavLink>
-                      </li>
-                    </ul>
-                  </li>
-
-                  {/* Dropdown Partes de trabajo */}
-                  <li className="nav-item dropdown">
-                    <button
-                      className="nav-link dropdown-toggle sw-navlink btn btn-link"
-                      id="navPartes"
-                      type="button"
-                      data-bs-toggle="dropdown"
-                      aria-expanded="false"
-                    >
-                      Partes
-                    </button>
-                    <ul className="dropdown-menu" aria-labelledby="navPartes">
-                      <li>
-                        <NavLink to="/partes-trabajo" className="dropdown-item">
-                          🧰 Partes activos
+                          🚚 Proveedores
                         </NavLink>
                       </li>
                       <li>
-                        <NavLink to="/partes-trabajo-finalizados" className="dropdown-item">
-                          ✅ Partes finalizados
+                        <NavLink to="/catalogo-servicios" className="dropdown-item">
+                          🛠️ Catálogo de servicios
                         </NavLink>
                       </li>
                       <li><hr className="dropdown-divider" /></li>
                       <li>
-                        <NavLink to="/catalogo-servicios" className="dropdown-item">
-                          🛠️ Catálogo de servicios
+                        <NavLink to="/horarios" className="dropdown-item">
+                          🕒 Horarios del personal
                         </NavLink>
                       </li>
                     </ul>
@@ -390,9 +409,9 @@ const NavbarSW = () => {
                 </>
               )}
 
-              {((rol === "empleado" || rol === "encargado" || rol === "pintura") && rol !== "detailing") && (
+              {((rol === "encargado" || rol === "pintura" || rol === "tapicero") && rol !== "detailing") && (
                 <>
-                  {!isPintura && (
+                  {rol === "encargado" && (
                     <li className="nav-item dropdown">
                       <button
                         className="nav-link dropdown-toggle sw-navlink btn btn-link"
@@ -425,7 +444,7 @@ const NavbarSW = () => {
                   </li>
                   {isEmpleadoOperativo && (
                     <li className="nav-item">
-                      <NavLink to="/mis-partes-trabajo" className="nav-link sw-navlink">
+                      <NavLink to={rol === "tapicero" ? "/flujo-trabajo-tapicero" : "/mis-partes-trabajo"} className="nav-link sw-navlink">
                         Mis partes
                       </NavLink>
                     </li>
@@ -453,8 +472,18 @@ const NavbarSW = () => {
                         </NavLink>
                       </li>
                       <li>
+                        <NavLink to="/flujo-trabajo" className="dropdown-item">
+                          2) Mis partes
+                        </NavLink>
+                      </li>
+                      <li>
+                        <NavLink to="/repaso-entrega?tab=estado" className="dropdown-item">
+                          3) Estado coches
+                        </NavLink>
+                      </li>
+                      <li>
                         <NavLink to="/repaso-entrega" className="dropdown-item">
-                          2) Repaso + Firma
+                          4) Repaso + Firma
                         </NavLink>
                       </li>
                     </ul>
@@ -466,24 +495,6 @@ const NavbarSW = () => {
                     </NavLink>
                   </li>
 
-                  <li className="nav-item dropdown">
-                    <button
-                      className="nav-link dropdown-toggle sw-navlink btn btn-link"
-                      id="navPartesDetailing"
-                      type="button"
-                      data-bs-toggle="dropdown"
-                      aria-expanded="false"
-                    >
-                      Partes
-                    </button>
-                    <ul className="dropdown-menu" aria-labelledby="navPartesDetailing">
-                      <li>
-                        <NavLink to="/flujo-trabajo" className="dropdown-item">
-                          👨‍🔧 Mis partes
-                        </NavLink>
-                      </li>
-                    </ul>
-                  </li>
                 </>
               )}
 
@@ -506,8 +517,18 @@ const NavbarSW = () => {
                         </NavLink>
                       </li>
                       <li>
+                        <NavLink to="/partes-trabajo" className="dropdown-item">
+                          2) Partes de trabajo
+                        </NavLink>
+                      </li>
+                      <li>
+                        <NavLink to="/repaso-entrega?tab=estado" className="dropdown-item">
+                          3) Estado coches
+                        </NavLink>
+                      </li>
+                      <li>
                         <NavLink to="/repaso-entrega" className="dropdown-item">
-                          2) Repaso + Firma
+                          4) Repaso + Firma
                         </NavLink>
                       </li>
                     </ul>
@@ -532,24 +553,6 @@ const NavbarSW = () => {
                     </ul>
                   </li>
 
-                  <li className="nav-item dropdown">
-                    <button
-                      className="nav-link dropdown-toggle sw-navlink btn btn-link"
-                      id="navPartesCalidad"
-                      type="button"
-                      data-bs-toggle="dropdown"
-                      aria-expanded="false"
-                    >
-                      Partes
-                    </button>
-                    <ul className="dropdown-menu" aria-labelledby="navPartesCalidad">
-                      <li>
-                        <NavLink to="/partes-trabajo" className="dropdown-item">
-                          🧰 Partes activos
-                        </NavLink>
-                      </li>
-                    </ul>
-                  </li>
                 </>
               )}
             </ul>
@@ -579,7 +582,7 @@ const NavbarSW = () => {
                     </strong>
                   </span>
                 </li>
-                {(rol === "administrador" || rol === "encargado" || rol === "tecnico_comercial" || rol === "calidad" || rol === "detailing") && (
+                {(rol === "administrador" || rol === "encargado" || rol === "calidad" || rol === "detailing") && (
                   <li className="nav-item">
                     <NavLink to="/citas" className="nav-link sw-navlink">
                       Citas
@@ -587,11 +590,25 @@ const NavbarSW = () => {
                   </li>
                 )}
                 <li className="nav-item">
+                  <NavLink to="/fichar" className="nav-link sw-navlink">
+                    Fichar
+                  </NavLink>
+                </li>
+                <li className="nav-item">
+                  <button
+                    className="sw-theme-toggle"
+                    onClick={toggleTheme}
+                    title={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+                  >
+                    <i className={`fas ${theme === "dark" ? "fa-sun" : "fa-moon"}`}></i>
+                  </button>
+                </li>
+                <li className="nav-item">
                   <button
                     className="btn sw-btn-gold"
                     onClick={handleLogout}
                   >
-                    Salir
+                    <i className="fas fa-sign-out-alt me-1"></i>Salir
                   </button>
                 </li>
               </>

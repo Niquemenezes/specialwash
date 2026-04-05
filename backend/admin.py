@@ -57,6 +57,57 @@ class UserAdmin(SecureModelView):
             model.password_hash = generate_password_hash(form.password.data)
 
 
+class ServicioCatalogoAdmin(SecureModelView):
+    # Mostrar explícitamente el rol para evitar que Flask-Admin lo omita.
+    column_list = (
+        "nombre",
+        "descripcion",
+        "precio_base",
+        "tiempo_estimado_minutos",
+        "rol_responsable",
+        "activo",
+        "created_at",
+    )
+    form_columns = (
+        "nombre",
+        "descripcion",
+        "precio_base",
+        "tiempo_estimado_minutos",
+        "rol_responsable",
+        "activo",
+    )
+
+
+class ParteTrabajoAdmin(SecureModelView):
+    # Exponer campos clave para seguimiento operativo y tareas internas.
+    column_list = (
+        "id",
+        "coche_id",
+        "empleado_id",
+        "tipo_tarea",
+        "es_tarea_interna",
+        "estado",
+        "fecha_inicio",
+        "fecha_fin",
+        "tiempo_estimado_minutos",
+        "inspeccion_id",
+        "servicio_catalogo_id",
+    )
+    form_columns = (
+        "coche_id",
+        "empleado_id",
+        "tipo_tarea",
+        "es_tarea_interna",
+        "observaciones",
+        "estado",
+        "fecha_inicio",
+        "fecha_fin",
+        "tiempo_estimado_minutos",
+        "inspeccion_id",
+        "servicio_catalogo_id",
+    )
+
+
 def setup_admin(app):
     # 🔐 Configuración básica
     if not app.secret_key:
@@ -93,12 +144,12 @@ def setup_admin(app):
     admin.add_view(SecureModelView(Cita, db.session, name="📅 Citas"))
     
     # SERVICIOS
-    admin.add_view(SecureModelView(ServicioCatalogo, db.session, name="📋 Catálogo Servicios"))
+    admin.add_view(ServicioCatalogoAdmin(ServicioCatalogo, db.session, name="📋 Catálogo Servicios"))
     admin.add_view(SecureModelView(Servicio, db.session, name="🛠️ Servicios Realizados"))
     admin.add_view(SecureModelView(ServicioCliente, db.session, name="💰 Tarifas Personalizadas"))
     
     # PARTES DE TRABAJO
-    admin.add_view(SecureModelView(ParteTrabajo, db.session, name="🧰 Partes Trabajo"))
+    admin.add_view(ParteTrabajoAdmin(ParteTrabajo, db.session, name="🧰 Partes Trabajo"))
     
     # INSPECCIONES Y ENTREGAS
     admin.add_view(SecureModelView(InspeccionRecepcion, db.session, name="🔍 Inspecciones"))
