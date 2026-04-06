@@ -15,10 +15,6 @@ import {
   listarServiciosCatalogo,
   obtenerUltimaInspeccionPorCoche,
   reporteEmpleados,
-  formatDate,
-  formatShortDate,
-  formatMinutes,
-  parseHoursToMinutes,
 } from "../utils/parteTrabajoApi";
 
 function EstadoBadge({ estado }) {
@@ -33,6 +29,42 @@ function EstadoBadge({ estado }) {
   return <span className={`badge bg-${color}`}>{label}</span>;
 }
 
+function formatDate(value) {
+  if (!value) return "-";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleString();
+}
+
+function formatShortDate(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatMinutes(minutes) {
+  const total = Number.isFinite(Number(minutes)) ? Math.max(0, Number(minutes)) : 0;
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0) return `${m} min`;
+  if (m === 0) return `${h} h`;
+  return `${h} h ${m} min`;
+}
+
+function parseHoursToMinutes(hoursValue) {
+  const raw = String(hoursValue ?? "").trim();
+  if (!raw) return 0;
+  const hours = Number(raw.replace(",", "."));
+  if (!Number.isFinite(hours) || hours < 0) return null;
+  return Math.round(hours * 60);
+}
 
 function deviationBadge(desviacionMinutos) {
   if (!Number.isFinite(Number(desviacionMinutos))) return <span className="text-muted">-</span>;
@@ -50,25 +82,8 @@ const TIPO_TAREA_OPTIONS = [
   { value: "otro", label: "🔧 Empleado general / Otro" },
 ];
 
-function normalizeTipoTarea(tipo) {
-  const normalized = String(tipo || "").trim().toLowerCase();
-  if (!normalized) return "";
-  if (normalized === "tapiceria" || normalized === "tapicería") return "tapicero";
-  if (["pintura", "detailing", "tapicero", "otro"].includes(normalized)) return normalized;
-  return "";
-}
-
-function resolverTipoTareaServicio(item) {
-  return (
-    normalizeTipoTarea(item?.tipo_tarea) ||
-    normalizeTipoTarea(item?.rol_responsable) ||
-    normalizeTipoTarea(item?.rol) ||
-    ""
-  );
-}
-
 function getTipoTareaLabel(tipoTarea) {
-  const normalized = normalizeTipoTarea(tipoTarea);
+  const normalized = tipoTarea === "tapiceria" ? "tapicero" : tipoTarea;
   return TIPO_TAREA_OPTIONS.find((item) => item.value === normalized)?.label || "Sin área";
 }
 
@@ -91,49 +106,15 @@ export function AdminPartesTrabajo() {
   const [serviciosCatalogo, setServiciosCatalogo] = useState([]);
   const [nuevoServicioId, setNuevoServicioId] = useState("");
   const [serviciosParteSeleccionados, setServiciosParteSeleccionados] = useState([]);
-  const [serviciosRecepcionSugeridos, setServiciosRecepcionSugeridos] = useState([]);
   const [nuevoServicioManualNombre, setNuevoServicioManualNombre] = useState("");
   const [nuevoServicioManualPrecio, setNuevoServicioManualPrecio] = useState("");
   const [nuevoServicioManualHoras, setNuevoServicioManualHoras] = useState("");
-  const [nuevoServicioManualTipoTarea, setNuevoServicioManualTipoTarea] = useState("");
 
   const [showReporte, setShowReporte] = useState(false);
   const [reporte, setReporte] = useState([]);
   const [loadingReporte, setLoadingReporte] = useState(false);
   const [reporteFechaInicio, setReporteFechaInicio] = useState("");
   const [reporteFechaFin, setReporteFechaFin] = useState("");
-  const colaboracionPorCoche = Object.values(
-    (reporte || []).reduce((acc, emp) => {
-      const nombreEmpleado = emp?.nombre || `Empleado ${emp?.empleado_id || "?"}`;
-      for (const p of emp?.partes || []) {
-        if (p?.es_tarea_interna) continue;
-        const key = String(p?.matricula || `#${p?.coche_id || "?"}`);
-        if (!acc[key]) {
-          acc[key] = {
-            key,
-            matricula: p?.matricula || `#${p?.coche_id || "?"}`,
-            marca: p?.marca || "",
-            modelo: p?.modelo || "",
-            totalMinutos: 0,
-            empleados: {},
-          };
-        }
-        const mins = Number(p?.duracion_minutos || 0);
-        acc[key].totalMinutos += mins;
-        acc[key].empleados[nombreEmpleado] = (acc[key].empleados[nombreEmpleado] || 0) + mins;
-      }
-      return acc;
-    }, {})
-  )
-    .map((item) => ({
-      ...item,
-      totalEmpleados: Object.keys(item.empleados).length,
-      desglose: Object.entries(item.empleados)
-        .map(([nombre, minutos]) => ({ nombre, minutos }))
-        .sort((a, b) => b.minutos - a.minutos),
-    }))
-    .filter((item) => item.totalEmpleados > 1)
-    .sort((a, b) => b.totalMinutos - a.totalMinutos);
 
   const serviciosSinTiempo = serviciosParteSeleccionados.filter(
     (s) => (Number.parseInt(s.tiempo_estimado_minutos || 0, 10) || 0) <= 0
@@ -157,23 +138,13 @@ export function AdminPartesTrabajo() {
         (c) => Number(c.coche_id) === Number(id)
       );
       if (!coche) return `ID ${id}`;
-      const descripcion = [
-        coche?.marca,
-        coche?.modelo,
-        coche?.coche_descripcion,
-      ]
-        .map((v) => String(v || "").trim())
-        .filter(Boolean)
-        .join(" ");
-
-      const base = [coche?.matricula, descripcion].filter(Boolean).join(" · ");
-      return `${base}${coche?.cliente_nombre ? ` - ${coche.cliente_nombre}` : ""}`;
+      return `${coche.matricula}${coche.cliente_nombre ? ` - ${coche.cliente_nombre}` : ""}`;
     },
     [cochesDisponibles, cochesCatalogo]
   );
 
   const serviciosSinTipo = serviciosParteSeleccionados.filter(
-    (s) => String(s.origen || "") === "manual" && !String(s.tipo_tarea || "").trim()
+    (s) => !String(s.tipo_tarea || "").trim()
   );
   const hayServiciosSinTipo = serviciosSinTipo.length > 0;
 
@@ -266,12 +237,8 @@ export function AdminPartesTrabajo() {
     const cargarServiciosDesdeInspeccion = async () => {
       if (!nuevoCocheId) {
         setServiciosParteSeleccionados([]);
-        setServiciosRecepcionSugeridos([]);
         return;
       }
-
-      // Al cambiar de coche, empieza sin servicios para permitir añadir solo nuevos.
-      setServiciosParteSeleccionados([]);
 
       try {
         const inspeccion = await obtenerUltimaInspeccionPorCoche(nuevoCocheId);
@@ -285,14 +252,14 @@ export function AdminPartesTrabajo() {
               tiempo_estimado_minutos: Number.parseInt(s?.tiempo_estimado_minutos || 0, 10) || 0,
               origen: "recepcion",
               servicio_catalogo_id: s?.servicio_catalogo_id ?? null,
-              tipo_tarea: resolverTipoTareaServicio(s),
+              tipo_tarea: "",
             }))
           : [];
 
         const limpios = desdeRecepcion.filter((s) => s.nombre);
-        setServiciosRecepcionSugeridos(limpios);
+        setServiciosParteSeleccionados(limpios);
       } catch {
-        if (active) setServiciosRecepcionSugeridos([]);
+        if (active) setServiciosParteSeleccionados([]);
       }
     };
 
@@ -301,17 +268,6 @@ export function AdminPartesTrabajo() {
       active = false;
     };
   }, [nuevoCocheId]);
-
-  const cargarServiciosSugeridos = () => {
-    if (!Array.isArray(serviciosRecepcionSugeridos) || serviciosRecepcionSugeridos.length === 0) return;
-    setServiciosParteSeleccionados((prev) => {
-      const existentes = new Set(prev.map((s) => `${s.servicio_catalogo_id || "x"}-${String(s.nombre || "").toLowerCase()}`));
-      const nuevos = serviciosRecepcionSugeridos.filter(
-        (s) => !existentes.has(`${s.servicio_catalogo_id || "x"}-${String(s.nombre || "").toLowerCase()}`)
-      );
-      return [...prev, ...nuevos.map((s, idx) => ({ ...s, key: `${s.key || "rec"}-${Date.now()}-${idx}` }))];
-    });
-  };
 
   const agregarServicioExtra = () => {
     if (!nuevoServicioId) {
@@ -329,7 +285,6 @@ export function AdminPartesTrabajo() {
     if (!nombre) return;
 
     setServiciosParteSeleccionados((prev) => {
-      const tipoCatalogo = resolverTipoTareaServicio(servicioElegido);
       return [
         ...prev,
         {
@@ -339,7 +294,7 @@ export function AdminPartesTrabajo() {
           tiempo_estimado_minutos: Number.parseInt(servicioElegido.tiempo_estimado_minutos || 0, 10) || 0,
           origen: "extra",
           servicio_catalogo_id: servicioElegido.id,
-          tipo_tarea: tipoCatalogo || "otro",
+          tipo_tarea: "",
         },
       ];
     });
@@ -367,12 +322,6 @@ export function AdminPartesTrabajo() {
       return;
     }
 
-    const tipoManual = normalizeTipoTarea(nuevoServicioManualTipoTarea);
-    if (!tipoManual) {
-      setMensajeCreacion("Debes indicar el rol/área para el servicio manual.");
-      return;
-    }
-
     setServiciosParteSeleccionados((prev) => {
       return [
         ...prev,
@@ -383,7 +332,7 @@ export function AdminPartesTrabajo() {
           tiempo_estimado_minutos: tiempoEstimadoMin,
           origen: "manual",
           servicio_catalogo_id: null,
-          tipo_tarea: tipoManual,
+          tipo_tarea: "",
         },
       ];
     });
@@ -391,7 +340,6 @@ export function AdminPartesTrabajo() {
     setNuevoServicioManualNombre("");
     setNuevoServicioManualPrecio("");
     setNuevoServicioManualHoras("");
-    setNuevoServicioManualTipoTarea("");
     setMensajeCreacion("");
   };
 
@@ -459,7 +407,6 @@ export function AdminPartesTrabajo() {
       setNuevoServicioManualNombre("");
       setNuevoServicioManualPrecio("");
       setNuevoServicioManualHoras("");
-      setNuevoServicioManualTipoTarea("");
       setServiciosParteSeleccionados([]);
       await Promise.all([cargarPartes(), cargarRecursos()]);
     } catch (e) {
@@ -509,6 +456,21 @@ export function AdminPartesTrabajo() {
       await cargarPartes();
     } catch (e) {
       setError(e?.message || "No se pudo finalizar el grupo.");
+    }
+  };
+
+  const onBorrarGrupo = async (partes) => {
+    const matricula = partes[0]?.matricula || `coche ${partes[0]?.coche_id}`;
+    const confirmado = window.confirm(
+      `Vas a eliminar los ${partes.length} parte(s) de ${matricula}. Esta acción no se puede deshacer.\n\n¿Deseas continuar?`
+    );
+    if (!confirmado) return;
+    setError("");
+    try {
+      for (const p of partes) await eliminarParteTrabajo(p.id);
+      await cargarPartes();
+    } catch (e) {
+      setError(e?.message || "No se pudo eliminar el grupo.");
     }
   };
 
@@ -701,7 +663,7 @@ export function AdminPartesTrabajo() {
               )}
 
               <div className="row g-2 mt-2">
-                <div className="col-12 col-md-4">
+                <div className="col-12 col-md-5">
                   <input
                     type="text"
                     className="form-control"
@@ -711,7 +673,7 @@ export function AdminPartesTrabajo() {
                     style={{ borderRadius: "8px" }}
                   />
                 </div>
-                <div className="col-12 col-md-2">
+                <div className="col-12 col-md-3">
                   <input
                     type="number"
                     step="0.01"
@@ -735,19 +697,6 @@ export function AdminPartesTrabajo() {
                     style={{ borderRadius: "8px" }}
                   />
                 </div>
-                <div className="col-12 col-md-2">
-                  <select
-                    className="form-select"
-                    value={nuevoServicioManualTipoTarea}
-                    onChange={(e) => setNuevoServicioManualTipoTarea(e.target.value)}
-                    style={{ borderRadius: "8px" }}
-                  >
-                    <option value="">Rol</option>
-                    {TIPO_TAREA_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </div>
                 <div className="col-12 col-md-2 d-grid">
                   <button
                     type="button"
@@ -759,21 +708,13 @@ export function AdminPartesTrabajo() {
                 </div>
               </div>
               <small className="text-muted d-block mt-2">
-                Catálogo: rol automático. Manual: indica rol y horas, luego añade.
+                Al elegir coche, se cargan automáticamente los servicios acordados en recepción (última inspección).
               </small>
-              {serviciosRecepcionSugeridos.length > 0 && (
-                <div className="mt-2">
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline-primary"
-                    onClick={cargarServiciosSugeridos}
-                  >
-                    Cargar servicios de recepción ({serviciosRecepcionSugeridos.length})
-                  </button>
-                </div>
-              )}
               <small className="text-muted d-block mt-1">
-                Al elegir coche no se cargan servicios automáticamente para que puedas añadir solo lo nuevo.
+                En servicio manual puedes indicar horas (ej. 1.5) y se convertirán automáticamente a minutos.
+              </small>
+              <small className="text-muted d-block mt-1">
+                Puedes mezclar varias áreas en un solo guardado: asigna un área distinta a cada servicio antes de crear.
               </small>
 
               <div className="mt-2">
@@ -783,7 +724,7 @@ export function AdminPartesTrabajo() {
                   <div>
                     {hayServiciosSinTipo && (
                       <div className="alert alert-warning py-2 mb-2" role="alert">
-                        Hay servicios manuales sin área asignada. Selecciona un rol antes de crear.
+                        Hay servicios sin área asignada. Selecciona un rol para cada uno antes de crear.
                       </div>
                     )}
                     <div className="d-flex flex-wrap gap-2">
@@ -806,26 +747,20 @@ export function AdminPartesTrabajo() {
                               ×
                             </button>
                           </div>
-                          {String(s.origen || "") === "manual" ? (
-                            <div className="mt-2">
-                              <label className="form-label small mb-1">Área de este servicio</label>
-                              <select
-                                className="form-select form-select-sm"
-                                value={s.tipo_tarea || ""}
-                                onChange={(e) => actualizarTipoServicio(s.key, e.target.value)}
-                              >
-                                <option value="">Selecciona área...</option>
-                                {TIPO_TAREA_OPTIONS.map((option) => (
-                                  <option key={option.value} value={option.value}>{option.label}</option>
-                                ))}
-                              </select>
-                              <div className="small text-muted mt-1">{getTipoTareaLabel(s.tipo_tarea)}</div>
-                            </div>
-                          ) : (
-                            <div className="small text-muted mt-2">
-                              Área automática: <strong>{getTipoTareaLabel(s.tipo_tarea)}</strong>
-                            </div>
-                          )}
+                          <div className="mt-2">
+                            <label className="form-label small mb-1">Área de este servicio</label>
+                            <select
+                              className="form-select form-select-sm"
+                              value={s.tipo_tarea || ""}
+                              onChange={(e) => actualizarTipoServicio(s.key, e.target.value)}
+                            >
+                              <option value="">Selecciona área...</option>
+                              {TIPO_TAREA_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                              ))}
+                            </select>
+                            <div className="small text-muted mt-1">{getTipoTareaLabel(s.tipo_tarea)}</div>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -931,17 +866,6 @@ export function AdminPartesTrabajo() {
                       : "pendiente";
                     const ids = cp.map(p => p.id);
                     const parteRef = cp.find(p => p.fecha_inicio) || cp[0];
-                    const identidad = cp.reduce(
-                      (acc, p) => ({
-                        matricula: acc.matricula || p?.matricula || "",
-                        marca: acc.marca || p?.marca || "",
-                        modelo: acc.modelo || p?.modelo || "",
-                        cliente: acc.cliente || p?.cliente_nombre || "",
-                      }),
-                      { matricula: "", marca: "", modelo: "", cliente: "" }
-                    );
-                    const marcaModelo = [identidad.marca, identidad.modelo].filter(Boolean).join(" ");
-                    const tituloCoche = [identidad.matricula || `#${coche_id}`, marcaModelo].filter(Boolean).join(" · ");
 
                     // Empleados únicos del coche
                     const empleadosUnicos = [...new Map(
@@ -956,12 +880,7 @@ export function AdminPartesTrabajo() {
                         {/* Cabecera del coche */}
                         <div className="card-header py-2">
                           <div className="d-flex justify-content-between align-items-center">
-                            <div>
-                              <strong>{tituloCoche}</strong>
-                              {identidad.cliente && (
-                                <div className="small text-muted">👤 {identidad.cliente}</div>
-                              )}
-                            </div>
+                            <strong>{cocheTextoPorId(coche_id)}</strong>
                             <EstadoBadge estado={estadoGlobal} />
                           </div>
                           <div className="d-flex gap-3 mt-1" style={{ fontSize: "0.85rem", opacity: 0.8 }}>
@@ -970,7 +889,7 @@ export function AdminPartesTrabajo() {
                             <Cronometro parte={{ ...parteRef, estado: estadoGlobal }} />
                           </div>
                         </div>
-                        {/* Servicios — edición y borrado individual por servicio */}
+                        {/* Servicios — solo nombre y editar */}
                         <table className="table table-sm mb-0">
                           <tbody>
                             {cp.map(p => (
@@ -978,22 +897,9 @@ export function AdminPartesTrabajo() {
                                 <td className="text-muted small ps-3">#{p.id}</td>
                                 <td>{p.observaciones || getTipoTareaLabel(p.tipo_tarea)}</td>
                                 <td className="text-end pe-3">
-                                  <div className="d-inline-flex gap-2">
-                                    <button
-                                      className="btn btn-sm btn-outline-secondary"
-                                      onClick={() => onAbrirEditar(p)}
-                                      title="Editar este servicio"
-                                    >
-                                      ✏️
-                                    </button>
-                                    <button
-                                      className="btn btn-sm btn-outline-danger"
-                                      onClick={() => onEliminarParte(p)}
-                                      title="Borrar solo este servicio"
-                                    >
-                                      🗑️
-                                    </button>
-                                  </div>
+                                  <button className="btn btn-sm btn-outline-secondary" onClick={() => onAbrirEditar(p)}>
+                                    ✏️
+                                  </button>
                                 </td>
                               </tr>
                             ))}
@@ -1006,7 +912,9 @@ export function AdminPartesTrabajo() {
                               ▶️ Reanudar
                             </button>
                           )}
-                          <span className="ms-auto text-muted small align-self-center">Borrado individual por servicio</span>
+                          <button className="btn btn-sm btn-outline-danger ms-auto" onClick={() => onBorrarGrupo(cp)}>
+                            🗑️ Borrar
+                          </button>
                           <button className="btn btn-sm btn-success" onClick={() => onFinalizarGrupo(ids)}>
                             ✅ Finalizar
                           </button>
@@ -1071,36 +979,6 @@ export function AdminPartesTrabajo() {
 
               {reporte.length === 0 && !loadingReporte && (
                 <p className="text-muted">Sin datos para el período seleccionado.</p>
-              )}
-
-              {colaboracionPorCoche.length > 0 && (
-                <div className="mb-3 p-3 rounded" style={{ background: "#eef7ff", border: "1px solid #cfe6ff" }}>
-                  <div className="fw-semibold mb-2">🤝 Coches con colaboración entre empleados</div>
-                  <div className="table-responsive">
-                    <table className="table table-sm mb-0">
-                      <thead>
-                        <tr>
-                          <th>Coche</th>
-                          <th>Empleados</th>
-                          <th>Tiempo total coche</th>
-                          <th>Desglose</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {colaboracionPorCoche.map((c) => (
-                          <tr key={c.key}>
-                            <td>{[c.matricula, c.marca, c.modelo].filter(Boolean).join(" · ")}</td>
-                            <td>{c.totalEmpleados}</td>
-                            <td><strong>{formatMinutes(c.totalMinutos)}</strong></td>
-                            <td className="small text-muted">
-                              {c.desglose.map((d) => `${d.nombre}: ${formatMinutes(d.minutos)}`).join(" · ")}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
               )}
 
               {reporte.map((emp) => (
@@ -1277,7 +1155,7 @@ function Cronometro({ parte }) {
 // ── Categorías de trabajo ─────────────────────────────────────────────────────
 
 // ── Tarjeta de coche: un timer y un set de botones para todos los servicios ───
-function CocheGrupoCard({ grupo, empleadoId, userRol, onIniciarGrupo, onPausarGrupo, onFinalizarGrupo, onSumarmeCoche, cargando }) {
+function CocheGrupoCard({ grupo, empleadoId, onAccionParte, onSumarmeCoche, cargando }) {
   const { matricula, marca, modelo, cliente_nombre, partes } = grupo;
   const descCoche = [marca, modelo].filter(Boolean).join(" ");
 
@@ -1287,36 +1165,11 @@ function CocheGrupoCard({ grupo, empleadoId, userRol, onIniciarGrupo, onPausarGr
     : "pendiente";
 
   const yoId = Number(empleadoId);
-  const rolNormalizado = String(userRol || "").toLowerCase();
-  const esAdmin = rolNormalizado === "administrador" || rolNormalizado === "admin" || rolNormalizado === "administrator";
   const hayOtroTrabajando = partes.some(
     (p) => (p.estado === "en_proceso" || p.estado === "en_pausa") && Number(p.empleado_id) !== yoId
   );
   const esTareaInterna = Boolean(grupo.es_tarea_interna);
 
-  const idsGrupo = partes.map((p) => p.id);
-  const idsPausables = partes
-    .filter((p) => p.estado === "en_proceso" && (esAdmin || Number(p.empleado_id) === yoId))
-    .map((p) => p.id);
-  const idsFinalizables = partes
-    .filter((p) => (p.estado === "en_proceso" || p.estado === "en_pausa") && (esAdmin || Number(p.empleado_id) === yoId))
-    .map((p) => p.id);
-  const aportesPorEmpleado = Object.values(
-    partes.reduce((acc, p) => {
-      const empleadoKey = Number(p.empleado_id) || 0;
-      if (!acc[empleadoKey]) {
-        acc[empleadoKey] = {
-          empleado_id: empleadoKey,
-          nombre: p.empleado_nombre || (empleadoKey ? `Empleado ${empleadoKey}` : "Sin asignar"),
-          minutos: 0,
-        };
-      }
-      acc[empleadoKey].minutos += Number(p.duracion_minutos || 0);
-      return acc;
-    }, {})
-  ).sort((a, b) => b.minutos - a.minutos);
-  const hayColaboracion = aportesPorEmpleado.filter((a) => a.empleado_id > 0).length > 1;
-  const totalMinutosCoche = aportesPorEmpleado.reduce((sum, a) => sum + Number(a.minutos || 0), 0);
   // Para el cronómetro usamos el primer parte que tenga fecha_inicio
   const parteRef = partes.find(p => p.fecha_inicio) || { ...partes[0], estado: estadoGlobal };
 
@@ -1328,8 +1181,9 @@ function CocheGrupoCard({ grupo, empleadoId, userRol, onIniciarGrupo, onPausarGr
     }>
       <div className="sw-parte-card__header">
         <div>
-          <span className="sw-parte-card__matricula">{[matricula || `#${partes[0].coche_id}`, descCoche].filter(Boolean).join(" · ")}</span>
-          {cliente_nombre && <div className="sw-parte-card__cliente">👤 {cliente_nombre}</div>}
+          <span className="sw-parte-card__matricula">{matricula || `#${partes[0].coche_id}`}</span>
+          {descCoche && <span className="sw-parte-card__desc"> · {descCoche}</span>}
+          {cliente_nombre && <span className="sw-parte-card__cliente"> · {cliente_nombre}</span>}
           {hayOtroTrabajando && (
             <div className="mt-1">
               <span className="badge bg-warning text-dark">⚠ Ya hay alguien trabajando en este coche</span>
@@ -1350,9 +1204,10 @@ function CocheGrupoCard({ grupo, empleadoId, userRol, onIniciarGrupo, onPausarGr
         <EstadoBadge estado={estadoGlobal} />
       </div>
 
-      {/* Lista de servicios del coche */}
+      {/* Lista de servicios con acción individual por parte */}
       <div style={{ marginTop: "0.5rem", display: "flex", flexDirection: "column", gap: "0.45rem" }}>
         {partes.map((p) => {
+          const esMio = Number(p.empleado_id) === yoId;
           return (
             <div
               key={p.id}
@@ -1373,6 +1228,51 @@ function CocheGrupoCard({ grupo, empleadoId, userRol, onIniciarGrupo, onPausarGr
                 </div>
                 <div className="d-flex align-items-center gap-2">
                   <EstadoBadge estado={p.estado} />
+                  {p.estado === "pendiente" && (
+                    <button
+                      className="sw-parte-btn sw-parte-btn--start"
+                      disabled={cargando}
+                      onClick={() => onAccionParte(p.id, "tomar_e_iniciar")}
+                    >
+                      ▶ Iniciar
+                    </button>
+                  )}
+                  {p.estado === "en_proceso" && esMio && (
+                    <>
+                      <button
+                        className="sw-parte-btn sw-parte-btn--pause"
+                        disabled={cargando}
+                        onClick={() => onAccionParte(p.id, "en_pausa")}
+                      >
+                        ⏸ Pausar
+                      </button>
+                      <button
+                        className="sw-parte-btn sw-parte-btn--finish"
+                        disabled={cargando}
+                        onClick={() => onAccionParte(p.id, "finalizado")}
+                      >
+                        ✓ Finalizar
+                      </button>
+                    </>
+                  )}
+                  {p.estado === "en_pausa" && esMio && (
+                    <>
+                      <button
+                        className="sw-parte-btn sw-parte-btn--resume"
+                        disabled={cargando}
+                        onClick={() => onAccionParte(p.id, "quitar_pausa")}
+                      >
+                        ▶ Reanudar
+                      </button>
+                      <button
+                        className="sw-parte-btn sw-parte-btn--finish"
+                        disabled={cargando}
+                        onClick={() => onAccionParte(p.id, "finalizado")}
+                      >
+                        ✓ Finalizar
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -1383,46 +1283,7 @@ function CocheGrupoCard({ grupo, empleadoId, userRol, onIniciarGrupo, onPausarGr
       {/* Timer referencia del coche */}
       <div className="sw-parte-card__footer">
         <Cronometro parte={{ ...parteRef, estado: estadoGlobal }} />
-        <div className="sw-parte-card__actions">
-          {!esTareaInterna && (
-            <>
-              <button
-                className="sw-parte-btn sw-parte-btn--start"
-                disabled={cargando || estadoGlobal === "en_proceso"}
-                onClick={() => onIniciarGrupo(idsGrupo)}
-              >
-                ▶ Iniciar
-              </button>
-              <button
-                className="sw-parte-btn sw-parte-btn--pause"
-                disabled={cargando || idsPausables.length === 0}
-                onClick={() => onPausarGrupo(idsPausables)}
-                title={idsPausables.length === 0 ? "Solo puedes pausar servicios que iniciaste (o todos si eres admin)" : ""}
-              >
-                ⏸ Pausar
-              </button>
-              <button
-                className="sw-parte-btn sw-parte-btn--finish"
-                disabled={cargando || idsFinalizables.length === 0}
-                onClick={() => onFinalizarGrupo(idsFinalizables)}
-                title={idsFinalizables.length === 0 ? "Solo puedes finalizar servicios que iniciaste (o todos si eres admin)" : ""}
-              >
-                ✓ Finalizar
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-      <div style={{ marginTop: "0.5rem", fontSize: "0.82rem", opacity: 0.9 }}>
-        <div className="d-flex flex-wrap align-items-center gap-2">
-          {hayColaboracion && <span className="badge bg-info text-dark">👥 Con ayuda</span>}
-          <span>⏱ Total coche: <strong>{formatMinutes(totalMinutosCoche)}</strong></span>
-        </div>
-        {aportesPorEmpleado.length > 0 && (
-          <div className="mt-1 text-muted">
-            {aportesPorEmpleado.map((a) => `${a.nombre}: ${formatMinutes(a.minutos)}`).join(" · ")}
-          </div>
-        )}
+        <div className="sw-parte-card__actions" />
       </div>
     </div>
   );
@@ -1477,6 +1338,27 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
 
   useEffect(() => { cargarPartes(); }, [cargarPartes]);
 
+  // Actúa sobre un parte individual para permitir colaboración en el mismo coche.
+  const onAccionParte = useCallback(async (parteId, accion) => {
+    setError("");
+    setAccionCargando(true);
+    try {
+      if (accion === "tomar_e_iniciar") {
+        await tomarParteTrabajo(parteId);
+        await cambiarEstadoParte(parteId, "en_proceso");
+      } else if (accion === "quitar_pausa") {
+        await quitarPausa(parteId);
+      } else {
+        await cambiarEstadoParte(parteId, accion);
+      }
+      await cargarPartes();
+    } catch (e) {
+      setError(e?.message || "No se pudo realizar la acción.");
+    } finally {
+      setAccionCargando(false);
+    }
+  }, [cargarPartes]);
+
   const onCrearTareaInterna = useCallback(async () => {
     const texto = String(tareaInternaTexto || "").trim();
     if (!texto) {
@@ -1500,56 +1382,6 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
       setTareaInternaLoading(false);
     }
   }, [cargarPartes, tareaInternaTexto, userRol]);
-
-  const onIniciarGrupo = useCallback(async (ids) => {
-    setError("");
-    setAccionCargando(true);
-    try {
-      for (const id of ids) {
-        await tomarParteTrabajo(id);
-        await cambiarEstadoParte(id, "en_proceso");
-      }
-      await cargarPartes();
-    } catch (e) {
-      setError(e?.message || "No se pudo iniciar el trabajo.");
-    } finally {
-      setAccionCargando(false);
-    }
-  }, [cargarPartes]);
-
-  const onPausarGrupo = useCallback(async (ids) => {
-    if (!Array.isArray(ids) || ids.length === 0) {
-      setError("Solo puedes pausar servicios que iniciaste.");
-      return;
-    }
-    setError("");
-    setAccionCargando(true);
-    try {
-      for (const id of ids) await cambiarEstadoParte(id, "en_pausa");
-      await cargarPartes();
-    } catch (e) {
-      setError(e?.message || "No se pudo pausar el trabajo.");
-    } finally {
-      setAccionCargando(false);
-    }
-  }, [cargarPartes]);
-
-  const onFinalizarGrupo = useCallback(async (ids) => {
-    if (!Array.isArray(ids) || ids.length === 0) {
-      setError("Solo puedes finalizar servicios que iniciaste.");
-      return;
-    }
-    setError("");
-    setAccionCargando(true);
-    try {
-      for (const id of ids) await cambiarEstadoParte(id, "finalizado");
-      await cargarPartes();
-    } catch (e) {
-      setError(e?.message || "No se pudo finalizar el trabajo.");
-    } finally {
-      setAccionCargando(false);
-    }
-  }, [cargarPartes]);
 
   const onSumarmeCoche = useCallback(async (grupo) => {
     const cocheId = Number(grupo?.partes?.[0]?.coche_id);
@@ -1596,15 +1428,6 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
           partes: [],
         };
       }
-
-      // Si el primer parte llegó incompleto, completar identidad del coche con los siguientes.
-      if (!esInterna) {
-        if (!acc[key].matricula && p.matricula) acc[key].matricula = p.matricula;
-        if (!acc[key].marca && p.marca) acc[key].marca = p.marca;
-        if (!acc[key].modelo && p.modelo) acc[key].modelo = p.modelo;
-        if (!acc[key].cliente_nombre && p.cliente_nombre) acc[key].cliente_nombre = p.cliente_nombre;
-      }
-
       acc[key].partes.push(p);
       return acc;
     }, {})
@@ -1665,10 +1488,7 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
                 key={grupo.coche_id}
                 grupo={grupo}
                 empleadoId={empleadoId}
-                userRol={userRol}
-                onIniciarGrupo={onIniciarGrupo}
-                onPausarGrupo={onPausarGrupo}
-                onFinalizarGrupo={onFinalizarGrupo}
+                onAccionParte={onAccionParte}
                 onSumarmeCoche={onSumarmeCoche}
                 cargando={accionCargando}
               />

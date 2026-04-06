@@ -21,7 +21,6 @@ from models.coche import Coche
 from models.cliente import Cliente
 from models.parte_trabajo import ParteTrabajo, EstadoParte
 from models.gasto_empresa import GastoEmpresa
-from models.servicio_catalogo import ServicioCatalogo
 from models.base import now_madrid
 from utils.auth_utils import normalize_role
 from services.whatsapp_service import enviar_notificacion_inspeccion, enviar_notificacion_entrega_cliente
@@ -52,17 +51,11 @@ def _get_partes_por_coche(coche_ids):
     partes = ParteTrabajo.query.filter(ParteTrabajo.coche_id.in_(coche_ids)).all()
     por_coche = {}
     resumen_activos = {}
-    resumen_roles_todos = {}
     for parte in partes:
         cid = parte.coche_id
         st = parte.estado.value if parte.estado else "finalizado"
         prioridad = _PRIORIDAD_ESTADO_PARTE.get(st, 99)
         recency = _parte_recency_key(parte)
-        rol_parte = normalize_role(getattr(parte, "tipo_tarea", "") or "") or "otro"
-
-        bucket_roles = resumen_roles_todos.setdefault(cid, [])
-        if rol_parte not in bucket_roles:
-            bucket_roles.append(rol_parte)
 
         # Partes activos del coche (sin finalizados) para mostrar carga real.
         if st in {"pendiente", "en_proceso", "en_pausa"}:
@@ -71,21 +64,12 @@ def _get_partes_por_coche(coche_ids):
                 {
                     "partes_ids": [],
                     "empleados": [],
-                    "roles": [],
-                    "partes_detalle": [],
                 },
             )
             bucket["partes_ids"].append(int(parte.id))
             empleado_nombre = (getattr(getattr(parte, "empleado", None), "nombre", "") or "").strip()
             if empleado_nombre and empleado_nombre not in bucket["empleados"]:
                 bucket["empleados"].append(empleado_nombre)
-            if rol_parte not in bucket["roles"]:
-                bucket["roles"].append(rol_parte)
-            bucket["partes_detalle"].append({
-                "id": int(parte.id),
-                "tipo_tarea": rol_parte,
-                "empleado_nombre": empleado_nombre or None,
-            })
 
         if cid not in por_coche:
             por_coche[cid] = (prioridad, recency, parte)
@@ -106,29 +90,14 @@ def _get_partes_por_coche(coche_ids):
             "partes_activas_count": len(activos["partes_ids"]),
             "partes_activas_ids": activos["partes_ids"],
             "partes_activas_empleados": activos["empleados"],
-            "partes_activas_roles": activos.get("roles", []),
-            "partes_activas_detalle": activos.get("partes_detalle", []),
-            "partes_roles_todos": resumen_roles_todos.get(cid, []),
         }
     return out
 
 
-def _compute_estado_coche(
-    inspeccion,
-    parte,
-    partes_activas_count=0,
-    partes_activas_ids=None,
-    partes_activas_empleados=None,
-    partes_activas_roles=None,
-    partes_activas_detalle=None,
-    partes_roles_todos=None,
-):
+def _compute_estado_coche(inspeccion, parte, partes_activas_count=0, partes_activas_ids=None, partes_activas_empleados=None):
     """Calcula el estado visual actual del coche en el proceso de taller."""
     partes_activas_ids = partes_activas_ids or []
     partes_activas_empleados = partes_activas_empleados or []
-    partes_activas_roles = partes_activas_roles or []
-    partes_activas_detalle = partes_activas_detalle or []
-    partes_roles_todos = partes_roles_todos or []
 
     if inspeccion.entregado:
         return {
@@ -142,9 +111,6 @@ def _compute_estado_coche(
             "partes_activas_count": 0,
             "partes_activas_ids": [],
             "partes_activas_empleados": [],
-            "partes_activas_roles": [],
-            "partes_activas_detalle": [],
-            "partes_roles_todos": [],
         }
 
     if inspeccion.repaso_completado:
@@ -159,9 +125,6 @@ def _compute_estado_coche(
             "partes_activas_count": 0,
             "partes_activas_ids": [],
             "partes_activas_empleados": [],
-            "partes_activas_roles": [],
-            "partes_activas_detalle": [],
-            "partes_roles_todos": [],
         }
 
     if parte is None:
@@ -176,9 +139,6 @@ def _compute_estado_coche(
             "partes_activas_count": 0,
             "partes_activas_ids": [],
             "partes_activas_empleados": [],
-            "partes_activas_roles": [],
-            "partes_activas_detalle": [],
-            "partes_roles_todos": [],
         }
 
     st = parte.estado.value if parte.estado else "desconocido"
@@ -191,7 +151,7 @@ def _compute_estado_coche(
         return {
             "estado": "en_proceso",
             "label": "🔧 En trabajo",
-            "color": "#ff8a00",
+            "color": "#fd7e14",
             "parte_id": parte.id,
             "parte_obs": short_obs,
             "parte_empleado_id": empleado_id,
@@ -199,9 +159,6 @@ def _compute_estado_coche(
             "partes_activas_count": int(partes_activas_count or 0),
             "partes_activas_ids": partes_activas_ids,
             "partes_activas_empleados": partes_activas_empleados,
-            "partes_activas_roles": partes_activas_roles,
-            "partes_activas_detalle": partes_activas_detalle,
-            "partes_roles_todos": partes_roles_todos,
         }
     if st == "en_pausa":
         return {
@@ -215,9 +172,6 @@ def _compute_estado_coche(
             "partes_activas_count": int(partes_activas_count or 0),
             "partes_activas_ids": partes_activas_ids,
             "partes_activas_empleados": partes_activas_empleados,
-            "partes_activas_roles": partes_activas_roles,
-            "partes_activas_detalle": partes_activas_detalle,
-            "partes_roles_todos": partes_roles_todos,
         }
     if st == "pendiente":
         return {
@@ -231,15 +185,12 @@ def _compute_estado_coche(
             "partes_activas_count": int(partes_activas_count or 0),
             "partes_activas_ids": partes_activas_ids,
             "partes_activas_empleados": partes_activas_empleados,
-            "partes_activas_roles": partes_activas_roles,
-            "partes_activas_detalle": partes_activas_detalle,
-            "partes_roles_todos": partes_roles_todos,
         }
     if st == "finalizado":
         return {
             "estado": "en_repaso",
             "label": "🧽 En repaso",
-            "color": "#0b5ed7",
+            "color": "#0d6efd",
             "parte_id": parte.id,
             "parte_obs": short_obs,
             "parte_empleado_id": empleado_id,
@@ -247,9 +198,6 @@ def _compute_estado_coche(
             "partes_activas_count": int(partes_activas_count or 0),
             "partes_activas_ids": partes_activas_ids,
             "partes_activas_empleados": partes_activas_empleados,
-            "partes_activas_roles": partes_activas_roles,
-            "partes_activas_detalle": partes_activas_detalle,
-            "partes_roles_todos": partes_roles_todos,
         }
 
     return {
@@ -263,9 +211,6 @@ def _compute_estado_coche(
         "partes_activas_count": int(partes_activas_count or 0),
         "partes_activas_ids": partes_activas_ids,
         "partes_activas_empleados": partes_activas_empleados,
-        "partes_activas_roles": partes_activas_roles,
-        "partes_activas_detalle": partes_activas_detalle,
-        "partes_roles_todos": partes_roles_todos,
     }
 
 
@@ -279,9 +224,6 @@ def _serialize_inspeccion_con_estado(inspeccion, partes_por_coche):
         partes_activas_count=partes_info.get("partes_activas_count", 0) if isinstance(partes_info, dict) else 0,
         partes_activas_ids=partes_info.get("partes_activas_ids", []) if isinstance(partes_info, dict) else [],
         partes_activas_empleados=partes_info.get("partes_activas_empleados", []) if isinstance(partes_info, dict) else [],
-        partes_activas_roles=partes_info.get("partes_activas_roles", []) if isinstance(partes_info, dict) else [],
-        partes_activas_detalle=partes_info.get("partes_activas_detalle", []) if isinstance(partes_info, dict) else [],
-        partes_roles_todos=partes_info.get("partes_roles_todos", []) if isinstance(partes_info, dict) else [],
     )
     data["cobro"] = _build_cobro_info(inspeccion)
     return data
@@ -300,7 +242,6 @@ def _jwt_user_id():
 
 INSPECCION_ALLOWED_ROLES = {"administrador", "detailing", "calidad"}
 INSPECCION_MANAGER_ROLES = {"administrador", "calidad"}
-PARTE_TIPO_TAREA_VALUES = {"detailing", "pintura", "tapicero", "calidad", "otro"}
 
 
 def _is_inspeccion_role(user):
@@ -355,18 +296,12 @@ def _normalize_servicios_aplicados(raw):
         except (TypeError, ValueError):
             servicio_catalogo_id = None
 
-        tipo_tarea_raw = item.get("tipo_tarea") or item.get("rol") or item.get("rol_responsable")
-        tipo_tarea = normalize_role(str(tipo_tarea_raw or "").strip()) if tipo_tarea_raw else None
-        if tipo_tarea and tipo_tarea not in PARTE_TIPO_TAREA_VALUES:
-            tipo_tarea = "otro"
-
         normalized.append({
             "origen": origen,
             "servicio_catalogo_id": servicio_catalogo_id,
             "nombre": nombre,
             "precio": precio,
             "tiempo_estimado_minutos": tiempo_estimado_minutos,
-            "tipo_tarea": tipo_tarea,
         })
 
     return normalized
@@ -378,95 +313,6 @@ def _safe_servicios_aplicados(inspeccion):
         return raw if isinstance(raw, list) else []
     except Exception:
         return []
-
-
-def _resolve_tipo_tarea_servicio(servicio_item):
-    raw_tipo = servicio_item.get("tipo_tarea")
-    tipo = normalize_role(str(raw_tipo or "").strip()) if raw_tipo else ""
-    if tipo in PARTE_TIPO_TAREA_VALUES:
-        return tipo
-
-    servicio_catalogo = None
-    servicio_catalogo_id = servicio_item.get("servicio_catalogo_id")
-    try:
-        if servicio_catalogo_id is not None:
-            servicio_catalogo = ServicioCatalogo.query.get(int(servicio_catalogo_id))
-    except (TypeError, ValueError):
-        servicio_catalogo = None
-
-    if servicio_catalogo is None:
-        nombre = str(servicio_item.get("nombre") or "").strip()
-        if nombre:
-            servicio_catalogo = ServicioCatalogo.query.filter(
-                ServicioCatalogo.nombre.ilike(nombre)
-            ).first()
-
-    if servicio_catalogo and servicio_catalogo.rol_responsable:
-        role = normalize_role(servicio_catalogo.rol_responsable)
-        if role in PARTE_TIPO_TAREA_VALUES:
-            return role
-
-    return "otro"
-
-
-def _crear_partes_automaticos_desde_servicios(inspeccion, servicios_aplicados):
-    """Crea partes pendientes por cada servicio segun su tipo de tarea (rol)."""
-    if not inspeccion or not inspeccion.coche_id:
-        return []
-
-    if not isinstance(servicios_aplicados, list):
-        return []
-
-    creados = []
-    for item in servicios_aplicados:
-        if not isinstance(item, dict):
-            continue
-
-        nombre = str(item.get("nombre") or "").strip()
-        if not nombre:
-            continue
-
-        tipo_tarea = _resolve_tipo_tarea_servicio(item)
-
-        servicio_catalogo_id = item.get("servicio_catalogo_id")
-        try:
-            servicio_catalogo_id = int(servicio_catalogo_id) if servicio_catalogo_id is not None else None
-        except (TypeError, ValueError):
-            servicio_catalogo_id = None
-
-        try:
-            tiempo_estimado_minutos = int(item.get("tiempo_estimado_minutos") or 0)
-        except (TypeError, ValueError):
-            tiempo_estimado_minutos = 0
-        if tiempo_estimado_minutos < 0:
-            tiempo_estimado_minutos = 0
-
-        query = ParteTrabajo.query.filter_by(
-            coche_id=inspeccion.coche_id,
-            inspeccion_id=inspeccion.id,
-            tipo_tarea=tipo_tarea,
-            observaciones=nombre,
-        )
-        if servicio_catalogo_id is not None:
-            query = query.filter_by(servicio_catalogo_id=servicio_catalogo_id)
-
-        if query.first():
-            continue
-
-        parte = ParteTrabajo(
-            coche_id=inspeccion.coche_id,
-            inspeccion_id=inspeccion.id,
-            servicio_catalogo_id=servicio_catalogo_id,
-            empleado_id=None,
-            estado=EstadoParte.pendiente,
-            observaciones=nombre,
-            tiempo_estimado_minutos=tiempo_estimado_minutos,
-            tipo_tarea=tipo_tarea,
-        )
-        db.session.add(parte)
-        creados.append(parte)
-
-    return creados
 
 
 def _importe_total_inspeccion(inspeccion):
@@ -666,7 +512,6 @@ def crear_inspeccion():
     - coche_descripcion (str)
     - matricula (str)
     - kilometros (int)
-    - firma_empleado_recepcion (base64)
     - firma_cliente_recepcion (base64) solo en flujo normal
     - averias_notas (str, opcional)
     """
@@ -791,8 +636,6 @@ def crear_inspeccion():
             db.session.add(coche)
             db.session.flush()
         
-        servicios_aplicados = _normalize_servicios_aplicados(data.get("servicios_aplicados"))
-
         # 3. Crear inspección vinculada
         inspeccion = InspeccionRecepcion(
             usuario_id=user_id,
@@ -805,19 +648,17 @@ def crear_inspeccion():
             kilometros=kilometros,
             es_concesionario=es_concesionario,
             firma_cliente_recepcion=None if es_concesionario else data.get("firma_cliente_recepcion"),
-            firma_empleado_recepcion=data.get("firma_empleado_recepcion"),
+            # Firma de empleado no se usa en recepción.
+            firma_empleado_recepcion=None,
             consentimiento_datos_recepcion=consentimiento_datos_recepcion,
             averias_notas=data.get("averias_notas", ""),
-            servicios_aplicados=json.dumps(servicios_aplicados),
+            servicios_aplicados=json.dumps(_normalize_servicios_aplicados(data.get("servicios_aplicados"))),
             fotos_cloudinary="[]",
             videos_cloudinary="[]",
             confirmado=False
         )
         
         db.session.add(inspeccion)
-        db.session.flush()
-
-        _crear_partes_automaticos_desde_servicios(inspeccion, servicios_aplicados)
 
         # Notificación interna en sistema
         try:
@@ -1053,7 +894,8 @@ def actualizar_inspeccion(inspeccion_id):
                 inspeccion.firma_cliente_recepcion = data["firma_cliente_recepcion"]
 
         if "firma_empleado_recepcion" in data:
-            inspeccion.firma_empleado_recepcion = data["firma_empleado_recepcion"]
+            # Se ignora por decisión de negocio: no pedir ni guardar firma de empleado.
+            inspeccion.firma_empleado_recepcion = None
 
         if "consentimiento_datos_recepcion" in data:
             inspeccion.consentimiento_datos_recepcion = bool(data["consentimiento_datos_recepcion"])
@@ -1064,7 +906,6 @@ def actualizar_inspeccion(inspeccion_id):
         if "servicios_aplicados" in data:
             servicios_aplicados = _normalize_servicios_aplicados(data.get("servicios_aplicados"))
             inspeccion.servicios_aplicados = json.dumps(servicios_aplicados)
-            _crear_partes_automaticos_desde_servicios(inspeccion, servicios_aplicados)
         
         # Solo admin puede confirmar
         if "confirmado" in data and user.rol == "administrador":
@@ -1201,7 +1042,6 @@ def registrar_entrega(inspeccion_id):
     Campos opcionales:
     - entrega_observaciones (str)
     - firma_cliente_entrega (base64)
-    - firma_empleado_entrega (base64)
     - consentimiento_datos_entrega (bool)
     - conformidad_revision_entrega (bool)
     - registrar_cobro (bool)
@@ -1239,7 +1079,8 @@ def registrar_entrega(inspeccion_id):
         inspeccion.trabajos_realizados = str(trabajos_realizados).strip()
         inspeccion.entrega_observaciones = data.get("entrega_observaciones", "").strip()
         inspeccion.firma_cliente_entrega = None if es_concesionario else data.get("firma_cliente_entrega")
-        inspeccion.firma_empleado_entrega = data.get("firma_empleado_entrega")
+        # Firma de empleado no se usa en entrega.
+        inspeccion.firma_empleado_entrega = None
         inspeccion.consentimiento_datos_entrega = consentimiento_datos_entrega if not es_concesionario else False
         inspeccion.conformidad_revision_entrega = conformidad_revision_entrega if not es_concesionario else False
         inspeccion.entregado = True

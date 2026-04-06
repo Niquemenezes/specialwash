@@ -16,6 +16,12 @@ export function getApiBase() {
         if (explicitIsCodespace && !currentIsCodespace) {
           return "";
         }
+
+        // Si el backend explícito apunta a OTRO Codespace, ignóralo para evitar
+        // quedar atados a un hostname antiguo tras recrear el entorno.
+        if (explicitIsCodespace && currentIsCodespace && explicitHost !== currentHost) {
+          return "";
+        }
       } catch {
         // If URL parsing fails, keep explicit as-is.
       }
@@ -36,7 +42,7 @@ export function getApiBase() {
       }
 
       if (hostname.endsWith(".app.github.dev")) {
-        const backendHost = hostname.replace(/-3000\./, "-5000.");
+        const backendHost = hostname.replace(/-\d+\./, "-5000.");
         if (backendHost !== hostname) {
           return `${protocol}//${backendHost}`;
         }

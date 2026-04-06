@@ -58,13 +58,12 @@ class UserAdmin(SecureModelView):
 
 
 class ServicioCatalogoAdmin(SecureModelView):
-    # Mostrar explícitamente el rol para evitar que Flask-Admin lo omita.
+    # Mantener solo columnas existentes en el modelo sincronizado desde producción.
     column_list = (
         "nombre",
         "descripcion",
         "precio_base",
         "tiempo_estimado_minutos",
-        "rol_responsable",
         "activo",
         "created_at",
     )
@@ -73,7 +72,6 @@ class ServicioCatalogoAdmin(SecureModelView):
         "descripcion",
         "precio_base",
         "tiempo_estimado_minutos",
-        "rol_responsable",
         "activo",
     )
 
@@ -85,26 +83,20 @@ class ParteTrabajoAdmin(SecureModelView):
         "coche_id",
         "empleado_id",
         "tipo_tarea",
-        "es_tarea_interna",
         "estado",
         "fecha_inicio",
         "fecha_fin",
         "tiempo_estimado_minutos",
-        "inspeccion_id",
-        "servicio_catalogo_id",
     )
     form_columns = (
         "coche_id",
         "empleado_id",
         "tipo_tarea",
-        "es_tarea_interna",
         "observaciones",
         "estado",
         "fecha_inicio",
         "fecha_fin",
         "tiempo_estimado_minutos",
-        "inspeccion_id",
-        "servicio_catalogo_id",
     )
 
 

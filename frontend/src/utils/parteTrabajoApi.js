@@ -3,6 +3,29 @@ import { buildApiUrl } from "./apiBase";
 import { getStoredToken } from "./authSession";
 import { normalizeRol } from "./authSession";
 
+export function formatDate(value) {
+  if (!value) return "-";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleString("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export function formatMinutes(value) {
+  const total = Number(value || 0);
+  if (!Number.isFinite(total) || total <= 0) return "0 min";
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (!h) return `${m} min`;
+  if (!m) return `${h} h`;
+  return `${h} h ${m} min`;
+}
+
 async function apiFetch(path, options = {}) {
   const { auth = true, headers = {}, ...rest } = options;
   const finalHeaders = { ...headers };
@@ -240,39 +263,4 @@ export async function reporteEmpleados({ fecha_inicio, fecha_fin } = {}) {
   if (fecha_fin) params.push(`fecha_fin=${fecha_fin}`);
   const query = params.length ? `?${params.join("&")}` : "";
   return apiFetch(`/api/parte_trabajo/reporte_empleados${query}`);
-}
-
-// ─── Utilidades de formato compartidas ────────────────────────────────────────
-
-export function formatDate(value) {
-  if (!value) return "-";
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? "-" : d.toLocaleString();
-}
-
-export function formatShortDate(value) {
-  if (!value) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleString("es-ES", {
-    day: "2-digit", month: "2-digit", year: "2-digit",
-    hour: "2-digit", minute: "2-digit",
-  });
-}
-
-export function formatMinutes(minutes) {
-  const total = Number.isFinite(Number(minutes)) ? Math.max(0, Number(minutes)) : 0;
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-  if (h === 0) return `${m} min`;
-  if (m === 0) return `${h} h`;
-  return `${h} h ${m} min`;
-}
-
-export function parseHoursToMinutes(hoursValue) {
-  const raw = String(hoursValue ?? "").trim();
-  if (!raw) return 0;
-  const hours = Number(raw.replace(",", "."));
-  if (!Number.isFinite(hours) || hours < 0) return null;
-  return Math.round(hours * 60);
 }

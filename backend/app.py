@@ -11,16 +11,11 @@ from admin import setup_admin
 
 
 def _optional_bootstrap(module_name, function_name):
-  candidates = [module_name, f"backend.{module_name}"]
-  for candidate in candidates:
-    try:
-      module = import_module(candidate)
-      fn = getattr(module, function_name, None)
-      if callable(fn):
-        return fn
-    except Exception:
-      continue
-  return None
+  try:
+    module = import_module(module_name)
+    return getattr(module, function_name, None)
+  except Exception:
+    return None
 
 
 ensure_producto_schema = _optional_bootstrap("update_producto_schema", "ensure_producto_schema")
@@ -63,10 +58,8 @@ def create_app():
         cors_origins = [
             "http://localhost:3000",
             "http://127.0.0.1:3000",
-            "http://localhost:3001",
-            "http://127.0.0.1:3001",
-            "http://localhost:3002",
-            "http://127.0.0.1:3002",
+          "http://localhost:3001",
+          "http://127.0.0.1:3001",
             "capacitor://localhost",
             "ionic://localhost",
             r"https://.*-3000\.app\.github\.dev",
