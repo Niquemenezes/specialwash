@@ -7,10 +7,12 @@ import os
 import time
 
 from models import User, db
-from models.login_attempt import LoginAttempt
 from utils.auth_utils import ALLOWED_ROLES, normalize_role, role_required
 
 auth_bp = Blueprint("auth_routes", __name__)
+
+
+_LOGIN_FAIL_STATE = {}
 
 
 def _env_int(name: str, default: int, minimum: int = 1) -> int:
@@ -38,49 +40,39 @@ def _login_rate_key(email: str) -> str:
     return f"{_client_ip()}|{(email or '').strip().lower()}"
 
 
-def _get_or_create_entry(rate_key: str) -> LoginAttempt:
-    entry = LoginAttempt.query.filter_by(rate_key=rate_key).first()
-    if not entry:
-        entry = LoginAttempt(rate_key=rate_key, failure_timestamps="[]", blocked_until=0.0)
-        db.session.add(entry)
-    return entry
-
-
-def _prune_attempts(entry: LoginAttempt, now_ts: float):
+def _prune_attempts(entry: dict, now_ts: float):
     cutoff = now_ts - LOGIN_WINDOW_SECONDS
-    ts = [t for t in entry.get_timestamps() if t >= cutoff]
-    entry.set_timestamps(ts)
+    entry["failures"] = [ts for ts in entry.get("failures", []) if ts >= cutoff]
 
 
 def _check_blocked(rate_key: str):
-    entry = LoginAttempt.query.filter_by(rate_key=rate_key).first()
-    if not entry:
-        return False, 0
     now_ts = time.time()
-    blocked_until = float(entry.blocked_until or 0)
+    entry = _LOGIN_FAIL_STATE.get(rate_key) or {"failures": [], "blocked_until": 0}
+    _prune_attempts(entry, now_ts)
+    blocked_until = float(entry.get("blocked_until", 0) or 0)
     if blocked_until > now_ts:
-        return True, int(blocked_until - now_ts) + 1
+        retry_after = int(blocked_until - now_ts) + 1
+        return True, retry_after
+    entry["blocked_until"] = 0
+    _LOGIN_FAIL_STATE[rate_key] = entry
     return False, 0
 
 
 def _register_login_failure(rate_key: str):
     now_ts = time.time()
-    entry = _get_or_create_entry(rate_key)
+    entry = _LOGIN_FAIL_STATE.get(rate_key) or {"failures": [], "blocked_until": 0}
     _prune_attempts(entry, now_ts)
-    ts = entry.get_timestamps()
-    ts.append(now_ts)
-    entry.set_timestamps(ts)
-    if len(ts) >= LOGIN_MAX_ATTEMPTS:
-        entry.blocked_until = now_ts + LOGIN_BLOCK_SECONDS
-        entry.set_timestamps([])
-    db.session.commit()
+    failures = entry.get("failures", [])
+    failures.append(now_ts)
+    entry["failures"] = failures
+    if len(failures) >= LOGIN_MAX_ATTEMPTS:
+        entry["blocked_until"] = now_ts + LOGIN_BLOCK_SECONDS
+        entry["failures"] = []
+    _LOGIN_FAIL_STATE[rate_key] = entry
 
 
 def _clear_login_failures(rate_key: str):
-    entry = LoginAttempt.query.filter_by(rate_key=rate_key).first()
-    if entry:
-        db.session.delete(entry)
-        db.session.commit()
+    _LOGIN_FAIL_STATE.pop(rate_key, None)
 
 
 @auth_bp.route("/signup", methods=["POST"])
@@ -156,7 +148,7 @@ def login_json():
 @jwt_required()
 def me():
     uid = int(get_jwt_identity())
-    user = db.session.get(User, uid)
+    user = User.query.get(uid)
     if not user:
         return jsonify({"msg": "Usuario no encontrado"}), 401
     if not getattr(user, "activo", True):
@@ -175,32 +167,32 @@ def logout():
 def reset_password():
     """Admin genera una contraseña temporal para un usuario.
     Solo el administrador decide quién accede con qué contraseña.
-
+    
     Body:
     {
         "user_id": <int>
     }
-
+    
     Response: {"user": {...}, "temporal_password": "xyz123ABC", "msg": "..."}
     """
     data = request.get_json() or {}
-
+    
     user_id = data.get("user_id")
-
+    
     if not user_id:
         return jsonify({"msg": "user_id es requerido"}), 400
-
-    user = db.session.get(User, user_id)
+    
+    user = User.query.get(user_id)
     if not user:
         return jsonify({"msg": "Usuario no encontrado"}), 404
-
+    
     # Generar contraseña temporal usando fuente criptográfica segura.
     alphabet = string.ascii_uppercase + string.digits
     temporal_password = "".join(secrets.choice(alphabet) for _ in range(10))
-
+    
     user.password_hash = generate_password_hash(temporal_password)
     db.session.commit()
-
+    
     return jsonify({
         "msg": f"Contraseña generada para {user.nombre}. Comparte esta contraseña con el usuario.",
         "user": user.to_dict(),

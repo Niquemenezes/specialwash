@@ -78,7 +78,7 @@ const getState = ({ getStore, getActions, setStore }) => {
     try { data = raw ? JSON.parse(raw) : null; } catch { /* respuesta no-JSON */ }
 
     if (!resp.ok) {
-      if (resp.status === 401) {
+      if (auth && resp.status === 401) {
         clearStoredSession();
         setStore({ auth: false, token: null, user: null });
         throw new Error("Sesión expirada. Vuelve a iniciar sesión.");
@@ -168,7 +168,7 @@ const getState = ({ getStore, getActions, setStore }) => {
       // (opcional) loginCookie si usas cookie-only
       loginCookie: async (email, password) => {
         try {
-          const data = await apiFetch("/api/auth/login", {
+          const data = await apiFetch("/api/auth/login_json", {
             method: "POST",
             auth: false,
             body: { email, password },

@@ -1,22 +1,60 @@
-from sqlalchemy import inspect, text
+#!/usr/bin/env python
+"""Actualiza la tabla parte_trabajo agregando columnas faltantes si no existen."""
 
-from extensions import db
+import sqlite3
+from pathlib import Path
+
+DB_PATH = Path(__file__).resolve().parent / "instance" / "specialwash.db"
+
+COLUMNS = {
+    "tiempo_estimado_minutos": "INTEGER NOT NULL DEFAULT 0",
+    "lote_uid": "TEXT",
+    "tipo_tarea": "TEXT",
+    "pausas": "TEXT",
+}
 
 
-def ensure_parte_trabajo_schema():
-    """Agrega columnas nuevas de parte_trabajo si la base ya existia."""
-    engine = db.engine
-    inspector = inspect(engine)
+def ensure_parte_trabajo_schema(db_path: Path = DB_PATH) -> bool:
+    """Retorna True si agregó al menos una columna, False si no hubo cambios."""
+    if not db_path.exists():
+        return False
 
-    if not inspector.has_table("parte_trabajo"):
+    conn = sqlite3.connect(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute("PRAGMA table_info(parte_trabajo)")
+        existing = {row[1] for row in cur.fetchall()}
+
+        updated = False
+        for column_name, column_def in COLUMNS.items():
+            if column_name in existing:
+                continue
+            cur.execute(f"ALTER TABLE parte_trabajo ADD COLUMN {column_name} {column_def}")
+            updated = True
+            print(f"  + Columna añadida: {column_name}")
+
+        if updated:
+            # Índice para lote_uid si no existe
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_parte_trabajo_lote_uid ON parte_trabajo(lote_uid)"
+            )
+            conn.commit()
+        return updated
+    finally:
+        conn.close()
+
+
+def main():
+    if not DB_PATH.exists():
+        print(f"No existe la base de datos en: {DB_PATH}")
         return
 
-    existing = {col["name"] for col in inspector.get_columns("parte_trabajo")}
+    updated = ensure_parte_trabajo_schema(DB_PATH)
+    if updated:
+        print("Actualización completada.")
+    else:
+        print("Esquema al día, no se agregaron columnas.")
 
-    with engine.begin() as conn:
-        if "inspeccion_id" not in existing:
-            conn.execute(text("ALTER TABLE parte_trabajo ADD COLUMN inspeccion_id INTEGER"))
-        if "servicio_catalogo_id" not in existing:
-            conn.execute(text("ALTER TABLE parte_trabajo ADD COLUMN servicio_catalogo_id INTEGER"))
-        if "es_tarea_interna" not in existing:
-            conn.execute(text("ALTER TABLE parte_trabajo ADD COLUMN es_tarea_interna BOOLEAN DEFAULT 0"))
+
+if __name__ == "__main__":
+    main()

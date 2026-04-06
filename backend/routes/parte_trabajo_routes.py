@@ -291,8 +291,7 @@ def crear_parte_trabajo():
     empleado_id = data.get('empleado_id')
     # opcional: None = sin asignar aún; el empleado lo tomará al hacer "Iniciar"
     observaciones = (data.get('observaciones') or '').strip()
-    tipo_tarea_payload = (data.get('tipo_tarea') or '').strip()
-    tipo_tarea = normalize_role(tipo_tarea_payload) or None
+    tipo_tarea = (data.get('tipo_tarea') or '').strip() or None
     servicios = data.get('servicios') if isinstance(data.get('servicios'), list) else []
     try:
         tiempo_estimado_payload = _parse_tiempo_estimado_minutos(data.get('tiempo_estimado_minutos'))
@@ -330,8 +329,7 @@ def crear_parte_trabajo():
 
     # Creación en lote (varios servicios / trabajos a la vez)
     if servicios:
-        # Si llegan servicios de distintas áreas, se separan en lotes por tipo_tarea.
-        lote_uid_por_tipo = {}
+        lote_uid = str(uuid4())
         partes_creados = []
 
         for item in servicios:
@@ -358,6 +356,7 @@ def crear_parte_trabajo():
             except ValueError:
                 tiempo_item = 0
 
+            item_tipo_tarea = (item.get('tipo_tarea') or '').strip() or tipo_tarea or None
             item_inspeccion_id = item.get('inspeccion_id', inspeccion_id)
             item_servicio_catalogo_id = item.get('servicio_catalogo_id', servicio_catalogo_id)
             try:
@@ -368,24 +367,6 @@ def crear_parte_trabajo():
                 item_servicio_catalogo_id = int(item_servicio_catalogo_id) if item_servicio_catalogo_id not in (None, '') else None
             except (TypeError, ValueError):
                 return jsonify({'msg': f'servicio_catalogo_id inválido para tarea: {tarea}'}), 400
-
-            item_tipo_tarea_raw = (item.get('tipo_tarea') or '').strip()
-            item_tipo_tarea = normalize_role(item_tipo_tarea_raw)
-
-            # Fallback: si no llega tipo en el item, inferimos desde el servicio de catálogo.
-            if not item_tipo_tarea and item_servicio_catalogo_id:
-                servicio_catalogo = ServicioCatalogo.query.get(item_servicio_catalogo_id)
-                if servicio_catalogo:
-                    item_tipo_tarea = normalize_role(getattr(servicio_catalogo, 'rol_responsable', ''))
-
-            # Fallback final: tipo de la petición o "otro" para evitar nulos ambiguos.
-            item_tipo_tarea = item_tipo_tarea or tipo_tarea or 'otro'
-
-            lote_uid_item = lote_uid_por_tipo.get(item_tipo_tarea)
-            if not lote_uid_item:
-                lote_uid_item = str(uuid4())
-                lote_uid_por_tipo[item_tipo_tarea] = lote_uid_item
-
             parte_item = ParteTrabajo(
                 coche_id=int(coche_id),
                 inspeccion_id=item_inspeccion_id,
@@ -394,7 +375,7 @@ def crear_parte_trabajo():
                 estado=EstadoParte.pendiente,
                 observaciones=tarea,
                 tiempo_estimado_minutos=tiempo_item,
-                lote_uid=lote_uid_item,
+                lote_uid=lote_uid,
                 tipo_tarea=item_tipo_tarea,
             )
             db.session.add(parte_item)
@@ -403,11 +384,9 @@ def crear_parte_trabajo():
         if not partes_creados:
             return jsonify({'msg': 'Debes incluir al menos un servicio/tarea válido'}), 400
 
-        lote_uid = partes_creados[0].lote_uid if len(partes_creados) == 1 else None
         db.session.commit()
         return jsonify({
             'lote_uid': lote_uid,
-            'lotes_por_tipo': lote_uid_por_tipo,
             'total_partes': len(partes_creados),
             'partes': [
                 {
@@ -433,7 +412,7 @@ def crear_parte_trabajo():
         observaciones=observaciones,
         tiempo_estimado_minutos=tiempo_estimado_minutos,
         lote_uid=str(uuid4()),
-        tipo_tarea=tipo_tarea or 'otro',
+        tipo_tarea=tipo_tarea,
     )
     db.session.add(parte)
     db.session.commit()

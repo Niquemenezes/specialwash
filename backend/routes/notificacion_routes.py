@@ -39,20 +39,17 @@ def contar_no_leidas():
 @notificaciones_bp.route("/notificaciones/<int:nid>/leida", methods=["PATCH"])
 @role_required("administrador", "encargado")
 def marcar_leida(nid):
-    """Elimina una notificación al marcarla como leída."""
+    """Marca una notificación como leída."""
     n = Notificacion.query.get_or_404(nid)
-    db.session.delete(n)
+    n.leida = True
     db.session.commit()
-    return jsonify({"msg": "Notificación eliminada", "id": nid}), 200
+    return jsonify(n.to_dict()), 200
 
 
 @notificaciones_bp.route("/notificaciones/marcar-todas", methods=["PATCH"])
 @role_required("administrador", "encargado")
 def marcar_todas_leidas():
-    """Elimina todas las notificaciones pendientes (equivale a marcar todas leídas)."""
-    pendientes = Notificacion.query.filter_by(leida=False).all()
-    total = len(pendientes)
-    for n in pendientes:
-        db.session.delete(n)
+    """Marca todas las notificaciones como leídas."""
+    Notificacion.query.filter_by(leida=False).update({"leida": True})
     db.session.commit()
-    return jsonify({"msg": "Notificaciones pendientes eliminadas", "deleted": total}), 200
+    return jsonify({"msg": "Todas marcadas como leídas"}), 200

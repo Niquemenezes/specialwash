@@ -2,7 +2,6 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 
 from models import ServicioCatalogo, db
-from utils.auth_utils import WORKSHOP_ROLES, normalize_role
 from utils.auth_utils import role_required
 
 servicio_catalogo_bp = Blueprint("servicio_catalogo_routes", __name__)
@@ -28,25 +27,6 @@ def _is_truthy(value):
     if isinstance(value, (int, float)):
         return value != 0
     return str(value).strip().lower() in {"1", "true", "yes", "on", "si", "sí"}
-
-
-CATALOGO_ROLE_VALUES = set(WORKSHOP_ROLES) | {"otro"}
-
-
-def parse_rol_responsable(value):
-    raw = (value or "").strip()
-    if not raw:
-        return "otro"
-    role = normalize_role(raw)
-    if role not in CATALOGO_ROLE_VALUES:
-        raise ValueError("rol_responsable invalido. Usa detailing, pintura, tapicero, calidad u otro")
-    return role
-
-
-def _get_payload_rol(data):
-    if not isinstance(data, dict):
-        return None
-    return data.get("rol_responsable") or data.get("rol") or data.get("tipo_tarea")
 
 
 @servicio_catalogo_bp.route("/servicios_catalogo", methods=["GET"])
@@ -78,7 +58,6 @@ def crear_servicio_catalogo():
         tiempo_estimado_minutos = parse_tiempo_estimado_minutos(
             data.get("tiempo_estimado_minutos")
         )
-        rol_responsable = parse_rol_responsable(_get_payload_rol(data))
     except ValueError as exc:
         return jsonify({"msg": str(exc)}), 400
 
@@ -90,7 +69,6 @@ def crear_servicio_catalogo():
         descripcion=(data.get("descripcion") or "").strip() or None,
         precio_base=data.get("precio_base"),
         tiempo_estimado_minutos=tiempo_estimado_minutos,
-        rol_responsable=rol_responsable,
         activo=True,
     )
     db.session.add(servicio)
@@ -124,11 +102,6 @@ def editar_servicio_catalogo(servicio_id):
             servicio.tiempo_estimado_minutos = parse_tiempo_estimado_minutos(
                 data.get("tiempo_estimado_minutos")
             )
-        except ValueError as exc:
-            return jsonify({"msg": str(exc)}), 400
-    if "rol_responsable" in data or "rol" in data or "tipo_tarea" in data:
-        try:
-            servicio.rol_responsable = parse_rol_responsable(_get_payload_rol(data))
         except ValueError as exc:
             return jsonify({"msg": str(exc)}), 400
 
