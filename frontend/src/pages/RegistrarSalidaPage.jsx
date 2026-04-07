@@ -168,10 +168,9 @@ const RegistrarSalidaPage = () => {
   return (
     <div className="container py-4" style={{ maxWidth: "1000px" }}>
       {/* Encabezado */}
-      <div className="d-flex justify-content-between align-items-center mb-4 p-4 rounded shadow-sm"
-        style={{ background: "#0f0f0f", color: "white" }}>
+      <div className="d-flex justify-content-between align-items-center mb-4 p-4 rounded shadow-sm sw-header-dark">
         <div>
-          <h2 className="fw-bold mb-1" style={{ color: "#d4af37" }}>📤 Registrar salida</h2>
+          <h2 className="fw-bold mb-1 sw-accent-text">📤 Registrar salida</h2>
           <p className="mb-0 text-light" style={{ fontSize: "14px" }}>Baja automática de inventario</p>
         </div>
         {isAdmin && (
@@ -440,7 +439,7 @@ const EditarSalidaModal = ({ show, salida, productos, onClose, onSaved }) => {
               {precioTotal !== null && (
                 <div className="mb-3">
                   <label className="form-label">Precio Total (€)</label>
-                  <input type="number" className="form-control" value={precioTotal} readOnly disabled style={{ backgroundColor: "#e9ecef" }} />
+                  <input type="number" className="form-control" value={precioTotal} readOnly disabled />
                 </div>
               )}
               <div className="mb-3">

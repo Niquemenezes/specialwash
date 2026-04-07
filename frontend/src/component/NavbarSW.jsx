@@ -213,7 +213,6 @@ const NavbarSW = () => {
           <div className="sw-logo-wrap">
             <img src={logo} alt="SpecialWash" className="sw-logo-img" />
           </div>
-          
         </Link>
 
         {/* Toggler */}

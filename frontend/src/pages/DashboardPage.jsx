@@ -1,12 +1,9 @@
 import React, { useContext, useEffect, useState } from "react";
 import { Context } from "../store/appContext";
 
-const SW_GOLD = "#d4af37";
-const SW_DARK = "#0f0f0f";
-
 const money = (n) => `${Number(n || 0).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 
-const KpiCard = ({ label, value, sub, color = SW_GOLD, icon }) => (
+const KpiCard = ({ label, value, sub, color = "var(--sw-accent)", icon }) => (
   <div className="col-6 col-md-4 col-xl-2">
     <div
       className="p-3 h-100 rounded"
@@ -19,7 +16,7 @@ const KpiCard = ({ label, value, sub, color = SW_GOLD, icon }) => (
         {value}
       </div>
       {sub && (
-        <div className="small mt-1" style={{ color: "rgba(255,255,255,0.5)" }}>
+        <div className="small mt-1" style={{ color: "var(--sw-muted)" }}>
           {sub}
         </div>
       )}
@@ -37,7 +34,7 @@ const SectionTitle = ({ children }) => (
 );
 
 const BAR_COLORS = [
-  "#d4af37","#c9a227","#be9517","#b38807","#a87b00",
+  "var(--sw-accent)","#c9a227","#be9517","#b38807","#a87b00",
   "#9d6e00","#926100","#875400","#7c4700","#713a00",
   "#663d00","#5b3000",
 ];
@@ -132,7 +129,7 @@ export default function DashboardPage() {
           <div className="small text-uppercase mb-1" style={{ color: "rgba(var(--sw-accent-rgb), 0.7)", letterSpacing: "0.08em" }}>
             Panel interno · SpecialWash
           </div>
-          <h2 className="fw-bold mb-0" style={{ color: "#fff" }}>
+          <h2 className="fw-bold mb-0 sw-accent-text">
             Dashboard
           </h2>
         </div>
@@ -157,7 +154,7 @@ export default function DashboardPage() {
           </button>
           <button
             className="btn btn-sm"
-            style={{ background: "var(--sw-success)", color: "#fff", fontWeight: "bold" }}
+            style={{ background: "var(--sw-success)", color: "var(--sw-text-on-accent)", fontWeight: "bold" }}
             onClick={exportarExcel}
             disabled={exporting || loading}
           >
@@ -198,33 +195,33 @@ export default function DashboardPage() {
                   ? `▲ ${data.kpis.variacion_vs_mes_anterior}% vs mes anterior`
                   : `▼ ${Math.abs(data.kpis.variacion_vs_mes_anterior)}% vs mes anterior`
               }
-              color={data.kpis.variacion_vs_mes_anterior >= 0 ? "#4ade80" : "#f87171"}
+              color={data.kpis.variacion_vs_mes_anterior >= 0 ? "var(--sw-success)" : "var(--sw-danger)"}
               icon="📅"
             />
             <KpiCard
               label="Gastos año"
               value={money(data.kpis.total_gastos_anio)}
               icon="📤"
-              color="#f87171"
+              color="var(--sw-danger)"
             />
             <KpiCard
               label="Beneficio estimado"
               value={money(data.kpis.beneficio_estimado)}
               icon="📈"
-              color={data.kpis.beneficio_estimado >= 0 ? "#4ade80" : "#f87171"}
+              color={data.kpis.beneficio_estimado >= 0 ? "var(--sw-success)" : "var(--sw-danger)"}
             />
             <KpiCard
               label="Pendiente cobro"
               value={money(data.kpis.total_pendiente_cobro)}
               sub={`${data.cobros_pendientes.length} facturas`}
-              color={data.kpis.total_pendiente_cobro > 0 ? "#fb923c" : "#4ade80"}
+              color={data.kpis.total_pendiente_cobro > 0 ? "var(--sw-warning)" : "var(--sw-success)"}
               icon="⏳"
             />
             <KpiCard
               label="Alertas entrega"
               value={`${data.kpis.alertas_entrega_count} coches`}
               sub="En taller +3 días"
-              color={data.kpis.alertas_entrega_count > 0 ? "#f87171" : "#4ade80"}
+              color={data.kpis.alertas_entrega_count > 0 ? "var(--sw-danger)" : "var(--sw-success)"}
               icon="🚨"
             />
           </div>
@@ -291,7 +288,7 @@ export default function DashboardPage() {
               >
                 <SectionTitle>🏆 Top clientes</SectionTitle>
                 {data.top_clientes.length === 0 ? (
-                  <p className="small" style={{ color: "rgba(255,255,255,0.4)" }}>Sin datos</p>
+                  <p className="small" style={{ color: "var(--sw-muted)" }}>Sin datos</p>
                 ) : (
                   data.top_clientes.map((c, i) => (
                     <MiniBar
@@ -317,11 +314,11 @@ export default function DashboardPage() {
               >
                 <SectionTitle>🛠️ Top servicios</SectionTitle>
                 {data.top_servicios.length === 0 ? (
-                  <p className="small" style={{ color: "rgba(255,255,255,0.4)" }}>Sin datos</p>
+                  <p className="small" style={{ color: "var(--sw-muted)" }}>Sin datos</p>
                 ) : (
-                  <table className="table table-sm mb-0" style={{ color: "#ccc" }}>
+                  <table className="table table-sm mb-0" style={{ color: "var(--sw-text)" }}>
                     <thead>
-                      <tr style={{ borderColor: "#333" }}>
+                      <tr style={{ borderColor: "var(--sw-border)" }}>
                         <th style={{ color: "var(--sw-accent)", fontWeight: 500, fontSize: 12 }}>Servicio</th>
                         <th className="text-center" style={{ color: "var(--sw-accent)", fontWeight: 500, fontSize: 12 }}>Veces</th>
                         <th className="text-end" style={{ color: "var(--sw-accent)", fontWeight: 500, fontSize: 12 }}>Total</th>
@@ -329,7 +326,7 @@ export default function DashboardPage() {
                     </thead>
                     <tbody>
                       {data.top_servicios.map((s, i) => (
-                        <tr key={i} style={{ borderColor: "#222", fontSize: 12 }}>
+                        <tr key={i} style={{ borderColor: "var(--sw-border)", fontSize: 12 }}>
                           <td style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {s.tipo_servicio}
                           </td>
@@ -355,19 +352,19 @@ export default function DashboardPage() {
             <div className="col-12 col-lg-7">
               <div
                 className="p-3 rounded h-100"
-                style={{ background: "var(--sw-surface-2)", border: "1.5px solid #ef4444" }}
+                style={{ background: "var(--sw-surface-2)", border: "1.5px solid var(--sw-danger)" }}
               >
                 <SectionTitle>⏳ Cobros pendientes</SectionTitle>
                 {data.cobros_pendientes.length === 0 ? (
-                  <div className="d-flex align-items-center gap-2" style={{ color: "#4ade80" }}>
+                  <div className="d-flex align-items-center gap-2" style={{ color: "var(--sw-success)" }}>
                     <span>✅</span>
                     <span className="small">Todo cobrado. Sin pendientes.</span>
                   </div>
                 ) : (
                   <div style={{ maxHeight: 220, overflowY: "auto" }}>
-                    <table className="table table-sm mb-0" style={{ color: "#ccc" }}>
+                    <table className="table table-sm mb-0" style={{ color: "var(--sw-text)" }}>
                       <thead>
-                        <tr style={{ borderColor: "#333" }}>
+                        <tr style={{ borderColor: "var(--sw-border)" }}>
                           <th style={{ color: "var(--sw-accent)", fontWeight: 500, fontSize: 12 }}>Cliente</th>
                           <th style={{ color: "var(--sw-accent)", fontWeight: 500, fontSize: 12 }}>Matrícula</th>
                           <th className="text-end" style={{ color: "var(--sw-accent)", fontWeight: 500, fontSize: 12 }}>Pendiente</th>
@@ -376,24 +373,24 @@ export default function DashboardPage() {
                       </thead>
                       <tbody>
                         {data.cobros_pendientes.map((c) => (
-                          <tr key={c.inspeccion_id} style={{ borderColor: "#222", fontSize: 12 }}>
+                          <tr key={c.inspeccion_id} style={{ borderColor: "var(--sw-border)", fontSize: 12 }}>
                             <td style={{ maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                               {c.cliente_nombre}
                             </td>
                             <td>
-                              <span className="badge" style={{ background: "#222", color: "#fff", border: "1px solid #444" }}>
+                      <span className="badge" style={{ background: "var(--sw-surface-light)", color: "var(--sw-text)", border: "1px solid var(--sw-border)" }}>
                                 {c.matricula}
                               </span>
                             </td>
-                            <td className="text-end fw-bold" style={{ color: "#f87171" }}>
+                      <td className="text-end fw-bold" style={{ color: "var(--sw-danger)" }}>
                               {money(c.importe_pendiente)}
                             </td>
                             <td>
                               <span
                                 className="badge"
                                 style={{
-                                  background: c.cobro_estado === "parcial" ? "#f59e0b" : "#ef4444",
-                                  color: "#fff",
+                                  background: c.cobro_estado === "parcial" ? "var(--sw-warning)" : "var(--sw-danger)",
+                                  color: "var(--sw-text-on-accent)",
                                   fontSize: 10,
                                 }}
                               >
@@ -415,7 +412,7 @@ export default function DashboardPage() {
             <div className="px-2 mb-4">
               <div
                 className="p-3 rounded"
-                style={{ background: "var(--sw-surface-2)", border: "1.5px solid #f59e0b" }}
+                style={{ background: "var(--sw-surface-2)", border: "1.5px solid var(--sw-warning)" }}
               >
                 <SectionTitle>🚨 Coches en taller +3 días sin entregar</SectionTitle>
                 <div className="row g-2">
@@ -423,23 +420,23 @@ export default function DashboardPage() {
                     <div key={a.inspeccion_id} className="col-12 col-md-6 col-xl-4">
                       <div
                         className="p-2 rounded d-flex justify-content-between align-items-center"
-                        style={{ background: "#1a1200", border: "1px solid #f59e0b" }}
+                        style={{ background: "var(--sw-surface-light)", border: "1px solid var(--sw-warning)" }}
                       >
                         <div>
                           <div className="fw-bold small" style={{ color: "#fff" }}>
                             {a.cliente_nombre}
                           </div>
-                          <div className="small" style={{ color: "rgba(255,255,255,0.5)" }}>
+                          <div className="small" style={{ color: "var(--sw-muted)" }}>
                             {a.coche_descripcion}
                           </div>
                         </div>
                         <div className="text-end">
-                          <span className="badge" style={{ background: "#222", color: "#fff", border: "1px solid #444" }}>
+                          <span className="badge" style={{ background: "var(--sw-surface-light)", color: "var(--sw-text)", border: "1px solid var(--sw-border)" }}>
                             {a.matricula}
                           </span>
                           <div
                             className="small mt-1 fw-bold"
-                            style={{ color: a.dias_en_taller > 7 ? "#f87171" : "#f59e0b" }}
+                            style={{ color: a.dias_en_taller > 7 ? "var(--sw-danger)" : "var(--sw-warning)" }}
                           >
                             {a.dias_en_taller}d en taller
                           </div>

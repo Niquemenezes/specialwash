@@ -53,7 +53,7 @@ const FirmaEntregaPage = () => {
   return (
     <div className="container py-4" style={{ maxWidth: "1000px" }}>
       <div className="card shadow-sm border-0">
-        <div className="card-header py-3" style={{ background: "#d4af37", fontWeight: 600 }}>
+        <div className="card-header py-3 sw-modal-header-dark">
           <div className="d-flex justify-content-between align-items-center">
             <span>Firma de Entrega</span>
             <div className="d-flex gap-2">

@@ -384,7 +384,7 @@ export default function Maquinaria() {
       {editing !== null && (
         <div
           className="card shadow-sm mb-4"
-          style={{ borderRadius: "14px", border: "1px solid #d4af37" }}
+          style={{ borderRadius: "14px", border: "1px solid var(--sw-accent)" }}
         >
           <div className="card-body">
             <h5 className="fw-bold mb-3">

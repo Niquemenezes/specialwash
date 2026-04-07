@@ -66,16 +66,14 @@ const ServiciosPage = () => {
   return (
     <div className="container py-4" style={{ maxWidth: "1000px" }}>
       <div
-        className="d-flex justify-content-between align-items-center mb-4 p-3 rounded shadow-sm"
-        style={{ background: "#0f0f0f", color: "white" }}
+        className="d-flex justify-content-between align-items-center mb-4 p-3 rounded shadow-sm sw-header-dark"
       >
-        <h2 className="fw-bold mb-0" style={{ color: "#d4af37" }}>
+        <h2 className="fw-bold mb-0 sw-accent-text">
           🔧 Servicios
         </h2>
         <button
-          className="btn"
+          className="btn sw-btn-gold"
           onClick={handleNuevo}
-          style={{ background: "#d4af37", color: "black", fontWeight: "600", borderRadius: "8px" }}
         >
           ➕ Nuevo Servicio
         </button>
@@ -422,9 +420,8 @@ const ServicioModal = ({ show, servicio, coches, onClose, onSaved }) => {
               </button>
               <button
                 type="submit"
-                className="btn btn-sm"
+                className="btn btn-sm sw-btn-gold"
                 disabled={saving}
-                style={{ background: "#d4af37", color: "black", fontWeight: "600", borderRadius: "8px" }}
               >
                 {saving ? "⏳ Guardando..." : servicio ? "💾 Guardar" : "✅ Crear"}
               </button>

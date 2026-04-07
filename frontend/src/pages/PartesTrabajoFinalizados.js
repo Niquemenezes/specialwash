@@ -482,7 +482,7 @@ export function AdminPartesTrabajoFinalizados() {
                     role="progressbar"
                     style={{
                       width: `${scoreRapidez(row.promedio_horas)}%`,
-                      background: "#d4af37",
+                      background: "var(--sw-accent)",
                     }}
                   />
                 </div>
@@ -638,7 +638,7 @@ export function AdminPartesTrabajoFinalizados() {
                 <button type="button" className="btn btn-secondary" onClick={onCancelarEditar} disabled={editLoading}>
                   Cancelar
                 </button>
-                <button type="button" className="btn btn-dark" style={{ borderColor: "#d4af37" }} onClick={onGuardarEdicion} disabled={editLoading}>
+                <button type="button" className="btn sw-btn-gold" onClick={onGuardarEdicion} disabled={editLoading}>
                   {editLoading ? "Guardando..." : "✅ Guardar"}
                 </button>
               </div>

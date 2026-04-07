@@ -95,9 +95,9 @@ export default function ProductosPage() {
       <div className="container py-4 sw-page-shell sw-view-stack" style={{ maxWidth: "1150px" }}>
 
         {/* Encabezado */}
-        <div className="d-flex flex-wrap align-items-center p-3 mb-4 shadow-sm no-print sw-view-header"
-          style={{ background: "#0f0f0f", color: "#fff", borderRadius: "12px", gap: "12px" }}>
-          <h2 className="fw-bold mb-0 me-auto" style={{ color: "#d4af37" }}>📦 Productos</h2>
+        <div className="d-flex flex-wrap align-items-center p-3 mb-4 shadow-sm no-print sw-view-header sw-header-dark"
+          style={{ borderRadius: "12px", gap: "12px" }}>
+          <h2 className="fw-bold mb-0 me-auto sw-accent-text">📦 Productos</h2>
           <div className="d-flex flex-wrap align-items-center gap-3">
             <div className="form-check text-white mb-0">
               <input
@@ -146,8 +146,7 @@ export default function ProductosPage() {
         {bajosDeStock.length > 0 && (
           <>
             <button
-              className="btn btn-outline-dark mb-3 no-print"
-              style={{ borderColor: "#d4af37" }}
+              className="btn btn-outline-warning mb-3 no-print"
               onClick={() => navigate("/pedido-bajo-stock")}
             >
               📄 Generar pedido ({bajosDeStock.length})
