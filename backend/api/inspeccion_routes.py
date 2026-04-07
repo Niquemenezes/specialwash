@@ -362,7 +362,9 @@ def _auto_crear_partes_desde_inspeccion(inspeccion):
 
         db.session.commit()
 
-    except Exception:
+    except Exception as e:
+        import traceback, logging
+        logging.error(f"[auto_crear_partes] Error: {e}\n{traceback.format_exc()}")
         db.session.rollback()
 
 
