@@ -119,9 +119,11 @@ def fichar():
     if tipo not in TIPOS_VALIDOS:
         return jsonify({"msg": "Tipo inválido. Usa: entrada, inicio_comida, fin_comida, salida"}), 400
 
+    TIPOS_CON_FOTO = {"entrada", "salida"}
     foto_file = request.files.get("foto")
-    if not foto_file or not foto_file.filename:
-        return jsonify({"msg": "La foto es obligatoria para fichar"}), 400
+    requiere_foto = tipo in TIPOS_CON_FOTO
+    if requiere_foto and (not foto_file or not foto_file.filename):
+        return jsonify({"msg": "La foto es obligatoria para fichar entrada y salida"}), 400
 
     _purgar_fotos_antiguas()
     hoy = now_madrid().date()
@@ -133,28 +135,29 @@ def fichar():
     if getattr(registro, campo_dt) is not None:
         return jsonify({"msg": f"Ya fichaste '{tipo}' hoy"}), 409
 
-    # Guardar foto si viene
+    # Guardar foto solo si viene (obligatoria para entrada/salida, opcional para el resto)
     foto_path = None
-    ext = os.path.splitext(foto_file.filename)[1].lower() or ".jpg"
-    nombre = f"{tipo}_{hoy.isoformat()}_{uuid.uuid4().hex[:8]}{ext}"
+    if foto_file and foto_file.filename:
+        ext = os.path.splitext(foto_file.filename)[1].lower() or ".jpg"
+        nombre = f"{tipo}_{hoy.isoformat()}_{uuid.uuid4().hex[:8]}{ext}"
 
-    if _cloudinary_ready():
-        try:
-            uploaded = cloudinary.uploader.upload(
-                foto_file,
-                folder=f"specialwash/horarios/{empleado_id}/{hoy.isoformat()}",
-                public_id=nombre.rsplit(".", 1)[0],
-                resource_type="image",
-                overwrite=False,
-            )
-            foto_path = f"cld:{uploaded.get('public_id', '')}" if uploaded.get("public_id") else None
-        except Exception:
-            foto_path = None
+        if _cloudinary_ready():
+            try:
+                uploaded = cloudinary.uploader.upload(
+                    foto_file,
+                    folder=f"specialwash/horarios/{empleado_id}/{hoy.isoformat()}",
+                    public_id=nombre.rsplit(".", 1)[0],
+                    resource_type="image",
+                    overwrite=False,
+                )
+                foto_path = f"cld:{uploaded.get('public_id', '')}" if uploaded.get("public_id") else None
+            except Exception:
+                foto_path = None
 
-    if not foto_path:
-        foto_dir = _foto_dir(empleado_id)
-        foto_file.save(str(foto_dir / nombre))
-        foto_path = nombre
+        if not foto_path:
+            foto_dir = _foto_dir(empleado_id)
+            foto_file.save(str(foto_dir / nombre))
+            foto_path = nombre
 
     # Asignar timestamp y foto
     setattr(registro, campo_dt, now_madrid())
