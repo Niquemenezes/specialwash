@@ -367,7 +367,7 @@ const InspeccionesGuardadasPage = () => {
         <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.75)" }}>
           <div className="modal-dialog modal-xl modal-dialog-scrollable modal-fullscreen-md-down">
             <div className="modal-content">
-              <div className="modal-header py-3" style={{ background: "#0f0f0f", color: "#d4af37" }}>
+              <div className="modal-header py-3 sw-modal-header-dark">
                 <h5 className="modal-title fw-bold fs-6 fs-md-5">
                   🚗 #{detalle.id} - {detalle.matricula}
                 </h5>
@@ -381,7 +381,7 @@ const InspeccionesGuardadasPage = () => {
 
               <div className="modal-body p-3">
                 <div className="card mb-3">
-                  <div className="card-header py-2" style={{ background: "#d4af37", fontWeight: "600" }}>
+                  <div className="card-header sw-modal-header-dark">
                     👤 Datos del Cliente
                   </div>
                   <div className="card-body p-3">
@@ -397,7 +397,7 @@ const InspeccionesGuardadasPage = () => {
                 </div>
 
                 <div className="card mb-3">
-                  <div className="card-header py-2" style={{ background: "#d4af37", fontWeight: "600" }}>
+                  <div className="card-header sw-modal-header-dark">
                     🚗 Datos del Vehículo
                   </div>
                   <div className="card-body p-3">
@@ -420,7 +420,7 @@ const InspeccionesGuardadasPage = () => {
 
                 {detalle.estado_coche && (
                   <div className="card mb-3">
-                    <div className="card-header py-2" style={{ background: "#d4af37", fontWeight: "600" }}>
+                    <div className="card-header sw-modal-header-dark">
                       📍 Paso actual del coche
                     </div>
                     <div className="card-body p-3 d-flex align-items-start gap-3">
@@ -455,7 +455,7 @@ const InspeccionesGuardadasPage = () => {
 
                 {detalle.cobro && (
                   <div className="card mb-3">
-                    <div className="card-header py-2" style={{ background: "#d4af37", fontWeight: "600" }}>
+                    <div className="card-header sw-modal-header-dark">
                       💶 Estado de cobro
                     </div>
                     <div className="card-body p-3">
@@ -489,7 +489,7 @@ const InspeccionesGuardadasPage = () => {
 
                 {(detalle.firma_cliente_recepcion || detalle.firma_empleado_recepcion) && (
                   <div className="card mb-3">
-                    <div className="card-header py-2" style={{ background: "#d4af37", fontWeight: "600" }}>
+                    <div className="card-header sw-modal-header-dark">
                       ✍️ Firmas de Recepción
                     </div>
                     <div className="card-body p-3">
@@ -522,7 +522,7 @@ const InspeccionesGuardadasPage = () => {
                 )}
 
                 <div className="card mb-3">
-                  <div className="card-header py-2" style={{ background: "#d4af37", fontWeight: "600" }}>
+                  <div className="card-header sw-modal-header-dark">
                     🔧 Observaciones y Averías
                   </div>
                   <div className="card-body p-3">
@@ -534,7 +534,7 @@ const InspeccionesGuardadasPage = () => {
 
                 {Array.isArray(detalle.fotos_cloudinary) && detalle.fotos_cloudinary.length > 0 && (
                   <div className="card mb-3">
-                    <div className="card-header py-2" style={{ background: "#d4af37", fontWeight: "600" }}>
+                    <div className="card-header sw-modal-header-dark">
                       📸 Fotos del Vehículo ({detalle.fotos_cloudinary.length})
                     </div>
                     <div className="card-body p-2 p-md-3">
@@ -575,7 +575,7 @@ const InspeccionesGuardadasPage = () => {
 
                 {Array.isArray(detalle.videos_cloudinary) && detalle.videos_cloudinary.length > 0 && (
                   <div className="card mb-3">
-                    <div className="card-header py-2" style={{ background: "#d4af37", fontWeight: "600" }}>
+                    <div className="card-header sw-modal-header-dark">
                       🎥 Videos del Vehículo ({detalle.videos_cloudinary.length})
                     </div>
                     <div className="card-body p-2 p-md-3">

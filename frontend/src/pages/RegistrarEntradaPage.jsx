@@ -363,10 +363,9 @@ const RegistrarEntradaPage = () => {
           )}
         </div>
         <button
-          className="btn w-100 mt-4"
+          className="btn sw-btn-gold w-100 mt-4"
           type="submit"
           disabled={saving}
-          style={{ background: "#d4af37", fontWeight: "600" }}
         >
           {saving ? "Guardando..." : "Registrar entrada"}
         </button>
@@ -663,9 +662,8 @@ const EditarEntradaModal = ({ show, entrada, productos, proveedores, onClose, on
               </button>
               <button
                 type="submit"
-                className="btn btn-sm"
+                className="btn btn-sm sw-btn-gold"
                 disabled={saving}
-                style={{ background: "#d4af37", color: "black", fontWeight: "600", borderRadius: "8px" }}
               >
                 {saving ? "⏳ Guardando..." : "💾 Guardar"}
               </button>

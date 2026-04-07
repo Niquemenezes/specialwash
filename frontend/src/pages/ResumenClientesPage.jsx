@@ -88,11 +88,10 @@ const ResumenClientesPage = () => {
   return (
     <div className="container mt-4">
      
-      <div className="d-flex justify-content-between align-items-center mb-4" style={{ borderBottom: '3px solid #d4af37', paddingBottom: '1rem' }}>
-        <h2 style={{ color: '#0f0f0f', fontWeight: 'bold', margin: 0 }}>Resumen de Clientes</h2>
+      <div className="d-flex justify-content-between align-items-center mb-4" style={{ borderBottom: '2px solid var(--sw-accent)', paddingBottom: '1rem' }}>
+        <h2 style={{ color: 'var(--sw-text)', fontWeight: 'bold', margin: 0 }}>Resumen de Clientes</h2>
         <button 
-          className="btn no-print"
-          style={{ backgroundColor: '#d4af37', color: '#0f0f0f', fontWeight: 'bold', border: 'none' }}
+          className="btn sw-btn-gold no-print"
           onClick={handleImprimir}
           disabled={loading || reporte.clientes.length === 0}
         >
@@ -101,8 +100,8 @@ const ResumenClientesPage = () => {
       </div>
 
       {/* Filtros */}
-      <div className="card mb-4" style={{ border: '2px solid #d4af37', boxShadow: '0 4px 6px rgba(212, 175, 55, 0.1)' }}>
-        <div className="card-body" style={{ backgroundColor: '#fafafa' }}>
+      <div className="card mb-4" style={{ border: '1px solid var(--sw-accent)', boxShadow: '0 4px 6px rgba(212, 175, 55, 0.1)' }}>
+        <div className="card-body">
           <div className="row g-3 mb-3">
             <div className="col-md-4">
               <label className="form-label fw-bold">Seleccionar Mes</label>
@@ -136,8 +135,7 @@ const ResumenClientesPage = () => {
             
             <div className="col-md-2 d-flex align-items-end">
               <button
-                className="btn w-100"
-                style={{ backgroundColor: '#0f0f0f', color: '#d4af37', fontWeight: 'bold', border: '2px solid #d4af37' }}
+                className="btn w-100 sw-btn-gold"
                 onClick={handleFiltroPersonalizado}
                 disabled={!fechaDesde || !fechaHasta}
               >
@@ -165,7 +163,7 @@ const ResumenClientesPage = () => {
       </div>
 
       {/* Resumen total */}
-      <div className="mb-4" style={{ border: '3px solid #d4af37', backgroundColor: '#0f0f0f', color: '#d4af37', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 4px 8px rgba(212, 175, 55, 0.2)' }}>
+      <div className="mb-4 p-4 rounded" style={{ border: '1px solid var(--sw-accent)', backgroundColor: 'var(--sw-surface)', color: 'var(--sw-accent)', borderRadius: '8px', boxShadow: '0 4px 8px rgba(212, 175, 55, 0.2)' }}>
         <div className="row">
           <div className="col-md-3">
             <strong>Período:</strong>{" "}
@@ -176,19 +174,19 @@ const ResumenClientesPage = () => {
           <div className="col-md-3">
             <strong>Clientes:</strong> {reporte.clientes.length}
             {busquedaCliente.trim() && (
-              <span className="ms-2 badge" style={{ backgroundColor: '#d4af37', color: '#0f0f0f', fontWeight: 'bold' }}>
+              <span className="ms-2 badge" style={{ backgroundColor: 'var(--sw-accent)', color: 'var(--sw-text-on-accent)', fontWeight: 'bold' }}>
                 {clientesFiltrados.length} filtrados
               </span>
             )}
           </div>
           <div className="col-md-3">
             <strong>Total Facturado:</strong>{" "}
-            <span className="fs-5" style={{ color: '#d4af37', fontWeight: 'bold' }}>{totalGeneral.toFixed(2)}€</span>
+            <span className="fs-5 sw-accent-text" style={{ fontWeight: 'bold' }}>{totalGeneral.toFixed(2)}€</span>
           </div>
           {busquedaCliente.trim() && (
             <div className="col-md-3">
               <strong>Total Filtrado:</strong>{" "}
-              <span className="fs-5" style={{ color: '#d4af37', fontWeight: 'bold' }}>{totalFiltrado.toFixed(2)}€</span>
+              <span className="fs-5 sw-accent-text" style={{ fontWeight: 'bold' }}>{totalFiltrado.toFixed(2)}€</span>
             </div>
           )}
         </div>
@@ -197,7 +195,7 @@ const ResumenClientesPage = () => {
       {/* Tabla de resultados */}
       {loading ? (
         <div className="text-center py-5">
-          <div className="spinner-border" style={{ color: '#d4af37' }} role="status">
+          <div className="spinner-border sw-accent-text" role="status">
             <span className="visually-hidden">Cargando...</span>
           </div>
         </div>
@@ -212,11 +210,11 @@ const ResumenClientesPage = () => {
       ) : (
         <div className="accordion" id="acordeonClientes">
           {clientesFiltrados.map((cliente) => (
-            <div className="accordion-item" key={cliente.cliente_id} style={{ border: '2px solid #d4af37', marginBottom: '1rem' }}>
+            <div className="accordion-item" key={cliente.cliente_id} style={{ border: '1px solid var(--sw-accent)', marginBottom: '1rem' }}>
               <h2 className="accordion-header">
                 <button
                   className="accordion-button collapsed"
-                  style={{ backgroundColor: '#0f0f0f', color: '#d4af37', fontWeight: 'bold', border: 'none' }}
+                  style={{ backgroundColor: 'var(--sw-surface)', color: 'var(--sw-accent)', fontWeight: 'bold', border: 'none' }}
                   type="button"
                   data-bs-toggle="collapse"
                   data-bs-target={`#cliente-${cliente.cliente_id}`}
@@ -227,11 +225,11 @@ const ResumenClientesPage = () => {
                       {cliente.cliente_cif && (
                         <span className="ms-2 text-muted">({cliente.cliente_cif})</span>
                       )}
-                      <span className="ms-3 badge" style={{ backgroundColor: '#d4af37', color: '#0f0f0f', fontWeight: 'bold' }}>
+                      <span className="ms-3 badge" style={{ backgroundColor: 'var(--sw-accent)', color: 'var(--sw-text-on-accent)', fontWeight: 'bold' }}>
                         {cliente.coches.length} coche{cliente.coches.length !== 1 ? "s" : ""}
                       </span>
                     </div>
-                    <div style={{ color: '#d4af37', fontWeight: 'bold' }}>
+                    <div className="sw-accent-text" style={{ fontWeight: 'bold' }}>
                       {cliente.total_cliente.toFixed(2)}€
                     </div>
                   </div>
@@ -242,7 +240,7 @@ const ResumenClientesPage = () => {
                 className="accordion-collapse collapse"
                 data-bs-parent="#acordeonClientes"
               >
-                <div className="accordion-body" style={{ backgroundColor: '#fafafa' }}>
+                <div className="accordion-body">
                   <table className="table table-sm table-hover mb-0">
                     <thead className="resumen-thead">
                       <tr>
@@ -258,7 +256,7 @@ const ResumenClientesPage = () => {
                           <td><strong>{coche.matricula}</strong></td>
                           <td>{coche.marca} {coche.modelo}</td>
                           <td className="text-center">
-                            <span className="badge" style={{ backgroundColor: '#d4af37', color: '#0f0f0f', fontWeight: 'bold' }}>{coche.total_servicios}</span>
+                            <span className="badge" style={{ backgroundColor: 'var(--sw-accent)', color: 'var(--sw-text-on-accent)', fontWeight: 'bold' }}>{coche.total_servicios}</span>
                           </td>
                           <td className="text-end">{coche.total_pagado.toFixed(2)}€</td>
                         </tr>
@@ -267,7 +265,7 @@ const ResumenClientesPage = () => {
                     <tfoot className="resumen-tfoot">
                       <tr>
                         <td colSpan="3" className="text-end fw-bold">Total Cliente:</td>
-                        <td className="text-end fw-bold" style={{ color: '#d4af37' }}>
+                        <td className="text-end fw-bold sw-accent-text">
                           {cliente.total_cliente.toFixed(2)}€
                         </td>
                       </tr>

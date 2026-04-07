@@ -143,19 +143,14 @@ export default function Usuarios() {
       
       {/* HEADER PREMIUM */}
       <div
-        className="d-flex justify-content-between align-items-center p-3 mb-4 shadow-sm"
-        style={{
-          background: "#0f0f0f",
-          borderRadius: "12px",
-          color: "white",
-        }}
+        className="d-flex justify-content-between align-items-center p-3 mb-4 shadow-sm sw-header-dark"
+        style={{ borderRadius: "12px" }}
       >
-        <h2 className="fw-bold m-0" style={{ color: "#d4af37" }}>
+        <h2 className="fw-bold m-0 sw-accent-text">
           👥 Usuarios
         </h2>
         <button
-          className="btn btn-dark"
-          style={{ borderColor: "#d4af37" }}
+          className="btn sw-btn-gold"
           onClick={startCreate}
         >
           👤➕ Nuevo usuario
@@ -177,7 +172,7 @@ export default function Usuarios() {
 
       {/* FORMULARIO DE CREACIÓN / EDICIÓN */}
       {editing !== null && (
-        <div className="card mb-4 shadow-sm" style={{ borderRadius: "12px", border: "1px solid #d4af37" }}>
+        <div className="card mb-4 shadow-sm" style={{ borderRadius: "12px", border: "1px solid var(--sw-accent)" }}>
           <div className="card-body">
             <h5 className="card-title fw-semibold">
               {editing?.id ? "Editar usuario" : "Nuevo usuario"}

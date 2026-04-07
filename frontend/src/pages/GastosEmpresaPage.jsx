@@ -344,7 +344,7 @@ export default function GastosEmpresaPage() {
             checked={mostrarManuales}
             onChange={(e) => setMostrarManuales(e.target.checked)}
           />
-          <label className="form-check-label" htmlFor="mov-manual" style={{ color: "#dee2e6" }}>
+          <label className="form-check-label" htmlFor="mov-manual" style={{ color: "var(--sw-text)" }}>
             Mostrar manuales
           </label>
         </div>
@@ -356,7 +356,7 @@ export default function GastosEmpresaPage() {
             checked={mostrarAutomaticos}
             onChange={(e) => setMostrarAutomaticos(e.target.checked)}
           />
-          <label className="form-check-label" htmlFor="mov-auto" style={{ color: "#dee2e6" }}>
+          <label className="form-check-label" htmlFor="mov-auto" style={{ color: "var(--sw-text)" }}>
             Mostrar automáticos (productos y maquinaria)
           </label>
         </div>
@@ -559,7 +559,7 @@ export default function GastosEmpresaPage() {
       <div className="card" style={darkPanel}>
         <div className="card-header d-flex justify-content-between align-items-center" style={{ background: "var(--sw-surface-light)", color: "var(--sw-text)", borderBottom: "1px solid var(--sw-border)" }}>
           <span className="fw-semibold">Movimientos (manuales + automaticos)</span>
-          <span className="badge" style={{ background: "#d4af37", color: "#111" }}>{movimientosFiltrados.length} items</span>
+          <span className="badge" style={{ background: "var(--sw-accent)", color: "var(--sw-text-on-accent)" }}>{movimientosFiltrados.length} items</span>
         </div>
         <div className="table-responsive">
           <table

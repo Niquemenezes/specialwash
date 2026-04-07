@@ -393,9 +393,9 @@ export default function CitasPage() {
       {/* STATS */}
       <div className="row g-3 mb-4">
         {[
-          { label: "📅 Citas hoy", value: totalHoy, color: "#d4af37" },
-          { label: "⏳ Pendientes", value: totalPendientes, color: "#ffc107" },
-          { label: "✅ Confirmadas", value: totalConfirmadas, color: "#198754" },
+          { label: "📅 Citas hoy", value: totalHoy, color: "var(--sw-accent)" },
+          { label: "⏳ Pendientes", value: totalPendientes, color: "var(--sw-warning)" },
+          { label: "✅ Confirmadas", value: totalConfirmadas, color: "var(--sw-success)" },
         ].map((s) => (
           <div className="col-md-4" key={s.label}>
             <div className="card shadow-sm" style={{ borderRadius: "12px" }}>
@@ -428,11 +428,11 @@ export default function CitasPage() {
               <div className="col-6 col-md" key={dia.key}>
                 <div
                   className="border rounded p-2 h-100 text-center"
-                  style={{ background: dia.total > 0 ? "#fff9e7" : "var(--sw-surface-light)" }}
+                  style={{ background: dia.total > 0 ? "color-mix(in srgb, var(--sw-accent) 10%, var(--sw-surface))" : "var(--sw-surface-light)" }}
                 >
                   <div className="small text-muted">{dia.nombre}</div>
                   <div className="fw-semibold">{dia.diaNumero}</div>
-                  <div className="fw-bold" style={{ color: dia.total > 0 ? "#b38700" : "#6c757d" }}>
+                  <div className="fw-bold" style={{ color: dia.total > 0 ? "var(--sw-accent)" : "var(--sw-muted)" }}>
                     {dia.total}
                   </div>
                 </div>

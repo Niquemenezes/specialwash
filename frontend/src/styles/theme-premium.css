@@ -444,3 +444,168 @@ textarea:focus {
   color: rgba(212, 175, 55, 0.7);
   letter-spacing: 0.08em;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   POLISH GLOBAL — aplica a toda la app
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Scrollbar personalizada ─────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: var(--sw-surface);
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--sw-accent) 40%, var(--sw-border));
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--sw-accent) 60%, var(--sw-border));
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--sw-accent) 40%, var(--sw-border)) var(--sw-surface);
+}
+
+/* ── Selección de texto ──────────────────────────────────────── */
+::selection {
+  background: color-mix(in srgb, var(--sw-accent) 28%, transparent);
+  color: var(--sw-text);
+}
+
+/* ── Transiciones suaves globales en interactivos ────────────── */
+a,
+button,
+.btn,
+.nav-link,
+.dropdown-item,
+.list-group-item,
+.form-control,
+.form-select {
+  transition-duration: 0.17s;
+  transition-timing-function: ease;
+}
+
+/* ── Card: hover sutil en dark mode ─────────────────────────── */
+:root[data-theme="dark"] .card:not(.sw-hcard):not([class*="no-hover"]) {
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+:root[data-theme="dark"] .card:not(.sw-hcard):not([class*="no-hover"]):hover {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  border-color: color-mix(in srgb, var(--sw-accent) 22%, var(--sw-border));
+}
+
+/* ── Modal: fondo más oscuro y borde premium ─────────────────── */
+.modal-content {
+  border-radius: 18px !important;
+  border: 1px solid var(--sw-border) !important;
+}
+
+.modal-backdrop {
+  --bs-backdrop-opacity: 0.65;
+  background-color: #000;
+}
+
+/* ── Entrada de página (animación reutilizable) ───────────────── */
+@keyframes sw-page-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.sw-animate-up {
+  animation: sw-page-in 0.4s ease both;
+}
+
+/* ── Cabecera de página estándar ─────────────────────────────── */
+.sw-page-header {
+  border-bottom: 1px solid color-mix(in srgb, var(--sw-accent) 15%, var(--sw-border));
+  padding-bottom: 1.4rem;
+  margin-bottom: 1.75rem;
+}
+
+.sw-page-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sw-accent);
+  opacity: 0.85;
+  margin-bottom: 0.35rem;
+}
+
+.sw-page-title {
+  font-size: clamp(1.35rem, 3vw, 1.9rem);
+  font-weight: 700;
+  color: var(--sw-text);
+  letter-spacing: -0.01em;
+  margin-bottom: 0.3rem;
+}
+
+.sw-page-subtitle {
+  font-size: 0.9rem;
+  color: var(--sw-muted);
+  margin-bottom: 0;
+}
+
+/* ── Navbar: toggler premium ─────────────────────────────────── */
+.sw-navbar-toggler {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--sw-accent) 35%, var(--sw-border)) !important;
+  border-radius: 10px !important;
+  background: var(--sw-surface-2) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.sw-navbar-toggler:focus {
+  box-shadow: 0 0 0 0.18rem color-mix(in srgb, var(--sw-accent) 30%, transparent) !important;
+  outline: none;
+}
+
+/* Reemplaza el icon hamburger de Bootstrap */
+.sw-navbar-toggler .navbar-toggler-icon {
+  background-image: none !important;
+  width: 18px;
+  height: 2px;
+  background: var(--sw-accent) !important;
+  border-radius: 2px;
+  position: relative;
+  display: block;
+}
+
+.sw-navbar-toggler .navbar-toggler-icon::before,
+.sw-navbar-toggler .navbar-toggler-icon::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 18px;
+  height: 2px;
+  background: var(--sw-accent);
+  border-radius: 2px;
+}
+
+.sw-navbar-toggler .navbar-toggler-icon::before { top: -6px; }
+.sw-navbar-toggler .navbar-toggler-icon::after  { top: 6px; width: 12px; }
+
+/* ── Badge micro (estado en línea) ──────────────────────────── */
+.sw-status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sw-status-dot--green  { background: var(--sw-success); }
+.sw-status-dot--yellow { background: var(--sw-warning); }
+.sw-status-dot--red    { background: var(--sw-danger); }
+.sw-status-dot--blue   { background: #3b82f6; }
+.sw-status-dot--muted  { background: var(--sw-muted); opacity: 0.5; }

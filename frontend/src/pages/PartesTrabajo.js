@@ -567,26 +567,26 @@ export function AdminPartesTrabajo() {
       {/* STATS CARDS */}
       <div className="row g-3 mb-4">
         <div className="col-md-4">
-          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
+          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid var(--sw-border)" }}>
             <div className="card-body">
               <p className="text-muted mb-2">📋 Total partes visibles</p>
-              <h4 className="fw-bold" style={{ color: "#d4af37" }}>{partes.length}</h4>
+              <h4 className="fw-bold sw-accent-text">{partes.length}</h4>
             </div>
           </div>
         </div>
         <div className="col-md-4">
-          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
+          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid var(--sw-border)" }}>
             <div className="card-body">
               <p className="text-muted mb-2">🚗 Coches disponibles para planificar</p>
-              <h4 className="fw-bold" style={{ color: "#d4af37" }}>{cochesDisponibles.length}</h4>
+              <h4 className="fw-bold sw-accent-text">{cochesDisponibles.length}</h4>
             </div>
           </div>
         </div>
         <div className="col-md-4">
-          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
+          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid var(--sw-border)" }}>
             <div className="card-body">
               <p className="text-muted mb-2">👷 Empleados disponibles</p>
-              <h4 className="fw-bold" style={{ color: "#d4af37" }}>{empleadosDisponibles.length}</h4>
+              <h4 className="fw-bold sw-accent-text">{empleadosDisponibles.length}</h4>
             </div>
           </div>
         </div>
@@ -801,8 +801,7 @@ export function AdminPartesTrabajo() {
             <div className="col-12">
               <button
                 type="submit"
-                className="btn btn-dark"
-                style={{ borderColor: "#d4af37" }}
+                className="btn sw-btn-gold"
                 disabled={loadingRecursos || hayServiciosSinTipo}
               >
                 ✅ Crear partes
@@ -881,7 +880,7 @@ export function AdminPartesTrabajo() {
             );
             return (
               <div key={fecha} className="mb-4">
-                <h5 className="mb-3" style={{ color: "#d4af37", fontWeight: "600" }}>📅 {fecha}</h5>
+                <h5 className="mb-3 sw-accent-text" style={{ fontWeight: "600" }}>📅 {fecha}</h5>
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                   {cocheGrupos.map(({ coche_id, partes: cp }) => {
                     const estadoGlobal = cp.some(p => p.estado === "en_proceso") ? "en_proceso"
@@ -990,10 +989,9 @@ export function AdminPartesTrabajo() {
                 </div>
                 <div className="col-md-4">
                   <button
-                    className="btn btn-dark btn-sm w-100"
+                    className="btn sw-btn-gold btn-sm w-100"
                     onClick={cargarReporte}
                     disabled={loadingReporte}
-                    style={{ borderColor: "#d4af37" }}
                   >
                     {loadingReporte ? "Cargando..." : "🔄 Actualizar"}
                   </button>
@@ -1009,7 +1007,7 @@ export function AdminPartesTrabajo() {
                   <div className="d-flex justify-content-between align-items-center mb-2">
                     <strong>👤 {emp.nombre} {emp.rol ? `· ${emp.rol}` : ""}</strong>
                     <div className="d-flex flex-column align-items-end gap-1">
-                      <span className="badge bg-dark" style={{ color: "#d4af37" }}>
+                      <span className="badge bg-dark sw-accent-text">
                         {formatMinutes(emp.total_minutos)} · {emp.total_partes} partes
                       </span>
                       <small className="text-muted">
@@ -1063,7 +1061,7 @@ export function AdminPartesTrabajo() {
         <div className="modal d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
           <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
             <div className="modal-content">
-              <div className="modal-header" style={{ background: "#0f0f0f", color: "#d4af37", borderBottom: "none" }}>
+              <div className="modal-header sw-modal-header-dark" style={{ borderBottom: "none" }}>
                 <h5 className="modal-title fw-bold">✏️ Editar Parte #{editandoId}</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={onCancelarEditar}></button>
               </div>
@@ -1113,7 +1111,7 @@ export function AdminPartesTrabajo() {
                 <button type="button" className="btn btn-secondary" onClick={onCancelarEditar} disabled={editLoading}>
                   Cancelar
                 </button>
-                <button type="button" className="btn btn-dark" style={{ borderColor: "#d4af37" }} onClick={onGuardarEdicion} disabled={editLoading}>
+                <button type="button" className="btn sw-btn-gold" onClick={onGuardarEdicion} disabled={editLoading}>
                   {editLoading ? "Guardando..." : "✅ Guardar"}
                 </button>
               </div>

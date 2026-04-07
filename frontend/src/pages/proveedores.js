@@ -134,25 +134,15 @@ export default function Proveedores() {
     <div className="container py-4" style={{ maxWidth: "1100px" }}>
       {/* Encabezado */}
       <div
-        className="d-flex justify-content-between align-items-center p-3 mb-4 shadow-sm"
-        style={{
-          background: "#0f0f0f",
-          borderRadius: "12px",
-          color: "white",
-        }}
+        className="d-flex justify-content-between align-items-center p-3 mb-4 shadow-sm sw-header-dark"
+        style={{ borderRadius: "12px" }}
       >
-        <h2 className="fw-bold mb-0" style={{ color: "#d4af37" }}>
+        <h2 className="fw-bold mb-0 sw-accent-text">
           🧾 Proveedores
         </h2>
 
         <button
-          className="btn"
-          style={{
-            background: "#d4af37",
-            color: "black",
-            fontWeight: "600",
-            borderRadius: "8px",
-          }}
+          className="btn sw-btn-gold"
           onClick={startCreate}
         >
           ➕ Nuevo proveedor
@@ -179,7 +169,7 @@ export default function Proveedores() {
           className="card shadow-sm mb-4"
           style={{
             borderRadius: "12px",
-            border: "1px solid #d4af37",
+            border: "1px solid var(--sw-accent)",
           }}
         >
           <div className="card-body">
@@ -270,14 +260,8 @@ export default function Proveedores() {
               {/* Botones */}
               <div className="col-12 d-flex gap-2 mt-2">
                 <button
-                  className="btn"
+                  className="btn sw-btn-gold"
                   type="submit"
-                  style={{
-                    background: "#d4af37",
-                    color: "black",
-                    fontWeight: "600",
-                    borderRadius: "10px",
-                  }}
                 >
                   💾 Guardar
                 </button>
