@@ -1,5 +1,4 @@
-from datetime import datetime
-from models.base import db
+from models.base import db, now_madrid
 
 import enum
 
@@ -37,11 +36,11 @@ class ParteTrabajo(db.Model):
     def iniciar_trabajo(self):
         self.estado = EstadoParte.en_proceso
         if not self.fecha_inicio:
-            self.fecha_inicio = datetime.now()
+            self.fecha_inicio = now_madrid()
 
     def finalizar_trabajo(self):
         self.estado = EstadoParte.finalizado
-        self.fecha_fin = datetime.now()
+        self.fecha_fin = now_madrid()
 
     def poner_en_pausa(self, inicio_pausa):
         import json

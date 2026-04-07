@@ -10,6 +10,7 @@ from extensions import db
 from datetime import datetime
 from uuid import uuid4
 import json
+from models.base import now_madrid
 
 from utils.auth_utils import WORKSHOP_ROLES, normalize_role, role_required, _dev_auth_bypass_enabled
 
@@ -212,7 +213,7 @@ def crear_parte_interno():
         coche_id=coche_id,
         empleado_id=current_user_id,
         estado=EstadoParte.en_proceso,
-        fecha_inicio=datetime.now(),
+        fecha_inicio=now_madrid(),
         observaciones=observaciones,
         tiempo_estimado_minutos=tiempo_estimado,
         lote_uid=str(uuid4()),
@@ -268,7 +269,7 @@ def sumarme_a_coche_activo(coche_id):
         coche_id=coche_id,
         empleado_id=current_user_id,
         estado=EstadoParte.en_proceso,
-        fecha_inicio=datetime.now(),
+        fecha_inicio=now_madrid(),
         observaciones=observaciones,
         tiempo_estimado_minutos=tiempo_estimado,
         lote_uid=str(uuid4()),
@@ -552,7 +553,7 @@ def cambiar_estado_parte(parte_id):
             pausas = json.loads(parte.pausas) if parte.pausas else []
             for pausa in reversed(pausas):
                 if pausa[1] is None:
-                    pausa[1] = datetime.now().isoformat()
+                    pausa[1] = now_madrid().isoformat()
                     break
             parte.pausas = json.dumps(pausas)
         parte.finalizar_trabajo()
@@ -571,7 +572,7 @@ def cambiar_estado_parte(parte_id):
         except Exception:
             pass
     elif nuevo_estado == 'en_pausa':
-        inicio_pausa = datetime.now().isoformat()
+        inicio_pausa = now_madrid().isoformat()
         # Guardar pausa
         pausas = json.loads(parte.pausas) if parte.pausas else []
         pausas.append([inicio_pausa, None])
@@ -614,7 +615,7 @@ def quitar_pausa(parte_id):
         # Buscar última pausa sin fin
         for pausa in reversed(pausas):
             if pausa[1] is None:
-                pausa[1] = datetime.now().isoformat()
+                pausa[1] = now_madrid().isoformat()
                 break
         parte.pausas = json.dumps(pausas)
         parte.estado = EstadoParte.en_proceso
