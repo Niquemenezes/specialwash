@@ -1,16 +1,18 @@
 #!/usr/bin/env python
-"""Actualiza la tabla servicios_catalogo agregando tiempo_estimado_minutos si falta."""
+"""Actualiza la tabla servicios_catalogo agregando columnas faltantes."""
 
 import sqlite3
 from pathlib import Path
 
 DB_PATH = Path(__file__).resolve().parent / "instance" / "specialwash.db"
-COLUMN_NAME = "tiempo_estimado_minutos"
-COLUMN_DEF = "INTEGER"
+COLUMNS = {
+    "tiempo_estimado_minutos": "INTEGER",
+    "rol_responsable": "VARCHAR(50)",
+}
 
 
 def ensure_servicio_catalogo_schema(db_path: Path = DB_PATH) -> bool:
-    """Retorna True si agrego la columna, False si ya existia o no aplica."""
+    """Retorna True si agrego al menos una columna, False si no aplica."""
     if not db_path.exists():
         return False
 
@@ -20,12 +22,16 @@ def ensure_servicio_catalogo_schema(db_path: Path = DB_PATH) -> bool:
         cur.execute("PRAGMA table_info(servicios_catalogo)")
         existing = {row[1] for row in cur.fetchall()}
 
-        if COLUMN_NAME in existing:
-            return False
+        updated = False
+        for column_name, column_def in COLUMNS.items():
+            if column_name in existing:
+                continue
+            cur.execute(f"ALTER TABLE servicios_catalogo ADD COLUMN {column_name} {column_def}")
+            updated = True
 
-        cur.execute(f"ALTER TABLE servicios_catalogo ADD COLUMN {COLUMN_NAME} {COLUMN_DEF}")
-        conn.commit()
-        return True
+        if updated:
+            conn.commit()
+        return updated
     finally:
         conn.close()
 
@@ -37,7 +43,7 @@ def main():
 
     updated = ensure_servicio_catalogo_schema(DB_PATH)
     if updated:
-        print(f"Actualizacion completada. Columna agregada: {COLUMN_NAME}")
+        print("Actualizacion completada. Se agregaron columnas faltantes.")
     else:
         print("Esquema al dia, no se agregaron columnas.")
 

@@ -290,6 +290,10 @@ def _normalize_servicios_aplicados(raw):
         if tiempo_estimado_minutos < 0:
             tiempo_estimado_minutos = 0
 
+        tipo_tarea = normalize_role(item.get("tipo_tarea") or "")
+        if origen == "manual" and not tipo_tarea:
+            raise ValueError("En servicio manual debes indicar el rol/área (tipo_tarea)")
+
         servicio_catalogo_id = item.get("servicio_catalogo_id")
         try:
             servicio_catalogo_id = int(servicio_catalogo_id) if servicio_catalogo_id is not None else None
@@ -302,6 +306,7 @@ def _normalize_servicios_aplicados(raw):
             "nombre": nombre,
             "precio": precio,
             "tiempo_estimado_minutos": tiempo_estimado_minutos,
+            "tipo_tarea": tipo_tarea or None,
         })
 
     return normalized
