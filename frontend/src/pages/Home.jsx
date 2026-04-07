@@ -12,19 +12,6 @@ const getGreeting = () => {
 
 const SECTIONS = [
   {
-    id: "inventario",
-    title: "Productos e Inventario",
-    subtitle: "Flujo completo de producto y stock",
-    emoji: "📦",
-    items: [
-      { to: "/productos",        label: "Crear y gestionar productos", detail: "Catálogo, precios y stock mínimo",       roles: ["administrador"] },
-      { to: "/entradas",         label: "Registrar entrada",           detail: "Compras y abastecimiento",               roles: ["administrador"] },
-      { to: "/salidas",          label: "Registrar salida",            detail: "Consumo de taller y operaciones",        roles: ["administrador", "encargado", "calidad", "detailing", "pintura", "tapicero"] },
-      { to: "/resumen-entradas", label: "Historial de entradas",       detail: "Resumen económico y compras",            roles: ["administrador"] },
-      { to: "/historial-salidas",label: "Historial de salidas",        detail: "Trazabilidad por fecha y usuario",       roles: ["administrador"] },
-    ],
-  },
-  {
     id: "vehiculos",
     title: "Vehículos",
     subtitle: "Flujo de recepción, repaso y entrega",
@@ -35,6 +22,19 @@ const SECTIONS = [
       { to: "/repaso-entrega",         label: "Repaso + Firma entrega",    detail: "Control y firma cliente",              roles: ["administrador", "detailing", "calidad"] },
       { to: "/entregados",             label: "Coches entregados",         detail: "Historial final",                      roles: ["administrador"] },
       { to: "/repaso-entrega?tab=estado", label: "Dónde está cada coche", detail: "Estado operativo por vehículo",        roles: ["administrador", "detailing", "calidad"] },
+    ],
+  },
+  {
+    id: "inventario",
+    title: "Productos e Inventario",
+    subtitle: "Flujo completo de producto y stock",
+    emoji: "📦",
+    items: [
+      { to: "/productos",        label: "Crear y gestionar productos", detail: "Catálogo, precios y stock mínimo",       roles: ["administrador"] },
+      { to: "/entradas",         label: "Registrar entrada",           detail: "Compras y abastecimiento",               roles: ["administrador"] },
+      { to: "/salidas",          label: "Registrar salida",            detail: "Consumo de taller y operaciones",        roles: ["administrador", "encargado", "calidad", "detailing", "pintura", "tapicero"] },
+      { to: "/resumen-entradas", label: "Historial de entradas",       detail: "Resumen económico y compras",            roles: ["administrador"] },
+      { to: "/historial-salidas",label: "Historial de salidas",        detail: "Trazabilidad por fecha y usuario",       roles: ["administrador"] },
     ],
   },
   {
