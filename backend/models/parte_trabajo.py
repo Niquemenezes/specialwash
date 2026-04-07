@@ -27,6 +27,8 @@ class ParteTrabajo(db.Model):
     es_tarea_interna = db.Column(db.Boolean, nullable=False, default=False)
 
     coche = db.relationship("Coche")
+    inspeccion = db.relationship("InspeccionRecepcion")
+    servicio_catalogo = db.relationship("ServicioCatalogo")
     empleado = db.relationship("User")
 
     # Pausas: lista de tuplas (inicio, fin)
