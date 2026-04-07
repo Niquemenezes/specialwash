@@ -14,6 +14,8 @@ class ParteTrabajo(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     coche_id = db.Column(db.Integer, db.ForeignKey("coches.id"), nullable=False)
+    inspeccion_id = db.Column(db.Integer, db.ForeignKey("inspeccion_recepcion.id"), nullable=True)
+    servicio_catalogo_id = db.Column(db.Integer, db.ForeignKey("servicios_catalogo.id"), nullable=True)
     empleado_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     estado = db.Column(db.Enum(EstadoParte), default=EstadoParte.pendiente, nullable=False)
     fecha_inicio = db.Column(db.DateTime)
@@ -22,6 +24,7 @@ class ParteTrabajo(db.Model):
     tiempo_estimado_minutos = db.Column(db.Integer, nullable=False, default=0)
     lote_uid = db.Column(db.String(36), nullable=True, index=True)
     tipo_tarea = db.Column(db.String(30), nullable=True)  # pintura | detailing | tapiceria | otro
+    es_tarea_interna = db.Column(db.Boolean, nullable=False, default=False)
 
     coche = db.relationship("Coche")
     empleado = db.relationship("User")
