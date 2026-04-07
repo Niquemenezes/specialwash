@@ -46,17 +46,29 @@ def _parte_recency_key(parte):
 
 
 def _get_partes_por_coche(coche_ids):
-    """Retorna dict coche_id con parte principal y resumen de partes activos."""
+    """Retorna dict coche_id con parte principal y resumen de partes activos.
+    También indexa por inspeccion_id para inspecciones con parte propio."""
     if not coche_ids:
         return {}
     partes = ParteTrabajo.query.filter(ParteTrabajo.coche_id.in_(coche_ids)).all()
     por_coche = {}
+    por_inspeccion = {}  # inspeccion_id -> (prioridad, recency, parte)
     resumen_activos = {}
     for parte in partes:
         cid = parte.coche_id
+        iid = parte.inspeccion_id
         st = parte.estado.value if parte.estado else "finalizado"
         prioridad = _PRIORIDAD_ESTADO_PARTE.get(st, 99)
         recency = _parte_recency_key(parte)
+
+        # Índice por inspeccion_id (para inspecciones que tienen parte propio)
+        if iid is not None:
+            if iid not in por_inspeccion:
+                por_inspeccion[iid] = (prioridad, recency, parte)
+            else:
+                cur_p, cur_r, _ = por_inspeccion[iid]
+                if prioridad < cur_p or (prioridad == cur_p and recency > cur_r):
+                    por_inspeccion[iid] = (prioridad, recency, parte)
 
         # Partes activos del coche (sin finalizados) para mostrar carga real.
         if st in {"pendiente", "en_proceso", "en_pausa"}:
@@ -92,6 +104,16 @@ def _get_partes_por_coche(coche_ids):
             "partes_activas_ids": activos["partes_ids"],
             "partes_activas_empleados": activos["empleados"],
         }
+    # Adjuntar índice por inspección al dict resultado para uso en serialización
+    out["__por_inspeccion__"] = {
+        iid: {
+            "parte": data[2],
+            "partes_activas_count": len(resumen_activos.get(data[2].coche_id, {}).get("partes_ids", [])),
+            "partes_activas_ids": resumen_activos.get(data[2].coche_id, {}).get("partes_ids", []),
+            "partes_activas_empleados": resumen_activos.get(data[2].coche_id, {}).get("empleados", []),
+        }
+        for iid, data in por_inspeccion.items()
+    }
     return out
 
 
@@ -217,7 +239,12 @@ def _compute_estado_coche(inspeccion, parte, partes_activas_count=0, partes_acti
 
 def _serialize_inspeccion_con_estado(inspeccion, partes_por_coche):
     data = inspeccion.to_dict()
-    partes_info = partes_por_coche.get(inspeccion.coche_id, {}) if isinstance(partes_por_coche, dict) else {}
+    # Primero buscar por inspeccion_id (más preciso cuando un coche tiene varias inspecciones)
+    por_inspeccion = partes_por_coche.get("__por_inspeccion__", {}) if isinstance(partes_por_coche, dict) else {}
+    partes_info = por_inspeccion.get(inspeccion.id) if inspeccion.id in por_inspeccion else None
+    # Fallback a búsqueda por coche_id
+    if partes_info is None:
+        partes_info = partes_por_coche.get(inspeccion.coche_id, {}) if isinstance(partes_por_coche, dict) else {}
     parte = partes_info.get("parte") if isinstance(partes_info, dict) else None
     data["estado_coche"] = _compute_estado_coche(
         inspeccion,
