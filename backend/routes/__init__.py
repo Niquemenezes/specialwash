@@ -11,6 +11,7 @@ from routes.parte_trabajo_routes import bp as parte_trabajo_bp
 from routes.servicio_catalogo_routes import servicio_catalogo_bp
 from routes.cita_routes import citas_bp
 from routes.notificacion_routes import notificaciones_bp
+from routes.horario_routes import horario_bp
 
 
 def register_routes(app):
@@ -26,5 +27,6 @@ def register_routes(app):
     app.register_blueprint(servicio_catalogo_bp, url_prefix="/api")
     app.register_blueprint(citas_bp, url_prefix="/api")
     app.register_blueprint(notificaciones_bp, url_prefix="/api")
+    app.register_blueprint(horario_bp, url_prefix="/api")
     app.register_blueprint(dashboard_bp, url_prefix="")
     app.register_blueprint(export_bp, url_prefix="")
