@@ -10,7 +10,7 @@ from extensions import db
 from datetime import datetime
 from uuid import uuid4
 import json
-from models.base import now_madrid
+from models.base import now_madrid, attach_madrid
 
 from utils.auth_utils import WORKSHOP_ROLES, normalize_role, role_required, _dev_auth_bypass_enabled
 
@@ -114,8 +114,8 @@ def _serialize_parte(parte, include_sensitive=False):
         'empleado_id': parte.empleado_id,
         'empleado_nombre': empleado.nombre if empleado else None,
         'estado': parte.estado.value,
-        'fecha_inicio': parte.fecha_inicio.isoformat() if parte.fecha_inicio else None,
-        'fecha_fin': parte.fecha_fin.isoformat() if parte.fecha_fin else None,
+        'fecha_inicio': attach_madrid(parte.fecha_inicio).isoformat() if parte.fecha_inicio else None,
+        'fecha_fin': attach_madrid(parte.fecha_fin).isoformat() if parte.fecha_fin else None,
         'observaciones': parte.observaciones,
         'tipo_tarea': getattr(parte, 'tipo_tarea', None),
         'es_tarea_interna': bool(getattr(parte, 'es_tarea_interna', False)),

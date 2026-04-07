@@ -1,5 +1,5 @@
 from datetime import datetime
-from models.base import db, now_madrid
+from models.base import db, now_madrid, TZ_MADRID
 
 import enum
 
@@ -65,7 +65,7 @@ class ParteTrabajo(db.Model):
         if not self.fecha_inicio:
             return 0
 
-        fin_ref = self.fecha_fin or datetime.now()
+        fin_ref = self.fecha_fin or now_madrid()
         total = (fin_ref - self.fecha_inicio).total_seconds()
 
         # Restar pausas cerradas y, si sigue en pausa, descontar hasta ahora.
@@ -75,11 +75,19 @@ class ParteTrabajo(db.Model):
             for pausa in pausas:
                 if not pausa or len(pausa) < 1 or not pausa[0]:
                     continue
-                inicio = datetime.fromisoformat(pausa[0])
+                # Normalizar a naive Madrid (el timestamp puede venir con o sin offset)
+                dt_inicio = datetime.fromisoformat(pausa[0].replace('Z', '+00:00'))
+                if dt_inicio.tzinfo is not None:
+                    dt_inicio = dt_inicio.astimezone(TZ_MADRID).replace(tzinfo=None)
                 fin_iso = pausa[1] if len(pausa) > 1 else None
-                fin = datetime.fromisoformat(fin_iso) if fin_iso else datetime.now()
-                if fin > inicio:
-                    total -= (fin - inicio).total_seconds()
+                if fin_iso:
+                    dt_fin = datetime.fromisoformat(fin_iso.replace('Z', '+00:00'))
+                    if dt_fin.tzinfo is not None:
+                        dt_fin = dt_fin.astimezone(TZ_MADRID).replace(tzinfo=None)
+                else:
+                    dt_fin = now_madrid()
+                if dt_fin > dt_inicio:
+                    total -= (dt_fin - dt_inicio).total_seconds()
 
         return max(total, 0) / 3600  # horas
 
