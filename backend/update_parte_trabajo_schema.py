@@ -11,6 +11,9 @@ COLUMNS = {
     "lote_uid": "TEXT",
     "tipo_tarea": "TEXT",
     "pausas": "TEXT",
+    "inspeccion_id": "INTEGER",
+    "servicio_catalogo_id": "INTEGER",
+    "es_tarea_interna": "INTEGER NOT NULL DEFAULT 0",
 }
 
 

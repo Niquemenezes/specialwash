@@ -92,15 +92,13 @@ echo ""
 # ──────────────────────────────────────────────────────────────
 echo "Verificando base de datos..."
 
-if [[ ! -f "/var/www/specialwash/data/specialwash.db" ]]; then
-    warning "Base de datos no encontrada"
-    warning "Se creará automáticamente al iniciar la app"
-fi
-
 mkdir -p /var/www/specialwash/data
 chmod 755 /var/www/specialwash/data
 
-success "Datos listos"
+python init_db.py 2>&1 || warning "init_db no pudo completarse"
+python update_servicio_catalogo_schema.py 2>&1 || warning "schema update no aplicado"
+
+success "Base de datos lista"
 echo ""
 
 # ──────────────────────────────────────────────────────────────

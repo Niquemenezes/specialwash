@@ -67,15 +67,12 @@ pip install -r backend/requirements.txt >/dev/null 2>&1
 echo -e "${GREEN}✅ Dependencias Python instaladas${NC}"
 echo ""
 
-echo -e "${BLUE}🗄️  Paso 5: Inicializar base de datos${NC}"
-if [ ! -f "$DATA_DIR/specialwash.db" ]; then
-  cd backend
-  python init_db.py >/dev/null 2>&1 || echo "  ⚠️  init_db puede requerir configuración extra"
-  cd ..
-  echo "  BD creada"
-else
-  echo "  BD ya existe"
-fi
+echo -e "${BLUE}🗄️  Paso 5: Inicializar / migrar base de datos${NC}"
+mkdir -p "$DATA_DIR"
+cd backend
+python init_db.py 2>&1 || echo "  ⚠️  init_db puede requerir configuracion extra"
+python update_servicio_catalogo_schema.py 2>&1 || echo "  ⚠️  schema update no aplicado"
+cd ..
 echo -e "${GREEN}✅ Base de datos lista${NC}"
 echo ""
 
