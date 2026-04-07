@@ -121,10 +121,10 @@ def _serialize_parte(parte, include_sensitive=False):
         'lote_uid': getattr(parte, 'lote_uid', None),
         'pausas': parte.pausas,
         'duracion_horas': duracion_horas,
+        'tiempo_estimado_minutos': tiempo_estimado,
     }
     if include_sensitive:
         payload.update({
-            'tiempo_estimado_minutos': tiempo_estimado,
             'duracion_minutos': duracion_minutos,
             'desviacion_minutos': duracion_minutos - tiempo_estimado,
         })

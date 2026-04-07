@@ -1166,13 +1166,52 @@ function Cronometro({ parte }) {
 
   if (!parte.fecha_inicio) return <span className="text-muted">—</span>;
 
+  const estimadoSegs = Number(parte.tiempo_estimado_minutos || 0) * 60;
+  const porcentaje = estimadoSegs > 0 ? segs / estimadoSegs : null;
+
+  // Color según porcentaje del tiempo estimado consumido
+  let timerClass = "sw-timer";
+  let alerta = null;
   if (parte.estado === "en_pausa") {
-    return <span className="sw-timer sw-timer-paused">⏸ {formatCrono(segs)}</span>;
+    timerClass += " sw-timer-paused";
+  } else if (parte.estado === "en_proceso") {
+    timerClass += " sw-timer-running";
+    if (porcentaje !== null) {
+      if (porcentaje >= 1) {
+        timerClass += " sw-timer--over";   // rojo: pasado el tiempo
+        alerta = "⚠ Tiempo superado";
+      } else if (porcentaje >= 0.8) {
+        timerClass += " sw-timer--warn";   // naranja: >80%
+      }
+    }
+  } else {
+    timerClass += " sw-timer-done";
   }
-  if (parte.estado === "en_proceso") {
-    return <span className="sw-timer sw-timer-running">▶ {formatCrono(segs)}</span>;
-  }
-  return <span className="sw-timer sw-timer-done">✓ {formatCrono(segs)}</span>;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+      <span className={timerClass}>
+        {parte.estado === "en_pausa" ? "⏸" : parte.estado === "en_proceso" ? "▶" : "✓"} {formatCrono(segs)}
+      </span>
+      {estimadoSegs > 0 && (
+        <div style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.5)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+          <span>Est. {formatMinutes(parte.tiempo_estimado_minutos)}</span>
+          {porcentaje !== null && parte.estado !== "finalizado" && (
+            <div style={{ width: "60px", height: "5px", background: "rgba(255,255,255,0.1)", borderRadius: "3px", overflow: "hidden" }}>
+              <div style={{
+                height: "100%",
+                width: `${Math.min(100, Math.round(porcentaje * 100))}%`,
+                background: porcentaje >= 1 ? "#dc3545" : porcentaje >= 0.8 ? "#fd7e14" : "#20c997",
+                borderRadius: "3px",
+                transition: "width 1s linear",
+              }} />
+            </div>
+          )}
+          {alerta && <span style={{ color: "#dc3545", fontWeight: 600 }}>{alerta}</span>}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── Categorías de trabajo ─────────────────────────────────────────────────────
