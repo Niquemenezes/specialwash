@@ -296,7 +296,7 @@ export function AdminPartesTrabajo() {
           tiempo_estimado_minutos: Number.parseInt(servicioElegido.tiempo_estimado_minutos || 0, 10) || 0,
           origen: "extra",
           servicio_catalogo_id: servicioElegido.id,
-          tipo_tarea: "",
+          tipo_tarea: normalizeRol(servicioElegido.rol_responsable || "") || "",
         },
       ];
     });

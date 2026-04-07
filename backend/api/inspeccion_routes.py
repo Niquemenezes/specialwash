@@ -21,6 +21,7 @@ from models.coche import Coche
 from models.cliente import Cliente
 from models.parte_trabajo import ParteTrabajo, EstadoParte
 from models.gasto_empresa import GastoEmpresa
+from models.servicio_catalogo import ServicioCatalogo
 from models.base import now_madrid
 from utils.auth_utils import normalize_role
 from services.whatsapp_service import enviar_notificacion_inspeccion, enviar_notificacion_entrega_cliente
@@ -254,6 +255,88 @@ def _can_view_all_inspecciones(user):
     if not user:
         return False
     return normalize_role(getattr(user, "rol", "")) in INSPECCION_MANAGER_ROLES
+
+
+# ============ AUTO-CREAR PARTES DE TRABAJO DESDE INSPECCIÓN ============
+
+def _auto_crear_partes_desde_inspeccion(inspeccion):
+    """
+    Crea automáticamente un ParteTrabajo pendiente por cada servicio de la inspección
+    que aún no tenga parte asociado. Se llama tras crear o actualizar la inspección.
+    No lanza excepciones para no bloquear el flujo principal.
+    """
+    try:
+        from uuid import uuid4
+        servicios = json.loads(inspeccion.servicios_aplicados or "[]")
+        if not isinstance(servicios, list) or not servicios:
+            return
+
+        # lote_uid compartido por todos los partes de esta inspección
+        lote_uid = str(uuid4())
+
+        for svc in servicios:
+            if not isinstance(svc, dict):
+                continue
+
+            nombre = str(svc.get("nombre") or "").strip()
+            if not nombre:
+                continue
+
+            servicio_catalogo_id = svc.get("servicio_catalogo_id")
+            try:
+                servicio_catalogo_id = int(servicio_catalogo_id) if servicio_catalogo_id is not None else None
+            except (TypeError, ValueError):
+                servicio_catalogo_id = None
+
+            # Determinar tipo_tarea: desde el servicio o desde el catálogo
+            tipo_tarea = normalize_role(svc.get("tipo_tarea") or "")
+            if not tipo_tarea and servicio_catalogo_id:
+                catalogo = ServicioCatalogo.query.get(servicio_catalogo_id)
+                if catalogo:
+                    tipo_tarea = normalize_role(catalogo.rol_responsable or "")
+
+            if not tipo_tarea:
+                continue  # Sin rol no podemos asignar a nadie
+
+            # Evitar duplicados: si ya existe un parte para esta inspección + servicio
+            if servicio_catalogo_id:
+                existe = ParteTrabajo.query.filter_by(
+                    inspeccion_id=inspeccion.id,
+                    servicio_catalogo_id=servicio_catalogo_id,
+                ).first()
+            else:
+                existe = ParteTrabajo.query.filter_by(
+                    inspeccion_id=inspeccion.id,
+                    observaciones=nombre,
+                ).first()
+
+            if existe:
+                continue
+
+            tiempo = int(svc.get("tiempo_estimado_minutos") or 0)
+            if tiempo <= 0 and servicio_catalogo_id:
+                catalogo = ServicioCatalogo.query.get(servicio_catalogo_id)
+                if catalogo:
+                    tiempo = int(catalogo.tiempo_estimado_minutos or 0)
+
+            parte = ParteTrabajo(
+                coche_id=inspeccion.coche_id,
+                inspeccion_id=inspeccion.id,
+                servicio_catalogo_id=servicio_catalogo_id,
+                empleado_id=None,
+                estado=EstadoParte.pendiente,
+                observaciones=nombre,
+                tiempo_estimado_minutos=tiempo,
+                lote_uid=lote_uid,
+                tipo_tarea=tipo_tarea,
+                es_tarea_interna=False,
+            )
+            db.session.add(parte)
+
+        db.session.commit()
+
+    except Exception:
+        db.session.rollback()
 
 
 def _normalize_servicios_aplicados(raw):
@@ -701,6 +784,9 @@ def crear_inspeccion():
         except Exception:
             pass
 
+        # Crear partes de trabajo automáticamente según el rol de cada servicio
+        _auto_crear_partes_desde_inspeccion(inspeccion)
+
         return jsonify(inspeccion.to_dict()), 201
     
     except ValueError as e:
@@ -832,6 +918,11 @@ def actualizar_inspeccion(inspeccion_id):
     
     if not inspeccion:
         return jsonify({"msg": "Inspección no encontrada"}), 404
+
+        # Si se actualizaron servicios, crear partes nuevos que no existan aún
+        if "servicios_aplicados" in data:
+            _auto_crear_partes_desde_inspeccion(inspeccion)
+
     
     user_id = _jwt_user_id()
     if not user_id:
