@@ -146,13 +146,11 @@ Ver `deploy/` para scripts completos y configuración de Nginx/systemd.
 | Rol | Acceso |
 |-----|--------|
 | `administrador` | Acceso completo |
-| `encargado` | Flujo de entrega, inventario, citas, partes |
-| `detailing` | Flujo de entrega, salidas, partes propios |
-| `calidad` | Inspecciones, estado de coches, partes |
-| `pintura` | Partes propios |
+| `detailing` | Flujo de entrega, salidas, partes propios, salida de productos |
+| `calidad` | Inspecciones, estado de coches, partes, salida de productos |
+| `pintura` | Partes propios, salida de productos |
 | `tapicero` | Partes propios (flujo tapicería) |
 | `empleado` | Salidas, partes propios, inspección |
-| `tecnico_comercial` | Citas |
 
 ---
 

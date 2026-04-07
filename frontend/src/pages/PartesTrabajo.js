@@ -16,6 +16,7 @@ import {
   obtenerUltimaInspeccionPorCoche,
   reporteEmpleados,
 } from "../utils/parteTrabajoApi";
+import { normalizeRol } from "../utils/authSession";
 
 function EstadoBadge({ estado }) {
   const config = {
@@ -109,6 +110,7 @@ export function AdminPartesTrabajo() {
   const [nuevoServicioManualNombre, setNuevoServicioManualNombre] = useState("");
   const [nuevoServicioManualPrecio, setNuevoServicioManualPrecio] = useState("");
   const [nuevoServicioManualHoras, setNuevoServicioManualHoras] = useState("");
+  const [nuevoServicioManualTipoTarea, setNuevoServicioManualTipoTarea] = useState("");
 
   const [showReporte, setShowReporte] = useState(false);
   const [reporte, setReporte] = useState([]);
@@ -252,7 +254,7 @@ export function AdminPartesTrabajo() {
               tiempo_estimado_minutos: Number.parseInt(s?.tiempo_estimado_minutos || 0, 10) || 0,
               origen: "recepcion",
               servicio_catalogo_id: s?.servicio_catalogo_id ?? null,
-              tipo_tarea: "",
+              tipo_tarea: s?.tipo_tarea || "",
             }))
           : [];
 
@@ -322,6 +324,12 @@ export function AdminPartesTrabajo() {
       return;
     }
 
+    const tipoTarea = String(nuevoServicioManualTipoTarea || "").trim();
+    if (!tipoTarea) {
+      setMensajeCreacion("En servicio manual debes indicar el área/rol en el desplegable.");
+      return;
+    }
+
     setServiciosParteSeleccionados((prev) => {
       return [
         ...prev,
@@ -332,7 +340,7 @@ export function AdminPartesTrabajo() {
           tiempo_estimado_minutos: tiempoEstimadoMin,
           origen: "manual",
           servicio_catalogo_id: null,
-          tipo_tarea: "",
+          tipo_tarea: tipoTarea,
         },
       ];
     });
@@ -340,6 +348,7 @@ export function AdminPartesTrabajo() {
     setNuevoServicioManualNombre("");
     setNuevoServicioManualPrecio("");
     setNuevoServicioManualHoras("");
+    setNuevoServicioManualTipoTarea("");
     setMensajeCreacion("");
   };
 
@@ -407,6 +416,7 @@ export function AdminPartesTrabajo() {
       setNuevoServicioManualNombre("");
       setNuevoServicioManualPrecio("");
       setNuevoServicioManualHoras("");
+      setNuevoServicioManualTipoTarea("");
       setServiciosParteSeleccionados([]);
       await Promise.all([cargarPartes(), cargarRecursos()]);
     } catch (e) {
@@ -696,6 +706,19 @@ export function AdminPartesTrabajo() {
                     placeholder="Horas"
                     style={{ borderRadius: "8px" }}
                   />
+                </div>
+                <div className="col-12 col-md-2">
+                  <select
+                    className="form-select"
+                    value={nuevoServicioManualTipoTarea}
+                    onChange={(e) => setNuevoServicioManualTipoTarea(e.target.value)}
+                    style={{ borderRadius: "8px" }}
+                  >
+                    <option value="">Área manual...</option>
+                    {TIPO_TAREA_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="col-12 col-md-2 d-grid">
                   <button
@@ -1295,7 +1318,7 @@ const ROL_TO_TIPO = {
   pintura: "pintura",
   detailing: "detailing",
   tapicero: "tapicero",
-  empleado: "otro",
+  empleado: "detailing",
 };
 
 export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, panelSubtitle }) {
@@ -1310,7 +1333,8 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
     setLoading(true);
     setError("");
     try {
-      const tipoRol = ROL_TO_TIPO[userRol?.toLowerCase()] || "";
+      const rolNormalizado = normalizeRol(userRol);
+      const tipoRol = ROL_TO_TIPO[rolNormalizado] || rolNormalizado || "";
       const [pendientes, enProceso, enPausa] = await Promise.all([
         listarPartesTrabajo({
           estado: "pendiente",
@@ -1368,7 +1392,8 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
     setError("");
     setTareaInternaLoading(true);
     try {
-      const tipo = ROL_TO_TIPO[userRol?.toLowerCase()] || "otro";
+      const rolNormalizado = normalizeRol(userRol);
+      const tipo = ROL_TO_TIPO[rolNormalizado] || rolNormalizado || "otro";
       await crearParteInterno({
         observaciones: texto,
         tipo_tarea: tipo,
@@ -1390,14 +1415,16 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
       return;
     }
 
-    const sugerida = `Apoyo en ${getTipoTareaLabel(ROL_TO_TIPO[userRol?.toLowerCase()] || "otro")}`;
+    const rolNormalizado = normalizeRol(userRol);
+    const tipoNormalizado = ROL_TO_TIPO[rolNormalizado] || rolNormalizado || "otro";
+    const sugerida = `Apoyo en ${getTipoTareaLabel(tipoNormalizado)}`;
     const observaciones = window.prompt("Describe brevemente el trabajo que vas a realizar en este coche:", sugerida);
     if (observaciones === null) return;
 
     setError("");
     setAccionCargando(true);
     try {
-      const tipo = ROL_TO_TIPO[userRol?.toLowerCase()] || "otro";
+      const tipo = tipoNormalizado;
       await sumarmeACoche({
         coche_id: cocheId,
         observaciones: String(observaciones || "").trim(),

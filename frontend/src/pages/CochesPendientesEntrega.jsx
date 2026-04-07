@@ -9,6 +9,13 @@ const formatFecha = (value) => {
   return d.toLocaleString("es-ES");
 };
 
+const isProfesional = (inspeccion) => {
+  if (!inspeccion || typeof inspeccion !== "object") return false;
+  if (Boolean(inspeccion.es_concesionario)) return true;
+  if (Boolean(inspeccion?.cobro?.es_concesionario)) return true;
+  return Boolean((inspeccion?.cliente?.cif || "").trim());
+};
+
 const parseActaDesdeTexto = (texto = "") => {
   const lines = texto.split("\n");
   const obsPrefix = "Observaciones de entrega:";
@@ -611,7 +618,7 @@ const CochesPendientesEntrega = () => {
                         )}
                       </td>
                       <td>
-                        {inspeccion.es_concesionario ? (
+                        {isProfesional(inspeccion) ? (
                           <span className="badge bg-info text-dark">No requerida (profesional)</span>
                         ) : (inspeccion.trabajos_realizados || "").trim() ? (
                           <div className="d-flex flex-column gap-2">
@@ -640,7 +647,7 @@ const CochesPendientesEntrega = () => {
                         )}
                       </td>
                       <td>
-                        {!inspeccion.es_concesionario && (
+                        {!isProfesional(inspeccion) && (
                           <div className="d-flex gap-2">
                             <button
                               type="button"

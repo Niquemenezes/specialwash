@@ -31,6 +31,13 @@ const defaultChecklistState = () => {
   return { items, notas: "" };
 };
 
+const isProfesional = (item) => {
+  if (!item || typeof item !== "object") return false;
+  if (Boolean(item.es_concesionario)) return true;
+  if (Boolean(item?.cobro?.es_concesionario)) return true;
+  return Boolean((item?.cliente?.cif || "").trim());
+};
+
 export default function RepasoEntregaPage() {
   const { actions } = useContext(Context);
   const navigate = useNavigate();
@@ -149,10 +156,24 @@ export default function RepasoEntregaPage() {
         notas: notasDraft,
         marcar_listo: marcarListo,
       });
+
+      // Flujo directo para profesionales: al dejarlo listo, se entrega sin firma.
+      if (marcarListo && isProfesional(selected)) {
+        await actions.registrarEntregaInspeccion(selected.id, {
+          trabajos_realizados: String(selected.trabajos_realizados || "").trim() || "Entrega profesional cerrada desde repaso.",
+          entrega_observaciones: String(notasDraft || "").trim(),
+          registrar_cobro: false,
+        });
+      }
+
       await cargar();
       setFeedback({
         type: "success",
-        msg: marcarListo ? "✅ Coche marcado como listo para entrega." : "💾 Checklist guardado correctamente.",
+        msg: marcarListo
+          ? (isProfesional(selected)
+              ? "✅ Profesional: repaso completado y entrega cerrada (facturar después)."
+              : "✅ Coche marcado como listo para entrega.")
+          : "💾 Checklist guardado correctamente.",
       });
     } catch (err) {
       setFeedback({ type: "danger", msg: `No se pudo guardar el repaso: ${err?.message || "error"}` });
@@ -365,7 +386,7 @@ export default function RepasoEntregaPage() {
                           onClick={() => guardarRepaso(true)}
                           disabled={saving || progress.done < progress.total}
                         >
-                          🏁 Listo para entrega
+                          {selected && isProfesional(selected) ? "🏁 Listo y entregar (profesional)" : "🏁 Listo para entrega"}
                         </button>
                         <button
                           type="button"

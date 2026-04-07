@@ -109,7 +109,7 @@ const InspeccionRecepcionPage = () => {
     precio: "",
     tiempo_estimado_minutos: "",
     tiempo_estimado_horas: "",
-    tipo_tarea: "otro",
+    tipo_tarea: "",
   });
   const [servicioCatalogoSeleccionado, setServicioCatalogoSeleccionado] = useState({
     detailing: "",
@@ -152,7 +152,7 @@ const InspeccionRecepcionPage = () => {
           consentimiento_datos_recepcion: Boolean(inspeccion.consentimiento_datos_recepcion),
           averias_notas: inspeccion.averias_notas || "",
           servicios_aplicados: Array.isArray(inspeccion.servicios_aplicados)
-            ? inspeccion.servicios_aplicados
+            ? inspeccion.servicios_aplicados.map(mapServicioForPayload)
             : []
         });
         setInspeccionEditandoId(inspeccion.id);
@@ -344,6 +344,11 @@ const InspeccionRecepcionPage = () => {
       return;
     }
     const tiempoEstimado = tiempoDesdeHoras > 0 ? tiempoDesdeHoras : tiempoEnMinutos;
+    const tipoTarea = normalizeRol(servicioManual.tipo_tarea || "");
+    if (!tipoTarea) {
+      setServicioManualError("Debes seleccionar el rol/área del servicio manual.");
+      return;
+    }
 
     setFormData((prev) => ({
       ...prev,
@@ -355,18 +360,29 @@ const InspeccionRecepcionPage = () => {
           nombre,
           precio,
           tiempo_estimado_minutos: tiempoEstimado,
-          tipo_tarea: normalizeRol(servicioManual.tipo_tarea || "") || "otro",
+          tipo_tarea: tipoTarea,
         },
       ],
     }));
 
-    setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "", tipo_tarea: "otro" });
+    setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "", tipo_tarea: "" });
   };
 
   const eliminarServicioAplicado = (index) => {
     setFormData((prev) => ({
       ...prev,
       servicios_aplicados: (prev.servicios_aplicados || []).filter((_, i) => i !== index),
+    }));
+  };
+
+  const actualizarRolServicioAplicado = (index, tipoTarea) => {
+    setFormData((prev) => ({
+      ...prev,
+      servicios_aplicados: (prev.servicios_aplicados || []).map((servicio, i) => (
+        i === index
+          ? { ...servicio, tipo_tarea: normalizeRol(tipoTarea || "") || "" }
+          : servicio
+      )),
     }));
   };
 
@@ -494,11 +510,19 @@ const InspeccionRecepcionPage = () => {
     setGuardando(true);
 
     try {
+      const serviciosPayload = (formData.servicios_aplicados || []).map(mapServicioForPayload);
+      const serviciosSinRol = serviciosPayload.filter((servicio) => !normalizeRol(servicio?.tipo_tarea || ""));
+      if (serviciosSinRol.length > 0) {
+        setFormError("Todos los servicios deben tener un rol/área asignado para enrutar correctamente el parte.");
+        setGuardando(false);
+        return;
+      }
+
       const payload = {
         ...formData,
         cliente_id: formData.cliente_id ? Number.parseInt(formData.cliente_id, 10) : null,
         kilometros,
-        servicios_aplicados: (formData.servicios_aplicados || []).map(mapServicioForPayload)
+        servicios_aplicados: serviciosPayload
       };
 
       let inspeccion = null;
@@ -547,7 +571,7 @@ const InspeccionRecepcionPage = () => {
 
       // Limpiar formulario
       setFormData(INITIAL_FORM_DATA);
-      setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "", tipo_tarea: "otro" });
+      setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "", tipo_tarea: "" });
       setFotos([]);
       setVideos([]);
       setFotosPreview([]);
@@ -570,7 +594,7 @@ const InspeccionRecepcionPage = () => {
     setInspeccionEditandoId(null);
     setSearchParams({});
     setFormData(INITIAL_FORM_DATA);
-    setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "", tipo_tarea: "otro" });
+    setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "", tipo_tarea: "" });
     setFotos([]);
     setVideos([]);
     setFotosPreview([]);
@@ -1154,6 +1178,7 @@ const InspeccionRecepcionPage = () => {
                             value={servicioManual.tipo_tarea}
                             onChange={(e) => setServicioManual((prev) => ({ ...prev, tipo_tarea: e.target.value }))}
                           >
+                            <option value="">Selecciona área...</option>
                             {ROLE_OPTIONS.map((role) => (
                               <option key={role.value} value={role.value}>
                                 {role.label}
@@ -1206,9 +1231,16 @@ const InspeccionRecepcionPage = () => {
                                   <td>{Number(servicio.precio || 0).toFixed(2)} €</td>
                                   <td>{Number(servicio.tiempo_estimado_minutos || 0)} min</td>
                                   <td>
-                                    <span className={`badge ${getRoleBadgeClass(servicio.tipo_tarea)}`}>
-                                      {ROLE_OPTIONS.find((r) => r.value === normalizeRol(servicio.tipo_tarea || ""))?.label || "Otro"}
-                                    </span>
+                                    <select
+                                      className="form-select form-select-sm"
+                                      value={normalizeRol(servicio.tipo_tarea || "")}
+                                      onChange={(e) => actualizarRolServicioAplicado(index, e.target.value)}
+                                    >
+                                      <option value="">Selecciona área...</option>
+                                      {ROLE_OPTIONS.map((r) => (
+                                        <option key={r.value} value={r.value}>{r.label}</option>
+                                      ))}
+                                    </select>
                                   </td>
                                   <td className="text-end">
                                     <button

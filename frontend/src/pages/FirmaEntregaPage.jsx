@@ -10,6 +10,13 @@ const formatFecha = (value) => {
   return d.toLocaleString("es-ES");
 };
 
+const isProfesional = (item) => {
+  if (!item || typeof item !== "object") return false;
+  if (Boolean(item.es_concesionario)) return true;
+  if (Boolean(item?.cobro?.es_concesionario)) return true;
+  return Boolean((item?.cliente?.cif || "").trim());
+};
+
 const FirmaEntregaPage = () => {
   const { actions } = useContext(Context);
   const navigate = useNavigate();
@@ -73,7 +80,7 @@ const FirmaEntregaPage = () => {
           {!loading && pendientes.length > 0 && (
             <div className="d-flex flex-column gap-3">
               {pendientes.map((item) => {
-                const esConcesionario = Boolean(item.es_concesionario);
+                const esConcesionario = isProfesional(item);
                 const actaLista = esConcesionario || Boolean((item.trabajos_realizados || "").trim());
                 return (
                   <div key={item.id} className="sw-firma-card">

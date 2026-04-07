@@ -87,6 +87,13 @@ const getStored = (k) =>
   (typeof sessionStorage !== "undefined" && sessionStorage.getItem(k)) ||
   (typeof localStorage !== "undefined" && localStorage.getItem(k)) || "";
 
+const isProfesional = (inspeccion) => {
+  if (!inspeccion || typeof inspeccion !== "object") return false;
+  if (Boolean(inspeccion.es_concesionario)) return true;
+  if (Boolean(inspeccion?.cobro?.es_concesionario)) return true;
+  return Boolean((inspeccion?.cliente?.cif || "").trim());
+};
+
 const ActaEntregaView = () => {
   const { id } = useParams();
   const location = useLocation();
@@ -163,7 +170,7 @@ const ActaEntregaView = () => {
   }, [inspeccion?.entrega_observaciones, acta.observaciones]);
   const contenidoTecnico = useMemo(() => normalizeTechnicalContent(acta.contenido), [acta.contenido]);
   const isEntregado = Boolean(inspeccion?.entregado);
-  const esConcesionario = Boolean(inspeccion?.es_concesionario);
+  const esConcesionario = isProfesional(inspeccion);
   const rol = normalizeRol(getStored("rol"));
 
   const volver = () => {

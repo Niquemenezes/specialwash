@@ -1,10 +1,34 @@
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
 
-from models import ServicioCatalogo, db
-from utils.auth_utils import role_required
+from models import ServicioCatalogo, User, db
+from utils.auth_utils import _dev_auth_bypass_enabled, normalize_role, role_required
 
 servicio_catalogo_bp = Blueprint("servicio_catalogo_routes", __name__)
+SERVICIO_SCOPED_ROLES = {"detailing", "pintura", "tapicero"}
+
+
+def _current_role():
+    claims = get_jwt() or {}
+    role = normalize_role(claims.get("rol"))
+    if role:
+        return role
+
+    try:
+        user_id = int(get_jwt_identity())
+    except (TypeError, ValueError):
+        user_id = None
+
+    if user_id:
+        user = User.query.get(user_id)
+        role = normalize_role(getattr(user, "rol", ""))
+        if role:
+            return role
+
+    if _dev_auth_bypass_enabled():
+        return "administrador"
+
+    return ""
 
 
 def parse_tiempo_estimado_minutos(value):
@@ -33,10 +57,30 @@ def _is_truthy(value):
 @jwt_required()
 def listar_servicios_catalogo():
     solo_activos = request.args.get("activos", "false").lower() == "true"
+    current_role = _current_role()
+    requested_role = normalize_role(request.args.get("rol") or "")
+
     query = ServicioCatalogo.query
     if solo_activos:
         query = query.filter_by(activo=True)
+
     servicios = query.order_by(ServicioCatalogo.nombre).all()
+
+    # Roles operativos: siempre su propia area.
+    # Roles gestores: pueden forzar vista por area usando ?rol=<area>.
+    scoped_role = ""
+    if current_role in SERVICIO_SCOPED_ROLES:
+        scoped_role = current_role
+    elif current_role in {"administrador", "encargado", "calidad"} and requested_role in SERVICIO_SCOPED_ROLES:
+        scoped_role = requested_role
+
+    if scoped_role:
+        servicios = [
+            s
+            for s in servicios
+            if normalize_role(getattr(s, "rol_responsable", "")) == scoped_role
+        ]
+
     return jsonify([s.to_dict() for s in servicios])
 
 
@@ -64,11 +108,14 @@ def crear_servicio_catalogo():
     if tiempo_estimado_minutos is None or tiempo_estimado_minutos <= 0:
         return jsonify({"msg": "El tiempo estimado es obligatorio y debe ser mayor que 0 minutos"}), 400
 
+    rol_responsable = normalize_role(data.get("rol_responsable") or "")
+    
     servicio = ServicioCatalogo(
         nombre=nombre,
         descripcion=(data.get("descripcion") or "").strip() or None,
         precio_base=data.get("precio_base"),
         tiempo_estimado_minutos=tiempo_estimado_minutos,
+        rol_responsable=rol_responsable or None,
         activo=True,
     )
     db.session.add(servicio)
@@ -104,6 +151,9 @@ def editar_servicio_catalogo(servicio_id):
             )
         except ValueError as exc:
             return jsonify({"msg": str(exc)}), 400
+    if "rol_responsable" in data:
+        rol_responsable = normalize_role(data.get("rol_responsable") or "")
+        servicio.rol_responsable = rol_responsable or None
 
     # Los servicios activos siempre deben tener tiempo estimado > 0.
     activo_resultante = servicio.activo
