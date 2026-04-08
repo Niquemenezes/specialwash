@@ -40,6 +40,13 @@ import DashboardPage from "./pages/DashboardPage.jsx";
 import RepasoEntregaPage from "./pages/RepasoEntregaPage.jsx";
 import FicharPage from "./pages/FicharPage.jsx";
 import HorariosAdminPage from "./pages/HorariosAdminPage.jsx";
+import VehiculosPage from "./pages/VehiculosPage.jsx";
+import InventarioPage from "./pages/InventarioPage.jsx";
+import PartesPage from "./pages/PartesPage.jsx";
+import AdminPage from "./pages/AdminPage.jsx";
+import VehiculoDetallePage from "./pages/VehiculoDetallePage.jsx";
+import HojaTecnicaPage from "./pages/HojaTecnicaPage.jsx";
+import EntregaClientePage from "./pages/EntregaClientePage.jsx";
 
 const isLogged = () =>
   Boolean(sessionStorage.getItem("token") || localStorage.getItem("token"));
@@ -374,10 +381,73 @@ const App = () => {
             />
 
             <Route
-              path="/inspeccion-recepcion"
+              path="/vehiculos"
               element={
                 <PrivateRoute allow={["administrador", "detailing", "calidad"]}>
+                  <VehiculosPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/inventario"
+              element={
+                <PrivateRoute allow={["administrador", "encargado", "calidad", "detailing", "pintura", "tapicero"]}>
+                  <InventarioPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/partes"
+              element={
+                <PrivateRoute allow={["administrador", "calidad", "detailing", "pintura", "tapicero"]}>
+                  <PartesPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/administracion"
+              element={
+                <PrivateRoute allow={["administrador"]}>
+                  <AdminPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/inspeccion-recepcion"
+              element={
+                <PrivateRoute allow={["administrador", "calidad"]}>
                   <InspeccionRecepcionPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/vehiculo-detalle/:inspeccion_id"
+              element={
+                <PrivateRoute allow={["administrador", "calidad"]}>
+                  <VehiculoDetallePage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/hoja-tecnica/:inspeccion_id"
+              element={
+                <PrivateRoute allow={["administrador"]}>
+                  <HojaTecnicaPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/entrega-cliente/:inspeccion_id"
+              element={
+                <PrivateRoute allow={["administrador", "calidad"]}>
+                  <EntregaClientePage />
                 </PrivateRoute>
               }
             />

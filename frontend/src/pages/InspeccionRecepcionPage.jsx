@@ -643,741 +643,464 @@ const InspeccionRecepcionPage = () => {
     setServicioCatalogoSeleccionado((prev) => ({ ...prev, [rolServicio]: "" }));
   };
 
-  return (
-    <div className="container py-4 sw-page-shell sw-inspeccion-page sw-view-stack">
-      {formError && (
-        <div className="alert alert-danger d-flex justify-content-between align-items-start py-2 mb-3">
-          <span>⚠️ {formError}</span>
-          <button className="btn-close ms-3" onClick={() => setFormError("")} />
-        </div>
-      )}
-      {formSuccess && (
-        <div className="alert alert-success d-flex justify-content-between align-items-start py-2 mb-3">
-          <span style={{ whiteSpace: "pre-line" }}>{formSuccess}</span>
-          <button className="btn-close ms-3" onClick={() => setFormSuccess("")} />
-        </div>
-      )}
+  const _inp = { background: "#131620", border: "1px solid rgba(255,255,255,0.1)", color: "#eef2f7", borderRadius: "10px" };
+  const _lbl = { color: "rgba(200,209,224,0.75)", fontSize: "0.78rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "0.4rem" };
+  const _card = { background: "#0e1219", border: "1px solid rgba(255,255,255,0.07)", borderTop: "3px solid #d4af37", borderRadius: "18px", overflow: "hidden", marginBottom: "1.5rem" };
+  const _cardH = { padding: "1.1rem 1.25rem", borderBottom: "1px solid rgba(255,255,255,0.06)", fontWeight: 700, color: "#fff", fontSize: "0.95rem" };
+  const _cardB = { padding: "1.25rem" };
 
-      {/* Header */}
-      <div
-        className="d-flex justify-content-center align-items-center mb-3 mb-md-4 p-3 rounded shadow-sm sw-view-header sw-header-dark"
-      >
-        <div className="w-100 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2">
-          <h2 className="fw-bold mb-0 fs-5 fs-md-3 text-center text-md-start sw-accent-text">
-            {inspeccionEditandoId ? `✏️ Editar Inspección #${inspeccionEditandoId}` : "🚗 Inspección de Recepción"}
-          </h2>
-          <div className="d-flex flex-column flex-sm-row gap-2 sw-header-actions">
-            <button type="button" className="btn btn-sm btn-outline-secondary" onClick={volver}>
-              Volver
-            </button>
-            {isAdmin && (
-              <Link to="/inspecciones-guardadas" className="btn btn-sm btn-outline-light">
-                Ver inspecciones guardadas
-              </Link>
-            )}
+  return (
+    <div style={{ minHeight: "calc(100vh - 56px)", background: "radial-gradient(ellipse 70% 44% at 50% -10%, rgba(212,175,55,0.06) 0%, transparent 60%), linear-gradient(180deg, #08090d 0%, #0d1017 100%)", color: "#eef2f7" }}>
+
+      {/* ── HERO ── */}
+      <div style={{ borderBottom: "1px solid rgba(212,175,55,0.1)", padding: "1.75rem 0 1.5rem", animation: "sw-fade-up 0.4s ease both" }}>
+        <div className="container" style={{ maxWidth: "900px" }}>
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "1.5rem", flexWrap: "wrap" }}>
+            <div>
+              <p style={{ fontSize: "0.73rem", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#d4af37", opacity: 0.85, marginBottom: "0.4rem" }}>
+                Panel de gestión · SpecialWash
+              </p>
+              <h1 style={{ fontSize: "clamp(1.4rem, 3vw, 2rem)", fontWeight: 700, color: "#fff", margin: 0, letterSpacing: "-0.01em" }}>
+                {inspeccionEditandoId ? `Editar Inspección #${inspeccionEditandoId}` : "Inspección de Recepción"}
+              </h1>
+              <p style={{ fontSize: "0.85rem", color: "rgba(200,209,224,0.55)", marginTop: "0.35rem", marginBottom: 0 }}>
+                Registro de entrada · datos del vehículo y servicios acordados
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+              <button type="button" onClick={volver}
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(200,209,224,0.7)", borderRadius: "9px", padding: "0.4rem 1rem", fontSize: "0.84rem", cursor: "pointer" }}>
+                ← Volver
+              </button>
+              {isAdmin && (
+                <Link to="/inspecciones-guardadas"
+                  style={{ background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.3)", color: "#d4af37", borderRadius: "9px", padding: "0.4rem 1rem", fontSize: "0.84rem", textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
+                  Ver guardadas
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Formulario */}
-      <form onSubmit={handleSubmit} className="mb-5">
-        <div className="card shadow-sm border-0">
-          <div className="card-header py-3 sw-card-header-gold">
-            {inspeccionEditandoId ? "Edición de Inspección" : "Nueva Inspección"}
+      <div className="container py-4" style={{ maxWidth: "900px", animation: "sw-fade-up 0.45s ease 0.05s both" }}>
+
+        {/* ALERTS */}
+        {formError && (
+          <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "10px", padding: "0.85rem 1rem", marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", color: "#fca5a5" }}>
+            <span>⚠ {formError}</span>
+            <button type="button" className="btn-close btn-close-white btn-sm" onClick={() => setFormError("")} />
           </div>
-          <div className="card-body p-3 p-md-4">
-            <div className="row">
-              {/* Nombre Cliente */}
-              <div className="col-12 col-md-6 mb-3">
-                <label className="form-label fw-bold">Cliente existente (opcional)</label>
-                <select
-                  className="form-select form-select-lg"
-                  name="cliente_id"
-                  value={formData.cliente_id}
-                  onChange={handleClienteExistenteChange}
-                >
-                  <option value="">-- Selecciona cliente registrado --</option>
-                  {clientesDisponibles
-                    .slice()
-                    .sort((a, b) => String(a?.nombre || "").localeCompare(String(b?.nombre || ""), "es"))
-                    .map((cliente) => (
-                      <option key={cliente.id} value={cliente.id}>
-                        {cliente.nombre || "Sin nombre"}
-                        {cliente.telefono ? ` · ${cliente.telefono}` : ""}
-                      </option>
+        )}
+        {formSuccess && (
+          <div style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: "10px", padding: "0.85rem 1rem", marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", color: "#6ee7b7" }}>
+            <span style={{ whiteSpace: "pre-line" }}>{formSuccess}</span>
+            <button type="button" className="btn-close btn-close-white btn-sm" onClick={() => setFormSuccess("")} />
+          </div>
+        )}
+
+        {/* FORM */}
+        <form onSubmit={handleSubmit}>
+
+          {/* DATOS CLIENTE Y VEHÍCULO */}
+          <div style={_card}>
+            <div style={_cardH}><span style={{ color: "#d4af37", marginRight: "0.5rem" }}>✦</span>Datos del cliente y vehículo</div>
+            <div style={_cardB}>
+              <div className="row g-3">
+
+                <div className="col-12 col-md-6">
+                  <label style={_lbl}>Cliente existente (opcional)</label>
+                  <select className="form-select" name="cliente_id" value={formData.cliente_id} onChange={handleClienteExistenteChange} style={_inp}>
+                    <option value="">-- Selecciona cliente registrado --</option>
+                    {clientesDisponibles.slice().sort((a, b) => String(a?.nombre || "").localeCompare(String(b?.nombre || ""), "es")).map((cliente) => (
+                      <option key={cliente.id} value={cliente.id}>{cliente.nombre || "Sin nombre"}{cliente.telefono ? ` · ${cliente.telefono}` : ""}</option>
                     ))}
-                </select>
-                <small className="text-muted d-block mt-1">
-                  Si lo seleccionas, se reutiliza ese cliente y evita duplicados.
-                </small>
-              </div>
-
-              <div className="col-12 col-md-6 mb-3">
-                <label className="form-label fw-bold">
-                  Nombre del Cliente <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="text"
-                  className="form-control form-control-lg"
-                  name="cliente_nombre"
-                  value={formData.cliente_nombre}
-                  onChange={handleInputChange}
-                  placeholder="Ej: Taller Acme"
-                  list="clientes-existentes"
-                  autoComplete="off"
-                  required
-                />
-                <datalist id="clientes-existentes">
-                  {clientesDisponibles
-                    .map((cliente) => String(cliente?.nombre || "").trim())
-                    .filter((nombre, index, arr) => nombre && arr.indexOf(nombre) === index)
-                    .sort((a, b) => a.localeCompare(b, "es"))
-                    .map((nombre) => (
-                      <option key={nombre} value={nombre} />
-                    ))}
-                </datalist>
-                <small className="text-muted d-block mt-1">
-                  Escribe o selecciona nombre existente para rellenar automaticamente el telefono.
-                </small>
-              </div>
-
-              {/* Teléfono Cliente */}
-              <div className="col-12 col-md-6 mb-3">
-                <label className="form-label fw-bold">
-                  Teléfono del Cliente <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="tel"
-                  className="form-control form-control-lg"
-                  name="cliente_telefono"
-                  value={formData.cliente_telefono}
-                  onChange={handleInputChange}
-                  placeholder="Ej: 600123123"
-                  list="telefonos-existentes"
-                  required
-                />
-                <datalist id="telefonos-existentes">
-                  {clientesDisponibles
-                    .map((cliente) => ({
-                      id: cliente?.id,
-                      telefono: String(cliente?.telefono || "").trim(),
-                      nombre: String(cliente?.nombre || "").trim(),
-                    }))
-                    .filter((item) => item.telefono)
-                    .sort((a, b) => a.telefono.localeCompare(b.telefono, "es"))
-                    .map((item) => (
-                      <option key={`${item.id}-${item.telefono}`} value={item.telefono}>
-                        {item.nombre ? `${item.nombre}` : ""}
-                      </option>
-                    ))}
-                </datalist>
-                <small className="text-muted d-block mt-1">
-                  Búsqueda en vivo: al escribir un teléfono existente se vincula el cliente automáticamente.
-                </small>
-              </div>
-
-              {/* Descripción del Coche */}
-              <div className="col-12 col-md-6 mb-3">
-                <label className="form-label fw-bold">
-                  Coche (Marca/Modelo) <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="text"
-                  className="form-control form-control-lg"
-                  name="coche_descripcion"
-                  value={formData.coche_descripcion}
-                  onChange={handleInputChange}
-                  placeholder="Ej: Ford Focus 2015"
-                  required
-                />
-              </div>
-
-              {/* Matrícula */}
-              <div className="col-12 col-md-6 mb-3">
-                <label className="form-label fw-bold">
-                  Matrícula <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="text"
-                  className="form-control form-control-lg"
-                  name="matricula"
-                  value={formData.matricula}
-                  onChange={handleInputChange}
-                  placeholder="Ej: 1234ABC"
-                  style={{ textTransform: "uppercase" }}
-                  required
-                />
-              </div>
-
-              {/* Kilómetros */}
-              <div className="col-12 col-md-6 mb-3">
-                <label className="form-label fw-bold">
-                  Kilómetros <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  className="form-control form-control-lg"
-                  name="kilometros"
-                  value={formData.kilometros}
-                  onChange={handleInputChange}
-                  placeholder="Ej: 125000"
-                  required
-                />
-              </div>
-
-              <div className="col-12 mb-3">
-                <div className="form-check">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    id="es_concesionario"
-                    name="es_concesionario"
-                    checked={Boolean(formData.es_concesionario)}
-                    onChange={handleInputChange}
-                  />
-                  <label className="form-check-label" htmlFor="es_concesionario">
-                    Coche de concesionario/profesional (en recepcion no se solicita firma de cliente)
-                  </label>
+                  </select>
+                  <small style={{ color: "rgba(200,209,224,0.38)", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>Si lo seleccionas, se reutiliza ese cliente y evita duplicados.</small>
                 </div>
-              </div>
 
-              {/* Fotos */}
-              <div className="col-12 mb-3">
-                <label className="form-label fw-bold">📸 Fotos del Vehículo</label>
-                
-                {/* Input para cámara */}
-                <input
-                  ref={fotosCamaraRef}
-                  id="input-fotos-camara"
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleFotosChange}
-                  style={{ display: 'none' }}
-                />
-                {/* Input para galería (sin capture, permite múltiples) */}
-                <input
-                  ref={fotosGaleriaRef}
-                  id="input-fotos-galeria"
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleFotosChange}
-                  style={{ display: 'none' }}
-                />
-                
-                {/* Labels como botones - funcionan mejor en móviles */}
-                <div className="d-grid gap-2 d-sm-flex mb-2">
-                  <label 
-                    htmlFor="input-fotos-camara"
-                    className="btn btn-primary btn-lg flex-sm-fill mb-0"
-                    style={{ cursor: 'pointer' }}
-                  >
-                    📷 Tomar Foto
-                  </label>
-                  <label 
-                    htmlFor="input-fotos-galeria"
-                    className="btn btn-outline-primary btn-lg flex-sm-fill mb-0"
-                    style={{ cursor: 'pointer' }}
-                  >
-                    🖼️ Galería
-                  </label>
+                <div className="col-12 col-md-6">
+                  <label style={_lbl}>Nombre del cliente <span style={{ color: "#f87171" }}>*</span></label>
+                  <input type="text" className="form-control" name="cliente_nombre" value={formData.cliente_nombre} onChange={handleInputChange} placeholder="Ej: Taller Acme" list="clientes-existentes" autoComplete="off" required style={_inp} />
+                  <datalist id="clientes-existentes">
+                    {clientesDisponibles.map((c) => String(c?.nombre || "").trim()).filter((n, i, a) => n && a.indexOf(n) === i).sort((a, b) => a.localeCompare(b, "es")).map((n) => (<option key={n} value={n} />))}
+                  </datalist>
+                  <small style={{ color: "rgba(200,209,224,0.38)", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>Escribe o selecciona nombre existente para rellenar automáticamente el teléfono.</small>
                 </div>
-                <small className="text-muted d-block" style={{ fontSize: "0.85rem" }}>
-                  📱 "Tomar Foto" abre la cámara • "Galería" permite seleccionar múltiples fotos
-                </small>
-                
-                {/* Preview de fotos */}
-                {fotosPreview.length > 0 && (
-                  <div className="mt-3">
-                    <div className="row g-2">
-                      {fotosPreview.map((src, index) => (
-                        <div key={index} className="col-6 col-sm-4 col-md-3 position-relative">
-                          <img
-                            src={src}
-                            alt={`Preview ${index}`}
-                            className="img-thumbnail"
-                            style={{ width: "100%", height: "120px", objectFit: "cover" }}
-                          />
-                          <button
-                            type="button"
-                            className="btn btn-danger position-absolute top-0 end-0 m-1"
-                            style={{ padding: "4px 10px", fontSize: "1rem" }}
-                            onClick={() => eliminarFoto(index)}
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
 
-              {/* Videos */}
-              <div className="col-12 mb-3">
-                <label className="form-label fw-bold">🎥 Videos del Vehículo</label>
-                
-                {/* Input para grabar video */}
-                <input
-                  ref={videosCamaraRef}
-                  id="input-videos-camara"
-                  type="file"
-                  accept="video/*"
-                  capture="environment"
-                  onChange={handleVideosChange}
-                  style={{ display: 'none' }}
-                />
-                {/* Input para galería de videos (sin capture, permite múltiples) */}
-                <input
-                  ref={videosGaleriaRef}
-                  id="input-videos-galeria"
-                  type="file"
-                  accept="video/*,video/mp4,video/mov,video/avi,video/quicktime,video/x-msvideo"
-                  multiple
-                  onChange={handleVideosChange}
-                  style={{ display: 'none' }}
-                />
-                
-                {/* Labels como botones - funcionan mejor en móviles */}
-                <div className="d-grid gap-2 d-sm-flex mb-2">
-                  <label
-                    htmlFor="input-videos-camara"
-                    className="btn btn-danger btn-lg flex-sm-fill mb-0"
-                    style={{ cursor: 'pointer' }}
-                  >
-                    🎬 Grabar Video
-                  </label>
-                  <label
-                    htmlFor="input-videos-galeria"
-                    className="btn btn-outline-danger btn-lg flex-sm-fill mb-0"
-                    style={{ cursor: 'pointer' }}
-                  >
-                    📹 Galería
-                  </label>
+                <div className="col-12 col-md-6">
+                  <label style={_lbl}>Teléfono del cliente <span style={{ color: "#f87171" }}>*</span></label>
+                  <input type="tel" className="form-control" name="cliente_telefono" value={formData.cliente_telefono} onChange={handleInputChange} placeholder="Ej: 600123123" list="telefonos-existentes" required style={_inp} />
+                  <datalist id="telefonos-existentes">
+                    {clientesDisponibles.map((c) => ({ id: c?.id, telefono: String(c?.telefono || "").trim(), nombre: String(c?.nombre || "").trim() })).filter((i) => i.telefono).sort((a, b) => a.telefono.localeCompare(b.telefono, "es")).map((i) => (<option key={`${i.id}-${i.telefono}`} value={i.telefono}>{i.nombre}</option>))}
+                  </datalist>
+                  <small style={{ color: "rgba(200,209,224,0.38)", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>Al escribir un teléfono existente se vincula el cliente automáticamente.</small>
                 </div>
-                <small className="text-muted d-block" style={{ fontSize: "0.85rem" }}>
-                  🎬 Máx {FORMATOS_VIDEO_LABEL} • Tamaño máx: 250MB por video
-                </small>
-                
-                {/* Preview de videos */}
-                {videosPreview.length > 0 && (
-                  <div className="mt-3">
-                    <div className="row g-2">
-                      {videosPreview.map((src, index) => (
-                        <div key={index} className="col-12 col-sm-6 col-md-4 position-relative">
-                          <video
-                            src={src}
-                            className="img-thumbnail"
-                            style={{ width: "100%", height: "180px", objectFit: "cover" }}
-                            controls
-                          />
-                          <button
-                            type="button"
-                            className="btn btn-danger position-absolute top-0 end-0 m-1"
-                            style={{ padding: "4px 10px", fontSize: "1rem" }}
-                            onClick={() => eliminarVideo(index)}
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
 
-              {/* Observaciones / Averías */}
-              <div className="col-12 mb-3">
-                <label className="form-label fw-bold">🔧 Observaciones / Averías</label>
-                <textarea
-                  className="form-control form-control-lg"
-                  name="averias_notas"
-                  value={formData.averias_notas}
-                  onChange={handleInputChange}
-                  rows="4"
-                  placeholder="Describe el estado del vehículo, daños visibles, etc."
-                  style={{ fontSize: "1rem" }}
-                />
-              </div>
-
-              {/* Servicios aplicados */}
-              <div className="col-12 mb-3">
-                <div className="card border-0 sw-surface-light">
-                  <div className="card-body p-3">
-                    <h6 className="fw-bold mb-3">🧾 Servicios para esta recepción</h6>
-
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold">Catálogo activo</label>
-                      <div className="d-flex flex-column gap-2">
-                        {catalogoServicios.length === 0 && (
-                          <span className="text-muted small">No hay servicios activos en catálogo.</span>
-                        )}
-
-                        <details className="sw-servicios-group" open>
-                          <summary className="sw-servicios-group__title">🧽 Servicios de Detailing</summary>
-                          <div className="sw-servicios-group__body mt-2">
-                            {serviciosCatalogoPorRol.detailing.length === 0 ? (
-                              <span className="text-muted small">Sin servicios en este grupo.</span>
-                            ) : (
-                              <div className="d-flex flex-column flex-md-row gap-2">
-                                <div className="flex-grow-1">
-                                  <GoldSelect
-                                    value={servicioCatalogoSeleccionado.detailing}
-                                    onChange={(value) => seleccionarServicioCatalogoPorRol("detailing", value)}
-                                    placeholder="Seleccionar servicio de detailing..."
-                                    searchable
-                                    options={serviciosCatalogoPorRol.detailing.map((servicio) => ({
-                                      value: servicio.id,
-                                      label: `${servicio.nombre} · ${Number(servicio.precio_base || 0).toFixed(2)} €${
-                                        Number(servicio.tiempo_estimado_minutos || 0) > 0
-                                          ? ` · ${Number(servicio.tiempo_estimado_minutos)} min`
-                                          : ""
-                                      }`,
-                                    }))}
-                                  />
-                                </div>
-                                <button
-                                  type="button"
-                                  className="btn btn-dark sw-touch-btn"
-                                  onClick={() => agregarServicioCatalogoPorRol("detailing")}
-                                  disabled={!servicioCatalogoSeleccionado.detailing}
-                                >
-                                  Añadir
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </details>
-
-                        <details className="sw-servicios-group" open>
-                          <summary className="sw-servicios-group__title">🎨 Servicios de Pintura</summary>
-                          <div className="sw-servicios-group__body mt-2">
-                            {serviciosCatalogoPorRol.pintura.length === 0 ? (
-                              <span className="text-muted small">Sin servicios en este grupo.</span>
-                            ) : (
-                              <div className="d-flex flex-column flex-md-row gap-2">
-                                <div className="flex-grow-1">
-                                  <GoldSelect
-                                    value={servicioCatalogoSeleccionado.pintura}
-                                    onChange={(value) => seleccionarServicioCatalogoPorRol("pintura", value)}
-                                    placeholder="Seleccionar servicio de pintura..."
-                                    searchable
-                                    options={serviciosCatalogoPorRol.pintura.map((servicio) => ({
-                                      value: servicio.id,
-                                      label: `${servicio.nombre} · ${Number(servicio.precio_base || 0).toFixed(2)} €${
-                                        Number(servicio.tiempo_estimado_minutos || 0) > 0
-                                          ? ` · ${Number(servicio.tiempo_estimado_minutos)} min`
-                                          : ""
-                                      }`,
-                                    }))}
-                                  />
-                                </div>
-                                <button
-                                  type="button"
-                                  className="btn btn-dark sw-touch-btn"
-                                  onClick={() => agregarServicioCatalogoPorRol("pintura")}
-                                  disabled={!servicioCatalogoSeleccionado.pintura}
-                                >
-                                  Añadir
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </details>
-
-                        <details className="sw-servicios-group" open>
-                          <summary className="sw-servicios-group__title">🪑 Servicios de Tapicería</summary>
-                          <div className="sw-servicios-group__body mt-2">
-                            {serviciosCatalogoPorRol.tapicero.length === 0 ? (
-                              <span className="text-muted small">Sin servicios en este grupo.</span>
-                            ) : (
-                              <div className="d-flex flex-column flex-md-row gap-2">
-                                <div className="flex-grow-1">
-                                  <GoldSelect
-                                    value={servicioCatalogoSeleccionado.tapicero}
-                                    onChange={(value) => seleccionarServicioCatalogoPorRol("tapicero", value)}
-                                    placeholder="Seleccionar servicio de tapicería..."
-                                    searchable
-                                    options={serviciosCatalogoPorRol.tapicero.map((servicio) => ({
-                                      value: servicio.id,
-                                      label: `${servicio.nombre} · ${Number(servicio.precio_base || 0).toFixed(2)} €${
-                                        Number(servicio.tiempo_estimado_minutos || 0) > 0
-                                          ? ` · ${Number(servicio.tiempo_estimado_minutos)} min`
-                                          : ""
-                                      }`,
-                                    }))}
-                                  />
-                                </div>
-                                <button
-                                  type="button"
-                                  className="btn btn-dark sw-touch-btn"
-                                  onClick={() => agregarServicioCatalogoPorRol("tapicero")}
-                                  disabled={!servicioCatalogoSeleccionado.tapicero}
-                                >
-                                  Añadir
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </details>
-                      </div>
-                    </div>
-
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold">Servicio manual</label>
-                      <div className="row g-2">
-                        <div className="col-12 col-lg-5">
-                          <input
-                            type="text"
-                            className="form-control form-control-sm"
-                            placeholder="Nombre del servicio"
-                            value={servicioManual.nombre}
-                            onChange={(e) => setServicioManual((prev) => ({ ...prev, nombre: e.target.value }))}
-                          />
-                        </div>
-                        <div className="col-6 col-lg-2">
-                          <input
-                            type="number"
-                            className="form-control form-control-sm text-center"
-                            min="0"
-                            step="0.01"
-                            placeholder="Precio"
-                            value={servicioManual.precio}
-                            onChange={(e) => setServicioManual((prev) => ({ ...prev, precio: e.target.value }))}
-                          />
-                        </div>
-                        <div className="col-6 col-lg-1">
-                          <input
-                            type="number"
-                            className="form-control form-control-sm text-center"
-                            min="0"
-                            step="1"
-                            placeholder="Min"
-                            value={servicioManual.tiempo_estimado_minutos}
-                            onChange={(e) => setServicioManual((prev) => ({ ...prev, tiempo_estimado_minutos: e.target.value }))}
-                          />
-                        </div>
-                        <div className="col-6 col-lg-1">
-                          <input
-                            type="number"
-                            className="form-control form-control-sm text-center"
-                            min="0"
-                            step="0.25"
-                            placeholder="Hora"
-                            value={servicioManual.tiempo_estimado_horas}
-                            onChange={(e) => setServicioManual((prev) => ({ ...prev, tiempo_estimado_horas: e.target.value }))}
-                          />
-                        </div>
-                        <div className="col-8 col-lg-2">
-                          <select
-                            className="form-select form-select-sm"
-                            aria-label="Rol"
-                            value={servicioManual.tipo_tarea}
-                            onChange={(e) => setServicioManual((prev) => ({ ...prev, tipo_tarea: e.target.value }))}
-                          >
-                            <option value="">Selecciona área...</option>
-                            {ROLE_OPTIONS.map((role) => (
-                              <option key={role.value} value={role.value}>
-                                {role.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="col-4 col-lg-1 d-grid">
-                          <button type="button" className="btn btn-dark btn-sm" onClick={agregarServicioManual}>
-                            Añadir
-                          </button>
-                        </div>
-                      </div>
-                      {servicioManualError && (
-                        <div className="text-danger small mt-1">⚠️ {servicioManualError}</div>
-                      )}
-                      <small className="text-muted d-block mt-1">
-                        Puedes indicar minutos o horas (ej. 1.5 horas = 90 min). Si completas ambos, se prioriza horas.
-                      </small>
-                      <small className="text-muted d-block mt-1">
-                        El rol seleccionado aquí se guarda como tipo de tarea y se usa para enviar el parte al rol correspondiente.
-                      </small>
-                    </div>
-
-                    <div>
-                      <label className="form-label fw-semibold">Servicios añadidos</label>
-                      <div className="alert alert-info py-2 mb-3" role="alert">
-                        Al guardar esta recepción, se crearán automáticamente partes de trabajo por cada servicio según su rol.
-                      </div>
-                      {(formData.servicios_aplicados || []).length === 0 ? (
-                        <div className="text-muted small">No hay servicios añadidos aún.</div>
-                      ) : (
-                        <div className="table-responsive">
-                          <table className="table table-sm align-middle mb-0">
-                            <thead>
-                              <tr>
-                                <th>Tipo</th>
-                                <th>Nombre</th>
-                                <th>Precio</th>
-                                <th>Tiempo estimado</th>
-                                <th>Rol</th>
-                                <th className="text-end">Acción</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {(formData.servicios_aplicados || []).map((servicio, index) => (
-                                <tr key={`${servicio.nombre}-${index}`}>
-                                  <td>{servicio.origen === "catalogo" ? "Catálogo" : "Manual"}</td>
-                                  <td>{servicio.nombre}</td>
-                                  <td>{Number(servicio.precio || 0).toFixed(2)} €</td>
-                                  <td>{Number(servicio.tiempo_estimado_minutos || 0)} min</td>
-                                  <td>
-                                    <select
-                                      className="form-select form-select-sm"
-                                      value={normalizeRol(servicio.tipo_tarea || "")}
-                                      onChange={(e) => actualizarRolServicioAplicado(index, e.target.value)}
-                                    >
-                                      <option value="">Selecciona área...</option>
-                                      {ROLE_OPTIONS.map((r) => (
-                                        <option key={r.value} value={r.value}>{r.label}</option>
-                                      ))}
-                                    </select>
-                                  </td>
-                                  <td className="text-end">
-                                    <button
-                                      type="button"
-                                      className="btn btn-sm btn-outline-danger"
-                                      onClick={() => eliminarServicioAplicado(index)}
-                                    >
-                                      Quitar
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                            <tfoot>
-                              <tr>
-                                <th colSpan="2">Total</th>
-                                <th>
-                                  {(formData.servicios_aplicados || [])
-                                    .reduce((acc, s) => acc + (Number(s.precio || 0) || 0), 0)
-                                    .toFixed(2)}{" "}
-                                  €
-                                </th>
-                                <th>
-                                  {(formData.servicios_aplicados || [])
-                                    .reduce((acc, s) => acc + (Number.parseInt(s.tiempo_estimado_minutos || 0, 10) || 0), 0)}{" "}
-                                  min
-                                </th>
-                                <th />
-                                <th />
-                              </tr>
-                            </tfoot>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                <div className="col-12 col-md-6">
+                  <label style={_lbl}>Coche (Marca/Modelo) <span style={{ color: "#f87171" }}>*</span></label>
+                  <input type="text" className="form-control" name="coche_descripcion" value={formData.coche_descripcion} onChange={handleInputChange} placeholder="Ej: Ford Focus 2015" required style={_inp} />
                 </div>
-              </div>
 
-              {/* Proteccion de datos */}
-              <div className="col-12 col-lg-6 mb-3 d-flex">
-                <div className="border rounded p-3 sw-surface-light w-100">
-                  <h6 className="fw-bold mb-2">Proteccion de datos y consentimiento</h6>
-                  <p className="mb-2 small text-muted">
-                    Uso interno: los datos del cliente, del vehiculo y la firma digital se registran para gestionar
-                    la recepcion, documentar el estado del coche y generar el expediente de trabajo.
-                  </p>
-                  <p className="mb-2 small text-muted">
-                    La firma en tablet queda guardada como constancia de conformidad en recepcion.
-                  </p>
-                  <div className="form-check">
-                    <input
-                      className="form-check-input"
-                      type="checkbox"
-                      id="consentimiento_datos_recepcion"
-                      name="consentimiento_datos_recepcion"
-                      checked={formData.es_concesionario ? true : formData.consentimiento_datos_recepcion}
-                      onChange={handleInputChange}
-                      disabled={formData.es_concesionario}
-                    />
-                    <label className="form-check-label" htmlFor="consentimiento_datos_recepcion">
-                      {formData.es_concesionario
-                        ? "Consentimiento interno aplicado automáticamente para cliente profesional."
-                        : "Confirmo que el cliente acepta este registro interno y la firma digital de recepcion."}
+                <div className="col-12 col-md-6">
+                  <label style={_lbl}>Matrícula <span style={{ color: "#f87171" }}>*</span></label>
+                  <input type="text" className="form-control" name="matricula" value={formData.matricula} onChange={handleInputChange} placeholder="Ej: 1234ABC" style={{ ..._inp, textTransform: "uppercase" }} required />
+                </div>
+
+                <div className="col-12 col-md-6">
+                  <label style={_lbl}>Kilómetros <span style={{ color: "#f87171" }}>*</span></label>
+                  <input type="number" min="0" step="1" className="form-control" name="kilometros" value={formData.kilometros} onChange={handleInputChange} placeholder="Ej: 125000" required style={_inp} />
+                </div>
+
+                <div className="col-12">
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.75rem 1rem", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "10px" }}>
+                    <input className="form-check-input" type="checkbox" id="es_concesionario" name="es_concesionario" checked={Boolean(formData.es_concesionario)} onChange={handleInputChange} style={{ flexShrink: 0 }} />
+                    <label className="form-check-label" htmlFor="es_concesionario" style={{ color: "rgba(200,209,224,0.8)", fontSize: "0.88rem", cursor: "pointer" }}>
+                      Coche de concesionario / profesional — no se solicita firma de cliente en recepción
                     </label>
                   </div>
                 </div>
+
+              </div>
+            </div>
+          </div>
+
+          {/* FOTOS */}
+          <div style={{ ..._card, borderTopColor: "#6366f1" }}>
+            <div style={_cardH}><span style={{ color: "#a5b4fc", marginRight: "0.5rem" }}>✦</span>Fotos del vehículo</div>
+            <div style={_cardB}>
+              <input
+                ref={fotosCamaraRef}
+                id="input-fotos-camara"
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFotosChange}
+                style={{ display: "none" }}
+              />
+              <input
+                ref={fotosGaleriaRef}
+                id="input-fotos-galeria"
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFotosChange}
+                style={{ display: "none" }}
+              />
+              <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "0.6rem" }}>
+                <label htmlFor="input-fotos-camara" style={{ background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.35)", color: "#a5b4fc", borderRadius: "10px", padding: "0.55rem 1.2rem", fontSize: "0.88rem", fontWeight: 600, cursor: "pointer" }}>
+                  📷 Tomar foto
+                </label>
+                <label htmlFor="input-fotos-galeria" style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", color: "#a5b4fc", borderRadius: "10px", padding: "0.55rem 1.2rem", fontSize: "0.88rem", fontWeight: 600, cursor: "pointer" }}>
+                  🖼 Galería (múltiples)
+                </label>
+              </div>
+              <small style={{ color: "rgba(200,209,224,0.38)", fontSize: "0.74rem" }}>"Tomar foto" abre la cámara · "Galería" permite seleccionar múltiples fotos</small>
+              {fotosPreview.length > 0 && (
+                <div className="row g-2 mt-3">
+                  {fotosPreview.map((src, index) => (
+                    <div key={index} className="col-6 col-sm-4 col-md-3 position-relative">
+                      <img src={src} alt={`Preview ${index}`} style={{ width: "100%", height: "120px", objectFit: "cover", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.08)" }} />
+                      <button type="button" onClick={() => eliminarFoto(index)} style={{ position: "absolute", top: "6px", right: "6px", background: "rgba(239,68,68,0.8)", border: "none", color: "#fff", borderRadius: "6px", padding: "2px 8px", fontSize: "0.8rem", cursor: "pointer" }}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* VIDEOS */}
+          <div style={{ ..._card, borderTopColor: "#ef4444" }}>
+            <div style={_cardH}><span style={{ color: "#f87171", marginRight: "0.5rem" }}>✦</span>Videos del vehículo</div>
+            <div style={_cardB}>
+              <input
+                ref={videosCamaraRef}
+                id="input-videos-camara"
+                type="file"
+                accept="video/*"
+                capture="environment"
+                onChange={handleVideosChange}
+                style={{ display: "none" }}
+              />
+              <input
+                ref={videosGaleriaRef}
+                id="input-videos-galeria"
+                type="file"
+                accept="video/*,video/mp4,video/mov,video/avi,video/quicktime,video/x-msvideo"
+                multiple
+                onChange={handleVideosChange}
+                style={{ display: "none" }}
+              />
+              <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "0.6rem" }}>
+                <label htmlFor="input-videos-camara" style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171", borderRadius: "10px", padding: "0.55rem 1.2rem", fontSize: "0.88rem", fontWeight: 600, cursor: "pointer" }}>
+                  🎬 Grabar video
+                </label>
+                <label htmlFor="input-videos-galeria" style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", color: "#f87171", borderRadius: "10px", padding: "0.55rem 1.2rem", fontSize: "0.88rem", fontWeight: 600, cursor: "pointer" }}>
+                  📹 Galería (múltiples)
+                </label>
+              </div>
+              <small style={{ color: "rgba(200,209,224,0.38)", fontSize: "0.74rem" }}>Formatos soportados: {FORMATOS_VIDEO_LABEL} · Tamaño máx: 250 MB por video</small>
+              {videosPreview.length > 0 && (
+                <div className="row g-2 mt-3">
+                  {videosPreview.map((src, index) => (
+                    <div key={index} className="col-12 col-sm-6 col-md-4 position-relative">
+                      <video src={src} style={{ width: "100%", height: "180px", objectFit: "cover", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.08)" }} controls />
+                      <button type="button" onClick={() => eliminarVideo(index)} style={{ position: "absolute", top: "6px", right: "6px", background: "rgba(239,68,68,0.8)", border: "none", color: "#fff", borderRadius: "6px", padding: "2px 8px", fontSize: "0.8rem", cursor: "pointer" }}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* OBSERVACIONES */}
+          <div style={{ ..._card, borderTopColor: "rgba(212,175,55,0.3)" }}>
+            <div style={_cardH}><span style={{ color: "#d4af37", marginRight: "0.5rem" }}>✦</span>Observaciones / Averías</div>
+            <div style={_cardB}>
+              <textarea
+                className="form-control"
+                name="averias_notas"
+                value={formData.averias_notas}
+                onChange={handleInputChange}
+                rows="4"
+                placeholder="Describe el estado del vehículo, daños visibles, etc."
+                style={{ ..._inp, fontSize: "0.95rem", resize: "vertical" }}
+              />
+            </div>
+          </div>
+
+          {/* SERVICIOS */}
+          <div style={{ ..._card, borderTopColor: "#22c55e" }}>
+            <div style={_cardH}><span style={{ color: "#6ee7b7", marginRight: "0.5rem" }}>✦</span>Servicios para esta recepción</div>
+            <div style={_cardB}>
+
+              {/* Catálogo por rol */}
+              <div style={{ marginBottom: "1.5rem" }}>
+                <p style={{ ..._lbl, marginBottom: "0.75rem" }}>Catálogo activo</p>
+                {catalogoServicios.length === 0 && (
+                  <p style={{ color: "rgba(200,209,224,0.4)", fontSize: "0.85rem" }}>No hay servicios activos en catálogo.</p>
+                )}
+                {[
+                  { rol: "detailing", label: "Detailing", color: "#6366f1" },
+                  { rol: "pintura",   label: "Pintura",   color: "#f87171" },
+                  { rol: "tapicero",  label: "Tapicería", color: "#fbbf24" },
+                ].map(({ rol, label, color }) => (
+                  <details key={rol} style={{ marginBottom: "0.75rem", background: "#131620", border: "1px solid rgba(255,255,255,0.07)", borderLeft: `3px solid ${color}`, borderRadius: "10px", overflow: "hidden" }} open>
+                    <summary style={{ padding: "0.7rem 1rem", cursor: "pointer", fontWeight: 600, fontSize: "0.88rem", color: "rgba(200,209,224,0.85)", listStyle: "none", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <span style={{ color, fontSize: "0.65rem" }}>▶</span> Servicios de {label}
+                    </summary>
+                    <div style={{ padding: "0.75rem 1rem", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                      {serviciosCatalogoPorRol[rol].length === 0 ? (
+                        <span style={{ color: "rgba(200,209,224,0.35)", fontSize: "0.82rem" }}>Sin servicios en este grupo.</span>
+                      ) : (
+                        <div className="d-flex flex-column flex-md-row gap-2">
+                          <div className="flex-grow-1">
+                            <GoldSelect
+                              value={servicioCatalogoSeleccionado[rol]}
+                              onChange={(value) => seleccionarServicioCatalogoPorRol(rol, value)}
+                              placeholder={`Seleccionar servicio de ${label.toLowerCase()}...`}
+                              searchable
+                              options={serviciosCatalogoPorRol[rol].map((s) => ({
+                                value: s.id,
+                                label: `${s.nombre} · ${Number(s.precio_base || 0).toFixed(2)} €${Number(s.tiempo_estimado_minutos || 0) > 0 ? ` · ${Number(s.tiempo_estimado_minutos)} min` : ""}`,
+                              }))}
+                            />
+                          </div>
+                          <button type="button" onClick={() => agregarServicioCatalogoPorRol(rol)} disabled={!servicioCatalogoSeleccionado[rol]}
+                            style={{ background: "rgba(212,175,55,0.12)", border: "1px solid rgba(212,175,55,0.3)", color: "#d4af37", borderRadius: "9px", padding: "0.4rem 1.1rem", fontWeight: 600, fontSize: "0.85rem", cursor: servicioCatalogoSeleccionado[rol] ? "pointer" : "not-allowed", opacity: servicioCatalogoSeleccionado[rol] ? 1 : 0.4, whiteSpace: "nowrap" }}>
+                            + Añadir
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </details>
+                ))}
               </div>
 
-              {/* Firmas */}
-              <div className="col-12 col-lg-6 mb-3 d-flex">
-                <div className="card border-0 sw-surface-light w-100">
-                  <div className="card-body p-3">
-                    <h6 className="fw-bold mb-3">Firma de recepción</h6>
-                    {formData.es_concesionario ? (
-                      <div className="border rounded p-3 h-100 bg-white d-flex align-items-center">
-                        <small className="text-muted mb-0">
-                          En cliente profesional no se solicita firma del cliente en recepción.
-                        </small>
-                      </div>
-                    ) : (
-                      <SignaturePad
-                        title="Firma Cliente"
-                        height={150}
-                        value={formData.firma_cliente_recepcion}
-                        onChange={(firma) => setFormData((prev) => ({ ...prev, firma_cliente_recepcion: firma }))}
-                      />
-                    )}
-                    <small className="text-muted">
-                      {formData.es_concesionario
-                        ? "En modo profesional no se requiere firma en recepción; en entrega firma quien repasa y entrega el vehículo."
-                        : "La firma del cliente es obligatoria para dejar constancia de la revisión de estado en recepción."}
-                    </small>
+              {/* Servicio manual */}
+              <div style={{ marginBottom: "1.5rem" }}>
+                <p style={{ ..._lbl, marginBottom: "0.75rem" }}>Servicio manual</p>
+                <div className="row g-2">
+                  <div className="col-12 col-lg-5">
+                    <input type="text" className="form-control" placeholder="Nombre del servicio" value={servicioManual.nombre} onChange={(e) => setServicioManual((prev) => ({ ...prev, nombre: e.target.value }))} style={_inp} />
                   </div>
+                  <div className="col-6 col-lg-2">
+                    <input type="number" className="form-control" min="0" step="0.01" placeholder="Precio (€)" value={servicioManual.precio} onChange={(e) => setServicioManual((prev) => ({ ...prev, precio: e.target.value }))} style={_inp} />
+                  </div>
+                  <div className="col-6 col-lg-1">
+                    <input type="number" className="form-control" min="0" step="1" placeholder="Min" value={servicioManual.tiempo_estimado_minutos} onChange={(e) => setServicioManual((prev) => ({ ...prev, tiempo_estimado_minutos: e.target.value }))} style={_inp} />
+                  </div>
+                  <div className="col-6 col-lg-1">
+                    <input type="number" className="form-control" min="0" step="0.25" placeholder="Hora" value={servicioManual.tiempo_estimado_horas} onChange={(e) => setServicioManual((prev) => ({ ...prev, tiempo_estimado_horas: e.target.value }))} style={_inp} />
+                  </div>
+                  <div className="col-8 col-lg-2">
+                    <select className="form-select" value={servicioManual.tipo_tarea} onChange={(e) => setServicioManual((prev) => ({ ...prev, tipo_tarea: e.target.value }))} style={_inp}>
+                      <option value="">Área...</option>
+                      {ROLE_OPTIONS.map((r) => (<option key={r.value} value={r.value}>{r.label}</option>))}
+                    </select>
+                  </div>
+                  <div className="col-4 col-lg-1 d-grid">
+                    <button type="button" onClick={agregarServicioManual} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#eef2f7", borderRadius: "9px", fontWeight: 600, fontSize: "0.82rem", cursor: "pointer" }}>
+                      + Añadir
+                    </button>
+                  </div>
+                </div>
+                {servicioManualError && <p style={{ color: "#f87171", fontSize: "0.78rem", marginTop: "0.4rem" }}>⚠ {servicioManualError}</p>}
+                <small style={{ color: "rgba(200,209,224,0.35)", fontSize: "0.74rem", display: "block", marginTop: "0.4rem" }}>
+                  Puedes indicar minutos o horas (ej. 1.5 h = 90 min). Si completas ambos, se prioriza horas. El rol define a qué área se envía el parte.
+                </small>
+              </div>
+
+              {/* Servicios añadidos */}
+              <div>
+                <p style={{ ..._lbl, marginBottom: "0.6rem" }}>Servicios añadidos</p>
+                <div style={{ background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: "8px", padding: "0.6rem 1rem", marginBottom: "0.85rem", color: "#6ee7b7", fontSize: "0.82rem" }}>
+                  Al guardar esta recepción se crearán automáticamente partes de trabajo por cada servicio según su rol.
+                </div>
+                {(formData.servicios_aplicados || []).length === 0 ? (
+                  <div style={{ color: "rgba(200,209,224,0.3)", fontSize: "0.83rem", borderRadius: "10px", padding: "0.9rem 1rem", border: "1px dashed rgba(255,255,255,0.07)", textAlign: "center" }}>
+                    No hay servicios añadidos aún.
+                  </div>
+                ) : (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
+                      <thead>
+                        <tr style={{ background: "rgba(255,255,255,0.03)" }}>
+                          {["Tipo", "Nombre", "Precio", "Tiempo", "Rol", ""].map((h) => (
+                            <th key={h} style={{ padding: "0.5rem 0.75rem", color: "rgba(200,209,224,0.4)", fontWeight: 600, textTransform: "uppercase", fontSize: "0.68rem", letterSpacing: "0.07em", borderBottom: "1px solid rgba(255,255,255,0.06)", whiteSpace: "nowrap" }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(formData.servicios_aplicados || []).map((servicio, index) => (
+                          <tr key={`${servicio.nombre}-${index}`} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                            <td style={{ padding: "0.5rem 0.75rem" }}>
+                              <span style={{ background: servicio.origen === "catalogo" ? "rgba(99,102,241,0.15)" : "rgba(107,114,128,0.15)", color: servicio.origen === "catalogo" ? "#a5b4fc" : "#9ca3af", borderRadius: "5px", padding: "0.1rem 0.5rem", fontSize: "0.72rem" }}>
+                                {servicio.origen === "catalogo" ? "Catálogo" : "Manual"}
+                              </span>
+                            </td>
+                            <td style={{ padding: "0.5rem 0.75rem", color: "#eef2f7", fontWeight: 500 }}>{servicio.nombre}</td>
+                            <td style={{ padding: "0.5rem 0.75rem", color: "#d4af37", fontWeight: 600 }}>{Number(servicio.precio || 0).toFixed(2)} €</td>
+                            <td style={{ padding: "0.5rem 0.75rem", color: "rgba(200,209,224,0.55)" }}>{Number(servicio.tiempo_estimado_minutos || 0)} min</td>
+                            <td style={{ padding: "0.5rem 0.75rem" }}>
+                              <select className="form-select form-select-sm" value={normalizeRol(servicio.tipo_tarea || "")} onChange={(e) => actualizarRolServicioAplicado(index, e.target.value)}
+                                style={{ background: "#1a1e28", border: "1px solid rgba(255,255,255,0.1)", color: "#eef2f7", borderRadius: "7px", fontSize: "0.78rem" }}>
+                                <option value="">Área...</option>
+                                {ROLE_OPTIONS.map((r) => (<option key={r.value} value={r.value}>{r.label}</option>))}
+                              </select>
+                            </td>
+                            <td style={{ padding: "0.5rem 0.75rem", textAlign: "right" }}>
+                              <button type="button" onClick={() => eliminarServicioAplicado(index)}
+                                style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", color: "#f87171", borderRadius: "7px", padding: "0.2rem 0.65rem", fontSize: "0.78rem", cursor: "pointer" }}>
+                                Quitar
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr style={{ borderTop: "1px solid rgba(212,175,55,0.2)", background: "rgba(212,175,55,0.04)" }}>
+                          <th colSpan="2" style={{ padding: "0.55rem 0.75rem", color: "rgba(200,209,224,0.55)", fontSize: "0.78rem" }}>Total</th>
+                          <th style={{ padding: "0.55rem 0.75rem", color: "#d4af37" }}>
+                            {(formData.servicios_aplicados || []).reduce((acc, s) => acc + (Number(s.precio || 0) || 0), 0).toFixed(2)} €
+                          </th>
+                          <th style={{ padding: "0.55rem 0.75rem", color: "rgba(200,209,224,0.55)" }}>
+                            {(formData.servicios_aplicados || []).reduce((acc, s) => acc + (Number.parseInt(s.tiempo_estimado_minutos || 0, 10) || 0), 0)} min
+                          </th>
+                          <th /><th />
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          </div>
+
+          {/* CONSENTIMIENTO + FIRMA */}
+          <div className="row g-3" style={{ marginBottom: "1.5rem" }}>
+            <div className="col-12 col-lg-6">
+              <div style={{ background: "#0e1219", border: "1px solid rgba(255,255,255,0.07)", borderTop: "3px solid rgba(212,175,55,0.3)", borderRadius: "18px", padding: "1.25rem", height: "100%" }}>
+                <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(212,175,55,0.7)", margin: "0 0 0.75rem" }}>Protección de datos y consentimiento</p>
+                <p style={{ color: "rgba(200,209,224,0.45)", fontSize: "0.82rem", lineHeight: 1.5, marginBottom: "0.6rem" }}>
+                  Los datos del cliente, del vehículo y la firma digital se registran para gestionar la recepción, documentar el estado del coche y generar el expediente de trabajo.
+                </p>
+                <p style={{ color: "rgba(200,209,224,0.45)", fontSize: "0.82rem", lineHeight: 1.5, marginBottom: "0.75rem" }}>
+                  La firma en tablet queda guardada como constancia de conformidad en recepción.
+                </p>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.65rem 0.85rem", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "9px" }}>
+                  <input className="form-check-input" type="checkbox" id="consentimiento_datos_recepcion" name="consentimiento_datos_recepcion"
+                    checked={formData.es_concesionario ? true : formData.consentimiento_datos_recepcion}
+                    onChange={handleInputChange} disabled={formData.es_concesionario} style={{ flexShrink: 0 }} />
+                  <label className="form-check-label" htmlFor="consentimiento_datos_recepcion" style={{ color: "rgba(200,209,224,0.75)", fontSize: "0.85rem", cursor: formData.es_concesionario ? "default" : "pointer" }}>
+                    {formData.es_concesionario
+                      ? "Consentimiento interno aplicado automáticamente para cliente profesional."
+                      : "Confirmo que el cliente acepta este registro interno y la firma digital de recepción."}
+                  </label>
                 </div>
               </div>
             </div>
-
-            {/* Botón Guardar */}
-            <div className="d-flex flex-column flex-md-row justify-content-center gap-2 mt-3">
-              {inspeccionEditandoId && (
-                <button
-                  type="button"
-                  className="btn btn-outline-secondary btn-lg px-4 py-3"
-                  onClick={cancelarEdicion}
-                  disabled={guardando || cargandoEdicion}
-                >
-                  Cancelar edición
-                </button>
-              )}
-              <button
-                type="submit"
-                className="btn btn-lg w-100 sw-btn-md-auto px-5 py-3 sw-btn-accent-gold"
-                disabled={guardando || cargandoEdicion}
-              >
-                {cargandoEdicion
-                  ? "⏳ Cargando inspección..."
-                  : guardando
-                    ? "⏳ Guardando..."
-                    : inspeccionEditandoId
-                      ? "💾 Actualizar Inspección"
-                      : "💾 Guardar Inspección"}
-              </button>
+            <div className="col-12 col-lg-6">
+              <div style={{ background: "#0e1219", border: "1px solid rgba(255,255,255,0.07)", borderTop: "3px solid rgba(212,175,55,0.3)", borderRadius: "18px", padding: "1.25rem", height: "100%" }}>
+                <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(212,175,55,0.7)", margin: "0 0 0.75rem" }}>Firma de recepción</p>
+                {formData.es_concesionario ? (
+                  <div style={{ padding: "1.5rem", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px" }}>
+                    <small style={{ color: "rgba(200,209,224,0.4)" }}>En cliente profesional no se solicita firma del cliente en recepción.</small>
+                  </div>
+                ) : (
+                  <SignaturePad
+                    title="Firma Cliente"
+                    height={150}
+                    value={formData.firma_cliente_recepcion}
+                    onChange={(firma) => setFormData((prev) => ({ ...prev, firma_cliente_recepcion: firma }))}
+                  />
+                )}
+                <small style={{ color: "rgba(200,209,224,0.35)", fontSize: "0.74rem", display: "block", marginTop: "0.5rem" }}>
+                  {formData.es_concesionario
+                    ? "En modo profesional no se requiere firma en recepción."
+                    : "La firma del cliente es obligatoria para dejar constancia de la revisión en recepción."}
+                </small>
+              </div>
             </div>
           </div>
-        </div>
-      </form>
 
-      {/* Mensaje de éxito */}
-      {inspeccionCreada && (
-        <div className="alert alert-success mt-4" role="alert">
-          ✅ Inspección #{inspeccionCreada.id} creada correctamente
-        </div>
-      )}
+          {/* SUBMIT */}
+          <div className="d-flex flex-column flex-md-row justify-content-center gap-2 mb-5">
+            {inspeccionEditandoId && (
+              <button type="button" onClick={cancelarEdicion} disabled={guardando || cargandoEdicion}
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(200,209,224,0.7)", borderRadius: "12px", padding: "0.85rem 2rem", fontSize: "1rem", cursor: "pointer", fontWeight: 600 }}>
+                Cancelar edición
+              </button>
+            )}
+            <button type="submit" disabled={guardando || cargandoEdicion}
+              style={{ background: guardando || cargandoEdicion ? "rgba(212,175,55,0.4)" : "linear-gradient(135deg,#f5e19a,#d4af37)", border: "none", color: "#0a0b0e", fontWeight: 800, fontSize: "1rem", borderRadius: "12px", padding: "0.85rem 2.5rem", cursor: guardando || cargandoEdicion ? "not-allowed" : "pointer", letterSpacing: "0.03em", minWidth: "220px" }}>
+              {cargandoEdicion ? "⏳ Cargando inspección..." : guardando ? "⏳ Guardando..." : inspeccionEditandoId ? "💾 Actualizar inspección" : "✦ Guardar inspección"}
+            </button>
+          </div>
 
+        </form>
+
+        {inspeccionCreada && (
+          <div style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: "12px", padding: "1rem 1.25rem", color: "#6ee7b7", marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
+            <div>
+              <div>✦ Inspección #{inspeccionCreada.id} creada correctamente</div>
+              <small style={{ opacity: 0.8 }}>Partes de trabajo creados automáticamente</small>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate(`/vehiculo-detalle/${inspeccionCreada.id}`)}
+              style={{ background: "#22c55e", border: "none", color: "#ffffff", fontWeight: 600, fontSize: "0.9rem", borderRadius: "8px", padding: "0.6rem 1.2rem", cursor: "pointer", whiteSpace: "nowrap" }}
+            >
+              Siguiente →
+            </button>
+          </div>
+        )}
+
+      </div>
     </div>
   );
 };
 
 export default InspeccionRecepcionPage;
+
