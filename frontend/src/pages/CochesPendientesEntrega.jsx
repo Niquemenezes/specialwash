@@ -545,293 +545,512 @@ const CochesPendientesEntrega = () => {
     navigate("/", { replace: true });
   };
 
+  /* ── SVG icons ── */
+  const ICONS = {
+    car:     (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>),
+    refresh: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0115.454-3.454M20 15a9 9 0 01-15.454 3.454"/></svg>),
+    sign:    (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>),
+    list:    (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>),
+    pdf:     (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>),
+    prep:    (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>),
+    close:   (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>),
+    save:    (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>),
+    plus:    (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>),
+    ai:      (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>),
+    trash:   (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>),
+  };
+
   return (
-    <div className="container py-4" style={{ maxWidth: "900px" }}>
-      <div className="card shadow-sm border-0">
-        <div className="card-header py-3 sw-card-header-gold">
-          <div className="d-flex justify-content-between align-items-center">
-            <span>Coches Pendientes de Entrega</span>
-            <div className="d-flex gap-2">
-              <button type="button" className="btn btn-outline-secondary btn-sm" onClick={volver}>
-                Volver
-              </button>
-              <Link className="btn btn-outline-success btn-sm" to="/firma-entrega">
-                Firma de entrega
-              </Link>
-              <Link className="btn btn-outline-dark btn-sm" to="/entregados">
-                Ver entregados
-              </Link>
-            </div>
+    <div>
+      {/* Stats strip */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
+        {[
+          { label: "Pendientes",    value: pendientes.length,                                            color: "var(--sw-accent,#d4af37)" },
+          { label: "Con acta",      value: pendientes.filter(i => (i.trabajos_realizados||"").trim()).length, color: "#22c55e" },
+          { label: "Sin acta",      value: pendientes.filter(i => !(i.trabajos_realizados||"").trim() && !isProfesional(i)).length, color: "#f87171" },
+          { label: "Profesionales", value: pendientes.filter(isProfesional).length,                      color: "#38bdf8" },
+        ].map((item) => (
+          <div key={item.label} style={{
+            background: "var(--sw-surface)", border: "1px solid var(--sw-border)",
+            borderRadius: 14, padding: "1rem 1.25rem", display: "flex", flexDirection: "column", gap: "0.25rem",
+          }}>
+            <span style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-muted)" }}>{item.label}</span>
+            <span style={{ fontSize: "1.5rem", fontWeight: 800, color: item.color, lineHeight: 1.2 }}>{item.value}</span>
           </div>
+        ))}
+      </div>
+
+      {/* Acciones rápidas */}
+      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1.5rem", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+          <Link
+            to="/repaso-entrega?tab=firma"
+            style={{
+              background: "color-mix(in srgb,#22c55e 12%,transparent)",
+              border: "1px solid color-mix(in srgb,#22c55e 30%,transparent)",
+              color: "#22c55e", borderRadius: 10, padding: "0.5rem 1rem",
+              fontWeight: 700, fontSize: "0.82rem", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "0.4rem",
+            }}
+          >
+            <span style={{ width: 14, height: 14, display: "flex" }}>{ICONS.sign}</span>
+            Firma de entrega
+          </Link>
+          <Link
+            to="/entregados"
+            style={{
+              background: "color-mix(in srgb,#38bdf8 12%,transparent)",
+              border: "1px solid color-mix(in srgb,#38bdf8 30%,transparent)",
+              color: "#38bdf8", borderRadius: 10, padding: "0.5rem 1rem",
+              fontWeight: 700, fontSize: "0.82rem", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "0.4rem",
+            }}
+          >
+            <span style={{ width: 14, height: 14, display: "flex" }}>{ICONS.car}</span>
+            Ver entregados
+          </Link>
         </div>
-        <div className="card-body p-4">
-          <div className="d-flex justify-content-end mb-3">
-            <button className="btn btn-outline-secondary btn-sm" onClick={cargarPendientes}>
-              Actualizar
-            </button>
-          </div>
+        <button
+          onClick={cargarPendientes}
+          style={{
+            background: "color-mix(in srgb,var(--sw-accent,#d4af37) 12%,transparent)",
+            border: "1px solid color-mix(in srgb,var(--sw-accent,#d4af37) 30%,transparent)",
+            color: "var(--sw-accent,#d4af37)", borderRadius: 10, padding: "0.5rem 1rem",
+            cursor: "pointer", fontWeight: 600, fontSize: "0.82rem", display: "flex", alignItems: "center", gap: "0.4rem",
+          }}
+        >
+          <span style={{ width: 14, height: 14, display: "flex" }}>{ICONS.refresh}</span>
+          Actualizar
+        </button>
+      </div>
 
-          {loading && <p className="text-muted mb-0">Cargando pendientes...</p>}
-
-          {!loading && pendientes.length === 0 && (
-            <p className="text-muted mb-0">No hay coches pendientes de entrega.</p>
-          )}
-
-          {!loading && pendientes.length > 0 && (
-            <div className="table-responsive">
-              <table className="table table-hover align-middle mb-0">
-                <thead className="table-light">
-                  <tr>
-                    <th>#</th>
-                    <th>Cliente</th>
-                    <th>Coche</th>
-                    <th>Matricula</th>
-                    <th>Fecha inspeccion</th>                    <th>Estado operativo</th>                    <th>Estado acta</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendientes.map((inspeccion) => (
-                    <tr key={inspeccion.id}>
-                      <td>{inspeccion.id}</td>
-                      <td>{inspeccion.cliente_nombre || "-"}</td>
-                      <td>{inspeccion.coche_descripcion || "-"}</td>
-                      <td>{inspeccion.matricula || "-"}</td>
-                      <td>{formatFecha(inspeccion.fecha_inspeccion)}</td>
-                      <td>
-                        {inspeccion.estado_coche ? (
-                          <div className="d-flex align-items-center gap-2">
-                            <span
-                              className="badge p-2"
-                              style={{ backgroundColor: inspeccion.estado_coche.color, color: "#fff" }}
-                            >
-                              {inspeccion.estado_coche.label}
-                            </span>
-                            {inspeccion.estado_coche.parte_empleado_nombre && (
-                              <small className="text-muted">
-                                Con: {inspeccion.estado_coche.parte_empleado_nombre}
-                              </small>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-muted">-</span>
-                        )}
-                      </td>
-                      <td>
-                        {isProfesional(inspeccion) ? (
-                          <span className="badge bg-info text-dark">No requerida (profesional)</span>
-                        ) : (inspeccion.trabajos_realizados || "").trim() ? (
-                          <div className="d-flex flex-column gap-2">
-                            <span className="badge bg-success align-self-start">Hoja de intervencion guardada</span>
-                            <div className="d-flex gap-2 flex-wrap">
-                              <a
-                                className="btn btn-outline-secondary btn-sm"
-                                href={`/acta-entrega-doc/${inspeccion.id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                Imprimir borrador
-                              </a>
-                              <a
-                                className="btn btn-outline-dark btn-sm"
-                                href={`/acta-entrega-doc/${inspeccion.id}?print=1`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                Descargar PDF
-                              </a>
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="badge bg-secondary">Sin hoja de intervencion</span>
-                        )}
-                      </td>
-                      <td>
-                        {!isProfesional(inspeccion) && (
-                          <div className="d-flex gap-2">
-                            <button
-                              type="button"
-                              className="btn btn-outline-primary btn-sm"
-                              onClick={() => abrirPrepararActa(inspeccion.id)}
-                            >
-                              Preparar hoja de intervencion
-                            </button>
+      {/* Tabla */}
+      <div style={{
+        background: "var(--sw-surface)", border: "1px solid var(--sw-border)",
+        borderRadius: 16, overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.18)",
+      }}>
+        <div className="table-responsive">
+          <table className="table align-middle mb-0" style={{ color: "var(--sw-text)" }}>
+            <thead>
+              <tr style={{ background: "var(--sw-surface-2)", borderBottom: "2px solid var(--sw-border)" }}>
+                {["#", "Cliente", "Coche", "Matrícula", "Fecha inspección", "Estado operativo", "Acta", ""].map((h) => (
+                  <th key={h} style={{
+                    padding: "0.85rem 1rem", fontSize: "0.65rem", fontWeight: 700,
+                    letterSpacing: "0.08em", textTransform: "uppercase",
+                    color: "var(--sw-muted)", border: "none",
+                    textAlign: h === "" ? "right" : "left",
+                  }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading && (
+                <tr>
+                  <td colSpan={8} style={{ textAlign: "center", padding: "3.5rem", color: "var(--sw-muted)" }}>
+                    <div className="spinner-border spinner-border-sm me-2" style={{ color: "var(--sw-accent,#d4af37)" }} />
+                    Cargando pendientes…
+                  </td>
+                </tr>
+              )}
+              {!loading && pendientes.length === 0 && (
+                <tr>
+                  <td colSpan={8} style={{ textAlign: "center", padding: "3.5rem", color: "var(--sw-muted)", fontSize: "0.9rem" }}>
+                    No hay coches pendientes de entrega.
+                  </td>
+                </tr>
+              )}
+              {!loading && pendientes.map((inspeccion) => (
+                <tr
+                  key={inspeccion.id}
+                  style={{ borderBottom: "1px solid var(--sw-border)", transition: "background 0.15s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "color-mix(in srgb,var(--sw-accent,#d4af37) 5%,transparent)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                >
+                  <td style={{ padding: "0.85rem 1rem", color: "var(--sw-muted)", fontSize: "0.78rem", fontWeight: 600 }}>
+                    #{inspeccion.id}
+                  </td>
+                  <td style={{ padding: "0.85rem 1rem", fontWeight: 700, color: "var(--sw-text)" }}>
+                    {inspeccion.cliente_nombre || "—"}
+                  </td>
+                  <td style={{ padding: "0.85rem 1rem", color: "var(--sw-muted)", fontSize: "0.85rem" }}>
+                    {inspeccion.coche_descripcion || "—"}
+                  </td>
+                  <td style={{ padding: "0.85rem 1rem" }}>
+                    {inspeccion.matricula ? (
+                      <span style={{
+                        background: "color-mix(in srgb,var(--sw-accent,#d4af37) 12%,transparent)",
+                        border: "1px solid color-mix(in srgb,var(--sw-accent,#d4af37) 30%,transparent)",
+                        color: "var(--sw-accent,#d4af37)", borderRadius: 6,
+                        padding: "0.15rem 0.6rem", fontWeight: 700, fontSize: "0.78rem", letterSpacing: "0.05em",
+                      }}>{inspeccion.matricula}</span>
+                    ) : <span style={{ color: "var(--sw-muted)", fontStyle: "italic" }}>—</span>}
+                  </td>
+                  <td style={{ padding: "0.85rem 1rem", color: "var(--sw-muted)", fontSize: "0.82rem", whiteSpace: "nowrap" }}>
+                    {formatFecha(inspeccion.fecha_inspeccion)}
+                  </td>
+                  <td style={{ padding: "0.85rem 1rem" }}>
+                    {inspeccion.estado_coche ? (
+                      <div>
+                        <span style={{
+                          background: `${inspeccion.estado_coche.color}22`,
+                          border: `1px solid ${inspeccion.estado_coche.color}55`,
+                          color: inspeccion.estado_coche.color,
+                          borderRadius: 6, padding: "0.15rem 0.55rem",
+                          fontWeight: 700, fontSize: "0.72rem",
+                        }}>{inspeccion.estado_coche.label}</span>
+                        {inspeccion.estado_coche.parte_empleado_nombre && (
+                          <div style={{ fontSize: "0.72rem", color: "var(--sw-muted)", marginTop: "0.2rem" }}>
+                            Con: {inspeccion.estado_coche.parte_empleado_nombre}
                           </div>
                         )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                      </div>
+                    ) : (
+                      <span style={{ color: "var(--sw-muted)", fontStyle: "italic", fontSize: "0.82rem" }}>—</span>
+                    )}
+                  </td>
+                  <td style={{ padding: "0.85rem 1rem" }}>
+                    {isProfesional(inspeccion) ? (
+                      <span style={{
+                        background: "color-mix(in srgb,#38bdf8 12%,transparent)",
+                        border: "1px solid color-mix(in srgb,#38bdf8 30%,transparent)",
+                        color: "#38bdf8", borderRadius: 6, padding: "0.15rem 0.55rem",
+                        fontWeight: 700, fontSize: "0.72rem",
+                      }}>No requerida</span>
+                    ) : (inspeccion.trabajos_realizados || "").trim() ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                        <span style={{
+                          background: "color-mix(in srgb,#22c55e 12%,transparent)",
+                          border: "1px solid color-mix(in srgb,#22c55e 30%,transparent)",
+                          color: "#22c55e", borderRadius: 6, padding: "0.15rem 0.55rem",
+                          fontWeight: 700, fontSize: "0.72rem", alignSelf: "flex-start",
+                        }}>Guardada</span>
+                        <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+                          <a
+                            href={`/acta-entrega-doc/${inspeccion.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Imprimir borrador"
+                            style={{
+                              background: "color-mix(in srgb,var(--sw-muted) 10%,transparent)",
+                              border: "1px solid color-mix(in srgb,var(--sw-muted) 22%,transparent)",
+                              color: "var(--sw-muted)", borderRadius: 7,
+                              padding: "0.25rem 0.45rem", display: "flex", alignItems: "center", textDecoration: "none",
+                            }}
+                          >
+                            <span style={{ width: 13, height: 13, display: "flex" }}>{ICONS.list}</span>
+                          </a>
+                          <a
+                            href={`/acta-entrega-doc/${inspeccion.id}?print=1`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Descargar PDF"
+                            style={{
+                              background: "color-mix(in srgb,#f87171 10%,transparent)",
+                              border: "1px solid color-mix(in srgb,#f87171 25%,transparent)",
+                              color: "#f87171", borderRadius: 7,
+                              padding: "0.25rem 0.45rem", display: "flex", alignItems: "center", textDecoration: "none",
+                            }}
+                          >
+                            <span style={{ width: 13, height: 13, display: "flex" }}>{ICONS.pdf}</span>
+                          </a>
+                        </div>
+                      </div>
+                    ) : (
+                      <span style={{
+                        background: "color-mix(in srgb,#f59e0b 10%,transparent)",
+                        border: "1px solid color-mix(in srgb,#f59e0b 25%,transparent)",
+                        color: "#f59e0b", borderRadius: 6, padding: "0.15rem 0.55rem",
+                        fontWeight: 700, fontSize: "0.72rem",
+                      }}>Sin hoja</span>
+                    )}
+                  </td>
+                  <td style={{ padding: "0.85rem 1rem", textAlign: "right" }}>
+                    {!isProfesional(inspeccion) && (
+                      <button
+                        onClick={() => abrirPrepararActa(inspeccion.id)}
+                        title="Preparar hoja de intervención"
+                        style={{
+                          background: "color-mix(in srgb,var(--sw-accent,#d4af37) 12%,transparent)",
+                          border: "1px solid color-mix(in srgb,var(--sw-accent,#d4af37) 30%,transparent)",
+                          color: "var(--sw-accent,#d4af37)", borderRadius: 8,
+                          padding: "0.35rem 0.6rem", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.35rem",
+                          fontWeight: 700, fontSize: "0.78rem",
+                        }}
+                      >
+                        <span style={{ width: 13, height: 13, display: "flex" }}>{ICONS.prep}</span>
+                        Hoja
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
       {showActaModal && inspeccionActa && (
-        <div className="modal d-block sw-acta-editor-modal" style={{ backgroundColor: "var(--sw-overlay-bg)" }}>
-          <style>{`
-            .sw-acta-editor-modal .modal-header {
-              color: #1f1b16;
-            }
-            .sw-acta-editor-modal .modal-title {
-              color: #1f1b16;
-            }
-            .sw-acta-editor-modal .sw-light-panel {
-              border: 1px solid #e6dece;
-              background: #fffdf9;
-              color: #1f1b16;
-            }
-            .sw-acta-editor-modal .sw-light-panel .text-muted,
-            .sw-acta-editor-modal .sw-light-panel .form-text {
-              color: #6e6658 !important;
-            }
-            .sw-acta-editor-modal .sw-light-panel .form-control,
-            .sw-acta-editor-modal .sw-light-panel .form-select,
-            .sw-acta-editor-modal .sw-light-panel textarea {
-              background: #ffffff;
-              color: #1f1b16;
-              border-color: #cfc5b3;
-            }
-            .sw-acta-editor-modal .sw-light-panel .form-control::placeholder,
-            .sw-acta-editor-modal .sw-light-panel textarea::placeholder {
-              color: #7f776a;
-            }
-          `}</style>
-          <div className="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header" style={{ background: "linear-gradient(120deg, #f8f2e6 0%, #fffdfa 55%, #f4ead8 100%)" }}>
-                <h5 className="modal-title fw-bold">Preparar hoja de intervencion #{inspeccionActa.id}</h5>
-                <button type="button" className="btn-close" onClick={cerrarPrepararActa}></button>
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 1050,
+            background: "var(--sw-overlay-bg,rgba(0,0,0,0.65))",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "1rem", backdropFilter: "blur(4px)",
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) cerrarPrepararActa(); }}
+        >
+          <div style={{
+            background: "var(--sw-surface)", border: "1px solid var(--sw-border)",
+            borderRadius: 20, width: "100%", maxWidth: 680, maxHeight: "92vh",
+            display: "flex", flexDirection: "column",
+            boxShadow: "0 24px 60px rgba(0,0,0,0.55)",
+            animation: "sw-fade-up 0.22s ease both",
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: "1.25rem 1.5rem", borderBottom: "1px solid var(--sw-border)",
+              display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                <span style={{
+                  width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "color-mix(in srgb,var(--sw-accent,#d4af37) 14%,transparent)",
+                  border: "1px solid color-mix(in srgb,var(--sw-accent,#d4af37) 28%,transparent)",
+                  color: "var(--sw-accent,#d4af37)",
+                }}>
+                  <span style={{ width: 18, height: 18, display: "flex" }}>{ICONS.prep}</span>
+                </span>
+                <div>
+                  <p style={{ margin: 0, fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-muted)" }}>
+                    Hoja de intervención
+                  </p>
+                  <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "var(--sw-text)" }}>
+                    #{inspeccionActa.id} — {inspeccionActa.matricula || "Sin matrícula"}
+                  </h3>
+                </div>
+              </div>
+              <button onClick={cerrarPrepararActa} style={{ background: "none", border: "none", color: "var(--sw-muted)", cursor: "pointer", padding: "0.25rem", borderRadius: 6, display: "flex" }}>
+                <span style={{ width: 20, height: 20, display: "flex" }}>{ICONS.close}</span>
+              </button>
+            </div>
+
+            {/* Body scrollable */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "1.25rem 1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+
+              {/* Toggle IA */}
+              <div style={{
+                background: "color-mix(in srgb,#f59e0b 10%,transparent)",
+                border: "1px solid color-mix(in srgb,#f59e0b 28%,transparent)",
+                borderRadius: 12, padding: "0.75rem 1rem",
+                display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "0.75rem",
+              }}>
+                <span style={{ fontSize: "0.82rem", color: "var(--sw-text)" }}>
+                  Modo ahorro: IA desactivada por defecto para no consumir créditos.
+                </span>
+                <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", userSelect: "none" }}>
+                  <div style={{
+                    width: 38, height: 22, borderRadius: 11, transition: "background 0.2s",
+                    background: usarIA ? "var(--sw-accent,#d4af37)" : "var(--sw-border)", position: "relative", flexShrink: 0,
+                  }}>
+                    <div style={{
+                      width: 16, height: 16, borderRadius: "50%", background: "#fff",
+                      position: "absolute", top: 3, left: usarIA ? 19 : 3, transition: "left 0.2s",
+                    }} />
+                    <input type="checkbox" checked={usarIA} onChange={(e) => setUsarIA(e.target.checked)} style={{ position: "absolute", opacity: 0, width: 0, height: 0 }} />
+                  </div>
+                  <span style={{ fontSize: "0.8rem", fontWeight: 600, color: usarIA ? "var(--sw-accent,#d4af37)" : "var(--sw-muted)" }}>
+                    Usar IA (gasta créditos)
+                  </span>
+                </label>
               </div>
 
-              <div className="modal-body">
-                <div className="alert alert-warning py-2 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2">
-                  <div className="small mb-0">
-                    Modo ahorro: la IA esta desactivada por defecto para no consumir creditos.
-                  </div>
-                  <div className="form-check form-switch mb-0">
-                    <input
-                      className="form-check-input"
-                      type="checkbox"
-                      id="sw-usar-ia-switch"
-                      checked={usarIA}
-                      onChange={(e) => setUsarIA(e.target.checked)}
-                    />
-                    <label className="form-check-label" htmlFor="sw-usar-ia-switch">
-                      Usar IA (gasta creditos)
-                    </label>
-                  </div>
+              {/* Datos del vehículo */}
+              <div style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", borderRadius: 12, padding: "1rem 1.25rem" }}>
+                <p style={{ margin: "0 0 0.6rem", fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-accent,#d4af37)" }}>
+                  Datos del vehículo
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: "0.5rem" }}>
+                  {[
+                    { label: "Cliente",    value: inspeccionActa.cliente_nombre },
+                    { label: "Teléfono",   value: inspeccionActa.cliente_telefono },
+                    { label: "Vehículo",   value: inspeccionActa.coche_descripcion },
+                    { label: "Matrícula",  value: inspeccionActa.matricula },
+                    { label: "Kilometraje", value: `${Number(inspeccionActa.kilometros || 0).toLocaleString("es-ES")} km` },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <span style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--sw-muted)" }}>{label}</span>
+                      <p style={{ margin: "0.1rem 0 0", fontWeight: 600, color: "var(--sw-text)", fontSize: "0.88rem" }}>{value || "—"}</p>
+                    </div>
+                  ))}
                 </div>
+              </div>
 
-                <div className="mb-3 p-3 rounded sw-light-panel">
-                  <div className="d-flex flex-wrap justify-content-between gap-2 mb-2">
-                    <div><strong>Cliente:</strong> {inspeccionActa.cliente_nombre || "-"}</div>
-                    <div><strong>Telefono:</strong> {inspeccionActa.cliente_telefono || "-"}</div>
-                  </div>
-                  <div className="d-flex flex-wrap justify-content-between gap-2 mb-2">
-                    <div><strong>Vehiculo:</strong> {inspeccionActa.coche_descripcion || "-"}</div>
-                    <div><strong>Matricula:</strong> {inspeccionActa.matricula || "-"}</div>
-                  </div>
-                  <div><strong>Kilometraje:</strong> {Number(inspeccionActa.kilometros || 0).toLocaleString("es-ES")} km</div>
-                </div>
-
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <h6 className="mb-0 fw-bold">Informe tecnico de intervencion</h6>
-                  <div className="d-flex gap-2">
-                    <button type="button" className="btn btn-outline-primary btn-sm" onClick={generarBorradorAutomatico}>
-                      Generar borrador automatico
+              {/* Informe técnico */}
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.6rem", flexWrap: "wrap", gap: "0.5rem" }}>
+                  <p style={{ margin: 0, fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-accent,#d4af37)" }}>
+                    Informe técnico de intervención
+                  </p>
+                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                    <button
+                      onClick={generarBorradorAutomatico}
+                      style={{
+                        background: "color-mix(in srgb,#38bdf8 12%,transparent)",
+                        border: "1px solid color-mix(in srgb,#38bdf8 30%,transparent)",
+                        color: "#38bdf8", borderRadius: 8, padding: "0.35rem 0.75rem",
+                        cursor: "pointer", fontWeight: 600, fontSize: "0.78rem",
+                        display: "flex", alignItems: "center", gap: "0.35rem",
+                      }}
+                    >
+                      <span style={{ width: 13, height: 13, display: "flex" }}>{ICONS.ai}</span>
+                      Borrador auto
                     </button>
-                    <button type="button" className="btn btn-outline-dark btn-sm" onClick={agregarSeccion}>
-                      + Agregar punto
+                    <button
+                      onClick={agregarSeccion}
+                      style={{
+                        background: "color-mix(in srgb,var(--sw-accent,#d4af37) 12%,transparent)",
+                        border: "1px solid color-mix(in srgb,var(--sw-accent,#d4af37) 30%,transparent)",
+                        color: "var(--sw-accent,#d4af37)", borderRadius: 8, padding: "0.35rem 0.75rem",
+                        cursor: "pointer", fontWeight: 600, fontSize: "0.78rem",
+                        display: "flex", alignItems: "center", gap: "0.35rem",
+                      }}
+                    >
+                      <span style={{ width: 13, height: 13, display: "flex" }}>{ICONS.plus}</span>
+                      Agregar punto
                     </button>
                   </div>
                 </div>
 
                 {ultimaPlantilla && (
-                  <div className="small text-muted mb-2">
-                    Plantilla aplicada: {ultimaPlantilla}. Solo se rellenan campos vacios para no sobrescribir tu texto.
-                  </div>
+                  <p style={{ fontSize: "0.75rem", color: "var(--sw-muted)", marginBottom: "0.6rem" }}>
+                    Plantilla aplicada: <strong>{ultimaPlantilla}</strong>. Solo rellena campos vacíos.
+                  </p>
                 )}
 
-                {sections.map((section, idx) => (
-                  <div key={section.id} className="mb-3 p-3 rounded sw-light-panel" style={{ background: "#fff" }}>
-                    <div className="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-2">
-                      <div className="d-flex align-items-center gap-2 flex-grow-1">
-                        <span className="badge text-bg-light border">{idx + 1}</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                  {sections.map((section, idx) => (
+                    <div key={section.id} style={{
+                      background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)",
+                      borderRadius: 12, padding: "1rem",
+                    }}>
+                      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.6rem", flexWrap: "wrap" }}>
+                        <span style={{
+                          width: 22, height: 22, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center",
+                          background: "color-mix(in srgb,var(--sw-accent,#d4af37) 14%,transparent)",
+                          border: "1px solid color-mix(in srgb,var(--sw-accent,#d4af37) 28%,transparent)",
+                          color: "var(--sw-accent,#d4af37)", fontWeight: 800, fontSize: "0.72rem", flexShrink: 0,
+                        }}>{idx + 1}</span>
                         <input
-                          className="form-control form-control-sm"
+                          className="form-control sw-pinput"
+                          style={{ flex: 1, minWidth: 120, fontSize: "0.85rem", fontWeight: 600 }}
                           value={section.title}
                           onChange={(e) => actualizarSeccion(section.id, { title: e.target.value })}
-                          placeholder="Titulo del punto"
+                          placeholder="Título del punto"
                         />
-                      </div>
-                      <div className="d-flex gap-2">
                         <button
-                          type="button"
-                          className="btn btn-dark btn-sm"
                           onClick={() => redactarSeccionConAI(section, idx)}
                           disabled={!usarIA || Boolean(aiBySection[section.id]) || guardandoActa}
+                          title="Redactar con IA"
+                          style={{
+                            background: usarIA ? "color-mix(in srgb,#a78bfa 12%,transparent)" : "var(--sw-surface)",
+                            border: `1px solid ${usarIA ? "color-mix(in srgb,#a78bfa 30%,transparent)" : "var(--sw-border)"}`,
+                            color: usarIA ? "#a78bfa" : "var(--sw-muted)", borderRadius: 8,
+                            padding: "0.3rem 0.5rem", cursor: usarIA ? "pointer" : "not-allowed",
+                            display: "flex", alignItems: "center", gap: "0.25rem", fontSize: "0.72rem", fontWeight: 600,
+                            opacity: (!usarIA || guardandoActa) ? 0.5 : 1,
+                          }}
                         >
-                          {aiBySection[section.id] ? "AI..." : "AI en este punto"}
+                          <span style={{ width: 12, height: 12, display: "flex" }}>{ICONS.ai}</span>
+                          {aiBySection[section.id] ? "IA…" : "IA"}
                         </button>
                         <button
-                          type="button"
-                          className="btn btn-outline-danger btn-sm"
                           onClick={() => eliminarSeccion(section.id)}
                           disabled={sections.length === 1}
+                          title="Eliminar punto"
+                          style={{
+                            background: "color-mix(in srgb,#ef4444 10%,transparent)",
+                            border: "1px solid color-mix(in srgb,#ef4444 25%,transparent)",
+                            color: "#ef4444", borderRadius: 8,
+                            padding: "0.3rem 0.5rem", cursor: sections.length === 1 ? "not-allowed" : "pointer",
+                            display: "flex", alignItems: "center", opacity: sections.length === 1 ? 0.4 : 1,
+                          }}
                         >
-                          Quitar
+                          <span style={{ width: 12, height: 12, display: "flex" }}>{ICONS.trash}</span>
                         </button>
                       </div>
+                      <textarea
+                        className="form-control sw-pinput"
+                        rows={3}
+                        value={section.content}
+                        onChange={(e) => actualizarSeccion(section.id, { content: e.target.value })}
+                        placeholder="Describe este punto en lenguaje técnico…"
+                        style={section.fromInspection ? { opacity: 0.8 } : undefined}
+                      />
+                      {section.fromInspection && (
+                        <p style={{ margin: "0.3rem 0 0", fontSize: "0.72rem", color: "var(--sw-muted)" }}>Texto precargado desde la inspección de recepción.</p>
+                      )}
                     </div>
-
-                    <textarea
-                      className="form-control"
-                      rows="3"
-                      value={section.content}
-                      onChange={(e) => actualizarSeccion(section.id, { content: e.target.value })}
-                      placeholder="Describe este punto en lenguaje tecnico y valor percibido premium..."
-                      style={section.fromInspection ? { backgroundColor: "#f8f9fa" } : undefined}
-                    />
-                    {section.fromInspection && (
-                      <div className="form-text">Texto precargado desde la inspeccion de recepcion.</div>
-                    )}
-                  </div>
-                ))}
-
-                <div className="mb-3">
-                  <div className="d-flex justify-content-between align-items-center mb-2">
-                    <label className="form-label fw-bold mb-0">Observaciones de entrega</label>
-                    <button
-                      type="button"
-                      className="btn btn-dark btn-sm"
-                      onClick={redactarObservacionesConAI}
-                      disabled={!usarIA || aiObservacionesLoading || guardandoActa}
-                    >
-                      {aiObservacionesLoading ? "AI..." : "AI observaciones"}
-                    </button>
-                  </div>
-                  <textarea
-                    className="form-control"
-                    rows="3"
-                    value={observacionesActa}
-                    onChange={(e) => setObservacionesActa(e.target.value)}
-                    placeholder="Cierre profesional premium: valor entregado, nivel de detalle y confianza al cliente..."
-                  />
+                  ))}
                 </div>
               </div>
 
-              <div className="modal-footer d-flex justify-content-end">
-                <div className="d-flex gap-2">
-                  <button type="button" className="btn btn-outline-secondary" onClick={cerrarPrepararActa}>
-                    Cancelar
-                  </button>
-                  <button type="button" className="btn btn-primary" onClick={guardarActa} disabled={guardandoActa}>
-                    {guardandoActa ? "Guardando..." : "Guardar hoja de intervencion"}
+              {/* Observaciones de entrega */}
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap", gap: "0.5rem" }}>
+                  <p style={{ margin: 0, fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-accent,#d4af37)" }}>
+                    Observaciones de entrega
+                  </p>
+                  <button
+                    onClick={redactarObservacionesConAI}
+                    disabled={!usarIA || aiObservacionesLoading || guardandoActa}
+                    style={{
+                      background: usarIA ? "color-mix(in srgb,#a78bfa 12%,transparent)" : "var(--sw-surface)",
+                      border: `1px solid ${usarIA ? "color-mix(in srgb,#a78bfa 30%,transparent)" : "var(--sw-border)"}`,
+                      color: usarIA ? "#a78bfa" : "var(--sw-muted)", borderRadius: 8,
+                      padding: "0.35rem 0.75rem", cursor: usarIA ? "pointer" : "not-allowed",
+                      display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.78rem", fontWeight: 600,
+                      opacity: (!usarIA || guardandoActa) ? 0.5 : 1,
+                    }}
+                  >
+                    <span style={{ width: 13, height: 13, display: "flex" }}>{ICONS.ai}</span>
+                    {aiObservacionesLoading ? "IA…" : "IA observaciones"}
                   </button>
                 </div>
+                <textarea
+                  className="form-control sw-pinput"
+                  rows={3}
+                  value={observacionesActa}
+                  onChange={(e) => setObservacionesActa(e.target.value)}
+                  placeholder="Cierre profesional: valor entregado, nivel de detalle y confianza al cliente…"
+                />
               </div>
+
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding: "1rem 1.5rem", borderTop: "1px solid var(--sw-border)", display: "flex", justifyContent: "flex-end", gap: "0.75rem", flexShrink: 0 }}>
+              <button
+                onClick={cerrarPrepararActa}
+                style={{
+                  background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)",
+                  color: "var(--sw-muted)", borderRadius: 10, padding: "0.6rem 1.2rem",
+                  fontWeight: 600, fontSize: "0.85rem", cursor: "pointer",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={guardarActa}
+                disabled={guardandoActa}
+                style={{
+                  background: "var(--sw-accent,#d4af37)", border: "none",
+                  color: "#000", borderRadius: 10, padding: "0.6rem 1.4rem",
+                  fontWeight: 700, fontSize: "0.85rem", cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: "0.4rem",
+                  opacity: guardandoActa ? 0.6 : 1,
+                }}
+              >
+                <span style={{ width: 14, height: 14, display: "flex" }}>{ICONS.save}</span>
+                {guardandoActa ? "Guardando…" : "Guardar hoja"}
+              </button>
             </div>
           </div>
         </div>

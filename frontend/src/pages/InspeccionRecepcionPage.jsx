@@ -3,8 +3,12 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Context } from "../store/appContext";
 import SignaturePad from "../component/SignaturePad.jsx";
 import GoldSelect from "../component/GoldSelect.jsx";
+import ProgressIndicator from "../component/ProgressIndicator.jsx";
+import NextStepsModal from "../component/NextStepsModal.jsx";
 import { getStoredRol, normalizeRol } from "../utils/authSession";
 import "../styles/inspeccion-responsive.css";
+import "../styles/progress-indicator.css";
+import "../styles/next-steps-modal.css";
 
 const INITIAL_FORM_DATA = {
   cliente_id: "",
@@ -116,6 +120,8 @@ const InspeccionRecepcionPage = () => {
     pintura: "",
     tapicero: "",
   });
+  const [showNextStepsModal, setShowNextStepsModal] = useState(false);
+  const [esProfesional, setEsProfesional] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const rol = getStoredRol();
   const isAdmin = rol === "administrador";
@@ -643,38 +649,38 @@ const InspeccionRecepcionPage = () => {
     setServicioCatalogoSeleccionado((prev) => ({ ...prev, [rolServicio]: "" }));
   };
 
-  const _inp = { background: "#131620", border: "1px solid rgba(255,255,255,0.1)", color: "#eef2f7", borderRadius: "10px" };
-  const _lbl = { color: "rgba(200,209,224,0.75)", fontSize: "0.78rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "0.4rem" };
-  const _card = { background: "#0e1219", border: "1px solid rgba(255,255,255,0.07)", borderTop: "3px solid #d4af37", borderRadius: "18px", overflow: "hidden", marginBottom: "1.5rem" };
-  const _cardH = { padding: "1.1rem 1.25rem", borderBottom: "1px solid rgba(255,255,255,0.06)", fontWeight: 700, color: "#fff", fontSize: "0.95rem" };
+  const _inp = { background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "10px" };
+  const _lbl = { color: "var(--sw-muted)", fontSize: "0.78rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "0.4rem" };
+  const _card = { background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderTop: "3px solid var(--sw-accent)", borderRadius: "18px", overflow: "hidden", marginBottom: "1.5rem" };
+  const _cardH = { padding: "1.1rem 1.25rem", borderBottom: "1px solid var(--sw-border)", fontWeight: 700, color: "var(--sw-text)", fontSize: "0.95rem" };
   const _cardB = { padding: "1.25rem" };
 
   return (
-    <div style={{ minHeight: "calc(100vh - 56px)", background: "radial-gradient(ellipse 70% 44% at 50% -10%, rgba(212,175,55,0.06) 0%, transparent 60%), linear-gradient(180deg, #08090d 0%, #0d1017 100%)", color: "#eef2f7" }}>
+    <div className="sw-page-bg">
 
       {/* ── HERO ── */}
-      <div style={{ borderBottom: "1px solid rgba(212,175,55,0.1)", padding: "1.75rem 0 1.5rem", animation: "sw-fade-up 0.4s ease both" }}>
+      <div className="sw-hero-section">
         <div className="container" style={{ maxWidth: "900px" }}>
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "1.5rem", flexWrap: "wrap" }}>
             <div>
-              <p style={{ fontSize: "0.73rem", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#d4af37", opacity: 0.85, marginBottom: "0.4rem" }}>
+              <p style={{ fontSize: "0.73rem", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--sw-accent)", opacity: 0.85, marginBottom: "0.4rem" }}>
                 Panel de gestión · SpecialWash
               </p>
-              <h1 style={{ fontSize: "clamp(1.4rem, 3vw, 2rem)", fontWeight: 700, color: "#fff", margin: 0, letterSpacing: "-0.01em" }}>
+              <h1 style={{ fontSize: "clamp(1.4rem, 3vw, 2rem)", fontWeight: 700, color: "var(--sw-text)", margin: 0, letterSpacing: "-0.01em" }}>
                 {inspeccionEditandoId ? `Editar Inspección #${inspeccionEditandoId}` : "Inspección de Recepción"}
               </h1>
-              <p style={{ fontSize: "0.85rem", color: "rgba(200,209,224,0.55)", marginTop: "0.35rem", marginBottom: 0 }}>
+              <p style={{ fontSize: "0.85rem", color: "var(--sw-muted)", marginTop: "0.35rem", marginBottom: 0 }}>
                 Registro de entrada · datos del vehículo y servicios acordados
               </p>
             </div>
             <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
               <button type="button" onClick={volver}
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(200,209,224,0.7)", borderRadius: "9px", padding: "0.4rem 1rem", fontSize: "0.84rem", cursor: "pointer" }}>
+                style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-muted)", borderRadius: "9px", padding: "0.4rem 1rem", fontSize: "0.84rem", cursor: "pointer" }}>
                 ← Volver
               </button>
               {isAdmin && (
                 <Link to="/inspecciones-guardadas"
-                  style={{ background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.3)", color: "#d4af37", borderRadius: "9px", padding: "0.4rem 1rem", fontSize: "0.84rem", textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
+                  style={{ background: "color-mix(in srgb, var(--sw-accent) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--sw-accent) 35%, transparent)", color: "var(--sw-accent)", borderRadius: "9px", padding: "0.4rem 1rem", fontSize: "0.84rem", textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
                   Ver guardadas
                 </Link>
               )}
@@ -687,15 +693,32 @@ const InspeccionRecepcionPage = () => {
 
         {/* ALERTS */}
         {formError && (
-          <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "10px", padding: "0.85rem 1rem", marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", color: "#fca5a5" }}>
+          <div style={{ background: "color-mix(in srgb, var(--sw-danger) 12%, var(--sw-surface))", border: "1px solid color-mix(in srgb, var(--sw-danger) 35%, transparent)", borderRadius: "10px", padding: "0.85rem 1rem", marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", color: "var(--sw-danger)" }}>
             <span>⚠ {formError}</span>
-            <button type="button" className="btn-close btn-close-white btn-sm" onClick={() => setFormError("")} />
+            <button type="button" className="btn-close btn-sm" onClick={() => setFormError("")} />
           </div>
         )}
         {formSuccess && (
-          <div style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: "10px", padding: "0.85rem 1rem", marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", color: "#6ee7b7" }}>
+          <div style={{ background: "color-mix(in srgb, var(--sw-success) 12%, var(--sw-surface))", border: "1px solid color-mix(in srgb, var(--sw-success) 35%, transparent)", borderRadius: "10px", padding: "0.85rem 1rem", marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", color: "var(--sw-success)" }}>
             <span style={{ whiteSpace: "pre-line" }}>{formSuccess}</span>
-            <button type="button" className="btn-close btn-close-white btn-sm" onClick={() => setFormSuccess("")} />
+            <button type="button" className="btn-close btn-sm" onClick={() => setFormSuccess("")} />
+          </div>
+        )}
+
+        {/* BANNER SIGUIENTE (arriba) */}
+        {inspeccionCreada && (
+          <div style={{ background: "color-mix(in srgb, var(--sw-success) 10%, var(--sw-surface))", border: "1px solid color-mix(in srgb, var(--sw-success) 30%, transparent)", borderRadius: "12px", padding: "1rem 1.25rem", color: "var(--sw-success)", marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
+            <div>
+              <div>✦ Inspección #{inspeccionCreada.id} creada correctamente</div>
+              <small style={{ opacity: 0.8 }}>Partes de trabajo creados automáticamente</small>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate(`/vehiculo-detalle/${inspeccionCreada.id}`)}
+              style={{ background: "#22c55e", border: "none", color: "#ffffff", fontWeight: 600, fontSize: "0.9rem", borderRadius: "8px", padding: "0.6rem 1.2rem", cursor: "pointer", whiteSpace: "nowrap" }}
+            >
+              Siguiente →
+            </button>
           </div>
         )}
 
@@ -704,19 +727,19 @@ const InspeccionRecepcionPage = () => {
 
           {/* DATOS CLIENTE Y VEHÍCULO */}
           <div style={_card}>
-            <div style={_cardH}><span style={{ color: "#d4af37", marginRight: "0.5rem" }}>✦</span>Datos del cliente y vehículo</div>
+            <div style={_cardH}><span style={{ color: "var(--sw-accent)", marginRight: "0.5rem" }}>✦</span>Datos del cliente y vehículo</div>
             <div style={_cardB}>
               <div className="row g-3">
 
                 <div className="col-12 col-md-6">
                   <label style={_lbl}>Cliente existente (opcional)</label>
-                  <select className="form-select" name="cliente_id" value={formData.cliente_id} onChange={handleClienteExistenteChange} style={_inp}>
+                  <select className="form-select sw-pinput" name="cliente_id" value={formData.cliente_id} onChange={handleClienteExistenteChange} style={_inp}>
                     <option value="">-- Selecciona cliente registrado --</option>
                     {clientesDisponibles.slice().sort((a, b) => String(a?.nombre || "").localeCompare(String(b?.nombre || ""), "es")).map((cliente) => (
                       <option key={cliente.id} value={cliente.id}>{cliente.nombre || "Sin nombre"}{cliente.telefono ? ` · ${cliente.telefono}` : ""}</option>
                     ))}
                   </select>
-                  <small style={{ color: "rgba(200,209,224,0.38)", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>Si lo seleccionas, se reutiliza ese cliente y evita duplicados.</small>
+                  <small style={{ color: "var(--sw-muted)", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>Si lo seleccionas, se reutiliza ese cliente y evita duplicados.</small>
                 </div>
 
                 <div className="col-12 col-md-6">
@@ -725,37 +748,37 @@ const InspeccionRecepcionPage = () => {
                   <datalist id="clientes-existentes">
                     {clientesDisponibles.map((c) => String(c?.nombre || "").trim()).filter((n, i, a) => n && a.indexOf(n) === i).sort((a, b) => a.localeCompare(b, "es")).map((n) => (<option key={n} value={n} />))}
                   </datalist>
-                  <small style={{ color: "rgba(200,209,224,0.38)", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>Escribe o selecciona nombre existente para rellenar automáticamente el teléfono.</small>
+                  <small style={{ color: "var(--sw-muted)", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>Escribe o selecciona nombre existente para rellenar automáticamente el teléfono.</small>
                 </div>
 
                 <div className="col-12 col-md-6">
-                  <label style={_lbl}>Teléfono del cliente <span style={{ color: "#f87171" }}>*</span></label>
+                  <label style={_lbl}>Teléfono del cliente <span style={{ color: "var(--sw-danger)" }}>*</span></label>
                   <input type="tel" className="form-control" name="cliente_telefono" value={formData.cliente_telefono} onChange={handleInputChange} placeholder="Ej: 600123123" list="telefonos-existentes" required style={_inp} />
                   <datalist id="telefonos-existentes">
                     {clientesDisponibles.map((c) => ({ id: c?.id, telefono: String(c?.telefono || "").trim(), nombre: String(c?.nombre || "").trim() })).filter((i) => i.telefono).sort((a, b) => a.telefono.localeCompare(b.telefono, "es")).map((i) => (<option key={`${i.id}-${i.telefono}`} value={i.telefono}>{i.nombre}</option>))}
                   </datalist>
-                  <small style={{ color: "rgba(200,209,224,0.38)", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>Al escribir un teléfono existente se vincula el cliente automáticamente.</small>
+                  <small style={{ color: "var(--sw-muted)", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>Al escribir un teléfono existente se vincula el cliente automáticamente.</small>
                 </div>
 
                 <div className="col-12 col-md-6">
-                  <label style={_lbl}>Coche (Marca/Modelo) <span style={{ color: "#f87171" }}>*</span></label>
+                  <label style={_lbl}>Coche (Marca/Modelo) <span style={{ color: "var(--sw-danger)" }}>*</span></label>
                   <input type="text" className="form-control" name="coche_descripcion" value={formData.coche_descripcion} onChange={handleInputChange} placeholder="Ej: Ford Focus 2015" required style={_inp} />
                 </div>
 
                 <div className="col-12 col-md-6">
-                  <label style={_lbl}>Matrícula <span style={{ color: "#f87171" }}>*</span></label>
+                  <label style={_lbl}>Matrícula <span style={{ color: "var(--sw-danger)" }}>*</span></label>
                   <input type="text" className="form-control" name="matricula" value={formData.matricula} onChange={handleInputChange} placeholder="Ej: 1234ABC" style={{ ..._inp, textTransform: "uppercase" }} required />
                 </div>
 
                 <div className="col-12 col-md-6">
-                  <label style={_lbl}>Kilómetros <span style={{ color: "#f87171" }}>*</span></label>
+                  <label style={_lbl}>Kilómetros <span style={{ color: "var(--sw-danger)" }}>*</span></label>
                   <input type="number" min="0" step="1" className="form-control" name="kilometros" value={formData.kilometros} onChange={handleInputChange} placeholder="Ej: 125000" required style={_inp} />
                 </div>
 
                 <div className="col-12">
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.75rem 1rem", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "10px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.75rem 1rem", background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", borderRadius: "10px" }}>
                     <input className="form-check-input" type="checkbox" id="es_concesionario" name="es_concesionario" checked={Boolean(formData.es_concesionario)} onChange={handleInputChange} style={{ flexShrink: 0 }} />
-                    <label className="form-check-label" htmlFor="es_concesionario" style={{ color: "rgba(200,209,224,0.8)", fontSize: "0.88rem", cursor: "pointer" }}>
+                    <label className="form-check-label" htmlFor="es_concesionario" style={{ color: "var(--sw-text)", fontSize: "0.88rem", cursor: "pointer" }}>
                       Coche de concesionario / profesional — no se solicita firma de cliente en recepción
                     </label>
                   </div>
@@ -795,12 +818,12 @@ const InspeccionRecepcionPage = () => {
                   🖼 Galería (múltiples)
                 </label>
               </div>
-              <small style={{ color: "rgba(200,209,224,0.38)", fontSize: "0.74rem" }}>"Tomar foto" abre la cámara · "Galería" permite seleccionar múltiples fotos</small>
+              <small style={{ color: "var(--sw-muted)", fontSize: "0.74rem" }}>"Tomar foto" abre la cámara · "Galería" permite seleccionar múltiples fotos</small>
               {fotosPreview.length > 0 && (
                 <div className="row g-2 mt-3">
                   {fotosPreview.map((src, index) => (
                     <div key={index} className="col-6 col-sm-4 col-md-3 position-relative">
-                      <img src={src} alt={`Preview ${index}`} style={{ width: "100%", height: "120px", objectFit: "cover", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.08)" }} />
+                      <img src={src} alt={`Preview ${index}`} style={{ width: "100%", height: "120px", objectFit: "cover", borderRadius: "8px", border: "1px solid var(--sw-border)" }} />
                       <button type="button" onClick={() => eliminarFoto(index)} style={{ position: "absolute", top: "6px", right: "6px", background: "rgba(239,68,68,0.8)", border: "none", color: "#fff", borderRadius: "6px", padding: "2px 8px", fontSize: "0.8rem", cursor: "pointer" }}>✕</button>
                     </div>
                   ))}
@@ -839,12 +862,12 @@ const InspeccionRecepcionPage = () => {
                   📹 Galería (múltiples)
                 </label>
               </div>
-              <small style={{ color: "rgba(200,209,224,0.38)", fontSize: "0.74rem" }}>Formatos soportados: {FORMATOS_VIDEO_LABEL} · Tamaño máx: 250 MB por video</small>
+              <small style={{ color: "var(--sw-muted)", fontSize: "0.74rem" }}>Formatos soportados: {FORMATOS_VIDEO_LABEL} · Tamaño máx: 250 MB por video</small>
               {videosPreview.length > 0 && (
                 <div className="row g-2 mt-3">
                   {videosPreview.map((src, index) => (
                     <div key={index} className="col-12 col-sm-6 col-md-4 position-relative">
-                      <video src={src} style={{ width: "100%", height: "180px", objectFit: "cover", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.08)" }} controls />
+                      <video src={src} style={{ width: "100%", height: "180px", objectFit: "cover", borderRadius: "8px", border: "1px solid var(--sw-border)" }} controls />
                       <button type="button" onClick={() => eliminarVideo(index)} style={{ position: "absolute", top: "6px", right: "6px", background: "rgba(239,68,68,0.8)", border: "none", color: "#fff", borderRadius: "6px", padding: "2px 8px", fontSize: "0.8rem", cursor: "pointer" }}>✕</button>
                     </div>
                   ))}
@@ -878,20 +901,20 @@ const InspeccionRecepcionPage = () => {
               <div style={{ marginBottom: "1.5rem" }}>
                 <p style={{ ..._lbl, marginBottom: "0.75rem" }}>Catálogo activo</p>
                 {catalogoServicios.length === 0 && (
-                  <p style={{ color: "rgba(200,209,224,0.4)", fontSize: "0.85rem" }}>No hay servicios activos en catálogo.</p>
+                  <p style={{ color: "var(--sw-muted)", fontSize: "0.85rem" }}>No hay servicios activos en catálogo.</p>
                 )}
                 {[
                   { rol: "detailing", label: "Detailing", color: "#6366f1" },
                   { rol: "pintura",   label: "Pintura",   color: "#f87171" },
                   { rol: "tapicero",  label: "Tapicería", color: "#fbbf24" },
                 ].map(({ rol, label, color }) => (
-                  <details key={rol} style={{ marginBottom: "0.75rem", background: "#131620", border: "1px solid rgba(255,255,255,0.07)", borderLeft: `3px solid ${color}`, borderRadius: "10px", overflow: "hidden" }} open>
-                    <summary style={{ padding: "0.7rem 1rem", cursor: "pointer", fontWeight: 600, fontSize: "0.88rem", color: "rgba(200,209,224,0.85)", listStyle: "none", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <details key={rol} style={{ marginBottom: "0.75rem", background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", borderLeft: `3px solid ${color}`, borderRadius: "10px", overflow: "hidden" }} open>
+                    <summary style={{ padding: "0.7rem 1rem", cursor: "pointer", fontWeight: 600, fontSize: "0.88rem", color: "var(--sw-text)", listStyle: "none", display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <span style={{ color, fontSize: "0.65rem" }}>▶</span> Servicios de {label}
                     </summary>
-                    <div style={{ padding: "0.75rem 1rem", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                    <div style={{ padding: "0.75rem 1rem", borderTop: "1px solid var(--sw-border)" }}>
                       {serviciosCatalogoPorRol[rol].length === 0 ? (
-                        <span style={{ color: "rgba(200,209,224,0.35)", fontSize: "0.82rem" }}>Sin servicios en este grupo.</span>
+                        <span style={{ color: "var(--sw-muted)", fontSize: "0.82rem" }}>Sin servicios en este grupo.</span>
                       ) : (
                         <div className="d-flex flex-column flex-md-row gap-2">
                           <div className="flex-grow-1">
@@ -907,7 +930,7 @@ const InspeccionRecepcionPage = () => {
                             />
                           </div>
                           <button type="button" onClick={() => agregarServicioCatalogoPorRol(rol)} disabled={!servicioCatalogoSeleccionado[rol]}
-                            style={{ background: "rgba(212,175,55,0.12)", border: "1px solid rgba(212,175,55,0.3)", color: "#d4af37", borderRadius: "9px", padding: "0.4rem 1.1rem", fontWeight: 600, fontSize: "0.85rem", cursor: servicioCatalogoSeleccionado[rol] ? "pointer" : "not-allowed", opacity: servicioCatalogoSeleccionado[rol] ? 1 : 0.4, whiteSpace: "nowrap" }}>
+                            style={{ background: "color-mix(in srgb, var(--sw-accent) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--sw-accent) 35%, transparent)", color: "var(--sw-accent)", borderRadius: "9px", padding: "0.4rem 1.1rem", fontWeight: 600, fontSize: "0.85rem", cursor: servicioCatalogoSeleccionado[rol] ? "pointer" : "not-allowed", opacity: servicioCatalogoSeleccionado[rol] ? 1 : 0.4, whiteSpace: "nowrap" }}>
                             + Añadir
                           </button>
                         </div>
@@ -940,13 +963,13 @@ const InspeccionRecepcionPage = () => {
                     </select>
                   </div>
                   <div className="col-4 col-lg-1 d-grid">
-                    <button type="button" onClick={agregarServicioManual} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#eef2f7", borderRadius: "9px", fontWeight: 600, fontSize: "0.82rem", cursor: "pointer" }}>
+                    <button type="button" onClick={agregarServicioManual} style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "9px", fontWeight: 600, fontSize: "0.82rem", cursor: "pointer" }}>
                       + Añadir
                     </button>
                   </div>
                 </div>
-                {servicioManualError && <p style={{ color: "#f87171", fontSize: "0.78rem", marginTop: "0.4rem" }}>⚠ {servicioManualError}</p>}
-                <small style={{ color: "rgba(200,209,224,0.35)", fontSize: "0.74rem", display: "block", marginTop: "0.4rem" }}>
+                {servicioManualError && <p style={{ color: "var(--sw-danger)", fontSize: "0.78rem", marginTop: "0.4rem" }}>⚠ {servicioManualError}</p>}
+                <small style={{ color: "var(--sw-muted)", fontSize: "0.74rem", display: "block", marginTop: "0.4rem" }}>
                   Puedes indicar minutos o horas (ej. 1.5 h = 90 min). Si completas ambos, se prioriza horas. El rol define a qué área se envía el parte.
                 </small>
               </div>
@@ -954,44 +977,44 @@ const InspeccionRecepcionPage = () => {
               {/* Servicios añadidos */}
               <div>
                 <p style={{ ..._lbl, marginBottom: "0.6rem" }}>Servicios añadidos</p>
-                <div style={{ background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: "8px", padding: "0.6rem 1rem", marginBottom: "0.85rem", color: "#6ee7b7", fontSize: "0.82rem" }}>
+                <div style={{ background: "color-mix(in srgb, var(--sw-success) 8%, var(--sw-surface))", border: "1px solid color-mix(in srgb, var(--sw-success) 22%, transparent)", borderRadius: "8px", padding: "0.6rem 1rem", marginBottom: "0.85rem", color: "var(--sw-success)", fontSize: "0.82rem" }}>
                   Al guardar esta recepción se crearán automáticamente partes de trabajo por cada servicio según su rol.
                 </div>
                 {(formData.servicios_aplicados || []).length === 0 ? (
-                  <div style={{ color: "rgba(200,209,224,0.3)", fontSize: "0.83rem", borderRadius: "10px", padding: "0.9rem 1rem", border: "1px dashed rgba(255,255,255,0.07)", textAlign: "center" }}>
+                  <div style={{ color: "var(--sw-muted)", fontSize: "0.83rem", borderRadius: "10px", padding: "0.9rem 1rem", border: "1px dashed var(--sw-border)", textAlign: "center" }}>
                     No hay servicios añadidos aún.
                   </div>
                 ) : (
                   <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
                       <thead>
-                        <tr style={{ background: "rgba(255,255,255,0.03)" }}>
+                        <tr style={{ background: "var(--sw-surface-2)" }}>
                           {["Tipo", "Nombre", "Precio", "Tiempo", "Rol", ""].map((h) => (
-                            <th key={h} style={{ padding: "0.5rem 0.75rem", color: "rgba(200,209,224,0.4)", fontWeight: 600, textTransform: "uppercase", fontSize: "0.68rem", letterSpacing: "0.07em", borderBottom: "1px solid rgba(255,255,255,0.06)", whiteSpace: "nowrap" }}>{h}</th>
+                            <th key={h} style={{ padding: "0.5rem 0.75rem", color: "var(--sw-muted)", fontWeight: 600, textTransform: "uppercase", fontSize: "0.68rem", letterSpacing: "0.07em", borderBottom: "1px solid var(--sw-border)", whiteSpace: "nowrap" }}>{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
                         {(formData.servicios_aplicados || []).map((servicio, index) => (
-                          <tr key={`${servicio.nombre}-${index}`} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                          <tr key={`${servicio.nombre}-${index}`} style={{ borderBottom: "1px solid var(--sw-border)" }}>
                             <td style={{ padding: "0.5rem 0.75rem" }}>
                               <span style={{ background: servicio.origen === "catalogo" ? "rgba(99,102,241,0.15)" : "rgba(107,114,128,0.15)", color: servicio.origen === "catalogo" ? "#a5b4fc" : "#9ca3af", borderRadius: "5px", padding: "0.1rem 0.5rem", fontSize: "0.72rem" }}>
                                 {servicio.origen === "catalogo" ? "Catálogo" : "Manual"}
                               </span>
                             </td>
-                            <td style={{ padding: "0.5rem 0.75rem", color: "#eef2f7", fontWeight: 500 }}>{servicio.nombre}</td>
-                            <td style={{ padding: "0.5rem 0.75rem", color: "#d4af37", fontWeight: 600 }}>{Number(servicio.precio || 0).toFixed(2)} €</td>
-                            <td style={{ padding: "0.5rem 0.75rem", color: "rgba(200,209,224,0.55)" }}>{Number(servicio.tiempo_estimado_minutos || 0)} min</td>
+                            <td style={{ padding: "0.5rem 0.75rem", color: "var(--sw-text)", fontWeight: 500 }}>{servicio.nombre}</td>
+                            <td style={{ padding: "0.5rem 0.75rem", color: "var(--sw-accent)", fontWeight: 600 }}>{Number(servicio.precio || 0).toFixed(2)} €</td>
+                            <td style={{ padding: "0.5rem 0.75rem", color: "var(--sw-muted)" }}>{Number(servicio.tiempo_estimado_minutos || 0)} min</td>
                             <td style={{ padding: "0.5rem 0.75rem" }}>
                               <select className="form-select form-select-sm" value={normalizeRol(servicio.tipo_tarea || "")} onChange={(e) => actualizarRolServicioAplicado(index, e.target.value)}
-                                style={{ background: "#1a1e28", border: "1px solid rgba(255,255,255,0.1)", color: "#eef2f7", borderRadius: "7px", fontSize: "0.78rem" }}>
+                                style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "7px", fontSize: "0.78rem" }}>
                                 <option value="">Área...</option>
                                 {ROLE_OPTIONS.map((r) => (<option key={r.value} value={r.value}>{r.label}</option>))}
                               </select>
                             </td>
                             <td style={{ padding: "0.5rem 0.75rem", textAlign: "right" }}>
                               <button type="button" onClick={() => eliminarServicioAplicado(index)}
-                                style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", color: "#f87171", borderRadius: "7px", padding: "0.2rem 0.65rem", fontSize: "0.78rem", cursor: "pointer" }}>
+                                style={{ background: "color-mix(in srgb, var(--sw-danger) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--sw-danger) 28%, transparent)", color: "var(--sw-danger)", borderRadius: "7px", padding: "0.2rem 0.65rem", fontSize: "0.78rem", cursor: "pointer" }}>
                                 Quitar
                               </button>
                             </td>
@@ -999,12 +1022,12 @@ const InspeccionRecepcionPage = () => {
                         ))}
                       </tbody>
                       <tfoot>
-                        <tr style={{ borderTop: "1px solid rgba(212,175,55,0.2)", background: "rgba(212,175,55,0.04)" }}>
-                          <th colSpan="2" style={{ padding: "0.55rem 0.75rem", color: "rgba(200,209,224,0.55)", fontSize: "0.78rem" }}>Total</th>
-                          <th style={{ padding: "0.55rem 0.75rem", color: "#d4af37" }}>
+                        <tr style={{ borderTop: "1px solid color-mix(in srgb, var(--sw-accent) 22%, var(--sw-border))", background: "color-mix(in srgb, var(--sw-accent) 5%, transparent)" }}>
+                          <th colSpan="2" style={{ padding: "0.55rem 0.75rem", color: "var(--sw-muted)", fontSize: "0.78rem" }}>Total</th>
+                          <th style={{ padding: "0.55rem 0.75rem", color: "var(--sw-accent)" }}>
                             {(formData.servicios_aplicados || []).reduce((acc, s) => acc + (Number(s.precio || 0) || 0), 0).toFixed(2)} €
                           </th>
-                          <th style={{ padding: "0.55rem 0.75rem", color: "rgba(200,209,224,0.55)" }}>
+                          <th style={{ padding: "0.55rem 0.75rem", color: "var(--sw-muted)" }}>
                             {(formData.servicios_aplicados || []).reduce((acc, s) => acc + (Number.parseInt(s.tiempo_estimado_minutos || 0, 10) || 0), 0)} min
                           </th>
                           <th /><th />
@@ -1021,19 +1044,19 @@ const InspeccionRecepcionPage = () => {
           {/* CONSENTIMIENTO + FIRMA */}
           <div className="row g-3" style={{ marginBottom: "1.5rem" }}>
             <div className="col-12 col-lg-6">
-              <div style={{ background: "#0e1219", border: "1px solid rgba(255,255,255,0.07)", borderTop: "3px solid rgba(212,175,55,0.3)", borderRadius: "18px", padding: "1.25rem", height: "100%" }}>
-                <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(212,175,55,0.7)", margin: "0 0 0.75rem" }}>Protección de datos y consentimiento</p>
-                <p style={{ color: "rgba(200,209,224,0.45)", fontSize: "0.82rem", lineHeight: 1.5, marginBottom: "0.6rem" }}>
+              <div style={{ background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderTop: "3px solid color-mix(in srgb, var(--sw-accent) 35%, transparent)", borderRadius: "18px", padding: "1.25rem", height: "100%" }}>
+                <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--sw-accent)", margin: "0 0 0.75rem" }}>Protección de datos y consentimiento</p>
+                <p style={{ color: "var(--sw-muted)", fontSize: "0.82rem", lineHeight: 1.5, marginBottom: "0.6rem" }}>
                   Los datos del cliente, del vehículo y la firma digital se registran para gestionar la recepción, documentar el estado del coche y generar el expediente de trabajo.
                 </p>
-                <p style={{ color: "rgba(200,209,224,0.45)", fontSize: "0.82rem", lineHeight: 1.5, marginBottom: "0.75rem" }}>
+                <p style={{ color: "var(--sw-muted)", fontSize: "0.82rem", lineHeight: 1.5, marginBottom: "0.75rem" }}>
                   La firma en tablet queda guardada como constancia de conformidad en recepción.
                 </p>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.65rem 0.85rem", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "9px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.65rem 0.85rem", background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", borderRadius: "9px" }}>
                   <input className="form-check-input" type="checkbox" id="consentimiento_datos_recepcion" name="consentimiento_datos_recepcion"
                     checked={formData.es_concesionario ? true : formData.consentimiento_datos_recepcion}
                     onChange={handleInputChange} disabled={formData.es_concesionario} style={{ flexShrink: 0 }} />
-                  <label className="form-check-label" htmlFor="consentimiento_datos_recepcion" style={{ color: "rgba(200,209,224,0.75)", fontSize: "0.85rem", cursor: formData.es_concesionario ? "default" : "pointer" }}>
+                  <label className="form-check-label" htmlFor="consentimiento_datos_recepcion" style={{ color: "var(--sw-text)", fontSize: "0.85rem", cursor: formData.es_concesionario ? "default" : "pointer" }}>
                     {formData.es_concesionario
                       ? "Consentimiento interno aplicado automáticamente para cliente profesional."
                       : "Confirmo que el cliente acepta este registro interno y la firma digital de recepción."}
@@ -1042,11 +1065,11 @@ const InspeccionRecepcionPage = () => {
               </div>
             </div>
             <div className="col-12 col-lg-6">
-              <div style={{ background: "#0e1219", border: "1px solid rgba(255,255,255,0.07)", borderTop: "3px solid rgba(212,175,55,0.3)", borderRadius: "18px", padding: "1.25rem", height: "100%" }}>
-                <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(212,175,55,0.7)", margin: "0 0 0.75rem" }}>Firma de recepción</p>
+              <div style={{ background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderTop: "3px solid color-mix(in srgb, var(--sw-accent) 35%, transparent)", borderRadius: "18px", padding: "1.25rem", height: "100%" }}>
+                <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--sw-accent)", margin: "0 0 0.75rem" }}>Firma de recepción</p>
                 {formData.es_concesionario ? (
-                  <div style={{ padding: "1.5rem", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px" }}>
-                    <small style={{ color: "rgba(200,209,224,0.4)" }}>En cliente profesional no se solicita firma del cliente en recepción.</small>
+                  <div style={{ padding: "1.5rem", background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", borderRadius: "10px" }}>
+                    <small style={{ color: "var(--sw-muted)" }}>En cliente profesional no se solicita firma del cliente en recepción.</small>
                   </div>
                 ) : (
                   <SignaturePad
@@ -1056,7 +1079,7 @@ const InspeccionRecepcionPage = () => {
                     onChange={(firma) => setFormData((prev) => ({ ...prev, firma_cliente_recepcion: firma }))}
                   />
                 )}
-                <small style={{ color: "rgba(200,209,224,0.35)", fontSize: "0.74rem", display: "block", marginTop: "0.5rem" }}>
+                <small style={{ color: "var(--sw-muted)", fontSize: "0.74rem", display: "block", marginTop: "0.5rem" }}>
                   {formData.es_concesionario
                     ? "En modo profesional no se requiere firma en recepción."
                     : "La firma del cliente es obligatoria para dejar constancia de la revisión en recepción."}
@@ -1069,7 +1092,7 @@ const InspeccionRecepcionPage = () => {
           <div className="d-flex flex-column flex-md-row justify-content-center gap-2 mb-5">
             {inspeccionEditandoId && (
               <button type="button" onClick={cancelarEdicion} disabled={guardando || cargandoEdicion}
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(200,209,224,0.7)", borderRadius: "12px", padding: "0.85rem 2rem", fontSize: "1rem", cursor: "pointer", fontWeight: 600 }}>
+                style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-muted)", borderRadius: "12px", padding: "0.85rem 2rem", fontSize: "1rem", cursor: "pointer", fontWeight: 600 }}>
                 Cancelar edición
               </button>
             )}
@@ -1082,7 +1105,7 @@ const InspeccionRecepcionPage = () => {
         </form>
 
         {inspeccionCreada && (
-          <div style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: "12px", padding: "1rem 1.25rem", color: "#6ee7b7", marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
+          <div style={{ background: "color-mix(in srgb, var(--sw-success) 10%, var(--sw-surface))", border: "1px solid color-mix(in srgb, var(--sw-success) 30%, transparent)", borderRadius: "12px", padding: "1rem 1.25rem", color: "var(--sw-success)", marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
             <div>
               <div>✦ Inspección #{inspeccionCreada.id} creada correctamente</div>
               <small style={{ opacity: 0.8 }}>Partes de trabajo creados automáticamente</small>

@@ -108,12 +108,16 @@ body,
 
 /* Navbar premium */
 .sw-navbar {
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--sw-surface) 94%, black),
-    color-mix(in srgb, var(--sw-surface-2) 94%, black)
-  ) !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--sw-accent) 35%, var(--sw-border));
+  background: color-mix(in srgb, var(--sw-surface) 82%, transparent) !important;
+  backdrop-filter: blur(20px) saturate(1.4) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(1.4) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--sw-accent) 30%, var(--sw-border)) !important;
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--sw-accent) 14%, transparent),
+    0 8px 32px rgba(0, 0, 0, 0.32) !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1030 !important;
 }
 
 .sw-navlink,
@@ -508,6 +512,73 @@ button,
   background-color: #000;
 }
 
+/* ── Fondo de página premium adaptable al tema ────────────────── */
+.sw-page-bg {
+  min-height: calc(100vh - 56px);
+  color: var(--sw-text);
+  background: var(--sw-bg);
+}
+:root[data-theme="dark"] .sw-page-bg {
+  background:
+    radial-gradient(ellipse 70% 44% at 50% -10%, rgba(212,175,55,0.06) 0%, transparent 60%),
+    linear-gradient(180deg, #08090d 0%, #0d1017 100%);
+}
+
+/* ── Sección hero / cabecera interna ─────────────────────────── */
+.sw-hero-section {
+  border-bottom: 1px solid color-mix(in srgb, var(--sw-accent) 15%, var(--sw-border));
+  padding: 1.75rem 0 1.5rem;
+  animation: sw-fade-up 0.4s ease both;
+}
+
+/* ── Tarjeta premium adaptable ───────────────────────────────── */
+.sw-pcard {
+  background: var(--sw-surface);
+  border: 1px solid var(--sw-border);
+  border-top: 3px solid var(--sw-accent);
+  border-radius: 18px;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+.sw-pcard-head {
+  padding: 1.1rem 1.25rem;
+  border-bottom: 1px solid var(--sw-border);
+  font-weight: 700;
+  color: var(--sw-text);
+  font-size: 0.95rem;
+}
+.sw-pcard-body {
+  padding: 1.25rem;
+}
+
+/* ── Inputs / selects oscuros adaptables ─────────────────────── */
+.sw-pinput {
+  background: var(--sw-surface-2) !important;
+  border: 1px solid var(--sw-border) !important;
+  color: var(--sw-text) !important;
+  border-radius: 10px !important;
+}
+.sw-pinput:focus {
+  background: var(--sw-surface-2) !important;
+  border-color: color-mix(in srgb, var(--sw-accent) 55%, var(--sw-border)) !important;
+  color: var(--sw-text) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sw-accent) 15%, transparent) !important;
+}
+.sw-pinput::placeholder {
+  color: color-mix(in srgb, var(--sw-muted) 45%, transparent) !important;
+}
+
+/* etiqueta de campo */
+.sw-plbl {
+  color: var(--sw-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: block;
+  margin-bottom: 0.4rem;
+}
+
 /* ── Entrada de página (animación reutilizable) ───────────────── */
 @keyframes sw-page-in {
   from { opacity: 0; transform: translateY(14px); }
@@ -609,3 +680,146 @@ button,
 .sw-status-dot--red    { background: var(--sw-danger); }
 .sw-status-dot--blue   { background: #3b82f6; }
 .sw-status-dot--muted  { background: var(--sw-muted); opacity: 0.5; }
+
+/* ─────────────────────────────────────────────────────────────────
+   NAVBAR MEJORADO - Estructura intuitiva y funcional
+   ───────────────────────────────────────────────────────────────── */
+
+.sw-nav-left,
+.sw-nav-right {
+  align-items: center;
+}
+
+/* Active state en nav links */
+.nav-link.active {
+  color: var(--sw-accent) !important;
+  font-weight: 600;
+  border-bottom: 2px solid var(--sw-accent);
+  padding-bottom: calc(0.43rem - 2px) !important;
+}
+
+.dropdown-item.active {
+  background: color-mix(in srgb, var(--sw-accent) 18%, transparent) !important;
+  color: var(--sw-accent) !important;
+  font-weight: 600;
+}
+
+/* Mejorar dropdowns en navbar */
+.dropdown-menu-start {
+  min-width: 280px;
+  border-radius: 12px;
+  animation: slideDown 0.15s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdown-menu .dropdown-item {
+  font-size: 0.9rem;
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  margin: 2px 6px;
+  transition: all 0.12s ease;
+}
+
+.dropdown-menu .dropdown-item:hover {
+  transform: translateX(4px);
+}
+
+/* Logo y brand mejorado */
+.sw-brand {
+  text-decoration: none;
+  transition: transform 0.15s ease;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.sw-brand:hover {
+  transform: scale(1.03);
+}
+
+.sw-logo-wrap {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sw-logo-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* Espaciado mejorado en desktop */
+@media (min-width: 992px) {
+  .navbar-expand-lg .navbar-nav {
+    gap: 0.5rem;
+  }
+
+  .navbar-expand-lg .navbar-nav .nav-link {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    white-space: nowrap;
+  }
+
+  .sw-nav-left .dropdown {
+    position: relative;
+  }
+
+  .sw-nav-right {
+    margin-left: auto;
+    gap: 0.5rem;
+  }
+}
+
+/* Mobile responsive mejorado */
+@media (max-width: 991.98px) {
+  .collapse.navbar-collapse {
+    padding-top: 1rem;
+    border-top: 1px solid var(--sw-border);
+  }
+
+  .sw-nav-left,
+  .sw-nav-right {
+    gap: 0;
+  }
+
+  .nav-link {
+    padding: 0.6rem 1rem !important;
+    border-radius: 8px;
+    margin: 0.25rem 0;
+  }
+
+  .nav-link:hover {
+    background: color-mix(in srgb, var(--sw-accent) 12%, transparent);
+  }
+
+  .dropdown-menu {
+    background: var(--sw-surface-2) !important;
+    border: 1px solid var(--sw-border) !important;
+    margin-top: 0.5rem;
+    padding: 0.5rem 0;
+  }
+
+  .dropdown-menu .dropdown-item {
+    padding-left: 1.5rem;
+  }
+}
+
+/* Role pill mejorado */
+.sw-role-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+}

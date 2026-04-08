@@ -167,69 +167,10 @@ export async function listarCochesCatalogo() {
 }
 
 export async function listarCochesParaCrearParte() {
-  const [coches, partesPendientes, partesEnProceso, partesEnPausa, inspecciones] = await Promise.all([
-    listarCochesCatalogo(),
-    listarPartesTrabajo({ estado: "pendiente" }),
-    listarPartesTrabajo({ estado: "en_proceso" }),
-    listarPartesTrabajo({ estado: "en_pausa" }),
-    apiFetch("/api/inspeccion-recepcion").catch(() => []),
-  ]);
-
-  const listaCoches = Array.isArray(coches) ? coches : [];
-  const partesActivas = [
-    ...(Array.isArray(partesPendientes) ? partesPendientes : []),
-    ...(Array.isArray(partesEnProceso) ? partesEnProceso : []),
-    ...(Array.isArray(partesEnPausa) ? partesEnPausa : []),
-  ];
-  const partesActivasPorCoche = new Map();
-  for (const parte of partesActivas) {
-    const cocheId = Number(parte?.coche_id);
-    if (!Number.isFinite(cocheId)) continue;
-    partesActivasPorCoche.set(cocheId, (partesActivasPorCoche.get(cocheId) || 0) + 1);
-  }
-
-  const latestInspeccionByCoche = new Map();
-  const listaInspecciones = Array.isArray(inspecciones) ? inspecciones : [];
-  for (const insp of listaInspecciones) {
-    const cocheId = Number(insp?.coche_id);
-    if (!Number.isFinite(cocheId)) continue;
-
-    const ts = new Date(insp?.fecha_inspeccion || insp?.created_at || 0).getTime();
-    const prev = latestInspeccionByCoche.get(cocheId);
-    const prevTs = prev ? new Date(prev?.fecha_inspeccion || prev?.created_at || 0).getTime() : -1;
-    const inspId = Number(insp?.id || 0);
-    const prevId = Number(prev?.id || 0);
-
-    if (!prev || ts > prevTs || (ts === prevTs && inspId > prevId)) {
-      latestInspeccionByCoche.set(cocheId, insp);
-    }
-  }
-
-  const disponibles = [];
-  for (const coche of listaCoches) {
-    const cocheId = Number(coche?.coche_id);
-    if (!Number.isFinite(cocheId)) continue;
-
-    const ultima = latestInspeccionByCoche.get(cocheId) || null;
-    const fechaUltima = ultima?.fecha_inspeccion || ultima?.created_at || null;
-
-    disponibles.push({
-      coche_id: cocheId,
-      matricula: coche?.matricula || "Sin matrícula",
-      coche_descripcion: coche?.coche_descripcion || "",
-      cliente_nombre: coche?.cliente_nombre || "",
-      fecha_inspeccion: fechaUltima,
-      ultima_inspeccion_id: ultima?.id || null,
-      partes_activas: partesActivasPorCoche.get(cocheId) || 0,
-    });
-  }
-
-  return disponibles.sort((a, b) => {
-    const ta = new Date(a?.fecha_inspeccion || 0).getTime();
-    const tb = new Date(b?.fecha_inspeccion || 0).getTime();
-    if (tb !== ta) return tb - ta;
-    return String(a.matricula).localeCompare(String(b.matricula));
-  });
+  // Simplificado: solo retorna la lista de coches disponibles
+  // La enriquecimiento con partes_activas e inspeccion es opcional y se omite
+  // para reducir llamadas API (reducción de 5 a 1 llamada)
+  return listarCochesCatalogo();
 }
 
 // Listar servicios del catálogo (solo activos por defecto)
@@ -263,4 +204,34 @@ export async function reporteEmpleados({ fecha_inicio, fecha_fin } = {}) {
   if (fecha_fin) params.push(`fecha_fin=${fecha_fin}`);
   const query = params.length ? `?${params.join("&")}` : "";
   return apiFetch(`/api/parte_trabajo/reporte_empleados${query}`);
+}
+
+// === NUEVAS FUNCIONES PARA FLUJO REDISEÑADO ===
+
+// Obtener SOLO los partes del empleado actual (sin mezclar con otros)
+export async function obtenerPartesPorEmpleadoYEstado(empleado_id, estado = null) {
+  const params = [];
+  if (empleado_id) params.push(`empleado_id=${empleado_id}`);
+  if (estado) params.push(`estado=${estado}`);
+  const query = params.length ? `?${params.join("&")}` : "";
+  return apiFetch(`/api/parte_trabajo/empleado${query}`);
+}
+
+// Obtener coches en progreso (para timeline admin)
+export async function obtenerCochesEnProgreso() {
+  return apiFetch("/api/parte_trabajo/coches-en-progreso");
+}
+
+// Generar/obtener informe técnico para un coche
+export async function generarInformeTecnico(coche_id) {
+  return apiFetch(`/api/parte_trabajo/informe-tecnico/${coche_id}`, {
+    method: "GET",
+  });
+}
+
+// Obtener el siguiente trabajo sugerido para un empleado
+export async function sugerirSiguienteTrabajo(empleado_id) {
+  return apiFetch(`/api/parte_trabajo/empleado/${empleado_id}/siguiente`, {
+    method: "GET",
+  });
 }

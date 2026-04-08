@@ -6,16 +6,43 @@ import CochesEntregadosPage from "./CochesEntregadosPage";
 import { getApiBase } from "../utils/apiBase";
 import "../styles/inspeccion-responsive.css";
 
+/* ─── SVG icons ─── */
+const IconRefresh = () => (
+  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0115.454-3.454M20 15a9 9 0 01-15.454 3.454"/>
+  </svg>
+);
+const IconEye = () => (
+  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M1 12S5 4 12 4s11 8 11 8-4 8-11 8S1 12 1 12z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>
+);
+const IconPencil = () => (
+  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+  </svg>
+);
+const IconTrash = () => (
+  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <polyline points="3 6 5 6 21 6"/><path strokeLinecap="round" strokeLinejoin="round" d="M19 6l-1 14H6L5 6m5 0V4h4v2"/>
+  </svg>
+);
+const IconWA = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/>
+  </svg>
+);
+const IconClose = () => (
+  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+  </svg>
+);
+
 const getStoredToken = () =>
   (typeof sessionStorage !== "undefined" && sessionStorage.getItem("token")) ||
   (typeof localStorage !== "undefined" && localStorage.getItem("token")) || "";
-
-/**
- * Devuelve la URL reproducible de un item de vídeo.
- * Soporta:
- *  - Entradas nuevas (IONOS local): { filename, ... }
- *  - Entradas legado (Cloudinary): { url, ... } o string
- */
 const getVideoUrl = (item, inspeccionId) => {
   if (!item) return "";
   if (typeof item === "string") return item; // legado string
@@ -153,499 +180,596 @@ const InspeccionesGuardadasPage = () => {
     navigate(`/inspeccion-recepcion?editId=${id}`);
   };
 
-  const volver = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-      return;
-    }
-    navigate("/", { replace: true });
+  const ESTADO_COLORS = {
+    todos: "#d4af37",
+    en_proceso: "#38bdf8",
+    en_pausa: "#f59e0b",
+    en_repaso: "#a78bfa",
+    listo_entrega: "#22c55e",
+    esperando_parte: "#94a3b8",
   };
 
   return (
-    <div className="container py-4 sw-page-shell sw-inspecciones-page sw-view-stack">
-      <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
-        <h2 className="mb-0">Inspecciones y Pendientes</h2>
-        <button className="btn btn-outline-secondary" onClick={volver}>
-          Volver
-        </button>
-      </div>
+    <div className="sw-ent-wrapper">
 
-      <ul className="nav nav-tabs mb-3 sw-tabs-wrap">
-        <li className="nav-item">
-          <button
-            type="button"
-            className={`nav-link ${activeTab === "guardadas" ? "active" : ""}`}
-            onClick={() => switchTab("guardadas")}
-          >
-            📋 Inspecciones guardadas
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            type="button"
-            className={`nav-link ${activeTab === "pendientes" ? "active" : ""}`}
-            onClick={() => switchTab("pendientes")}
-          >
-            🚗 Pendientes / Hoja de intervencion
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            type="button"
-            className={`nav-link ${activeTab === "entregados" ? "active" : ""}`}
-            onClick={() => switchTab("entregados")}
-          >
-            ✅ Entregados
-          </button>
-        </li>
-      </ul>
-
-      {activeTab === "guardadas" && (
-        <>
-          {actionError && (
-            <div className="alert alert-danger d-flex justify-content-between align-items-start py-2 mb-3">
-              <span>{actionError}</span>
-              <button className="btn-close ms-3" onClick={() => setActionError("")} />
+      {/* ── Hero ── */}
+      <div className="sw-veh-hero">
+        <div className="sw-veh-hero-inner container">
+          <div className="sw-veh-hero-body">
+            <div className="sw-veh-hero-icon">
+              <span style={{ width: 24, height: 24, display: "flex" }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                  <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                  <line x1="9" y1="12" x2="15" y2="12"/>
+                  <line x1="9" y1="16" x2="13" y2="16"/>
+                </svg>
+              </span>
             </div>
-          )}
-          <div className="d-flex justify-content-end mb-2">
-            <button className="btn btn-outline-dark btn-sm" onClick={cargarInspecciones}>
-              Recargar
+            <div style={{ flex: 1 }}>
+              <p className="sw-home-eyebrow" style={{ marginBottom: "0.2rem" }}>Taller · Administración</p>
+              <h1 className="sw-veh-hero-title">Inspecciones y Pendientes</h1>
+              <p className="sw-veh-hero-sub">Centraliza datos de inspección. Acceso exclusivo para administradores.</p>
+            </div>
+            <button
+              className="sw-ent-submit-btn"
+              onClick={cargarInspecciones}
+              style={{ padding: "0.6rem 1.4rem", display: "flex", alignItems: "center", gap: "0.45rem" }}
+            >
+              <span style={{ width: 16, height: 16, display: "inline-flex" }}><IconRefresh /></span>
+              Actualizar
             </button>
           </div>
-          <div className="d-flex flex-wrap gap-2 mb-3">
-            {ESTADO_FILTERS.map((f) => {
-              const total = conteoPorEstado[f.key] || 0;
-              const active = estadoFiltro === f.key;
-              return (
-                <button
-                  key={f.key}
-                  type="button"
-                  className={`btn btn-sm ${active ? "btn-dark" : "btn-outline-secondary"}`}
-                  onClick={() => setEstadoFiltro(f.key)}
-                >
-                  {f.label} ({total})
-                </button>
-              );
-            })}
-          </div>
-          <p className="text-muted">
-            Esta vista centraliza los datos guardados de inspección. Acceso exclusivo para administradores.
-          </p>
-
-      <div className="card shadow-sm border-0 mb-4">
-        <div className="card-body p-0">
-          {loading ? (
-            <div className="p-4 text-center text-muted">Cargando inspecciones...</div>
-          ) : inspeccionesFiltradas.length === 0 ? (
-            <div className="p-4 text-center text-muted">
-              {inspeccionesGuardadas.length === 0
-                ? "No hay inspecciones pendientes registradas."
-                : "No hay inspecciones para el estado seleccionado."}
-            </div>
-          ) : (
-            <div className="table-responsive sw-inspecciones-table">
-              <table className="table table-hover align-middle mb-0">
-                <thead className="table-light">
-                  <tr>
-                    <th>ID</th>
-                    <th>Fecha</th>
-                    <th>Cliente</th>
-                    <th>Coche</th>
-                    <th>Matrícula</th>
-                    <th>Hecho por</th>
-                    <th>Fotos</th>
-                    <th>Videos</th>
-                    <th>Estado</th>
-                    <th>Cobro</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {inspeccionesFiltradas.map((insp) => {
-                    const estado = insp?.estado_coche || null;
-                    const nombresServicios = Array.isArray(insp?.servicios_aplicados)
-                      ? insp.servicios_aplicados
-                          .map((s) => String(s?.nombre || "").trim())
-                          .filter(Boolean)
-                      : [];
-                    return (
-                    <tr key={insp.id}>
-                      <td>#{insp.id}</td>
-                      <td>{new Date(insp.fecha_inspeccion).toLocaleString("es-ES")}</td>
-                      <td>{insp.cliente_nombre}</td>
-                      <td>{insp.coche_descripcion}</td>
-                      <td><span className="badge bg-dark">{insp.matricula}</span></td>
-                      <td>{insp.usuario_nombre || "-"}</td>
-                      <td>{insp.fotos_cloudinary?.length || 0}</td>
-                      <td>{insp.videos_cloudinary?.length || 0}</td>
-                      <td style={{ minWidth: "160px" }}>
-                        {estado ? (
-                          <div>
-                            <span
-                              className="badge"
-                              style={{
-                                backgroundColor: estado.color,
-                                color: estado.color === "#ffc107" || estado.color === "#adb5bd" ? "#000" : "#fff",
-                              }}
-                            >
-                              {estado.label}
-                            </span>
-                            {nombresServicios.length > 0 && (
-                              <div className="small text-muted mt-1" style={{ maxWidth: "220px", whiteSpace: "normal", lineHeight: "1.2" }}>
-                                {nombresServicios.map((nombre) => `${nombre}: ${estado.label}`).join(" | ")}
-                              </div>
-                            )}
-                          </div>
-                        ) : insp.entregado ? (
-                          <span className="badge bg-success">Entregado</span>
-                        ) : (
-                          <span className="badge bg-warning text-dark">Pendiente</span>
-                        )}
-                      </td>
-                      <td>
-                        {insp.cobro ? (
-                          <div>
-                            <span
-                              className="badge"
-                              style={{
-                                backgroundColor: insp.cobro.color,
-                                color: insp.cobro.color === "#ffc107" || insp.cobro.color === "#adb5bd" ? "#000" : "#fff",
-                              }}
-                            >
-                              {insp.cobro.label}
-                            </span>
-                            <div className="small text-muted mt-1">
-                              {Number(insp.cobro.importe_pagado || 0).toFixed(2)} / {Number(insp.cobro.importe_total || 0).toFixed(2)} EUR
-                            </div>
-                            <div className="small mt-1">
-                              <span className="badge bg-light text-dark border">
-                                Metodo: {insp.cobro.metodo || "-"}
-                              </span>
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-muted small">-</span>
-                        )}
-                      </td>
-                      <td>
-                        <div className="btn-group btn-group-sm sw-action-group" role="group">
-                          <button className="btn btn-outline-primary" onClick={() => verDetalle(insp.id)} title="Ver detalle">
-                            👁️
-                          </button>
-                          <button className="btn btn-outline-warning" onClick={() => irAEditar(insp.id)} title="Editar">
-                            ✏️
-                          </button>
-                          {phoneToDigits(insp.cliente_telefono) && (
-                            <a
-                              href={`https://wa.me/${phoneToDigits(insp.cliente_telefono)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="btn btn-sm"
-                              style={{ background: "#25D366", color: "white", border: "none" }}
-                              title={`WhatsApp ${insp.cliente_nombre}`}
-                            >
-                              📱
-                            </a>
-                          )}
-                          <button className="btn btn-outline-danger" onClick={() => eliminarInspeccion(insp.id)} title="Eliminar">
-                            🗑️
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
       </div>
 
-      {detalle && (
-        <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.75)" }}>
-          <div className="modal-dialog modal-xl modal-dialog-scrollable modal-fullscreen-md-down">
-            <div className="modal-content">
-              <div className="modal-header py-3 sw-modal-header-dark">
-                <h5 className="modal-title fw-bold fs-6 fs-md-5">
-                  🚗 #{detalle.id} - {detalle.matricula}
-                </h5>
-                <button
-                  type="button"
-                  className="btn-close btn-close-white"
-                  onClick={() => setDetalle(null)}
-                  aria-label="Cerrar"
-                ></button>
-              </div>
+      <div className="container sw-ent-content" style={{ maxWidth: 1200 }}>
 
-              <div className="modal-body p-3">
-                <div className="card mb-3">
-                  <div className="card-header sw-modal-header-dark">
-                    👤 Datos del Cliente
-                  </div>
-                  <div className="card-body p-3">
-                    <div className="row g-2">
-                      <div className="col-12 col-md-6">
-                        <strong>Nombre:</strong> {detalle.cliente_nombre}
-                      </div>
-                      <div className="col-12 col-md-6">
-                        <strong>Teléfono:</strong> {detalle.cliente_telefono}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+        {/* ── Error ── */}
+        {actionError && (
+          <div style={{
+            background: "color-mix(in srgb,var(--sw-danger,#ef4444) 12%,transparent)",
+            border: "1px solid color-mix(in srgb,var(--sw-danger,#ef4444) 30%,transparent)",
+            color: "var(--sw-danger,#ef4444)", borderRadius: 12, padding: "0.75rem 1rem",
+            display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.9rem",
+            marginBottom: "1rem",
+          }}>
+            {actionError}
+            <button onClick={() => setActionError("")} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", display: "flex" }}>
+              <span style={{ width: 18, height: 18, display: "flex" }}><IconClose /></span>
+            </button>
+          </div>
+        )}
 
-                <div className="card mb-3">
-                  <div className="card-header sw-modal-header-dark">
-                    🚗 Datos del Vehículo
-                  </div>
-                  <div className="card-body p-3">
-                    <div className="row g-2">
-                      <div className="col-12 col-md-6">
-                        <strong>Coche:</strong> {detalle.coche_descripcion}
-                      </div>
-                      <div className="col-12 col-md-6">
-                        <strong>Matrícula:</strong> <span className="badge bg-dark">{detalle.matricula}</span>
-                      </div>
-                      <div className="col-12 col-md-6">
-                        <strong>Kilómetros:</strong> {Number.isFinite(detalle.kilometros) ? detalle.kilometros.toLocaleString("es-ES") : "-"} km
-                      </div>
-                      <div className="col-12 col-md-6">
-                        <strong>Fecha:</strong> {new Date(detalle.fecha_inspeccion).toLocaleString("es-ES")}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+        {/* ── Tabs ── */}
+        <div style={{ display: "flex", gap: 0, borderBottom: "2px solid var(--sw-border)", marginBottom: "1.75rem" }}>
+          {[
+            { key: "guardadas", label: "Guardadas", count: inspeccionesGuardadas.length },
+            { key: "pendientes", label: "Pendientes / Hoja", count: null },
+            { key: "entregados", label: "Entregados", count: null },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => switchTab(tab.key)}
+              style={{
+                background: "none", border: "none",
+                borderBottom: activeTab === tab.key ? "2px solid var(--sw-accent,#d4af37)" : "2px solid transparent",
+                color: activeTab === tab.key ? "var(--sw-accent,#d4af37)" : "var(--sw-muted)",
+                fontWeight: activeTab === tab.key ? 700 : 500,
+                padding: "0.7rem 1.25rem",
+                cursor: "pointer", fontSize: "0.88rem",
+                display: "flex", alignItems: "center", gap: "0.45rem",
+                marginBottom: -2, transition: "color 0.18s, border-color 0.18s",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {tab.label}
+              {tab.count !== null && (
+                <span style={{
+                  background: activeTab === tab.key
+                    ? "color-mix(in srgb,var(--sw-accent,#d4af37) 18%,transparent)"
+                    : "var(--sw-surface-2)",
+                  border: `1px solid ${activeTab === tab.key ? "color-mix(in srgb,var(--sw-accent,#d4af37) 35%,transparent)" : "var(--sw-border)"}`,
+                  color: activeTab === tab.key ? "var(--sw-accent,#d4af37)" : "var(--sw-muted)",
+                  borderRadius: 20, padding: "0.05rem 0.5rem",
+                  fontSize: "0.7rem", fontWeight: 700,
+                }}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
 
-                {detalle.estado_coche && (
-                  <div className="card mb-3">
-                    <div className="card-header sw-modal-header-dark">
-                      📍 Paso actual del coche
-                    </div>
-                    <div className="card-body p-3 d-flex align-items-start gap-3">
-                      {(() => {
-                        const nombresServicios = Array.isArray(detalle.servicios_aplicados)
-                          ? detalle.servicios_aplicados
-                              .map((s) => String(s?.nombre || "").trim())
-                              .filter(Boolean)
-                          : [];
-                        return (
-                          <>
-                      <span
-                        className="badge fs-6"
-                        style={{
-                          backgroundColor: detalle.estado_coche.color,
-                          color: detalle.estado_coche.color === "#ffc107" || detalle.estado_coche.color === "#adb5bd" ? "#000" : "#fff",
-                        }}
-                      >
-                        {detalle.estado_coche.label}
-                      </span>
-                      {nombresServicios.length > 0 && (
-                        <span className="text-muted small" style={{ paddingTop: "4px" }}>
-                          {nombresServicios.map((nombre) => `${nombre}: ${detalle.estado_coche.label}`).join(" | ")}
-                        </span>
-                      )}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                )}
-
-                {detalle.cobro && (
-                  <div className="card mb-3">
-                    <div className="card-header sw-modal-header-dark">
-                      💶 Estado de cobro
-                    </div>
-                    <div className="card-body p-3">
-                      <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
-                        <span
-                          className="badge"
-                          style={{
-                            backgroundColor: detalle.cobro.color,
-                            color: detalle.cobro.color === "#ffc107" || detalle.cobro.color === "#adb5bd" ? "#000" : "#fff",
-                          }}
-                        >
-                          {detalle.cobro.label}
-                        </span>
-                        <span className="small text-muted">
-                          Total {Number(detalle.cobro.importe_total || 0).toFixed(2)} EUR | Pagado {" "}
-                          {Number(detalle.cobro.importe_pagado || 0).toFixed(2)} EUR | Pendiente {" "}
-                          {Number(detalle.cobro.importe_pendiente || 0).toFixed(2)} EUR
-                        </span>
-                      </div>
-                      <div className="small text-muted mb-3">
-                        Metodo: {detalle.cobro.metodo || "-"} | Referencia: {detalle.cobro.referencia || "-"}
-                      </div>
-                      {!detalle.es_concesionario && (
-                        <div className="small text-muted">
-                          El cobro se registra durante la firma de entrega del cliente.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {(detalle.firma_cliente_recepcion || detalle.firma_empleado_recepcion) && (
-                  <div className="card mb-3">
-                    <div className="card-header sw-modal-header-dark">
-                      ✍️ Firmas de Recepción
-                    </div>
-                    <div className="card-body p-3">
-                      <div className="row g-3">
-                        {detalle.firma_cliente_recepcion && (
-                          <div className="col-12 col-md-6">
-                            <p className="mb-1 fw-bold">Cliente</p>
-                            <img
-                              src={detalle.firma_cliente_recepcion}
-                              alt="Firma cliente recepcion"
-                              className="img-fluid border rounded"
-                              style={{ background: "#fff", maxHeight: "180px", width: "100%", objectFit: "contain" }}
-                            />
-                          </div>
-                        )}
-                        {detalle.firma_empleado_recepcion && (
-                          <div className="col-12 col-md-6">
-                            <p className="mb-1 fw-bold">Empleado</p>
-                            <img
-                              src={detalle.firma_empleado_recepcion}
-                              alt="Firma empleado recepcion"
-                              className="img-fluid border rounded"
-                              style={{ background: "#fff", maxHeight: "180px", width: "100%", objectFit: "contain" }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="card mb-3">
-                  <div className="card-header sw-modal-header-dark">
-                    🔧 Observaciones y Averías
-                  </div>
-                  <div className="card-body p-3">
-                    <p className="mb-0" style={{ whiteSpace: "pre-wrap" }}>
-                      {detalle.averias_notas || "Sin observaciones"}
-                    </p>
-                  </div>
-                </div>
-
-                {Array.isArray(detalle.fotos_cloudinary) && detalle.fotos_cloudinary.length > 0 && (
-                  <div className="card mb-3">
-                    <div className="card-header sw-modal-header-dark">
-                      📸 Fotos del Vehículo ({detalle.fotos_cloudinary.length})
-                    </div>
-                    <div className="card-body p-2 p-md-3">
-                      <div className="row g-3">
-                        {detalle.fotos_cloudinary.map((foto, index) => {
-                          const url = getFotoUrl(foto, detalle.id);
-                          if (!url) return null;
-                          const fotoExpira = foto?.expires_at
-                            ? new Date(foto.expires_at).toLocaleDateString("es-ES")
-                            : null;
-                          return (
-                            <div key={index} className="col-6 col-sm-6 col-md-4">
-                              <div className="border rounded p-2">
-                                <a href={url} target="_blank" rel="noopener noreferrer">
-                                  <img
-                                    src={url}
-                                    alt={`Foto ${index + 1}`}
-                                    className="img-fluid rounded"
-                                    style={{ width: "100%", height: "180px", objectFit: "cover", cursor: "pointer" }}
-                                  />
-                                </a>
-                                <p className="text-center mt-2 mb-0 small text-muted d-none d-md-block">
-                                  Foto #{index + 1} - Click para ampliar
-                                </p>
-                                {fotoExpira && (
-                                  <p className="text-center mb-0 small text-warning">
-                                    ⏳ Caduca: {fotoExpira}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {Array.isArray(detalle.videos_cloudinary) && detalle.videos_cloudinary.length > 0 && (
-                  <div className="card mb-3">
-                    <div className="card-header sw-modal-header-dark">
-                      🎥 Videos del Vehículo ({detalle.videos_cloudinary.length})
-                    </div>
-                    <div className="card-body p-2 p-md-3">
-                      <div className="row g-3">
-                        {detalle.videos_cloudinary.map((video, index) => {
-                          const url = getVideoUrl(video, detalle.id);
-                          if (!url) return null;
-                          const expiresAt = video?.expires_at
-                            ? new Date(video.expires_at).toLocaleDateString("es-ES")
-                            : null;
-                          return (
-                            <div key={index} className="col-12 col-sm-6">
-                              <div className="border rounded p-2">
-                                <video src={url} controls className="w-100 rounded" style={{ maxHeight: "400px" }}>
-                                  Tu navegador no soporta el elemento de video.
-                                </video>
-                                <p className="text-center mt-2 mb-0 small text-muted">
-                                  Video #{index + 1}
-                                  {video?.original_name && ` · ${video.original_name}`}
-                                </p>
-                                {expiresAt && (
-                                  <p className="text-center mb-0 small text-warning">
-                                    ⏳ Caduca: {expiresAt}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {(!detalle.fotos_cloudinary || detalle.fotos_cloudinary.length === 0) &&
-                  (!detalle.videos_cloudinary || detalle.videos_cloudinary.length === 0) && (
-                    <div className="alert alert-info mb-0">
-                      ℹ️ Esta inspección no tiene fotos ni videos guardados.
-                    </div>
-                  )}
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setDetalle(null)}>
-                  Cerrar
-                </button>
-                <button type="button" className="btn btn-outline-warning" onClick={() => irAEditar(detalle.id)}>
-                  ✏️ Editar inspección
-                </button>
-                {phoneToDigits(detalle.cliente_telefono) && (
-                  <a
-                    href={`https://wa.me/${phoneToDigits(detalle.cliente_telefono)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn"
-                    style={{ background: "#25D366", color: "white" }}
+        {activeTab === "guardadas" && (
+          <>
+            {/* Filtros por estado */}
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1.25rem" }}>
+              {ESTADO_FILTERS.map((f) => {
+                const count = conteoPorEstado[f.key] || 0;
+                const active = estadoFiltro === f.key;
+                const color = ESTADO_COLORS[f.key] || "#d4af37";
+                return (
+                  <button
+                    key={f.key}
+                    onClick={() => setEstadoFiltro(f.key)}
+                    style={{
+                      background: active ? `color-mix(in srgb,${color} 14%,transparent)` : "var(--sw-surface-2)",
+                      border: active ? `1px solid color-mix(in srgb,${color} 38%,transparent)` : "1px solid var(--sw-border)",
+                      color: active ? color : "var(--sw-muted)",
+                      borderRadius: 20, padding: "0.4rem 0.9rem",
+                      cursor: "pointer", fontSize: "0.82rem", fontWeight: active ? 700 : 500,
+                      display: "flex", alignItems: "center", gap: "0.4rem",
+                      transition: "all 0.17s",
+                    }}
                   >
-                    📱 WhatsApp Cliente
-                  </a>
-                )}
+                    {f.label}
+                    <span style={{
+                      background: active ? `color-mix(in srgb,${color} 20%,transparent)` : "var(--sw-surface)",
+                      border: `1px solid ${active ? `color-mix(in srgb,${color} 35%,transparent)` : "var(--sw-border)"}`,
+                      color: active ? color : "var(--sw-muted)",
+                      borderRadius: 10, padding: "0 0.35rem",
+                      fontSize: "0.7rem", fontWeight: 700,
+                    }}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Tabla */}
+            <div style={{
+              background: "var(--sw-surface)", border: "1px solid var(--sw-border)",
+              borderRadius: 16, overflow: "hidden",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.18)",
+            }}>
+              <div className="table-responsive">
+                <table className="table align-middle mb-0" style={{ color: "var(--sw-text)" }}>
+                  <thead>
+                    <tr style={{ background: "var(--sw-surface-2)", borderBottom: "2px solid var(--sw-border)" }}>
+                      {["#", "Fecha", "Cliente", "Coche", "Matrícula", "Por", "📷", "🎥", "Estado", "Cobro", ""].map((h) => (
+                        <th key={h} style={{
+                          padding: "0.85rem 0.9rem", fontSize: "0.65rem", fontWeight: 700,
+                          letterSpacing: "0.08em", textTransform: "uppercase",
+                          color: "var(--sw-muted)", border: "none",
+                          textAlign: h === "" ? "right" : "left",
+                        }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading && (
+                      <tr>
+                        <td colSpan={11} style={{ textAlign: "center", padding: "3.5rem", color: "var(--sw-muted)" }}>
+                          <div className="spinner-border spinner-border-sm me-2" style={{ color: "var(--sw-accent,#d4af37)" }} />
+                          Cargando…
+                        </td>
+                      </tr>
+                    )}
+                    {!loading && inspeccionesFiltradas.length === 0 && (
+                      <tr>
+                        <td colSpan={11} style={{ textAlign: "center", padding: "3.5rem", color: "var(--sw-muted)", fontSize: "0.9rem" }}>
+                          {inspeccionesGuardadas.length === 0
+                            ? "No hay inspecciones pendientes registradas."
+                            : "No hay inspecciones para el estado seleccionado."}
+                        </td>
+                      </tr>
+                    )}
+                    {!loading && inspeccionesFiltradas.map((insp) => {
+                      const estado = insp?.estado_coche || null;
+                      const nombresServicios = Array.isArray(insp?.servicios_aplicados)
+                        ? insp.servicios_aplicados.map((s) => String(s?.nombre || "").trim()).filter(Boolean)
+                        : [];
+                      return (
+                        <tr
+                          key={insp.id}
+                          style={{ borderBottom: "1px solid var(--sw-border)", transition: "background 0.15s" }}
+                          onMouseEnter={e => e.currentTarget.style.background = "color-mix(in srgb,var(--sw-accent,#d4af37) 5%,transparent)"}
+                          onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                        >
+                          <td style={{ padding: "0.8rem 0.9rem", color: "var(--sw-muted)", fontSize: "0.78rem", fontWeight: 600 }}>
+                            #{insp.id}
+                          </td>
+                          <td style={{ padding: "0.8rem 0.9rem", color: "var(--sw-text)", fontSize: "0.82rem", whiteSpace: "nowrap" }}>
+                            {new Date(insp.fecha_inspeccion).toLocaleString("es-ES")}
+                          </td>
+                          <td style={{ padding: "0.8rem 0.9rem", fontWeight: 700, color: "var(--sw-text)" }}>
+                            {insp.cliente_nombre || "—"}
+                          </td>
+                          <td style={{ padding: "0.8rem 0.9rem", color: "var(--sw-muted)", fontSize: "0.85rem" }}>
+                            {insp.coche_descripcion || "—"}
+                          </td>
+                          <td style={{ padding: "0.8rem 0.9rem" }}>
+                            {insp.matricula ? (
+                              <span style={{
+                                background: "color-mix(in srgb,var(--sw-accent,#d4af37) 12%,transparent)",
+                                border: "1px solid color-mix(in srgb,var(--sw-accent,#d4af37) 30%,transparent)",
+                                color: "var(--sw-accent,#d4af37)", borderRadius: 6,
+                                padding: "0.15rem 0.55rem", fontWeight: 700, fontSize: "0.78rem", letterSpacing: "0.05em",
+                              }}>{insp.matricula}</span>
+                            ) : <span style={{ color: "var(--sw-muted)", fontStyle: "italic" }}>—</span>}
+                          </td>
+                          <td style={{ padding: "0.8rem 0.9rem", color: "var(--sw-muted)", fontSize: "0.82rem" }}>
+                            {insp.usuario_nombre || "—"}
+                          </td>
+                          <td style={{ padding: "0.8rem 0.9rem", textAlign: "center", color: "var(--sw-muted)", fontSize: "0.82rem" }}>
+                            {insp.fotos_cloudinary?.length || 0}
+                          </td>
+                          <td style={{ padding: "0.8rem 0.9rem", textAlign: "center", color: "var(--sw-muted)", fontSize: "0.82rem" }}>
+                            {insp.videos_cloudinary?.length || 0}
+                          </td>
+                          <td style={{ padding: "0.8rem 0.9rem", minWidth: 150 }}>
+                            {estado ? (
+                              <div>
+                                <span style={{
+                                  background: `${estado.color}22`,
+                                  border: `1px solid ${estado.color}55`,
+                                  color: estado.color,
+                                  borderRadius: 6, padding: "0.15rem 0.55rem",
+                                  fontWeight: 700, fontSize: "0.72rem",
+                                }}>{estado.label}</span>
+                                {nombresServicios.length > 0 && (
+                                  <div style={{ fontSize: "0.72rem", color: "var(--sw-muted)", marginTop: "0.25rem", maxWidth: 200, lineHeight: 1.3 }}>
+                                    {nombresServicios.join(", ")}
+                                  </div>
+                                )}
+                              </div>
+                            ) : insp.entregado ? (
+                              <span style={{
+                                background: "color-mix(in srgb,#22c55e 14%,transparent)",
+                                border: "1px solid color-mix(in srgb,#22c55e 30%,transparent)",
+                                color: "#22c55e", borderRadius: 6, padding: "0.15rem 0.55rem",
+                                fontWeight: 700, fontSize: "0.72rem",
+                              }}>Entregado</span>
+                            ) : (
+                              <span style={{
+                                background: "color-mix(in srgb,#f59e0b 14%,transparent)",
+                                border: "1px solid color-mix(in srgb,#f59e0b 30%,transparent)",
+                                color: "#f59e0b", borderRadius: 6, padding: "0.15rem 0.55rem",
+                                fontWeight: 700, fontSize: "0.72rem",
+                              }}>Pendiente</span>
+                            )}
+                          </td>
+                          <td style={{ padding: "0.8rem 0.9rem" }}>
+                            {insp.cobro ? (
+                              <div>
+                                <span style={{
+                                  background: `${insp.cobro.color}22`,
+                                  border: `1px solid ${insp.cobro.color}55`,
+                                  color: insp.cobro.color,
+                                  borderRadius: 6, padding: "0.15rem 0.55rem",
+                                  fontWeight: 700, fontSize: "0.72rem",
+                                }}>{insp.cobro.label}</span>
+                                <div style={{ fontSize: "0.72rem", color: "var(--sw-muted)", marginTop: "0.2rem" }}>
+                                  {Number(insp.cobro.importe_pagado || 0).toFixed(2)} / {Number(insp.cobro.importe_total || 0).toFixed(2)} €
+                                </div>
+                              </div>
+                            ) : (
+                              <span style={{ color: "var(--sw-muted)", fontStyle: "italic", fontSize: "0.82rem" }}>—</span>
+                            )}
+                          </td>
+                          <td style={{ padding: "0.8rem 0.9rem", textAlign: "right" }}>
+                            <div style={{ display: "flex", gap: "0.4rem", justifyContent: "flex-end" }}>
+                              <button
+                                onClick={() => verDetalle(insp.id)}
+                                title="Ver detalle"
+                                style={{
+                                  background: "color-mix(in srgb,#38bdf8 12%,transparent)",
+                                  border: "1px solid color-mix(in srgb,#38bdf8 30%,transparent)",
+                                  color: "#38bdf8", borderRadius: 8,
+                                  padding: "0.35rem 0.55rem", cursor: "pointer", display: "flex", alignItems: "center",
+                                }}
+                              >
+                                <span style={{ width: 14, height: 14, display: "flex" }}><IconEye /></span>
+                              </button>
+                              {phoneToDigits(insp.cliente_telefono) && (
+                                <a
+                                  href={`https://wa.me/${phoneToDigits(insp.cliente_telefono)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title={`WhatsApp ${insp.cliente_nombre}`}
+                                  style={{
+                                    background: "color-mix(in srgb,#25D366 12%,transparent)",
+                                    border: "1px solid color-mix(in srgb,#25D366 30%,transparent)",
+                                    color: "#25D366", borderRadius: 8,
+                                    padding: "0.35rem 0.55rem", display: "flex", alignItems: "center", textDecoration: "none",
+                                  }}
+                                >
+                                  <span style={{ width: 14, height: 14, display: "flex" }}><IconWA /></span>
+                                </a>
+                              )}
+                              <button
+                                onClick={() => irAEditar(insp.id)}
+                                title="Editar"
+                                style={{
+                                  background: "color-mix(in srgb,var(--sw-accent,#d4af37) 12%,transparent)",
+                                  border: "1px solid color-mix(in srgb,var(--sw-accent,#d4af37) 30%,transparent)",
+                                  color: "var(--sw-accent,#d4af37)", borderRadius: 8,
+                                  padding: "0.35rem 0.55rem", cursor: "pointer", display: "flex", alignItems: "center",
+                                }}
+                              >
+                                <span style={{ width: 14, height: 14, display: "flex" }}><IconPencil /></span>
+                              </button>
+                              <button
+                                onClick={() => eliminarInspeccion(insp.id)}
+                                title="Eliminar"
+                                style={{
+                                  background: "color-mix(in srgb,var(--sw-danger,#ef4444) 10%,transparent)",
+                                  border: "1px solid color-mix(in srgb,var(--sw-danger,#ef4444) 28%,transparent)",
+                                  color: "var(--sw-danger,#ef4444)", borderRadius: 8,
+                                  padding: "0.35rem 0.55rem", cursor: "pointer", display: "flex", alignItems: "center",
+                                }}
+                              >
+                                <span style={{ width: 14, height: 14, display: "flex" }}><IconTrash /></span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-        </>
-      )}
 
-      {activeTab === "pendientes" && <CochesPendientesEntrega />}
-      {activeTab === "entregados" && <CochesEntregadosPage />}
+            {/* ── Modal detalle ── */}
+            {detalle && (
+              <div
+                style={{
+                  position: "fixed", inset: 0, zIndex: 1050,
+                  background: "var(--sw-overlay-bg,rgba(0,0,0,0.6))",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  padding: "1rem", backdropFilter: "blur(4px)",
+                }}
+                onClick={(e) => { if (e.target === e.currentTarget) setDetalle(null); }}
+              >
+                <div style={{
+                  background: "var(--sw-surface)", border: "1px solid var(--sw-border)",
+                  borderRadius: 20, width: "100%", maxWidth: 740, maxHeight: "92vh", overflowY: "auto",
+                  boxShadow: "0 24px 60px rgba(0,0,0,0.5)",
+                  animation: "sw-fade-up 0.22s ease both",
+                }}>
+                  {/* Header */}
+                  <div style={{
+                    padding: "1.25rem 1.5rem", borderBottom: "1px solid var(--sw-border)",
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    position: "sticky", top: 0, background: "var(--sw-surface)", zIndex: 1,
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                      <span style={{
+                        width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
+                        background: "color-mix(in srgb,var(--sw-accent,#d4af37) 14%,transparent)",
+                        border: "1px solid color-mix(in srgb,var(--sw-accent,#d4af37) 28%,transparent)",
+                        color: "var(--sw-accent,#d4af37)",
+                      }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+                        </svg>
+                      </span>
+                      <div>
+                        <p style={{ margin: 0, fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-muted)" }}>
+                          Detalle de inspección
+                        </p>
+                        <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "var(--sw-text)" }}>
+                          #{detalle.id} — {detalle.matricula || "Sin matrícula"}
+                        </h3>
+                      </div>
+                    </div>
+                    <button onClick={() => setDetalle(null)} style={{ background: "none", border: "none", color: "var(--sw-muted)", cursor: "pointer", padding: "0.25rem", borderRadius: 6, display: "flex" }}>
+                      <span style={{ width: 20, height: 20, display: "flex" }}><IconClose /></span>
+                    </button>
+                  </div>
+
+                  {/* Body */}
+                  <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+
+                    {/* Cliente + Vehículo */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: "1rem" }}>
+                      <div style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", borderRadius: 14, padding: "1.1rem" }}>
+                        <p style={{ margin: "0 0 0.65rem", fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-accent,#d4af37)" }}>Cliente</p>
+                        {[{ label: "Nombre", value: detalle.cliente_nombre }, { label: "Teléfono", value: detalle.cliente_telefono }].map(({ label, value }) => (
+                          <div key={label} style={{ marginBottom: "0.5rem" }}>
+                            <span style={{ fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", color: "var(--sw-muted)", letterSpacing: "0.06em" }}>{label}</span>
+                            <p style={{ margin: "0.1rem 0 0", fontWeight: 600, color: "var(--sw-text)", fontSize: "0.9rem" }}>{value || "—"}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", borderRadius: 14, padding: "1.1rem" }}>
+                        <p style={{ margin: "0 0 0.65rem", fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-accent,#d4af37)" }}>Vehículo</p>
+                        {[
+                          { label: "Coche", value: detalle.coche_descripcion },
+                          { label: "Matrícula", value: detalle.matricula },
+                          { label: "Kilómetros", value: Number.isFinite(detalle.kilometros) ? `${detalle.kilometros.toLocaleString("es-ES")} km` : null },
+                          { label: "Fecha", value: new Date(detalle.fecha_inspeccion).toLocaleString("es-ES") },
+                        ].map(({ label, value }) => (
+                          <div key={label} style={{ marginBottom: "0.5rem" }}>
+                            <span style={{ fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", color: "var(--sw-muted)", letterSpacing: "0.06em" }}>{label}</span>
+                            <p style={{ margin: "0.1rem 0 0", fontWeight: 600, color: "var(--sw-text)", fontSize: "0.9rem" }}>{value || "—"}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Estado */}
+                    {detalle.estado_coche && (
+                      <div style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", borderRadius: 14, padding: "1.1rem" }}>
+                        <p style={{ margin: "0 0 0.65rem", fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-accent,#d4af37)" }}>Estado del coche</p>
+                        {(() => {
+                          const nombresServicios = Array.isArray(detalle.servicios_aplicados)
+                            ? detalle.servicios_aplicados.map((s) => String(s?.nombre || "").trim()).filter(Boolean)
+                            : [];
+                          return (
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+                              <span style={{
+                                background: `${detalle.estado_coche.color}22`,
+                                border: `1px solid ${detalle.estado_coche.color}55`,
+                                color: detalle.estado_coche.color,
+                                borderRadius: 8, padding: "0.3rem 0.75rem",
+                                fontWeight: 700, fontSize: "0.85rem",
+                              }}>{detalle.estado_coche.label}</span>
+                              {nombresServicios.length > 0 && (
+                                <span style={{ color: "var(--sw-muted)", fontSize: "0.82rem" }}>{nombresServicios.join(", ")}</span>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+
+                    {/* Cobro */}
+                    {detalle.cobro && (
+                      <div style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", borderRadius: 14, padding: "1.1rem" }}>
+                        <p style={{ margin: "0 0 0.65rem", fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-accent,#d4af37)" }}>Cobro</p>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "center" }}>
+                          <span style={{
+                            background: `${detalle.cobro.color}22`,
+                            border: `1px solid ${detalle.cobro.color}55`,
+                            color: detalle.cobro.color,
+                            borderRadius: 8, padding: "0.3rem 0.75rem",
+                            fontWeight: 700, fontSize: "0.85rem",
+                          }}>{detalle.cobro.label}</span>
+                          <span style={{ color: "var(--sw-muted)", fontSize: "0.82rem" }}>
+                            Total <strong style={{ color: "var(--sw-text)" }}>{Number(detalle.cobro.importe_total || 0).toFixed(2)} €</strong>
+                            {" · "}Pagado <strong style={{ color: "#22c55e" }}>{Number(detalle.cobro.importe_pagado || 0).toFixed(2)} €</strong>
+                            {" · "}Pendiente <strong style={{ color: "#f87171" }}>{Number(detalle.cobro.importe_pendiente || 0).toFixed(2)} €</strong>
+                          </span>
+                          <span style={{ color: "var(--sw-muted)", fontSize: "0.78rem" }}>
+                            Método: {detalle.cobro.metodo || "—"} · Ref: {detalle.cobro.referencia || "—"}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Firmas */}
+                    {(detalle.firma_cliente_recepcion || detalle.firma_empleado_recepcion) && (
+                      <div style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", borderRadius: 14, padding: "1.1rem" }}>
+                        <p style={{ margin: "0 0 0.65rem", fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-accent,#d4af37)" }}>Firmas de recepción</p>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: "1rem" }}>
+                          {detalle.firma_cliente_recepcion && (
+                            <div>
+                              <span style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", color: "var(--sw-muted)", letterSpacing: "0.06em" }}>Cliente</span>
+                              <img src={detalle.firma_cliente_recepcion} alt="Firma cliente recepcion" style={{ marginTop: "0.4rem", width: "100%", maxHeight: 150, objectFit: "contain", background: "#fff", borderRadius: 8, border: "1px solid var(--sw-border)" }} />
+                            </div>
+                          )}
+                          {detalle.firma_empleado_recepcion && (
+                            <div>
+                              <span style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", color: "var(--sw-muted)", letterSpacing: "0.06em" }}>Empleado</span>
+                              <img src={detalle.firma_empleado_recepcion} alt="Firma empleado recepcion" style={{ marginTop: "0.4rem", width: "100%", maxHeight: 150, objectFit: "contain", background: "#fff", borderRadius: 8, border: "1px solid var(--sw-border)" }} />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Observaciones */}
+                    {detalle.averias_notas && (
+                      <div style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", borderRadius: 14, padding: "1.1rem" }}>
+                        <p style={{ margin: "0 0 0.5rem", fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-accent,#d4af37)" }}>Observaciones y averías</p>
+                        <p style={{ margin: 0, color: "var(--sw-text)", fontSize: "0.88rem", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{detalle.averias_notas}</p>
+                      </div>
+                    )}
+
+                    {/* Fotos */}
+                    {Array.isArray(detalle.fotos_cloudinary) && detalle.fotos_cloudinary.length > 0 && (
+                      <div>
+                        <p style={{ margin: "0 0 0.75rem", fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-accent,#d4af37)" }}>
+                          Fotos del vehículo ({detalle.fotos_cloudinary.length})
+                        </p>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: "0.75rem" }}>
+                          {detalle.fotos_cloudinary.map((foto, index) => {
+                            const url = getFotoUrl(foto, detalle.id);
+                            if (!url) return null;
+                            return (
+                              <a key={index} href={url} target="_blank" rel="noopener noreferrer" style={{ borderRadius: 10, overflow: "hidden", display: "block", border: "1px solid var(--sw-border)" }}>
+                                <img src={url} alt={`Foto ${index + 1}`} style={{ width: "100%", height: 130, objectFit: "cover", display: "block" }} />
+                              </a>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Vídeos */}
+                    {Array.isArray(detalle.videos_cloudinary) && detalle.videos_cloudinary.length > 0 && (
+                      <div>
+                        <p style={{ margin: "0 0 0.75rem", fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-accent,#d4af37)" }}>
+                          Vídeos del vehículo ({detalle.videos_cloudinary.length})
+                        </p>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: "0.75rem" }}>
+                          {detalle.videos_cloudinary.map((video, index) => {
+                            const url = getVideoUrl(video, detalle.id);
+                            if (!url) return null;
+                            return (
+                              <video key={index} src={url} controls style={{ width: "100%", maxHeight: 260, borderRadius: 10, border: "1px solid var(--sw-border)" }} />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {(!detalle.fotos_cloudinary || detalle.fotos_cloudinary.length === 0) &&
+                      (!detalle.videos_cloudinary || detalle.videos_cloudinary.length === 0) && (
+                        <div style={{
+                          background: "color-mix(in srgb,#38bdf8 8%,transparent)",
+                          border: "1px solid color-mix(in srgb,#38bdf8 25%,transparent)",
+                          color: "#38bdf8", borderRadius: 12, padding: "0.75rem 1rem", fontSize: "0.88rem",
+                        }}>
+                          Esta inspección no tiene fotos ni vídeos guardados.
+                        </div>
+                      )}
+                  </div>
+
+                  {/* Footer */}
+                  <div style={{ padding: "1rem 1.5rem", borderTop: "1px solid var(--sw-border)", display: "flex", justifyContent: "flex-end", gap: "0.75rem", flexWrap: "wrap" }}>
+                    <button
+                      onClick={() => irAEditar(detalle.id)}
+                      style={{
+                        background: "color-mix(in srgb,var(--sw-accent,#d4af37) 14%,transparent)",
+                        border: "1px solid color-mix(in srgb,var(--sw-accent,#d4af37) 32%,transparent)",
+                        color: "var(--sw-accent,#d4af37)", borderRadius: 10, padding: "0.6rem 1.2rem",
+                        fontWeight: 700, fontSize: "0.85rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.4rem",
+                      }}
+                    >
+                      <span style={{ width: 14, height: 14, display: "flex" }}><IconPencil /></span>
+                      Editar
+                    </button>
+                    {phoneToDigits(detalle.cliente_telefono) && (
+                      <a
+                        href={`https://wa.me/${phoneToDigits(detalle.cliente_telefono)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          background: "color-mix(in srgb,#25D366 14%,transparent)",
+                          border: "1px solid color-mix(in srgb,#25D366 32%,transparent)",
+                          color: "#25D366", borderRadius: 10, padding: "0.6rem 1.2rem",
+                          fontWeight: 700, fontSize: "0.85rem", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "0.4rem",
+                        }}
+                      >
+                        <span style={{ width: 14, height: 14, display: "flex" }}><IconWA /></span>
+                        WhatsApp
+                      </a>
+                    )}
+                    <button
+                      onClick={() => setDetalle(null)}
+                      style={{
+                        background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)",
+                        color: "var(--sw-muted)", borderRadius: 10, padding: "0.6rem 1.2rem",
+                        fontWeight: 600, fontSize: "0.85rem", cursor: "pointer",
+                      }}
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === "pendientes" && <CochesPendientesEntrega />}
+        {activeTab === "entregados" && <CochesEntregadosPage />}
+      </div>
     </div>
   );
 };

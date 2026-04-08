@@ -182,7 +182,7 @@ const ActaEntregaView = () => {
       navigate("/entregados", { replace: true });
       return;
     }
-    navigate(isEmployeeRole(rol) ? "/firma-entrega" : "/pendientes-entrega", { replace: true });
+    navigate(isEmployeeRole(rol) ? "/repaso-entrega?tab=firma" : "/inspecciones-guardadas?tab=pendientes", { replace: true });
   };
 
   useEffect(() => {
