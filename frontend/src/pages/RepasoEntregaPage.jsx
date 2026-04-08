@@ -183,49 +183,69 @@ export default function RepasoEntregaPage() {
   };
 
   return (
-    <div className="container py-3 py-md-4 sw-repaso-page">
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h2 className="mb-0">Repaso y Entrega</h2>
+    <div className="sw-page-bg sw-repaso-page" style={{ minHeight: "100vh" }}>
+      {/* PREMIUM HEADER + TABS */}
+      <div style={{
+        borderBottom: "1px solid color-mix(in srgb, var(--sw-accent) 15%, var(--sw-border))",
+        animation: "sw-fade-up 0.4s ease both",
+      }}>
+        <div className="container" style={{ maxWidth: "1200px", paddingTop: "1.5rem" }}>
+          <p style={{ fontSize: "0.73rem", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--sw-accent)", opacity: 0.85, marginBottom: "0.3rem" }}>
+            Gestión de entregas · SpecialWash
+          </p>
+          <h2 style={{ fontSize: "clamp(1.3rem, 2.5vw, 1.8rem)", fontWeight: 700, color: "var(--sw-text)", margin: "0 0 1.2rem", letterSpacing: "-0.01em" }}>
+            Repaso y Entrega
+          </h2>
+          {/* Pill tabs */}
+          <div style={{ display: "flex", gap: 0, marginBottom: "-1px" }}>
+            {[
+              { key: "estado", icon: "🚗", label: "Estado" },
+              { key: "repaso", icon: "✅", label: "Repaso" },
+              { key: "firma", icon: "✍️", label: "Firma" },
+            ].map(({ key, icon, label }) => {
+              const active = activeTab === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => switchTab(key)}
+                  style={{
+                    padding: "0.65rem 1.4rem",
+                    fontSize: "0.9rem", fontWeight: active ? 700 : 500,
+                    border: "none", background: "transparent",
+                    color: active ? "var(--sw-accent)" : "var(--sw-muted)",
+                    cursor: "pointer", transition: "color 0.15s",
+                    borderBottom: active ? "2px solid var(--sw-accent)" : "2px solid transparent",
+                    display: "flex", alignItems: "center", gap: "0.45rem",
+                    whiteSpace: "nowrap", minHeight: "48px",
+                  }}
+                >
+                  {icon} {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      <ul className="nav nav-tabs mb-3 sw-tabs-wrap">
-        <li className="nav-item">
-          <button
-            type="button"
-            className={`nav-link ${activeTab === "estado" ? "active" : ""}`}
-            onClick={() => switchTab("estado")}
-          >
-            🚗 Estado
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            type="button"
-            className={`nav-link ${activeTab === "repaso" ? "active" : ""}`}
-            onClick={() => switchTab("repaso")}
-          >
-            ✅ Repaso
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            type="button"
-            className={`nav-link ${activeTab === "firma" ? "active" : ""}`}
-            onClick={() => switchTab("firma")}
-          >
-            ✍️ Firma
-          </button>
-        </li>
-      </ul>
-
       {feedback && (
-        <div className={`alert alert-${feedback.type} d-flex justify-content-between align-items-start py-2 mb-3`}>
-          <span>{feedback.msg}</span>
-          <button className="btn-close ms-3" onClick={() => setFeedback(null)} />
+        <div className="container mt-3" style={{ maxWidth: "1200px" }}>
+          <div style={{
+            background: feedback.type === "success" ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+            border: `1px solid ${feedback.type === "success" ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+            borderRadius: "10px", padding: "0.75rem 1rem",
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            color: feedback.type === "success" ? "#86efac" : "#fca5a5",
+            animation: "sw-fade-up 0.3s ease both",
+          }}>
+            <span>{feedback.msg}</span>
+            <button type="button" className="btn-close btn-close-white btn-sm" onClick={() => setFeedback(null)} />
+          </div>
         </div>
       )}
 
       {activeTab === "repaso" && (
+        <div className="container py-3 py-md-4" style={{ maxWidth: "1200px" }}>
         <>
           <div className="d-flex justify-content-end mb-2">
             <button className="btn btn-outline-dark btn-sm sw-action-btn" onClick={cargar} disabled={loading}>
@@ -403,10 +423,15 @@ export default function RepasoEntregaPage() {
             </div>
           </div>
         </>
+        </div>
       )}
 
       {activeTab === "estado" && <EstadoCochesPage />}
-      {activeTab === "firma" && <FirmaEntregaPage />}
+      {activeTab === "firma" && (
+        <div className="container py-3" style={{ maxWidth: "1200px" }}>
+          <FirmaEntregaPage />
+        </div>
+      )}
     </div>
   );
 }

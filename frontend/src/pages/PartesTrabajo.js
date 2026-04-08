@@ -20,14 +20,24 @@ import { normalizeRol } from "../utils/authSession";
 
 function EstadoBadge({ estado }) {
   const config = {
-    pendiente: { label: "Pendiente", color: "danger" },
-    en_proceso: { label: "En proceso", color: "warning" },
-    en_pausa: { label: "En pausa", color: "info" },
-    finalizado: { label: "Finalizado", color: "success" },
+    pendiente:  { label: "Pendiente",  color: "#9ca3af", bg: "rgba(156,163,175,0.12)", border: "rgba(156,163,175,0.28)" },
+    en_proceso: { label: "En proceso", color: "#f59e0b", bg: "rgba(245,158,11,0.12)",  border: "rgba(245,158,11,0.32)" },
+    en_pausa:   { label: "En pausa",   color: "#818cf8", bg: "rgba(129,140,248,0.12)", border: "rgba(129,140,248,0.3)" },
+    finalizado: { label: "Finalizado", color: "#4ade80", bg: "rgba(34,197,94,0.12)",   border: "rgba(34,197,94,0.28)" },
   };
-
-  const { label, color } = config[estado] || { label: estado, color: "secondary" };
-  return <span className={`badge bg-${color}`}>{label}</span>;
+  const { label, color, bg, border } = config[estado] || { label: estado, color: "#9ca3af", bg: "rgba(156,163,175,0.1)", border: "rgba(156,163,175,0.2)" };
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: "0.35rem",
+      padding: "0.2rem 0.65rem", borderRadius: "999px",
+      fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.05em",
+      background: bg, border: `1px solid ${border}`, color,
+      whiteSpace: "nowrap",
+    }}>
+      <span style={{ width: 5, height: 5, borderRadius: "50%", background: color, flexShrink: 0 }} />
+      {label}
+    </span>
+  );
 }
 
 function formatDate(value) {
@@ -77,10 +87,10 @@ function deviationBadge(desviacionMinutos) {
 }
 
 const TIPO_TAREA_OPTIONS = [
-  { value: "pintura", label: "🎨 Pintor / Pintura" },
-  { value: "detailing", label: "🚿 Detailing / Lavado" },
-  { value: "tapicero", label: "🪡 Tapicero / Tapicería" },
-  { value: "otro", label: "🔧 Empleado general / Otro" },
+  { value: "pintura", label: "Pintor / Pintura" },
+  { value: "detailing", label: "Detailing / Lavado" },
+  { value: "tapicero", label: "Tapicero / Tapicería" },
+  { value: "otro", label: "Empleado general / Otro" },
 ];
 
 function getTipoTareaLabel(tipoTarea) {
@@ -546,308 +556,309 @@ export function AdminPartesTrabajo() {
   };
 
   return (
-    <div className="container py-4" style={{ maxWidth: "1200px" }}>
-      {/* HEADER PREMIUM */}
-      <div
-        className="d-flex justify-content-between align-items-center p-3 mb-4 shadow-sm"
-        style={{
-          background: "#0f0f0f",
-          borderRadius: "12px",
-          color: "white",
-        }}
-      >
-        <h2 className="fw-bold m-0" style={{ color: "#d4af37", fontSize: "clamp(1.2rem, 4vw, 1.75rem)" }}>
-          🧰 Partes de Trabajo
-        </h2>
-        <p className="m-0 d-none d-md-block" style={{ fontSize: "0.85rem", color: "#aaa" }}>
-          Panel de asignación, seguimiento y finalización
-        </p>
-      </div>
+    <div className="sw-page-bg" style={{ minHeight: "calc(100vh - 56px)" }}>
 
-      {/* STATS CARDS */}
-      <div className="row g-3 mb-4">
-        <div className="col-md-4">
-          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid var(--sw-border)" }}>
-            <div className="card-body">
-              <p className="text-muted mb-2">📋 Total partes visibles</p>
-              <h4 className="fw-bold sw-accent-text">{partes.length}</h4>
+      {/* ── HERO ─────────────────────────────────────────── */}
+      <div style={{ borderBottom: "1px solid color-mix(in srgb, var(--sw-accent) 15%, var(--sw-border))", padding: "1.75rem 0 1.5rem", animation: "sw-fade-up 0.4s ease both" }}>
+        <div className="container" style={{ maxWidth: "1100px" }}>
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "1.5rem", flexWrap: "wrap" }}>
+            <div>
+              <p style={{ fontSize: "0.73rem", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--sw-accent)", opacity: 0.85, marginBottom: "0.4rem" }}>
+                Panel de gestión · SpecialWash
+              </p>
+              <h1 style={{ fontSize: "clamp(1.4rem, 3vw, 2rem)", fontWeight: 700, color: "var(--sw-text)", margin: 0, letterSpacing: "-0.01em" }}>
+                Partes de Trabajo
+              </h1>
+              <p style={{ fontSize: "0.85rem", color: "var(--sw-muted)", marginTop: "0.35rem", marginBottom: 0 }}>
+                Asignación, seguimiento y finalización de servicios
+              </p>
             </div>
-          </div>
-        </div>
-        <div className="col-md-4">
-          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid var(--sw-border)" }}>
-            <div className="card-body">
-              <p className="text-muted mb-2">🚗 Coches disponibles para planificar</p>
-              <h4 className="fw-bold sw-accent-text">{cochesDisponibles.length}</h4>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-4">
-          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid var(--sw-border)" }}>
-            <div className="card-body">
-              <p className="text-muted mb-2">👷 Empleados disponibles</p>
-              <h4 className="fw-bold sw-accent-text">{empleadosDisponibles.length}</h4>
-            </div>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.45rem", padding: "0.3rem 0.85rem 0.3rem 0.65rem", borderRadius: "999px", fontSize: "0.76rem", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", border: "1px solid rgba(34,197,94,0.4)", background: "rgba(34,197,94,0.07)", color: "#6ee7b7", whiteSpace: "nowrap" }}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e", animation: "sw-pulse-dot 2s ease-in-out infinite", flexShrink: 0 }} />
+              {partes.filter(p => p.estado === "en_proceso").length} en proceso
+            </span>
           </div>
         </div>
       </div>
 
-      {error && (
-        <div className="alert alert-danger alert-dismissible fade show" role="alert">
-          <strong>Error:</strong> {error}
-          <button type="button" className="btn-close" onClick={() => setError("")}></button>
-        </div>
-      )}
+      {/* ── CONTENT ──────────────────────────────────────── */}
+      <div className="container py-4" style={{ maxWidth: "1100px" }}>
 
-      {/* FORM CREAR PARTE */}
-      <div className="card mb-4 shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
-        <div className="card-body">
-          <h5 className="card-title fw-semibold mb-3">📝 Crear parte</h5>
-          <form onSubmit={onCrearParte} className="row g-3">
-            <div className="col-md-6">
-              <label className="form-label">Coche *</label>
-              <select
-                className="form-select"
-                value={nuevoCocheId}
-                onChange={(e) => setNuevoCocheId(e.target.value)}
-                disabled={loadingRecursos}
-                required
-                style={{ borderRadius: "8px" }}
-              >
-                <option value="">Selecciona coche...</option>
-                {cochesDisponibles.map((c) => {
-                  const fechaUltima = formatShortDate(c.fecha_inspeccion);
-                  const metaInspeccion = c.ultima_inspeccion_id
-                    ? ` · Últ. insp #${c.ultima_inspeccion_id}${fechaUltima ? ` (${fechaUltima})` : ""}`
-                    : "";
-                  const metaActivos = Number(c.partes_activas || 0) > 0
-                    ? ` · ${c.partes_activas} parte(s) activa(s)`
-                    : "";
-                  return (
-                    <option key={c.coche_id} value={c.coche_id}>
-                      {c.matricula} {c.coche_descripcion ? ` - ${c.coche_descripcion}` : ""} {c.cliente_nombre ? ` - ${c.cliente_nombre}` : ""}{metaInspeccion}{metaActivos}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-
-            <div className="col-12">
-              <label className="form-label">Servicios del parte *</label>
-              {hayServiciosSinTiempo && (
-                <div className="alert alert-warning py-2" role="alert">
-                  Hay servicios sin tiempo estimado: {nombresServiciosSinTiempo.join(", ")}. El parte se creará igualmente y estos servicios contarán como 0 min.
-                </div>
-              )}
-              {serviciosCatalogo.length === 0 ? (
-                <p className="text-muted">
-                  No hay servicios en el catálogo. <a href="/catalogo-servicios" target="_blank" rel="noopener noreferrer">Crear servicios</a>
+        {/* STATS */}
+        <div className="row g-3 mb-4" style={{ animation: "sw-fade-up 0.45s ease 0.05s both" }}>
+          {[
+            { icon: "📋", label: "Partes activos", value: partes.length, color: "var(--sw-accent)" },
+            { icon: "🚗", label: "Coches disponibles", value: cochesDisponibles.length, color: "#6366f1" },
+            { icon: "👷", label: "Empleados", value: empleadosDisponibles.length, color: "#22c55e" },
+          ].map((stat) => (
+            <div key={stat.label} className="col-md-4">
+              <div style={{ background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderTop: `3px solid ${stat.color}`, borderRadius: "16px", padding: "1.1rem 1.25rem" }}>
+                <p style={{ fontSize: "0.76rem", color: "var(--sw-muted)", marginBottom: "0.5rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  {stat.icon} {stat.label}
                 </p>
-              ) : (
-                <div className="row g-2">
-                  <div className="col-12 col-md-8">
+                <h3 style={{ fontSize: "2rem", fontWeight: 800, color: stat.color, margin: 0 }}>{stat.value}</h3>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {error && (
+          <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "10px", padding: "0.85rem 1rem", marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center", color: "#fca5a5", animation: "sw-fade-up 0.3s ease both" }}>
+            <span><strong>Error:</strong> {error}</span>
+            <button type="button" className="btn-close btn-close-white btn-sm" onClick={() => setError("")} />
+          </div>
+        )}
+
+        {/* FORM CREAR PARTE */}
+        <div style={{ background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderTop: "3px solid #d4af37", borderRadius: "18px", marginBottom: "1.5rem", animation: "sw-fade-up 0.45s ease 0.1s both", overflow: "hidden" }}>
+          <div style={{ padding: "1.1rem 1.25rem", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+            <h5 style={{ fontWeight: 700, color: "var(--sw-text)", margin: 0, fontSize: "0.95rem" }}>
+              <span style={{ color: "var(--sw-accent)", marginRight: "0.5rem" }}>✦</span>
+              Crear nuevo parte
+            </h5>
+          </div>
+          <div style={{ padding: "1.25rem" }}>
+            <form onSubmit={onCrearParte} className="row g-3">
+              <div className="col-md-6">
+                <label style={{ color: "var(--sw-muted)", fontSize: "0.78rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "0.4rem" }}>Coche *</label>
+                <select
+                  className="form-select"
+                  value={nuevoCocheId}
+                  onChange={(e) => setNuevoCocheId(e.target.value)}
+                  disabled={loadingRecursos}
+                  required
+                  style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "10px" }}
+                >
+                  <option value="">Selecciona coche...</option>
+                  {cochesDisponibles.map((c) => {
+                    const fechaUltima = formatShortDate(c.fecha_inspeccion);
+                    const metaInspeccion = c.ultima_inspeccion_id
+                      ? ` · Últ. insp #${c.ultima_inspeccion_id}${fechaUltima ? ` (${fechaUltima})` : ""}`
+                      : "";
+                    const metaActivos = Number(c.partes_activas || 0) > 0
+                      ? ` · ${c.partes_activas} parte(s) activa(s)`
+                      : "";
+                    return (
+                      <option key={c.coche_id} value={c.coche_id}>
+                        {c.matricula} {c.coche_descripcion ? ` - ${c.coche_descripcion}` : ""} {c.cliente_nombre ? ` - ${c.cliente_nombre}` : ""}{metaInspeccion}{metaActivos}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div className="col-12">
+                <label style={{ color: "var(--sw-muted)", fontSize: "0.78rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "0.4rem" }}>Servicios del parte *</label>
+                {hayServiciosSinTiempo && (
+                  <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "8px", padding: "0.65rem 1rem", marginBottom: "0.75rem", color: "#fbbf24", fontSize: "0.83rem" }}>
+                    ⚠ Servicios sin tiempo estimado: {nombresServiciosSinTiempo.join(", ")}. Se contarán como 0 min.
+                  </div>
+                )}
+                {serviciosCatalogo.length === 0 ? (
+                  <p style={{ color: "var(--sw-muted)", fontSize: "0.85rem" }}>
+                    No hay servicios en el catálogo. <a href="/catalogo-servicios" target="_blank" rel="noopener noreferrer" style={{ color: "var(--sw-accent)" }}>Crear servicios</a>
+                  </p>
+                ) : (
+                  <div className="row g-2">
+                    <div className="col-12 col-md-8">
+                      <select
+                        className="form-select"
+                        value={nuevoServicioId}
+                        onChange={(e) => setNuevoServicioId(e.target.value)}
+                        style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "10px" }}
+                      >
+                        <option value="">Añadir servicio del catálogo...</option>
+                        {serviciosCatalogo.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.nombre} {s.precio_base != null ? `(${Number(s.precio_base).toFixed(2)}€)` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-12 col-md-4 d-grid">
+                      <button
+                        type="button"
+                        onClick={agregarServicioExtra}
+                        style={{ background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.3)", color: "var(--sw-accent)", borderRadius: "10px", fontWeight: 600, fontSize: "0.85rem", cursor: "pointer", minHeight: "42px" }}
+                      >
+                        + Del catálogo
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="row g-2 mt-2">
+                  <div className="col-12 col-md-5">
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={nuevoServicioManualNombre}
+                      onChange={(e) => setNuevoServicioManualNombre(e.target.value)}
+                      placeholder="Servicio manual (ej. Pulido de faros)"
+                      style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "10px" }}
+                    />
+                  </div>
+                  <div className="col-12 col-md-2">
+                    <input
+                      type="number" step="0.01" min="0"
+                      className="form-control"
+                      value={nuevoServicioManualPrecio}
+                      onChange={(e) => setNuevoServicioManualPrecio(e.target.value)}
+                      placeholder="Precio (€)"
+                      style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "10px" }}
+                    />
+                  </div>
+                  <div className="col-12 col-md-2">
+                    <input
+                      type="number" step="0.25" min="0"
+                      className="form-control"
+                      value={nuevoServicioManualHoras}
+                      onChange={(e) => setNuevoServicioManualHoras(e.target.value)}
+                      placeholder="Horas"
+                      style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "10px" }}
+                    />
+                  </div>
+                  <div className="col-12 col-md-2">
                     <select
                       className="form-select"
-                      value={nuevoServicioId}
-                      onChange={(e) => setNuevoServicioId(e.target.value)}
-                      style={{ borderRadius: "8px" }}
+                      value={nuevoServicioManualTipoTarea}
+                      onChange={(e) => setNuevoServicioManualTipoTarea(e.target.value)}
+                      style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "10px" }}
                     >
-                      <option value="">Añadir servicio extra desde catálogo...</option>
-                      {serviciosCatalogo.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.nombre} {s.precio_base != null ? `(${Number(s.precio_base).toFixed(2)}€)` : ""}
-                        </option>
+                      <option value="">Área...</option>
+                      {TIPO_TAREA_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </select>
                   </div>
-                  <div className="col-12 col-md-4 d-grid">
+                  <div className="col-12 col-md-1 d-grid">
                     <button
                       type="button"
-                      className="btn btn-outline-dark"
-                      onClick={agregarServicioExtra}
+                      onClick={agregarServicioManual}
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "10px", fontWeight: 600, fontSize: "0.82rem", cursor: "pointer", minHeight: "42px" }}
                     >
-                      Añadir servicio extra
+                      + Manual
                     </button>
                   </div>
                 </div>
-              )}
 
-              <div className="row g-2 mt-2">
-                <div className="col-12 col-md-5">
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={nuevoServicioManualNombre}
-                    onChange={(e) => setNuevoServicioManualNombre(e.target.value)}
-                    placeholder="Servicio manual (ej. Pulido de faros)"
-                    style={{ borderRadius: "8px" }}
-                  />
-                </div>
-                <div className="col-12 col-md-3">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    className="form-control"
-                    value={nuevoServicioManualPrecio}
-                    onChange={(e) => setNuevoServicioManualPrecio(e.target.value)}
-                    placeholder="Precio (€)"
-                    style={{ borderRadius: "8px" }}
-                  />
-                </div>
-                <div className="col-12 col-md-2">
-                  <input
-                    type="number"
-                    step="0.25"
-                    min="0"
-                    className="form-control"
-                    value={nuevoServicioManualHoras}
-                    onChange={(e) => setNuevoServicioManualHoras(e.target.value)}
-                    placeholder="Horas"
-                    style={{ borderRadius: "8px" }}
-                  />
-                </div>
-                <div className="col-12 col-md-2">
-                  <select
-                    className="form-select"
-                    value={nuevoServicioManualTipoTarea}
-                    onChange={(e) => setNuevoServicioManualTipoTarea(e.target.value)}
-                    style={{ borderRadius: "8px" }}
-                  >
-                    <option value="">Área manual...</option>
-                    {TIPO_TAREA_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="col-12 col-md-2 d-grid">
-                  <button
-                    type="button"
-                    className="btn btn-outline-secondary"
-                    onClick={agregarServicioManual}
-                  >
-                    Añadir manual
-                  </button>
+                <p style={{ fontSize: "0.75rem", color: "var(--sw-muted)", marginTop: "0.6rem", marginBottom: 0 }}>
+                  Al elegir coche se cargan servicios de la última inspección · Horas (ej. 1.5) se convierten a minutos automáticamente · Puedes mezclar varias áreas
+                </p>
+
+                {/* Servicios seleccionados */}
+                <div className="mt-3">
+                  {serviciosParteSeleccionados.length === 0 ? (
+                    <div style={{ color: "var(--sw-muted)", fontSize: "0.83rem", borderRadius: "10px", padding: "0.9rem 1rem", border: "1px dashed rgba(255,255,255,0.07)", textAlign: "center" }}>
+                      No hay servicios seleccionados todavía
+                    </div>
+                  ) : (
+                    <>
+                      {hayServiciosSinTipo && (
+                        <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "8px", padding: "0.6rem 1rem", marginBottom: "0.75rem", color: "#fbbf24", fontSize: "0.82rem" }}>
+                          ⚠ Hay servicios sin área asignada. Selecciona un rol para cada uno.
+                        </div>
+                      )}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
+                        {serviciosParteSeleccionados.map((s) => (
+                          <div key={s.key} style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", borderRadius: "12px", padding: "0.75rem 1rem", minWidth: "240px", flex: "1 1 240px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.5rem" }}>
+                              <div>
+                                <div style={{ fontWeight: 600, color: "var(--sw-text)", fontSize: "0.88rem" }}>{s.nombre}</div>
+                                <div style={{ fontSize: "0.75rem", color: "var(--sw-muted)", marginTop: "0.2rem" }}>
+                                  {Number.isFinite(s.precio) ? `${Number(s.precio).toFixed(2)}€ · ` : ""}
+                                  {formatMinutes(Number.parseInt(s.tiempo_estimado_minutos || 0, 10) || 0)}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => quitarServicioSeleccionado(s.key)}
+                                style={{ background: "transparent", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171", borderRadius: "6px", width: "24px", height: "24px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.9rem", flexShrink: 0 }}
+                              >
+                                ×
+                              </button>
+                            </div>
+                            <div style={{ marginTop: "0.6rem" }}>
+                              <select
+                                className="form-select form-select-sm"
+                                value={s.tipo_tarea || ""}
+                                onChange={(e) => actualizarTipoServicio(s.key, e.target.value)}
+                                style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "8px", fontSize: "0.8rem" }}
+                              >
+                                <option value="">Selecciona área...</option>
+                                {TIPO_TAREA_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <p style={{ fontSize: "0.78rem", color: "var(--sw-muted)", marginTop: "0.75rem", marginBottom: 0 }}>
+                        Tiempo total estimado: <strong style={{ color: "var(--sw-accent)" }}>{formatMinutes(serviciosParteSeleccionados.reduce((acc, s) => acc + (Number.parseInt(s.tiempo_estimado_minutos || 0, 10) || 0), 0))}</strong>
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
-              <small className="text-muted d-block mt-2">
-                Al elegir coche, se cargan automáticamente los servicios acordados en recepción (última inspección).
-              </small>
-              <small className="text-muted d-block mt-1">
-                En servicio manual puedes indicar horas (ej. 1.5) y se convertirán automáticamente a minutos.
-              </small>
-              <small className="text-muted d-block mt-1">
-                Puedes mezclar varias áreas en un solo guardado: asigna un área distinta a cada servicio antes de crear.
-              </small>
 
-              <div className="mt-2">
-                {serviciosParteSeleccionados.length === 0 ? (
-                  <div className="text-muted small">No hay servicios seleccionados todavía.</div>
-                ) : (
-                  <div>
-                    {hayServiciosSinTipo && (
-                      <div className="alert alert-warning py-2 mb-2" role="alert">
-                        Hay servicios sin área asignada. Selecciona un rol para cada uno antes de crear.
-                      </div>
-                    )}
-                    <div className="d-flex flex-wrap gap-2">
-                      {serviciosParteSeleccionados.map((s) => (
-                        <div key={s.key} className="border rounded p-2 bg-light" style={{ minWidth: "280px" }}>
-                          <div className="d-flex justify-content-between align-items-start gap-2">
-                            <div>
-                              <div className="fw-semibold">{s.nombre}</div>
-                              <div className="small text-muted">
-                                {Number.isFinite(s.precio) ? `${Number(s.precio).toFixed(2)}€ · ` : ""}
-                                {formatMinutes(Number.parseInt(s.tiempo_estimado_minutos || 0, 10) || 0)}
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-light py-0 px-1"
-                              onClick={() => quitarServicioSeleccionado(s.key)}
-                              title="Quitar servicio"
-                            >
-                              ×
-                            </button>
-                          </div>
-                          <div className="mt-2">
-                            <label className="form-label small mb-1">Área de este servicio</label>
-                            <select
-                              className="form-select form-select-sm"
-                              value={s.tipo_tarea || ""}
-                              onChange={(e) => actualizarTipoServicio(s.key, e.target.value)}
-                            >
-                              <option value="">Selecciona área...</option>
-                              {TIPO_TAREA_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>{option.label}</option>
-                              ))}
-                            </select>
-                            <div className="small text-muted mt-1">{getTipoTareaLabel(s.tipo_tarea)}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <small className="text-muted d-block mt-2">
-                      Tiempo estimado total del parte: {formatMinutes(serviciosParteSeleccionados.reduce(
-                        (acc, s) => acc + (Number.parseInt(s.tiempo_estimado_minutos || 0, 10) || 0),
-                        0
-                      ))}
-                    </small>
-                  </div>
+              <div className="col-12 d-flex align-items-center gap-3 flex-wrap">
+                <button
+                  type="submit"
+                  disabled={loadingRecursos || hayServiciosSinTipo}
+                  style={{ background: "linear-gradient(135deg, #f5e19a, #d4af37)", border: "none", color: "#0a0b0e", fontWeight: 700, fontSize: "0.85rem", padding: "0.6rem 1.6rem", borderRadius: "10px", cursor: loadingRecursos || hayServiciosSinTipo ? "not-allowed" : "pointer", opacity: loadingRecursos || hayServiciosSinTipo ? 0.5 : 1, letterSpacing: "0.03em", minHeight: "42px" }}
+                >
+                  ✦ Crear partes
+                </button>
+                {mensajeCreacion && (
+                  <span style={{ color: "#6ee7b7", fontSize: "0.85rem", fontWeight: 500 }}>{mensajeCreacion}</span>
                 )}
               </div>
-            </div>
 
-            <div className="col-12">
-              <button
-                type="submit"
-                className="btn sw-btn-gold"
-                disabled={loadingRecursos || hayServiciosSinTipo}
-              >
-                ✅ Crear partes
-              </button>
-              {mensajeCreacion && <span className="ms-2 text-success">{mensajeCreacion}</span>}
-            </div>
-
-            {!loadingRecursos && cochesDisponibles.length === 0 && (
-              <div className="col-12">
-                <div className="alert alert-info">No hay coches disponibles para planificar en este momento.</div>
-              </div>
-            )}
-          </form>
+              {!loadingRecursos && cochesDisponibles.length === 0 && (
+                <div className="col-12">
+                  <div style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.22)", borderRadius: "10px", padding: "0.75rem 1rem", color: "#a5b4fc", fontSize: "0.85rem" }}>
+                    No hay coches disponibles para planificar en este momento.
+                  </div>
+                </div>
+              )}
+            </form>
+          </div>
         </div>
-      </div>
 
-      {/* FILTERS */}
-      <div className="card mb-4 shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
-        <div className="card-body">
-          <h5 className="card-title fw-semibold mb-3">🔎 Filtros</h5>
-          <div className="row g-3">
-            <div className="col-md-6">
-              <label className="form-label">Empleado</label>
-              <select
-                className="form-select"
-                value={empleadoFiltro}
-                onChange={(e) => setEmpleadoFiltro(e.target.value)}
-                style={{ borderRadius: "8px" }}
-              >
-                <option value="">Todos</option>
-                {empleadosDisponibles.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.nombre} ({u.rol})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="col-md-6">
-              <label className="form-label">Coche</label>
-              <select
-                className="form-select"
-                value={cocheFiltro}
-                onChange={(e) => setCocheFiltro(e.target.value)}
-                style={{ borderRadius: "8px" }}
-              >
-                <option value="">Todos</option>
+        {/* FILTROS */}
+        <div style={{ background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderTop: "3px solid rgba(212,175,55,0.3)", borderRadius: "18px", marginBottom: "1.5rem", animation: "sw-fade-up 0.45s ease 0.15s both", overflow: "hidden" }}>
+          <div style={{ padding: "1.1rem 1.25rem", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+            <h5 style={{ fontWeight: 700, color: "var(--sw-text)", margin: 0, fontSize: "0.95rem" }}>
+              <span style={{ color: "var(--sw-accent)", marginRight: "0.5rem" }}>⊞</span>
+              Filtros
+            </h5>
+          </div>
+          <div style={{ padding: "1.25rem" }}>
+            <div className="row g-3">
+              <div className="col-md-6">
+                <label style={{ color: "var(--sw-muted)", fontSize: "0.78rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "0.4rem" }}>Empleado</label>
+                <select
+                  className="form-select"
+                  value={empleadoFiltro}
+                  onChange={(e) => setEmpleadoFiltro(e.target.value)}
+                  style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "10px" }}
+                >
+                  <option value="">Todos</option>
+                  {empleadosDisponibles.map((u) => (
+                    <option key={u.id} value={u.id}>{u.nombre} ({u.rol})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-md-6">
+                <label style={{ color: "var(--sw-muted)", fontSize: "0.78rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "0.4rem" }}>Coche</label>
+                <select
+                  className="form-select"
+                  value={cocheFiltro}
+                  onChange={(e) => setCocheFiltro(e.target.value)}
+                  style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "10px" }}
+                >
+                  <option value="">Todos</option>
                 {cochesCatalogo.map((c) => (
                   <option key={c.coche_id} value={c.coche_id}>
                     {c.matricula} {c.coche_descripcion ? ` - ${c.coche_descripcion}` : ""} {c.cliente_nombre ? ` - ${c.cliente_nombre}` : ""}
@@ -861,15 +872,17 @@ export function AdminPartesTrabajo() {
 
       {/* LISTA PARTES */}
       {loading ? (
-        <div className="text-center py-5">
-          <p className="text-muted">Cargando partes activos...</p>
+        <div style={{ textAlign: "center", padding: "3rem 0" }}>
+          <div className="spinner-border" style={{ color: "var(--sw-accent)", width: "2rem", height: "2rem" }} role="status" />
+          <p style={{ color: "var(--sw-muted)", marginTop: "1rem", fontSize: "0.88rem" }}>Cargando partes activos…</p>
         </div>
       ) : partes.length === 0 ? (
-        <div className="alert alert-info">✅ No hay partes pendientes. ¡Todos los trabajos están finalizados!</div>
+        <div style={{ background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: "14px", padding: "1.25rem 1.5rem", color: "#6ee7b7", fontSize: "0.9rem", marginBottom: "1.5rem", animation: "sw-fade-up 0.35s ease both" }}>
+          ✦ No hay partes pendientes — todos los trabajos están finalizados
+        </div>
       ) : (
-        <div>
+        <div style={{ animation: "sw-fade-up 0.45s ease 0.2s both" }}>
           {groupByDate(partes).map(([fecha, grupoPartes]) => {
-            // Agrupar por coche dentro de cada fecha
             const cocheGrupos = Object.values(
               grupoPartes.reduce((acc, p) => {
                 const k = p.coche_id;
@@ -879,66 +892,107 @@ export function AdminPartesTrabajo() {
               }, {})
             );
             return (
-              <div key={fecha} className="mb-4">
-                <h5 className="mb-3 sw-accent-text" style={{ fontWeight: "600" }}>📅 {fecha}</h5>
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <div key={fecha} style={{ marginBottom: "2rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.85rem" }}>
+                  <span style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--sw-accent)", opacity: 0.75 }}>📅 {fecha}</span>
+                  <div style={{ flex: 1, height: "1px", background: "rgba(212,175,55,0.12)" }} />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
                   {cocheGrupos.map(({ coche_id, partes: cp }) => {
                     const estadoGlobal = cp.some(p => p.estado === "en_proceso") ? "en_proceso"
                       : cp.some(p => p.estado === "en_pausa") ? "en_pausa"
                       : "pendiente";
                     const ids = cp.map(p => p.id);
                     const parteRef = cp.find(p => p.fecha_inicio) || cp[0];
-
-                    // Empleados únicos del coche
                     const empleadosUnicos = [...new Map(
                       cp.filter(p => p.empleado_id).map(p => [p.empleado_id, empleadoNombrePorId(p.empleado_id)])
                     ).values()];
-
-                    // Tiempo estimado total
                     const estimadoTotal = cp.reduce((sum, p) => sum + (p.tiempo_estimado_minutos || 0), 0);
+                    const accentColor = estadoGlobal === "en_proceso" ? "#22c55e" : estadoGlobal === "en_pausa" ? "#f59e0b" : "rgba(212,175,55,0.4)";
+
+                    // Datos del coche directamente desde el parte (el API ya los devuelve)
+                    const refParte = cp[0] || {};
+                    const matricula = refParte.matricula || cocheTextoPorId(coche_id);
+                    const marcaModelo = [refParte.marca, refParte.modelo].filter(Boolean).join(" ");
+                    const clienteNombre = refParte.cliente_nombre;
 
                     return (
-                      <div key={coche_id} className="card shadow-sm" style={{ borderRadius: "10px", overflow: "hidden" }}>
-                        {/* Cabecera del coche */}
-                        <div className="card-header py-2">
-                          <div className="d-flex justify-content-between align-items-center">
-                            <strong>{cocheTextoPorId(coche_id)}</strong>
+                      <div key={coche_id} style={{ background: "var(--sw-surface)", border: `1px solid rgba(255,255,255,0.07)`, borderLeft: `3px solid ${accentColor}`, borderRadius: "14px", overflow: "hidden" }}>
+                        {/* Cabecera */}
+                        <div style={{ padding: "0.85rem 1.1rem", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", flexWrap: "wrap" }}>
+                          <div>
+                            {/* Matrícula principal */}
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.55rem", flexWrap: "wrap" }}>
+                              <span style={{
+                                fontFamily: "monospace", fontWeight: 800, fontSize: "1rem",
+                                color: "var(--sw-accent)", letterSpacing: "0.08em",
+                                background: "color-mix(in srgb, var(--sw-accent) 8%, transparent)",
+                                border: "1px solid color-mix(in srgb, var(--sw-accent) 22%, transparent)",
+                                borderRadius: "6px", padding: "0.1rem 0.6rem",
+                              }}>
+                                {matricula}
+                              </span>
+                              {marcaModelo && (
+                                <span style={{ fontSize: "0.88rem", fontWeight: 600, color: "var(--sw-text)" }}>
+                                  {marcaModelo}
+                                </span>
+                              )}
+                              {clienteNombre && (
+                                <span style={{ fontSize: "0.78rem", color: "var(--sw-muted)" }}>
+                                  · {clienteNombre}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ display: "flex", gap: "1rem", marginTop: "0.35rem", fontSize: "0.78rem", color: "var(--sw-muted)", flexWrap: "wrap" }}>
+                              <span>👤 {empleadosUnicos.length > 0 ? empleadosUnicos.join(", ") : <em>Sin asignar</em>}</span>
+                              <span>⏱ est. {formatMinutes(estimadoTotal)}</span>
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                            <Cronometro parte={{ ...parteRef, estado: estadoGlobal }} />
                             <EstadoBadge estado={estadoGlobal} />
                           </div>
-                          <div className="d-flex gap-3 mt-1" style={{ fontSize: "0.85rem", opacity: 0.8 }}>
-                            <span>👤 {empleadosUnicos.length > 0 ? empleadosUnicos.join(", ") : <em>Sin asignar</em>}</span>
-                            <span>⏱ {formatMinutes(estimadoTotal)}</span>
-                            <Cronometro parte={{ ...parteRef, estado: estadoGlobal }} />
-                          </div>
                         </div>
-                        {/* Servicios — solo nombre y editar */}
-                        <table className="table table-sm mb-0">
-                          <tbody>
-                            {cp.map(p => (
-                              <tr key={p.id}>
-                                <td className="text-muted small ps-3">#{p.id}</td>
-                                <td>{p.observaciones || getTipoTareaLabel(p.tipo_tarea)}</td>
-                                <td className="text-end pe-3">
-                                  <button className="btn btn-sm btn-outline-secondary" onClick={() => onAbrirEditar(p)}>
-                                    ✏️
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                        {/* Botones del coche */}
-                        <div className="card-footer d-flex gap-2 py-2">
+                        {/* Servicios */}
+                        <div style={{ padding: "0.5rem 0" }}>
+                          {cp.map(p => (
+                            <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.5rem 1.1rem", borderBottom: "1px solid rgba(255,255,255,0.03)", gap: "0.75rem" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flex: 1, minWidth: 0 }}>
+                                <span style={{ fontSize: "0.7rem", color: "var(--sw-muted)", fontFamily: "monospace", flexShrink: 0 }}>#{p.id}</span>
+                                <span style={{ fontSize: "0.87rem", color: "var(--sw-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {p.observaciones || getTipoTareaLabel(p.tipo_tarea)}
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => onAbrirEditar(p)}
+                                style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-muted)", borderRadius: "7px", padding: "0.25rem 0.6rem", fontSize: "0.78rem", cursor: "pointer", flexShrink: 0 }}
+                              >
+                                ✏️
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        {/* Acciones */}
+                        <div style={{ padding: "0.65rem 1.1rem", display: "flex", gap: "0.5rem", justifyContent: "flex-end", flexWrap: "wrap" }}>
                           {estadoGlobal === "en_pausa" && (
-                            <button className="btn btn-sm btn-outline-primary" onClick={() => onReanudarGrupo(ids)}>
-                              ▶️ Reanudar
+                            <button
+                              onClick={() => onReanudarGrupo(ids)}
+                              style={{ background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.35)", color: "#a5b4fc", borderRadius: "8px", padding: "0.35rem 0.9rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer" }}
+                            >
+                              ▶ Reanudar
                             </button>
                           )}
-                          <button className="btn btn-sm btn-outline-danger ms-auto" onClick={() => onBorrarGrupo(cp)}>
-                            🗑️ Borrar
+                          <button
+                            onClick={() => onBorrarGrupo(cp)}
+                            style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", color: "#f87171", borderRadius: "8px", padding: "0.35rem 0.9rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer" }}
+                          >
+                            🗑 Borrar
                           </button>
-                          <button className="btn btn-sm btn-success" onClick={() => onFinalizarGrupo(ids)}>
-                            ✅ Finalizar
+                          <button
+                            onClick={() => onFinalizarGrupo(ids)}
+                            style={{ background: "linear-gradient(135deg,#16a34a,#15803d)", border: "none", color: "var(--sw-text)", borderRadius: "8px", padding: "0.35rem 1rem", fontSize: "0.82rem", fontWeight: 700, cursor: "pointer" }}
+                          >
+                            ✦ Finalizar
                           </button>
                         </div>
                       </div>
@@ -951,174 +1005,145 @@ export function AdminPartesTrabajo() {
         </div>
       )}
 
-      <div className="card mb-4 shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
-        <div className="card-body">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="card-title fw-semibold mb-0">📊 Tiempo trabajado por empleado</h5>
-            <button
-              className="btn btn-outline-dark btn-sm"
-              onClick={() => {
-                const next = !showReporte;
-                setShowReporte(next);
-                if (next) cargarReporte();
-              }}
-            >
-              {showReporte ? "Ocultar" : "Ver reporte"}
-            </button>
-          </div>
-          {showReporte && (
-            <>
-              <div className="row g-2 mb-3 align-items-end">
-                <div className="col-md-4">
-                  <label className="form-label small mb-1">Desde</label>
-                  <input
-                    type="date"
-                    className="form-control form-control-sm"
-                    value={reporteFechaInicio}
-                    onChange={(e) => setReporteFechaInicio(e.target.value)}
-                  />
+      {/* REPORTE */}
+      <div style={{ background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderTop: "3px solid rgba(99,102,241,0.5)", borderRadius: "18px", marginBottom: "1.5rem", overflow: "hidden", animation: "sw-fade-up 0.45s ease 0.25s both" }}>
+        <div style={{ padding: "1.1rem 1.25rem", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h5 style={{ fontWeight: 700, color: "var(--sw-text)", margin: 0, fontSize: "0.95rem" }}>
+            <span style={{ color: "#a5b4fc", marginRight: "0.5rem" }}>📊</span>
+            Tiempo trabajado por empleado
+          </h5>
+          <button
+            onClick={() => { const next = !showReporte; setShowReporte(next); if (next) cargarReporte(); }}
+            style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "#a5b4fc", borderRadius: "8px", padding: "0.3rem 0.85rem", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer" }}
+          >
+            {showReporte ? "Ocultar" : "Ver reporte"}
+          </button>
+        </div>
+        {showReporte && (
+          <div style={{ padding: "1.25rem" }}>
+            <div className="row g-2 mb-3 align-items-end">
+              <div className="col-md-4">
+                <label style={{ color: "var(--sw-muted)", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "0.35rem" }}>Desde</label>
+                <input type="date" className="form-control" value={reporteFechaInicio} onChange={(e) => setReporteFechaInicio(e.target.value)}
+                  style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "9px" }} />
+              </div>
+              <div className="col-md-4">
+                <label style={{ color: "var(--sw-muted)", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "0.35rem" }}>Hasta</label>
+                <input type="date" className="form-control" value={reporteFechaFin} onChange={(e) => setReporteFechaFin(e.target.value)}
+                  style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "9px" }} />
+              </div>
+              <div className="col-md-4">
+                <button onClick={cargarReporte} disabled={loadingReporte}
+                  style={{ background: "linear-gradient(135deg,#f5e19a,#d4af37)", border: "none", color: "#0a0b0e", fontWeight: 700, borderRadius: "9px", padding: "0.5rem 1rem", width: "100%", cursor: loadingReporte ? "not-allowed" : "pointer", opacity: loadingReporte ? 0.6 : 1, fontSize: "0.85rem" }}
+                >
+                  {loadingReporte ? "Cargando…" : "↻ Actualizar"}
+                </button>
+              </div>
+            </div>
+
+            {reporte.length === 0 && !loadingReporte && (
+              <p style={{ color: "var(--sw-muted)", fontSize: "0.85rem" }}>Sin datos para el período seleccionado.</p>
+            )}
+
+            {reporte.map((emp) => (
+              <div key={emp.empleado_id} style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", borderRadius: "12px", marginBottom: "1rem", overflow: "hidden" }}>
+                <div style={{ padding: "0.85rem 1rem", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "0.75rem" }}>
+                  <strong style={{ color: "var(--sw-text)", fontSize: "0.9rem" }}>👤 {emp.nombre}{emp.rol ? <span style={{ color: "var(--sw-muted)", fontWeight: 400 }}> · {emp.rol}</span> : ""}</strong>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.2rem" }}>
+                    <span style={{ background: "rgba(212,175,55,0.12)", border: "1px solid rgba(212,175,55,0.25)", color: "var(--sw-accent)", borderRadius: "6px", padding: "0.15rem 0.6rem", fontSize: "0.78rem", fontWeight: 700 }}>
+                      {formatMinutes(emp.total_minutos)} · {emp.total_partes} partes
+                    </span>
+                    <small style={{ color: "var(--sw-muted)", fontSize: "0.72rem" }}>
+                      🚗 {formatMinutes(emp.total_minutos_coche || 0)} · 🧹 {formatMinutes(emp.total_minutos_interno || 0)}
+                    </small>
+                  </div>
                 </div>
-                <div className="col-md-4">
-                  <label className="form-label small mb-1">Hasta</label>
-                  <input
-                    type="date"
-                    className="form-control form-control-sm"
-                    value={reporteFechaFin}
-                    onChange={(e) => setReporteFechaFin(e.target.value)}
-                  />
-                </div>
-                <div className="col-md-4">
-                  <button
-                    className="btn sw-btn-gold btn-sm w-100"
-                    onClick={cargarReporte}
-                    disabled={loadingReporte}
-                  >
-                    {loadingReporte ? "Cargando..." : "🔄 Actualizar"}
-                  </button>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
+                    <thead>
+                      <tr style={{ background: "rgba(255,255,255,0.02)" }}>
+                        {["Matrícula","Registro","Tipo","Estado","Real","Est.","Inicio"].map(h => (
+                          <th key={h} style={{ padding: "0.5rem 0.75rem", color: "var(--sw-muted)", fontWeight: 600, textTransform: "uppercase", fontSize: "0.68rem", letterSpacing: "0.07em", borderBottom: "1px solid rgba(255,255,255,0.05)", whiteSpace: "nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {emp.partes.map((p) => (
+                        <tr key={p.parte_id} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+                          <td style={{ padding: "0.45rem 0.75rem", color: "var(--sw-text)", fontWeight: 600 }}>{p.matricula || `#${p.coche_id}`}</td>
+                          <td style={{ padding: "0.45rem 0.75rem" }}>
+                            {p.es_tarea_interna
+                              ? <span style={{ background: "rgba(107,114,128,0.2)", color: "#9ca3af", borderRadius: "5px", padding: "0.1rem 0.5rem", fontSize: "0.72rem" }}>Interno</span>
+                              : <span style={{ background: "rgba(99,102,241,0.15)", color: "#a5b4fc", borderRadius: "5px", padding: "0.1rem 0.5rem", fontSize: "0.72rem" }}>Coche</span>}
+                          </td>
+                          <td style={{ padding: "0.45rem 0.75rem", color: "var(--sw-muted)" }}>{p.tipo_tarea || "—"}</td>
+                          <td style={{ padding: "0.45rem 0.75rem" }}><EstadoBadge estado={p.estado} /></td>
+                          <td style={{ padding: "0.45rem 0.75rem", color: "var(--sw-accent)", fontWeight: 700 }}>{formatMinutes(p.duracion_minutos)}</td>
+                          <td style={{ padding: "0.45rem 0.75rem", color: "var(--sw-muted)" }}>{formatMinutes(p.tiempo_estimado_minutos)}</td>
+                          <td style={{ padding: "0.45rem 0.75rem", color: "var(--sw-muted)", fontSize: "0.75rem", whiteSpace: "nowrap" }}>
+                            {p.fecha_inicio ? new Date(p.fecha_inicio).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-
-              {reporte.length === 0 && !loadingReporte && (
-                <p className="text-muted">Sin datos para el período seleccionado.</p>
-              )}
-
-              {reporte.map((emp) => (
-                <div key={emp.empleado_id} className="mb-3 p-3 rounded" style={{ background: "#f8f9fa" }}>
-                  <div className="d-flex justify-content-between align-items-center mb-2">
-                    <strong>👤 {emp.nombre} {emp.rol ? `· ${emp.rol}` : ""}</strong>
-                    <div className="d-flex flex-column align-items-end gap-1">
-                      <span className="badge bg-dark sw-accent-text">
-                        {formatMinutes(emp.total_minutos)} · {emp.total_partes} partes
-                      </span>
-                      <small className="text-muted">
-                        🚗 Coche: {formatMinutes(emp.total_minutos_coche || 0)} · 🧹 Interno: {formatMinutes(emp.total_minutos_interno || 0)}
-                      </small>
-                    </div>
-                  </div>
-                  <div className="table-responsive">
-                    <table className="table table-sm mb-0">
-                      <thead>
-                        <tr>
-                          <th>Matrícula</th>
-                          <th>Registro</th>
-                          <th>Tipo</th>
-                          <th>Estado</th>
-                          <th>Tiempo real</th>
-                          <th>Estimado</th>
-                          <th>Inicio</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {emp.partes.map((p) => (
-                          <tr key={p.parte_id}>
-                            <td>{p.matricula || `#${p.coche_id}`}</td>
-                            <td>
-                              {p.es_tarea_interna
-                                ? <span className="badge bg-secondary">Interno</span>
-                                : <span className="badge bg-primary">Coche</span>}
-                            </td>
-                            <td>{p.tipo_tarea || "-"}</td>
-                            <td><EstadoBadge estado={p.estado} /></td>
-                            <td><strong>{formatMinutes(p.duracion_minutos)}</strong></td>
-                            <td className="text-muted">{formatMinutes(p.tiempo_estimado_minutos)}</td>
-                            <td className="small text-muted">
-                              {p.fecha_inicio ? new Date(p.fecha_inicio).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-"}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* MODAL EDITAR */}
       {editandoId && (
-        <div className="modal d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
-          <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
-            <div className="modal-content">
-              <div className="modal-header sw-modal-header-dark" style={{ borderBottom: "none" }}>
-                <h5 className="modal-title fw-bold">✏️ Editar Parte #{editandoId}</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={onCancelarEditar}></button>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", backdropFilter: "blur(4px)" }}>
+          <div style={{ background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderTop: "3px solid #d4af37", borderRadius: "18px", width: "100%", maxWidth: "480px", boxShadow: "0 24px 64px rgba(0,0,0,0.7)", animation: "sw-fade-up 0.25s ease both" }}>
+            <div style={{ padding: "1.1rem 1.25rem", borderBottom: "1px solid var(--sw-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h5 style={{ fontWeight: 700, color: "var(--sw-text)", margin: 0, fontSize: "0.95rem" }}>
+                <span style={{ color: "var(--sw-accent)", marginRight: "0.5rem" }}>✏️</span>
+                Editar Parte #{editandoId}
+              </h5>
+              <button onClick={onCancelarEditar} style={{ background: "transparent", border: "none", color: "var(--sw-muted)", fontSize: "1.2rem", cursor: "pointer", lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <div>
+                <label style={{ color: "var(--sw-muted)", fontSize: "0.76rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: "0.4rem" }}>Empleado</label>
+                <select className="form-select" value={editEmpleadoId} onChange={(e) => setEditEmpleadoId(e.target.value)} disabled={editLoading}
+                  style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "10px" }}>
+                  <option value="">Selecciona empleado…</option>
+                  {empleadosDisponibles.map((u) => (
+                    <option key={u.id} value={u.id}>{u.nombre} ({u.rol})</option>
+                  ))}
+                </select>
               </div>
-              <div className="modal-body">
-                <div className="mb-3">
-                  <label className="form-label">Empleado</label>
-                  <select
-                    className="form-select"
-                    value={editEmpleadoId}
-                    onChange={(e) => setEditEmpleadoId(e.target.value)}
-                    disabled={editLoading}
-                    style={{ borderRadius: "8px" }}
-                  >
-                    <option value="">Selecciona empleado...</option>
-                    {empleadosDisponibles.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.nombre} ({u.rol})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label">Servicio *</label>
-                  <select
-                    className="form-select"
-                    value={editServicioId}
-                    onChange={(e) => setEditServicioId(e.target.value)}
-                    disabled={editLoading}
-                    style={{ borderRadius: "8px" }}
-                  >
-                    <option value="">Selecciona servicio...</option>
-                    {serviciosCatalogo.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.nombre} {s.precio_base != null ? `(${Number(s.precio_base).toFixed(2)}€)` : ""}
-                      </option>
-                    ))}
-                  </select>
-                  {serviciosCatalogo.length === 0 && (
-                    <div className="form-text text-muted">
-                      No hay servicios en el catálogo. Crea servicios antes de editar el parte.
-                    </div>
-                  )}
-                </div>
+              <div>
+                <label style={{ color: "var(--sw-muted)", fontSize: "0.76rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: "0.4rem" }}>Servicio *</label>
+                <select className="form-select" value={editServicioId} onChange={(e) => setEditServicioId(e.target.value)} disabled={editLoading}
+                  style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "10px" }}>
+                  <option value="">Selecciona servicio…</option>
+                  {serviciosCatalogo.map((s) => (
+                    <option key={s.id} value={s.id}>{s.nombre} {s.precio_base != null ? `(${Number(s.precio_base).toFixed(2)}€)` : ""}</option>
+                  ))}
+                </select>
+                {serviciosCatalogo.length === 0 && (
+                  <p style={{ color: "var(--sw-muted)", fontSize: "0.75rem", marginTop: "0.4rem", marginBottom: 0 }}>No hay servicios en el catálogo.</p>
+                )}
               </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={onCancelarEditar} disabled={editLoading}>
-                  Cancelar
-                </button>
-                <button type="button" className="btn sw-btn-gold" onClick={onGuardarEdicion} disabled={editLoading}>
-                  {editLoading ? "Guardando..." : "✅ Guardar"}
-                </button>
-              </div>
+            </div>
+            <div style={{ padding: "1rem 1.25rem", borderTop: "1px solid var(--sw-border)", display: "flex", gap: "0.6rem", justifyContent: "flex-end" }}>
+              <button onClick={onCancelarEditar} disabled={editLoading}
+                style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-muted)", borderRadius: "9px", padding: "0.45rem 1rem", fontSize: "0.84rem", cursor: "pointer" }}>
+                Cancelar
+              </button>
+              <button onClick={onGuardarEdicion} disabled={editLoading}
+                style={{ background: "linear-gradient(135deg,#f5e19a,#d4af37)", border: "none", color: "#0a0b0e", fontWeight: 700, borderRadius: "9px", padding: "0.45rem 1.2rem", fontSize: "0.84rem", cursor: editLoading ? "not-allowed" : "pointer", opacity: editLoading ? 0.6 : 1 }}>
+                {editLoading ? "Guardando…" : "✦ Guardar"}
+              </button>
             </div>
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
@@ -1192,7 +1217,7 @@ function Cronometro({ parte }) {
         {parte.estado === "en_pausa" ? "⏸" : parte.estado === "en_proceso" ? "▶" : "✓"} {formatCrono(segs)}
       </span>
       {estimadoSegs > 0 && (
-        <div style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.5)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+        <div style={{ fontSize: "0.72rem", color: "var(--sw-muted)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
           <span>Est. {formatMinutes(parte.tiempo_estimado_minutos)}</span>
           {porcentaje !== null && parte.estado !== "finalizado" && (
             <div style={{ width: "60px", height: "5px", background: "rgba(255,255,255,0.1)", borderRadius: "3px", overflow: "hidden" }}>
@@ -1245,17 +1270,16 @@ function CocheGrupoCard({ grupo, empleadoId, onAccionParte, onSumarmeCoche, carg
           {descCoche && <span className="sw-parte-card__desc"> · {descCoche}</span>}
           {cliente_nombre && <span className="sw-parte-card__cliente"> · {cliente_nombre}</span>}
           {hayOtroTrabajando && (
-            <div className="mt-1">
-              <span className="badge bg-warning text-dark">⚠ Ya hay alguien trabajando en este coche</span>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.4rem", flexWrap: "wrap" }}>
+              <span style={{ background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.35)", color: "#fbbf24", borderRadius: "6px", padding: "0.15rem 0.6rem", fontSize: "0.72rem", fontWeight: 600 }}>⚠ Ya hay alguien trabajando</span>
               {!esTareaInterna && (
                 <button
                   type="button"
-                  className="btn btn-sm btn-outline-light ms-2 py-0"
                   disabled={cargando}
                   onClick={() => onSumarmeCoche(grupo)}
-                  title="Crear mi propio parte y empezar"
+                  style={{ background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.3)", color: "var(--sw-accent)", borderRadius: "7px", padding: "0.15rem 0.65rem", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer" }}
                 >
-                  ➕ Trabajar tambien
+                  ➕ Sumarme
                 </button>
               )}
             </div>
@@ -1272,7 +1296,7 @@ function CocheGrupoCard({ grupo, empleadoId, onAccionParte, onSumarmeCoche, carg
             <div
               key={p.id}
               style={{
-                border: "1px solid rgba(255,255,255,0.1)",
+                border: "1px solid var(--sw-border)",
                 borderRadius: "8px",
                 padding: "0.5rem",
                 background: "rgba(255,255,255,0.02)",
@@ -1283,7 +1307,7 @@ function CocheGrupoCard({ grupo, empleadoId, onAccionParte, onSumarmeCoche, carg
                   <strong>#{p.id}</strong> · {getTipoTareaLabel(p.tipo_tarea)}
                   {p.observaciones ? ` — ${p.observaciones}` : ""}
                   {(p.estado === "en_proceso" || p.estado === "en_pausa") && p.empleado_nombre && (
-                    <span className="text-muted"> · {p.empleado_nombre}</span>
+                    <span style={{ color: "var(--sw-muted)" }}> · {p.empleado_nombre}</span>
                   )}
                 </div>
                 <div className="d-flex align-items-center gap-2">
@@ -1510,9 +1534,9 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
       </div>
 
       {error && (
-        <div className="alert alert-danger mx-3 mt-2 d-flex justify-content-between align-items-center">
-          {error}
-          <button type="button" className="btn-close btn-close-white" onClick={() => setError("")} />
+        <div style={{ margin: "0.75rem 1rem 0", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "10px", padding: "0.75rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", color: "#fca5a5", fontSize: "0.85rem" }}>
+          <span>{error}</span>
+          <button type="button" className="btn-close btn-close-white btn-sm" onClick={() => setError("")} />
         </div>
       )}
 
@@ -1527,12 +1551,12 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
         </div>
       ) : (
         <div className="sw-flujo-body">
-          <div className="mx-3 mb-3 p-3 rounded" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-            <div className="fw-semibold mb-2">🧹 Registrar tarea interna (sin coche)</div>
-            <div className="d-flex gap-2 flex-wrap">
+          <div style={{ margin: "0 1rem 1rem", background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderTop: "2px solid rgba(212,175,55,0.3)", borderRadius: "14px", padding: "1rem 1.1rem" }}>
+            <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(212,175,55,0.7)", margin: "0 0 0.6rem" }}>🧹 Tarea interna (sin coche)</p>
+            <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
               <input
                 className="form-control"
-                style={{ maxWidth: "420px" }}
+                style={{ maxWidth: "420px", background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "9px" }}
                 placeholder="Ej: Limpiar baño, ordenar almacén, preparar materiales..."
                 value={tareaInternaTexto}
                 onChange={(e) => setTareaInternaTexto(e.target.value)}

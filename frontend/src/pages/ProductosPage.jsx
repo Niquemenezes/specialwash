@@ -92,70 +92,92 @@ export default function ProductosPage() {
   return (
     <>
       <style>{PRINT_STYLE}</style>
-      <div className="container py-4 sw-page-shell sw-view-stack" style={{ maxWidth: "1150px" }}>
+      <div className="sw-page-bg">
 
-        {/* Encabezado */}
-        <div className="d-flex flex-wrap align-items-center p-3 mb-4 shadow-sm no-print sw-view-header sw-header-dark"
-          style={{ borderRadius: "12px", gap: "12px" }}>
-          <h2 className="fw-bold mb-0 me-auto sw-accent-text">📦 Productos</h2>
-          <div className="d-flex flex-wrap align-items-center gap-3">
-            <div className="form-check text-white mb-0">
-              <input
-                id="solo-bajo"
-                className="form-check-input"
-                type="checkbox"
-                checked={soloBajoStock}
-                onChange={(e) => setSoloBajoStock(e.target.checked)}
-              />
-              <label className="form-check-label" htmlFor="solo-bajo">Solo bajo stock</label>
+        {/* ── HERO ── */}
+        <div className="no-print sw-hero-section">
+          <div className="container" style={{ maxWidth: "1150px" }}>
+            <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "1.5rem", flexWrap: "wrap" }}>
+              <div>
+                <p style={{ fontSize: "0.73rem", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--sw-accent)", opacity: 0.85, marginBottom: "0.4rem" }}>
+                  Panel de gestión · SpecialWash
+                </p>
+                <h1 style={{ fontSize: "clamp(1.4rem, 3vw, 2rem)", fontWeight: 700, color: "var(--sw-text)", margin: 0, letterSpacing: "-0.01em" }}>
+                  Productos
+                </h1>
+                <p style={{ fontSize: "0.85rem", color: "var(--sw-muted)", marginTop: "0.35rem", marginBottom: 0 }}>
+                  Control de inventario y stock mínimo
+                </p>
+              </div>
+              <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+                <button onClick={() => window.print()}
+                  style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-muted)", borderRadius: "9px", padding: "0.4rem 1rem", fontSize: "0.84rem", cursor: "pointer" }}>
+                  🖨 Imprimir
+                </button>
+                <button onClick={openCrear}
+                  style={{ background: "linear-gradient(135deg, var(--sw-accent-2), var(--sw-accent))", border: "none", color: "var(--sw-text-on-accent)", fontWeight: 700, borderRadius: "9px", padding: "0.4rem 1.15rem", fontSize: "0.84rem", cursor: "pointer" }}>
+                  + Nuevo producto
+                </button>
+              </div>
             </div>
-            <input
-              className="form-control"
-              style={{ minWidth: "260px", borderRadius: "10px" }}
-              placeholder="Buscar por nombre, categoría o código…"
-              value={filtro}
-              onChange={(e) => setFiltro(e.target.value)}
-            />
-          </div>
-          <div className="d-flex flex-wrap align-items-center gap-2 ms-auto">
-            <button className="btn sw-btn-gold" onClick={openCrear}>+ Nuevo producto</button>
-            <button className="btn sw-btn-gold" onClick={() => window.print()}>🖨️ Imprimir</button>
+
+            {/* Stats */}
+            <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", marginTop: "1.25rem" }}>
+              {[
+                { label: "Total productos", value: productos.length, color: "var(--sw-accent)" },
+                { label: "Bajo stock", value: bajosDeStock.length, color: "var(--sw-danger)" },
+                ...(bajosEnPedido.length > 0 ? [{ label: "En pedido", value: bajosEnPedido.length, color: "var(--sw-warning)" }] : []),
+                ...(soloBajoStock ? [{ label: "Mostrando", value: productosFiltrados.length, color: "var(--sw-success)" }] : []),
+              ].map((s) => (
+                <div key={s.label} style={{ background: "var(--sw-surface-2)", border: `1px solid var(--sw-border)`, borderRadius: "9px", padding: "0.35rem 0.9rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span style={{ color: s.color, fontWeight: 700, fontSize: "1rem" }}>{s.value}</span>
+                  <span style={{ color: "var(--sw-muted)", fontSize: "0.74rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        {deleteError && (
-          <div className="alert alert-danger d-flex justify-content-between align-items-start py-2 mb-3 no-print">
-            <span>{deleteError}</span>
-            <button className="btn-close ms-3" onClick={() => setDeleteError("")} />
+        <div className="container py-4" style={{ maxWidth: "1150px", animation: "sw-fade-up 0.45s ease 0.05s both" }}>
+
+          {/* Error al eliminar */}
+          {deleteError && (
+            <div className="no-print" style={{ background: "color-mix(in srgb, var(--sw-danger) 12%, var(--sw-surface))", border: "1px solid color-mix(in srgb, var(--sw-danger) 35%, transparent)", borderRadius: "10px", padding: "0.75rem 1rem", marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center", color: "var(--sw-danger)" }}>
+              <span>⚠ {deleteError}</span>
+              <button type="button" className="btn-close btn-sm" onClick={() => setDeleteError("")} />
+            </div>
+          )}
+
+          {/* Filtros */}
+          <div className="no-print sw-pcard" style={{ borderTopColor: "color-mix(in srgb, var(--sw-accent) 40%, transparent)" }}>
+            <div style={{ padding: "1rem 1.25rem", display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "center" }}>
+              <input
+                className="sw-pinput form-control"
+                style={{ flex: "1 1 260px" }}
+                placeholder="Buscar por nombre, categoría o código…"
+                value={filtro}
+                onChange={(e) => setFiltro(e.target.value)}
+              />
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.45rem 0.9rem", background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", borderRadius: "10px", cursor: "pointer" }} onClick={() => setSoloBajoStock((v) => !v)}>
+                <input id="solo-bajo" type="checkbox" checked={soloBajoStock} onChange={(e) => setSoloBajoStock(e.target.checked)} style={{ flexShrink: 0 }} />
+                <label htmlFor="solo-bajo" style={{ color: "var(--sw-muted)", fontSize: "0.85rem", cursor: "pointer", margin: 0 }}>Solo bajo stock</label>
+              </div>
+            </div>
           </div>
-        )}
 
-        {/* Badges resumen */}
-        <div className="d-flex flex-wrap gap-2 mb-3 no-print">
-          <span className="badge bg-secondary">Total: {productos.length}</span>
-          <span className="badge bg-danger">Bajo stock (pendientes): {bajosDeStock.length}</span>
-          {bajosEnPedido.length > 0 && (
-            <span className="badge bg-warning text-dark">En pedido: {bajosEnPedido.length}</span>
-          )}
-          {soloBajoStock && (
-            <span className="badge bg-info">Mostrando solo {productosFiltrados.length}</span>
-          )}
-        </div>
-
-        {/* Alerta + botón pedido */}
-        {bajosDeStock.length > 0 && (
-          <>
-            <button
-              className="btn btn-outline-warning mb-3 no-print"
-              onClick={() => navigate("/pedido-bajo-stock")}
-            >
-              📄 Generar pedido ({bajosDeStock.length})
-            </button>
-            <div className="alert alert-warning shadow-sm no-print" style={{ borderRadius: "10px" }}>
-              <strong>{bajosDeStock.length}</strong> producto(s) con stock por debajo del mínimo.
-              <details className="mt-2">
-                <summary>Ver detalle</summary>
-                <ul>
+          {/* Alerta bajo stock */}
+          {bajosDeStock.length > 0 && (
+            <div className="no-print" style={{ background: "color-mix(in srgb, var(--sw-warning) 10%, var(--sw-surface))", border: "1px solid color-mix(in srgb, var(--sw-warning) 30%, transparent)", borderRadius: "12px", padding: "0.9rem 1.1rem", marginBottom: "1.25rem", color: "var(--sw-text)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.6rem" }}>
+                <span style={{ fontWeight: 600 }}>⚠ {bajosDeStock.length} producto(s) con stock por debajo del mínimo</span>
+                <button onClick={() => navigate("/pedido-bajo-stock")}
+                  style={{ background: "color-mix(in srgb, var(--sw-warning) 15%, transparent)", border: "1px solid color-mix(in srgb, var(--sw-warning) 40%, transparent)", color: "var(--sw-warning)", borderRadius: "8px", padding: "0.3rem 0.85rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer" }}>
+                  📄 Generar pedido ({bajosDeStock.length})
+                </button>
+              </div>
+              <details style={{ marginTop: "0.5rem" }}>
+                <summary style={{ cursor: "pointer", fontSize: "0.82rem", color: "var(--sw-muted)" }}>Ver detalle</summary>
+                <ul style={{ marginTop: "0.4rem", paddingLeft: "1.2rem", fontSize: "0.82rem", color: "var(--sw-muted)" }}>
                   {bajosDeStock.slice(0, 8).map((p) => (
                     <li key={p.id}>{p.nombre}: {p.stock_actual} / mínimo {p.stock_minimo}</li>
                   ))}
@@ -163,80 +185,103 @@ export default function ProductosPage() {
                 </ul>
               </details>
             </div>
-          </>
-        )}
+          )}
 
-        {/* Tabla */}
-        <div className="card shadow-sm" style={{ borderRadius: "12px" }}>
-          <div className="table-responsive">
-            <table className="table align-middle mb-0">
-              <thead style={{ background: "var(--sw-surface-2)" }}>
-                <tr>
-                  <th style={{ width: 48 }}>#</th>
-                  <th>Producto</th>
-                  <th>Categoría</th>
-                  <th>Código barras</th>
-                  <th className="text-end" style={{ width: 140 }}>Stock</th>
-                  <th className="text-end" style={{ width: 140 }}>Mínimo</th>
-                  <th className="text-end no-print" style={{ width: 170 }}>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading && (
-                  <tr><td colSpan={7} className="text-center py-4">Cargando…</td></tr>
-                )}
-                {!loading && productosFiltrados.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="text-muted text-center py-4">
-                      No hay productos{filtro || soloBajoStock ? " que coincidan con los filtros." : " registrados todavía."}
-                    </td>
+          {/* Tabla */}
+          <div className="sw-pcard">
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
+                <thead>
+                  <tr style={{ background: "var(--sw-surface-2)", borderBottom: "1px solid var(--sw-border)" }}>
+                    {[
+                      { label: "#", w: 48 },
+                      { label: "Producto" },
+                      { label: "Categoría" },
+                      { label: "Código barras" },
+                      { label: "Stock", align: "right", w: 100 },
+                      { label: "Mínimo", align: "right", w: 100 },
+                      { label: "Acciones", align: "right", w: 140, cls: "no-print" },
+                    ].map((h) => (
+                      <th key={h.label} className={h.cls || ""}
+                        style={{ padding: "0.65rem 0.85rem", color: "var(--sw-muted)", fontWeight: 600, textTransform: "uppercase", fontSize: "0.68rem", letterSpacing: "0.07em", whiteSpace: "nowrap", textAlign: h.align || "left", width: h.w }}>
+                        {h.label}
+                      </th>
+                    ))}
                   </tr>
-                )}
-                {!loading && productosFiltrados.map((p) => {
-                  const bajo = isBajoStock(p);
-                  const codigos = Array.from(new Set(
-                    [p.codigo_barras, ...((p.codigos_barras || []).map((c) => c?.codigo_barras))].filter(Boolean)
-                  ));
-                  const codigosStr = codigos.length
-                    ? codigos.slice(0, 2).join(", ") + (codigos.length > 2 ? ` (+${codigos.length - 2})` : "")
-                    : "—";
-
-                  return (
-                    <tr key={p.id} className={bajo ? "table-warning" : ""}>
-                      <td className="text-muted">#{p.id}</td>
-                      <td>
-                        <div className="fw-semibold">{p.nombre}</div>
-                        {bajo && (
-                          <span className="badge bg-warning text-dark mt-1">
-                            {p?.pedido_en_curso ? "Bajo stock (pedido en curso)" : "Bajo stock"}
-                          </span>
-                        )}
-                      </td>
-                      <td>{p.categoria || "—"}</td>
-                      <td>{codigosStr}</td>
-                      <td className="text-end">{p.stock_actual ?? 0}</td>
-                      <td className="text-end">{p.stock_minimo ?? "—"}</td>
-                      <td className="text-end no-print">
-                        <button className="btn btn-sm btn-outline-primary me-1" onClick={() => openEditar(p)} title="Editar">✏️</button>
-                        <button className="btn btn-sm btn-outline-danger" onClick={() => onDelete(p.id)} title="Eliminar">🗑️</button>
+                </thead>
+                <tbody>
+                  {loading && (
+                    <tr>
+                      <td colSpan={7} style={{ textAlign: "center", padding: "2.5rem", color: "var(--sw-muted)" }}>
+                        Cargando productos…
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                  )}
+                  {!loading && productosFiltrados.length === 0 && (
+                    <tr>
+                      <td colSpan={7} style={{ textAlign: "center", padding: "2.5rem", color: "var(--sw-muted)" }}>
+                        {filtro || soloBajoStock ? "No hay productos que coincidan con los filtros." : "No hay productos registrados todavía."}
+                      </td>
+                    </tr>
+                  )}
+                  {!loading && productosFiltrados.map((p, i) => {
+                    const bajo = isBajoStock(p);
+                    const codigos = Array.from(new Set(
+                      [p.codigo_barras, ...((p.codigos_barras || []).map((c) => c?.codigo_barras))].filter(Boolean)
+                    ));
+                    const codigosStr = codigos.length
+                      ? codigos.slice(0, 2).join(", ") + (codigos.length > 2 ? ` (+${codigos.length - 2})` : "")
+                      : "—";
 
-        {showModal && (
-          <ProductoFormModal
-            show={showModal}
-            onClose={() => setShowModal(false)}
-            onSaved={onSaved}
-            initial={editing}
-          />
-        )}
+                    return (
+                      <tr key={p.id} style={{
+                        borderBottom: "1px solid var(--sw-border)",
+                        background: bajo ? "color-mix(in srgb, var(--sw-warning) 5%, transparent)" : i % 2 === 0 ? "transparent" : "var(--sw-surface-2)",
+                        borderLeft: bajo ? "3px solid color-mix(in srgb, var(--sw-warning) 55%, transparent)" : "3px solid transparent",
+                        transition: "background 0.15s",
+                      }}>
+                        <td style={{ padding: "0.65rem 0.85rem", color: "var(--sw-muted)", fontSize: "0.78rem" }}>#{p.id}</td>
+                        <td style={{ padding: "0.65rem 0.85rem" }}>
+                          <span style={{ fontWeight: 600, color: "var(--sw-text)" }}>{p.nombre}</span>
+                          {bajo && (
+                            <span style={{ display: "inline-block", marginLeft: "0.5rem", background: "color-mix(in srgb, var(--sw-warning) 15%, transparent)", color: "var(--sw-warning)", borderRadius: "5px", padding: "0.05rem 0.5rem", fontSize: "0.7rem", fontWeight: 600, verticalAlign: "middle" }}>
+                              {p?.pedido_en_curso ? "Pedido en curso" : "Bajo stock"}
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: "0.65rem 0.85rem", color: "var(--sw-muted)" }}>{p.categoria || "—"}</td>
+                        <td style={{ padding: "0.65rem 0.85rem", color: "var(--sw-muted)", fontSize: "0.8rem", fontFamily: "monospace" }}>{codigosStr}</td>
+                        <td style={{ padding: "0.65rem 0.85rem", textAlign: "right", fontWeight: 700, color: bajo ? "var(--sw-warning)" : "var(--sw-text)" }}>{p.stock_actual ?? 0}</td>
+                        <td style={{ padding: "0.65rem 0.85rem", textAlign: "right", color: "var(--sw-muted)" }}>{p.stock_minimo ?? "—"}</td>
+                        <td className="no-print" style={{ padding: "0.65rem 0.85rem", textAlign: "right" }}>
+                          <button onClick={() => openEditar(p)} title="Editar"
+                            style={{ background: "color-mix(in srgb, #6366f1 12%, transparent)", border: "1px solid color-mix(in srgb, #6366f1 30%, transparent)", color: "#6366f1", borderRadius: "7px", padding: "0.25rem 0.6rem", fontSize: "0.8rem", cursor: "pointer", marginRight: "0.4rem" }}>
+                            ✏ Editar
+                          </button>
+                          <button onClick={() => onDelete(p.id)} title="Eliminar"
+                            style={{ background: "color-mix(in srgb, var(--sw-danger) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sw-danger) 25%, transparent)", color: "var(--sw-danger)", borderRadius: "7px", padding: "0.25rem 0.6rem", fontSize: "0.8rem", cursor: "pointer" }}>
+                            🗑
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
       </div>
+
+      {showModal && (
+        <ProductoFormModal
+          show={showModal}
+          onClose={() => setShowModal(false)}
+          onSaved={onSaved}
+          initial={editing}
+        />
+      )}
     </>
   );
 }

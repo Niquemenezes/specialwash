@@ -130,14 +130,6 @@ const CochesEntregadosPage = () => {
     setFechaHasta(toDateInputValue(hoy));
   };
 
-  const volver = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-      return;
-    }
-    navigate("/", { replace: true });
-  };
-
   const editarInspeccion = (id) => {
     navigate(`/inspeccion-recepcion?editId=${id}`);
   };
@@ -168,261 +160,453 @@ const CochesEntregadosPage = () => {
     }
   };
 
+  /* ── SVG icons ── */
+  const ICONS = {
+    car: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>),
+    search: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>),
+    refresh: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0115.454-3.454M20 15a9 9 0 01-15.454 3.454"/></svg>),
+    eye: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12S5 4 12 4s11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>),
+    pen: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>),
+    trash: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>),
+    pdf: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>),
+    check: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>),
+    close: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>),
+    calendar: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>),
+    km: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>),
+  };
+
   return (
-    <div className="container py-4" style={{ maxWidth: "1000px" }}>
-      <div className="d-flex justify-content-center align-items-center mb-4 p-3 rounded shadow-sm sw-header-dark">
-        <div className="w-100 d-flex justify-content-between align-items-center gap-2">
-          <h2 className="fw-bold mb-0 text-center sw-accent-text">Coches Entregados</h2>
-          <button type="button" className="btn btn-outline-light btn-sm" onClick={volver}>
-            Volver
-          </button>
-        </div>
-      </div>
+    <div className="sw-ent-wrapper">
 
-      <div className="card shadow-sm border-0 mb-4">
-        <div className="card-header py-3 sw-card-header-gold">
-          Filtros
-        </div>
-        <div className="card-body p-3">
-          <div className="row g-3 align-items-end">
-            <div className="col-12 col-md-4">
-              <label className="form-label">Buscar (cliente, coche o matrícula)</label>
-              <input
-                type="text"
-                className="form-control"
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Ej: Juan, BMW, 1234ABC"
-              />
+      {/* ── Hero ── */}
+      <div className="sw-veh-hero">
+        <div className="sw-veh-hero-inner container">
+          <div className="sw-veh-hero-body">
+            <div className="sw-veh-hero-icon">
+              <span style={{ width: 24, height: 24, display: "flex" }}>{ICONS.car}</span>
             </div>
-            <div className="col-6 col-md-3">
-              <label className="form-label">Desde</label>
-              <input
-                type="date"
-                className="form-control"
-                value={fechaDesde}
-                onChange={(e) => setFechaDesde(e.target.value)}
-              />
+            <div style={{ flex: 1 }}>
+              <p className="sw-home-eyebrow" style={{ marginBottom: "0.2rem" }}>Taller · Historial</p>
+              <h1 className="sw-veh-hero-title">Coches Entregados</h1>
+              <p className="sw-veh-hero-sub">Registro histórico de vehículos entregados al cliente</p>
             </div>
-            <div className="col-6 col-md-3">
-              <label className="form-label">Hasta</label>
-              <input
-                type="date"
-                className="form-control"
-                value={fechaHasta}
-                onChange={(e) => setFechaHasta(e.target.value)}
-              />
-            </div>
-            <div className="col-12 col-md-2 d-grid gap-2">
-              <button className="btn btn-outline-primary btn-sm" onClick={usarMesActual}>
-                Mes actual
-              </button>
-              <button className="btn btn-outline-secondary btn-sm" onClick={limpiarFiltros}>
-                Limpiar
-              </button>
-            </div>
+            <button
+              className="sw-ent-submit-btn"
+              onClick={cargarInspecciones}
+              style={{ padding: "0.6rem 1.4rem", display: "flex", alignItems: "center", gap: "0.45rem" }}
+            >
+              <span style={{ width: 16, height: 16, display: "inline-flex" }}>{ICONS.refresh}</span>
+              Actualizar
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="row g-3 mb-4">
-        <div className="col-12 col-md-4">
-          <div className="card border-0 shadow-sm h-100">
-            <div className="card-body">
-              <p className="text-muted mb-1">Total entregados (filtro actual)</p>
-              <h4 className="mb-0">{stats.total}</h4>
+      <div className="container sw-ent-content" style={{ maxWidth: 1100 }}>
+
+        {/* ── Error ── */}
+        {error && (
+          <div style={{
+            background: "color-mix(in srgb,var(--sw-danger,#ef4444) 12%,transparent)",
+            border: "1px solid color-mix(in srgb,var(--sw-danger,#ef4444) 30%,transparent)",
+            color: "var(--sw-danger,#ef4444)", borderRadius: 12, padding: "0.75rem 1rem",
+            display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.9rem",
+          }}>
+            {error}
+            <button onClick={() => setError("")} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", display: "flex" }}>
+              <span style={{ width: 18, height: 18, display: "flex" }}>{ICONS.close}</span>
+            </button>
+          </div>
+        )}
+
+        {/* ── Stats ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: "1rem" }}>
+          {[
+            { label: "Filtrados",        value: stats.total,                             color: "var(--sw-accent,#d4af37)" },
+            { label: "Este mes",         value: stats.entregadosMes,                     color: "#22c55e" },
+            { label: "Km promedio",      value: `${stats.kmPromedio.toLocaleString("es-ES")} km`, color: "#38bdf8" },
+          ].map((item) => (
+            <div key={item.label} style={{
+              background: "var(--sw-surface)", border: "1px solid var(--sw-border)",
+              borderRadius: 14, padding: "1rem 1.25rem", display: "flex", flexDirection: "column", gap: "0.25rem",
+            }}>
+              <span style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-muted)" }}>{item.label}</span>
+              <span style={{ fontSize: "1.4rem", fontWeight: 800, color: item.color, lineHeight: 1.2 }}>{item.value}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Filtros ── */}
+        <div className="sw-ent-card">
+          <div className="sw-ent-card-header">
+            <div className="sw-ent-card-header-icon" style={{ background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.22)", color: "var(--sw-accent,#d4af37)" }}>
+              <span style={{ width: 18, height: 18, display: "flex" }}>{ICONS.search}</span>
+            </div>
+            <div>
+              <p className="sw-ent-card-eyebrow">Búsqueda</p>
+              <h2 className="sw-ent-card-title">Filtrar entregados</h2>
             </div>
           </div>
-        </div>
-        <div className="col-12 col-md-4">
-          <div className="card border-0 shadow-sm h-100">
-            <div className="card-body">
-              <p className="text-muted mb-1">Entregados este mes</p>
-              <h4 className="mb-0">{stats.entregadosMes}</h4>
-            </div>
-          </div>
-        </div>
-        <div className="col-12 col-md-4">
-          <div className="card border-0 shadow-sm h-100">
-            <div className="card-body">
-              <p className="text-muted mb-1">Kilómetros promedio</p>
-              <h4 className="mb-0">{stats.kmPromedio.toLocaleString("es-ES")} km</h4>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="card shadow-sm border-0">
-        <div className="card-header py-3 d-flex justify-content-between align-items-center sw-card-header-gold">
-          <span>Listado de coches entregados</span>
-          <button className="btn btn-outline-dark btn-sm" onClick={cargarInspecciones}>
-            Actualizar
-          </button>
-        </div>
-        <div className="card-body p-3">
-          {loading && <p className="text-muted mb-0">Cargando...</p>}
-          {error && <div className="alert alert-danger mb-0">{error}</div>}
-
-          {!loading && !error && entregados.length === 0 && (
-            <p className="text-muted mb-0">No hay coches entregados con esos filtros.</p>
-          )}
-
-          {!loading && !error && entregados.length > 0 && (
-            <div className="table-responsive">
-              <table className="table table-hover align-middle mb-0">
-                <thead className="table-light">
-                  <tr>
-                    <th>#</th>
-                    <th>Fecha entrega</th>
-                    <th>Cliente</th>
-                    <th>Coche</th>
-                    <th>Matrícula</th>
-                    <th>Kilómetros</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {entregados.map((item) => (
-                    <tr key={item.id}>
-                      <td>{item.id}</td>
-                      <td>{formatFecha(item.fecha_entrega || item.updated_at)}</td>
-                      <td>{item.cliente_nombre || "-"}</td>
-                      <td>{item.coche_descripcion || "-"}</td>
-                      <td>{item.matricula || "-"}</td>
-                      <td>{parseKm(item.kilometros)?.toLocaleString("es-ES") || "-"}</td>
-                      <td>
-                        <div className="d-flex gap-2">
-                          <Link className="btn btn-outline-success btn-sm" to={`/acta-entrega/${item.id}`}>
-                            Ver hoja de intervencion firmada
-                          </Link>
-                          <a
-                            className="btn btn-outline-secondary btn-sm"
-                            href={`/acta-entrega/${item.id}?print=1`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            Descargar PDF
-                          </a>
-                          <button
-                            type="button"
-                            className="btn btn-outline-primary btn-sm"
-                            onClick={() => editarInspeccion(item.id)}
-                          >
-                            Editar
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-outline-dark btn-sm"
-                            onClick={() => verInspeccion(item.id)}
-                            disabled={loadingDetalle}
-                          >
-                            Ver inspección
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-outline-danger btn-sm"
-                            onClick={() => eliminarInspeccion(item)}
-                          >
-                            Eliminar
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {detalle && (
-        <div className="modal show d-block sw-modal-overlay-strong">
-          <div className="modal-dialog modal-xl modal-dialog-scrollable modal-fullscreen-md-down">
-            <div className="modal-content">
-              <div className="modal-header py-3 sw-modal-header-dark">
-                <h5 className="modal-title fw-bold fs-6 fs-md-5">
-                  🚗 Inspección #{detalle.id} - {detalle.matricula}
-                </h5>
+          <div className="sw-ent-card-body">
+            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "flex-end" }}>
+              {/* Búsqueda */}
+              <div style={{ position: "relative", flex: "2 1 220px", minWidth: 200 }}>
+                <span style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", width: 16, height: 16, color: "var(--sw-muted)", display: "flex", pointerEvents: "none" }}>{ICONS.search}</span>
+                <input
+                  className="form-control sw-pinput"
+                  style={{ paddingLeft: "2.2rem" }}
+                  placeholder="Cliente, coche o matrícula…"
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                />
+              </div>
+              {/* Desde */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", flex: "1 1 140px", minWidth: 130 }}>
+                <span style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--sw-muted)" }}>Desde</span>
+                <input
+                  type="date"
+                  className="form-control sw-pinput"
+                  value={fechaDesde}
+                  onChange={(e) => setFechaDesde(e.target.value)}
+                />
+              </div>
+              {/* Hasta */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", flex: "1 1 140px", minWidth: 130 }}>
+                <span style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--sw-muted)" }}>Hasta</span>
+                <input
+                  type="date"
+                  className="form-control sw-pinput"
+                  value={fechaHasta}
+                  onChange={(e) => setFechaHasta(e.target.value)}
+                />
+              </div>
+              {/* Botones */}
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                 <button
-                  type="button"
-                  className="btn-close btn-close-white"
-                  onClick={() => setDetalle(null)}
-                  aria-label="Cerrar"
-                ></button>
-              </div>
-
-              <div className="modal-body p-3">
-                <div className="card mb-3">
-                  <div className="card-header py-2 sw-card-header-gold">
-                    👤 Datos de la recepción
-                  </div>
-                  <div className="card-body p-3">
-                    <div className="row g-2">
-                      <div className="col-12 col-md-6"><strong>Cliente:</strong> {detalle.cliente_nombre || "-"}</div>
-                      <div className="col-12 col-md-6"><strong>Teléfono:</strong> {detalle.cliente_telefono || "-"}</div>
-                      <div className="col-12 col-md-6"><strong>Coche:</strong> {detalle.coche_descripcion || "-"}</div>
-                      <div className="col-12 col-md-6"><strong>Fecha inspección:</strong> {formatFecha(detalle.fecha_inspeccion)}</div>
-                      <div className="col-12"><strong>Observaciones:</strong> {detalle.averias_notas || "Sin observaciones"}</div>
-                    </div>
-                  </div>
-                </div>
-
-                {Array.isArray(detalle.fotos_cloudinary) && detalle.fotos_cloudinary.length > 0 && (
-                  <div className="card mb-3">
-                    <div className="card-header py-2 sw-card-header-gold">
-                      📸 Fotos de inspección ({detalle.fotos_cloudinary.length})
-                    </div>
-                    <div className="card-body p-2 p-md-3">
-                      <div className="row g-3">
-                        {detalle.fotos_cloudinary.map((foto, index) => {
-                          const url = getFotoUrl(foto, detalle.id);
-                          if (!url) return null;
-                          return (
-                            <div key={index} className="col-6 col-sm-6 col-md-4">
-                              <a href={url} target="_blank" rel="noopener noreferrer">
-                                <img
-                                  src={url}
-                                  alt={`Foto ${index + 1}`}
-                                  className="img-fluid rounded border"
-                                  style={{ width: "100%", height: "180px", objectFit: "cover" }}
-                                />
-                              </a>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {Array.isArray(detalle.videos_cloudinary) && detalle.videos_cloudinary.length > 0 && (
-                  <div className="card mb-3">
-                    <div className="card-header py-2 sw-card-header-gold">
-                      🎥 Videos de inspección ({detalle.videos_cloudinary.length})
-                    </div>
-                    <div className="card-body p-2 p-md-3">
-                      <div className="row g-3">
-                        {detalle.videos_cloudinary.map((video, index) => {
-                          const url = getVideoUrl(video, detalle.id);
-                          if (!url) return null;
-                          return (
-                            <div key={index} className="col-12 col-md-6">
-                              <video src={url} controls className="w-100 rounded border" style={{ maxHeight: "300px" }} />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setDetalle(null)}>
-                  Cerrar
+                  onClick={usarMesActual}
+                  style={{
+                    background: "color-mix(in srgb,#38bdf8 12%,transparent)",
+                    border: "1px solid color-mix(in srgb,#38bdf8 30%,transparent)",
+                    color: "#38bdf8", borderRadius: 10, padding: "0.55rem 1rem",
+                    cursor: "pointer", fontWeight: 600, fontSize: "0.82rem",
+                    display: "flex", alignItems: "center", gap: "0.35rem",
+                  }}
+                >
+                  <span style={{ width: 13, height: 13, display: "flex" }}>{ICONS.calendar}</span>
+                  Mes actual
+                </button>
+                <button
+                  onClick={limpiarFiltros}
+                  style={{
+                    background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)",
+                    color: "var(--sw-muted)", borderRadius: 10, padding: "0.55rem 1rem",
+                    cursor: "pointer", fontWeight: 600, fontSize: "0.82rem",
+                  }}
+                >
+                  Limpiar
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Tabla ── */}
+        <div style={{
+          background: "var(--sw-surface)", border: "1px solid var(--sw-border)",
+          borderRadius: 16, overflow: "hidden",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.18)",
+        }}>
+          <div className="table-responsive">
+            <table className="table align-middle mb-0" style={{ color: "var(--sw-text)" }}>
+              <thead>
+                <tr style={{ background: "var(--sw-surface-2)", borderBottom: "2px solid var(--sw-border)" }}>
+                  {["#", "Fecha entrega", "Cliente", "Coche", "Matrícula", "Km", ""].map((h) => (
+                    <th key={h} style={{
+                      padding: "0.85rem 1rem", fontSize: "0.65rem", fontWeight: 700,
+                      letterSpacing: "0.08em", textTransform: "uppercase",
+                      color: "var(--sw-muted)", border: "none",
+                      textAlign: h === "Km" || h === "" ? "right" : "left",
+                    }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loading && (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: "center", padding: "3.5rem", color: "var(--sw-muted)" }}>
+                      <div className="spinner-border spinner-border-sm me-2" style={{ color: "var(--sw-accent,#d4af37)" }} />
+                      Cargando…
+                    </td>
+                  </tr>
+                )}
+                {!loading && entregados.length === 0 && (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: "center", padding: "3.5rem", color: "var(--sw-muted)", fontSize: "0.9rem" }}>
+                      No hay coches entregados con esos filtros.
+                    </td>
+                  </tr>
+                )}
+                {!loading && entregados.map((item) => (
+                  <tr
+                    key={item.id}
+                    style={{ borderBottom: "1px solid var(--sw-border)", transition: "background 0.15s" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "color-mix(in srgb,var(--sw-accent,#d4af37) 5%,transparent)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                  >
+                    <td style={{ padding: "0.85rem 1rem", color: "var(--sw-muted)", fontSize: "0.78rem", fontWeight: 600 }}>
+                      {item.id}
+                    </td>
+                    <td style={{ padding: "0.85rem 1rem", color: "var(--sw-text)", fontSize: "0.85rem" }}>
+                      {formatFecha(item.fecha_entrega || item.updated_at)}
+                    </td>
+                    <td style={{ padding: "0.85rem 1rem", fontWeight: 700, color: "var(--sw-text)" }}>
+                      {item.cliente_nombre || "-"}
+                    </td>
+                    <td style={{ padding: "0.85rem 1rem", color: "var(--sw-muted)", fontSize: "0.85rem" }}>
+                      {item.coche_descripcion || "-"}
+                    </td>
+                    <td style={{ padding: "0.85rem 1rem" }}>
+                      {item.matricula ? (
+                        <span style={{
+                          background: "color-mix(in srgb,var(--sw-accent,#d4af37) 12%,transparent)",
+                          border: "1px solid color-mix(in srgb,var(--sw-accent,#d4af37) 30%,transparent)",
+                          color: "var(--sw-accent,#d4af37)", borderRadius: 6,
+                          padding: "0.15rem 0.6rem", fontWeight: 700, fontSize: "0.78rem", letterSpacing: "0.05em",
+                        }}>{item.matricula}</span>
+                      ) : <span style={{ color: "var(--sw-muted)", fontStyle: "italic" }}>—</span>}
+                    </td>
+                    <td style={{ padding: "0.85rem 1rem", textAlign: "right", color: "var(--sw-muted)", fontSize: "0.85rem" }}>
+                      {parseKm(item.kilometros) != null
+                        ? <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                            <span style={{ width: 13, height: 13, display: "inline-flex", opacity: 0.6 }}>{ICONS.km}</span>
+                            {parseKm(item.kilometros).toLocaleString("es-ES")}
+                          </span>
+                        : <span style={{ fontStyle: "italic", opacity: 0.5 }}>—</span>}
+                    </td>
+                    <td style={{ padding: "0.85rem 1rem", textAlign: "right" }}>
+                      <div style={{ display: "flex", gap: "0.4rem", justifyContent: "flex-end", flexWrap: "wrap" }}>
+                        {/* Ver hoja firmada */}
+                        <Link
+                          to={`/acta-entrega/${item.id}`}
+                          title="Ver hoja firmada"
+                          style={{
+                            background: "color-mix(in srgb,#22c55e 12%,transparent)",
+                            border: "1px solid color-mix(in srgb,#22c55e 30%,transparent)",
+                            color: "#22c55e", borderRadius: 8,
+                            padding: "0.35rem 0.55rem", cursor: "pointer", display: "flex", alignItems: "center", textDecoration: "none",
+                          }}
+                        >
+                          <span style={{ width: 14, height: 14, display: "flex" }}>{ICONS.check}</span>
+                        </Link>
+                        {/* PDF */}
+                        <a
+                          href={`/acta-entrega/${item.id}?print=1`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Descargar PDF"
+                          style={{
+                            background: "color-mix(in srgb,#f87171 12%,transparent)",
+                            border: "1px solid color-mix(in srgb,#f87171 30%,transparent)",
+                            color: "#f87171", borderRadius: 8,
+                            padding: "0.35rem 0.55rem", cursor: "pointer", display: "flex", alignItems: "center", textDecoration: "none",
+                          }}
+                        >
+                          <span style={{ width: 14, height: 14, display: "flex" }}>{ICONS.pdf}</span>
+                        </a>
+                        {/* Editar */}
+                        <button
+                          onClick={() => editarInspeccion(item.id)}
+                          title="Editar"
+                          style={{
+                            background: "color-mix(in srgb,var(--sw-accent,#d4af37) 12%,transparent)",
+                            border: "1px solid color-mix(in srgb,var(--sw-accent,#d4af37) 30%,transparent)",
+                            color: "var(--sw-accent,#d4af37)", borderRadius: 8,
+                            padding: "0.35rem 0.55rem", cursor: "pointer", display: "flex", alignItems: "center",
+                          }}
+                        >
+                          <span style={{ width: 14, height: 14, display: "flex" }}>{ICONS.pen}</span>
+                        </button>
+                        {/* Ver inspección */}
+                        <button
+                          onClick={() => verInspeccion(item.id)}
+                          disabled={loadingDetalle}
+                          title="Ver inspección"
+                          style={{
+                            background: "color-mix(in srgb,#38bdf8 12%,transparent)",
+                            border: "1px solid color-mix(in srgb,#38bdf8 30%,transparent)",
+                            color: "#38bdf8", borderRadius: 8,
+                            padding: "0.35rem 0.55rem", cursor: "pointer", display: "flex", alignItems: "center",
+                            opacity: loadingDetalle ? 0.5 : 1,
+                          }}
+                        >
+                          <span style={{ width: 14, height: 14, display: "flex" }}>{ICONS.eye}</span>
+                        </button>
+                        {/* Eliminar */}
+                        <button
+                          onClick={() => eliminarInspeccion(item)}
+                          title="Eliminar"
+                          style={{
+                            background: "color-mix(in srgb,var(--sw-danger,#ef4444) 10%,transparent)",
+                            border: "1px solid color-mix(in srgb,var(--sw-danger,#ef4444) 28%,transparent)",
+                            color: "var(--sw-danger,#ef4444)", borderRadius: 8,
+                            padding: "0.35rem 0.55rem", cursor: "pointer", display: "flex", alignItems: "center",
+                          }}
+                        >
+                          <span style={{ width: 14, height: 14, display: "flex" }}>{ICONS.trash}</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      {/* ── Modal detalle ── */}
+      {detalle && (
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 1050,
+            background: "var(--sw-overlay-bg,rgba(0,0,0,0.6))",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "1rem", backdropFilter: "blur(4px)",
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setDetalle(null); }}
+        >
+          <div style={{
+            background: "var(--sw-surface)", border: "1px solid var(--sw-border)",
+            borderRadius: 20, width: "100%", maxWidth: 680, maxHeight: "90vh", overflowY: "auto",
+            boxShadow: "0 24px 60px rgba(0,0,0,0.5)",
+            animation: "sw-fade-up 0.22s ease both",
+          }}>
+            {/* Header modal */}
+            <div style={{
+              padding: "1.25rem 1.5rem", borderBottom: "1px solid var(--sw-border)",
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              position: "sticky", top: 0, background: "var(--sw-surface)", zIndex: 1,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                <span style={{
+                  width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "color-mix(in srgb,var(--sw-accent,#d4af37) 14%,transparent)",
+                  border: "1px solid color-mix(in srgb,var(--sw-accent,#d4af37) 28%,transparent)",
+                  color: "var(--sw-accent,#d4af37)",
+                }}>
+                  <span style={{ width: 18, height: 18, display: "flex" }}>{ICONS.car}</span>
+                </span>
+                <div>
+                  <p style={{ margin: 0, fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-muted)" }}>
+                    Detalle de inspección
+                  </p>
+                  <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "var(--sw-text)" }}>
+                    #{detalle.id} — {detalle.matricula || "Sin matrícula"}
+                  </h3>
+                </div>
+              </div>
+              <button
+                onClick={() => setDetalle(null)}
+                style={{ background: "none", border: "none", color: "var(--sw-muted)", cursor: "pointer", padding: "0.25rem", borderRadius: 6, display: "flex" }}
+              >
+                <span style={{ width: 20, height: 20, display: "flex" }}>{ICONS.close}</span>
+              </button>
+            </div>
+
+            {/* Body modal */}
+            <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+
+              {/* Datos recepción */}
+              <div style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", borderRadius: 14, padding: "1.25rem" }}>
+                <p style={{ margin: "0 0 0.75rem", fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-accent,#d4af37)" }}>
+                  Datos de la recepción
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: "0.6rem" }}>
+                  {[
+                    { label: "Cliente", value: detalle.cliente_nombre },
+                    { label: "Teléfono", value: detalle.cliente_telefono },
+                    { label: "Coche", value: detalle.coche_descripcion },
+                    { label: "Fecha inspección", value: formatFecha(detalle.fecha_inspeccion) },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <span style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--sw-muted)" }}>{label}</span>
+                      <p style={{ margin: "0.15rem 0 0", fontWeight: 600, color: "var(--sw-text)", fontSize: "0.9rem" }}>{value || "—"}</p>
+                    </div>
+                  ))}
+                  {detalle.averias_notas && (
+                    <div style={{ gridColumn: "1/-1" }}>
+                      <span style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--sw-muted)" }}>Observaciones</span>
+                      <p style={{ margin: "0.15rem 0 0", color: "var(--sw-text)", fontSize: "0.88rem" }}>{detalle.averias_notas}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Fotos */}
+              {Array.isArray(detalle.fotos_cloudinary) && detalle.fotos_cloudinary.length > 0 && (
+                <div>
+                  <p style={{ margin: "0 0 0.75rem", fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-accent,#d4af37)" }}>
+                    Fotos de inspección ({detalle.fotos_cloudinary.length})
+                  </p>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: "0.75rem" }}>
+                    {detalle.fotos_cloudinary.map((foto, index) => {
+                      const url = getFotoUrl(foto, detalle.id);
+                      if (!url) return null;
+                      return (
+                        <a key={index} href={url} target="_blank" rel="noopener noreferrer" style={{ borderRadius: 10, overflow: "hidden", display: "block", border: "1px solid var(--sw-border)" }}>
+                          <img src={url} alt={`Foto ${index + 1}`} style={{ width: "100%", height: 130, objectFit: "cover", display: "block" }} />
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Videos */}
+              {Array.isArray(detalle.videos_cloudinary) && detalle.videos_cloudinary.length > 0 && (
+                <div>
+                  <p style={{ margin: "0 0 0.75rem", fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-accent,#d4af37)" }}>
+                    Vídeos de inspección ({detalle.videos_cloudinary.length})
+                  </p>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: "0.75rem" }}>
+                    {detalle.videos_cloudinary.map((video, index) => {
+                      const url = getVideoUrl(video, detalle.id);
+                      if (!url) return null;
+                      return (
+                        <video key={index} src={url} controls style={{ width: "100%", maxHeight: 260, borderRadius: 10, border: "1px solid var(--sw-border)" }} />
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Footer modal */}
+            <div style={{ padding: "1rem 1.5rem", borderTop: "1px solid var(--sw-border)", display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
+              <Link
+                to={`/acta-entrega/${detalle.id}`}
+                style={{
+                  background: "color-mix(in srgb,#22c55e 14%,transparent)",
+                  border: "1px solid color-mix(in srgb,#22c55e 32%,transparent)",
+                  color: "#22c55e", borderRadius: 10, padding: "0.6rem 1.2rem",
+                  fontWeight: 700, fontSize: "0.85rem", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "0.4rem",
+                }}
+              >
+                <span style={{ width: 14, height: 14, display: "flex" }}>{ICONS.check}</span>
+                Hoja firmada
+              </Link>
+              <button
+                onClick={() => setDetalle(null)}
+                style={{
+                  background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)",
+                  color: "var(--sw-muted)", borderRadius: 10, padding: "0.6rem 1.2rem",
+                  fontWeight: 600, fontSize: "0.85rem", cursor: "pointer",
+                }}
+              >
+                Cerrar
+              </button>
             </div>
           </div>
         </div>

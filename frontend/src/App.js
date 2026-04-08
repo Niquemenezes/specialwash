@@ -4,10 +4,17 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import injectContext from "./store/appContext.js";
 import { touchSessionActivity, getStoredRol, isEmployeeRole } from "./utils/authSession";
 import { obtenerHoy } from "./utils/horarioApi";
+import { ROUTE_PERMISSIONS } from "./config/rolePermissions.js";
 
 import NavbarSW from "./component/NavbarSW.jsx";
 import Footer from "./component/Footer.jsx";
 import PrivateRoute from "./component/PrivateRoute.js";
+
+// Helper: obtener permisos para una ruta desde la configuración centralizada
+const getRouteAllow = (routePath) => {
+  const allowed = ROUTE_PERMISSIONS[routePath];
+  return allowed ? (allowed.includes("*") ? [] : allowed) : [];
+};
 
 // Páginas
 import Login from "./pages/login.js";
@@ -30,12 +37,17 @@ import ActaEntregaView from "./pages/ActaEntregaView.jsx";
 import ActaEntregaDocumento from "./pages/ActaEntregaDocumento.jsx";
 import CochesEntregadosPage from "./pages/CochesEntregadosPage.jsx";
 import InspeccionesGuardadasPage from "./pages/InspeccionesGuardadasPage.jsx";
-import { AdminPartesTrabajo, EmpleadoPartesTrabajo } from "./pages/PartesTrabajo";
+import { EmpleadoPartesTrabajo } from "./pages/PartesTrabajo";
+import AdminPartesTrabajoListado from "./pages/AdminPartesTrabajoListado";
+import AdminPartesTrabajoAcompanamiento from "./pages/AdminPartesTrabajoAcompanamiento";
+import EmpleadoMisTrabajosSimple from "./pages/EmpleadoMisTrabajosSimple";
 import { AdminPartesTrabajoFinalizados } from "./pages/PartesTrabajoFinalizados";
 import CatalogoServiciosPage from "./pages/CatalogoServiciosPage";
+import CalidadEntregaPage from "./pages/CalidadEntregaPage";
 import CitasPage from "./pages/CitasPage";
 import GastosEmpresaPage from "./pages/GastosEmpresaPage.jsx";
 import ProfesionalesPage from "./pages/ProfesionalesPage.jsx";
+import CobroParticularesPage from "./pages/CobroParticularesPage.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
 import RepasoEntregaPage from "./pages/RepasoEntregaPage.jsx";
 import FicharPage from "./pages/FicharPage.jsx";
@@ -156,7 +168,7 @@ const App = () => {
             <Route
               path="/productos"
               element={
-                <PrivateRoute allow={["administrador"]}>
+                <PrivateRoute allow={getRouteAllow("/productos")}>
                   <ProductosPage />
                 </PrivateRoute>
               }
@@ -165,7 +177,7 @@ const App = () => {
             <Route
               path="/entradas"
               element={
-                <PrivateRoute allow={["administrador"]}>
+                <PrivateRoute allow={getRouteAllow("/entradas")}>
                   <RegistrarEntradaPage />
                 </PrivateRoute>
               }
@@ -174,7 +186,7 @@ const App = () => {
             <Route
               path="/salidas"
               element={
-                <PrivateRoute allow={["administrador", "encargado", "calidad", "detailing", "pintura", "tapicero"]}>
+                <PrivateRoute allow={getRouteAllow("/salidas")}>
                   <RegistrarSalidaPage />
                 </PrivateRoute>
               }
@@ -183,7 +195,7 @@ const App = () => {
             <Route
               path="/usuarios"
               element={
-                <PrivateRoute allow={["administrador"]}>
+                <PrivateRoute allow={getRouteAllow("/usuarios")}>
                   <Usuarios />
                 </PrivateRoute>
               }
@@ -192,7 +204,7 @@ const App = () => {
             <Route
               path="/proveedores"
               element={
-                <PrivateRoute allow={["administrador"]}>
+                <PrivateRoute allow={getRouteAllow("/proveedores")}>
                   <Proveedores />
                 </PrivateRoute>
               }
@@ -201,7 +213,7 @@ const App = () => {
             <Route
               path="/maquinaria"
               element={
-                <PrivateRoute allow={["administrador"]}>
+                <PrivateRoute allow={getRouteAllow("/maquinaria")}>
                   <Maquinaria />
                 </PrivateRoute>
               }
@@ -210,7 +222,7 @@ const App = () => {
             <Route
               path="/resumen-entradas"
               element={
-                <PrivateRoute allow={["administrador"]}>
+                <PrivateRoute allow={getRouteAllow("/resumen-entradas")}>
                   <ResumenEntradas />
                 </PrivateRoute>
               }
@@ -219,7 +231,7 @@ const App = () => {
             <Route
               path="/historial-salidas"
               element={
-                <PrivateRoute allow={["administrador"]}>
+                <PrivateRoute allow={getRouteAllow("/historial-salidas")}>
                   <HistorialSalidas />
                 </PrivateRoute>
               }
@@ -228,7 +240,7 @@ const App = () => {
             <Route
               path="/pedido-bajo-stock"
               element={
-                <PrivateRoute allow={["administrador"]}>
+                <PrivateRoute allow={getRouteAllow("/pedido-bajo-stock")}>
                   <PedidoBajoStock />
                 </PrivateRoute>
               }
@@ -237,7 +249,7 @@ const App = () => {
             <Route
               path="/pedido-bajo-stock/imprimir"
               element={
-                <PrivateRoute allow={["administrador"]}>
+                <PrivateRoute allow={getRouteAllow("/pedido-bajo-stock")}>
                   <PedidoBajoStockPrint />
                 </PrivateRoute>
               }
@@ -246,7 +258,7 @@ const App = () => {
             <Route
               path="/clientes"
               element={
-                <PrivateRoute allow={["administrador"]}>
+                <PrivateRoute allow={getRouteAllow("/clientes")}>
                   <ClientesPage />
                 </PrivateRoute>
               }
@@ -255,7 +267,7 @@ const App = () => {
             <Route
               path="/coches"
               element={
-                <PrivateRoute allow={["administrador"]}>
+                <PrivateRoute allow={getRouteAllow("/coches")}>
                   <CochesPage />
                 </PrivateRoute>
               }
@@ -264,8 +276,8 @@ const App = () => {
             <Route
               path="/partes-trabajo"
               element={
-                <PrivateRoute allow={["administrador", "calidad"]}>
-                  <AdminPartesTrabajo />
+                <PrivateRoute allow={getRouteAllow("/partes-trabajo")}>
+                  <AdminPartesTrabajoAcompanamiento />
                 </PrivateRoute>
               }
             />
@@ -273,8 +285,8 @@ const App = () => {
             <Route
               path="/mis-partes-trabajo"
               element={
-                <PrivateRoute allow={["detailing", "pintura"]}>
-                  <EmpleadoPartesTrabajo
+                <PrivateRoute allow={getRouteAllow("/mis-partes-trabajo")}>
+                  <EmpleadoMisTrabajosSimple
                     empleadoId={getStoredUserId()}
                     userRol={getStoredRol()}
                   />
@@ -282,37 +294,21 @@ const App = () => {
               }
             />
 
-            <Route
-              path="/flujo-trabajo"
-              element={
-                <PrivateRoute allow={["detailing", "pintura"]}>
-                  <EmpleadoPartesTrabajo
-                    empleadoId={getStoredUserId()}
-                    userRol={getStoredRol()}
-                  />
-                </PrivateRoute>
-              }
-            />
-
-            <Route
-              path="/flujo-trabajo-tapicero"
-              element={
-                <PrivateRoute allow={["tapicero"]}>
-                  <EmpleadoPartesTrabajo
-                    empleadoId={getStoredUserId()}
-                    panelTitle="🪑 Mis Partes de Tapicería"
-                    panelSubtitle="Gestiona el avance de los trabajos de tapicería asignados"
-                    userRol={getStoredRol()}
-                  />
-                </PrivateRoute>
-              }
-            />
 
             <Route
               path="/partes-trabajo-finalizados"
               element={
-                <PrivateRoute allow={["administrador"]}>
+                <PrivateRoute allow={getRouteAllow("/partes-trabajo-finalizados")}>
                   <AdminPartesTrabajoFinalizados />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/calidad-entrega"
+              element={
+                <PrivateRoute allow={getRouteAllow("/calidad-entrega")}>
+                  <CalidadEntregaPage />
                 </PrivateRoute>
               }
             />
@@ -320,7 +316,7 @@ const App = () => {
             <Route
               path="/catalogo-servicios"
               element={
-                <PrivateRoute allow={["administrador"]}>
+                <PrivateRoute allow={getRouteAllow("/catalogo-servicios")}>
                   <CatalogoServiciosPage />
                 </PrivateRoute>
               }
@@ -329,7 +325,7 @@ const App = () => {
             <Route
               path="/citas"
               element={
-                <PrivateRoute allow={["administrador", "encargado", "calidad", "detailing"]}>
+                <PrivateRoute allow={getRouteAllow("/citas")}>
                   <CitasPage />
                 </PrivateRoute>
               }
@@ -338,7 +334,7 @@ const App = () => {
             <Route
               path="/resumen-clientes"
               element={
-                <PrivateRoute allow={["administrador"]}>
+                <PrivateRoute allow={getRouteAllow("/resumen-clientes")}>
                   <ResumenClientesPage />
                 </PrivateRoute>
               }
@@ -347,7 +343,7 @@ const App = () => {
             <Route
               path="/dashboard"
               element={
-                <PrivateRoute allow={["administrador"]}>
+                <PrivateRoute allow={getRouteAllow("/dashboard")}>
                   <DashboardPage />
                 </PrivateRoute>
               }
@@ -356,7 +352,7 @@ const App = () => {
             <Route
               path="/administracion/finanzas"
               element={
-                <PrivateRoute allow={["administrador"]}>
+                <PrivateRoute allow={getRouteAllow("/administracion/finanzas")}>
                   <GastosEmpresaPage />
                 </PrivateRoute>
               }
@@ -365,17 +361,17 @@ const App = () => {
             <Route
               path="/administracion/cobros-profesionales"
               element={
-                <PrivateRoute allow={["administrador"]}>
+                <PrivateRoute allow={getRouteAllow("/administracion/cobros-profesionales")}>
                   <ProfesionalesPage />
                 </PrivateRoute>
               }
             />
 
             <Route
-              path="/pagos-profesionales"
+              path="/cobro-particulares"
               element={
-                <PrivateRoute allow={["administrador", "detailing", "calidad"]}>
-                  <Navigate to="/administracion/cobros-profesionales" replace />
+                <PrivateRoute allow={getRouteAllow("/cobro-particulares")}>
+                  <CobroParticularesPage />
                 </PrivateRoute>
               }
             />
@@ -383,7 +379,7 @@ const App = () => {
             <Route
               path="/vehiculos"
               element={
-                <PrivateRoute allow={["administrador", "detailing", "calidad"]}>
+                <PrivateRoute allow={getRouteAllow("/vehiculos")}>
                   <VehiculosPage />
                 </PrivateRoute>
               }
@@ -392,7 +388,7 @@ const App = () => {
             <Route
               path="/inventario"
               element={
-                <PrivateRoute allow={["administrador", "encargado", "calidad", "detailing", "pintura", "tapicero"]}>
+                <PrivateRoute allow={getRouteAllow("/inventario")}>
                   <InventarioPage />
                 </PrivateRoute>
               }
@@ -401,7 +397,7 @@ const App = () => {
             <Route
               path="/partes"
               element={
-                <PrivateRoute allow={["administrador", "calidad", "detailing", "pintura", "tapicero"]}>
+                <PrivateRoute allow={getRouteAllow("/partes")}>
                   <PartesPage />
                 </PrivateRoute>
               }
@@ -410,7 +406,7 @@ const App = () => {
             <Route
               path="/administracion"
               element={
-                <PrivateRoute allow={["administrador"]}>
+                <PrivateRoute allow={getRouteAllow("/administracion")}>
                   <AdminPage />
                 </PrivateRoute>
               }
@@ -419,7 +415,7 @@ const App = () => {
             <Route
               path="/inspeccion-recepcion"
               element={
-                <PrivateRoute allow={["administrador", "calidad"]}>
+                <PrivateRoute allow={getRouteAllow("/inspeccion-recepcion")}>
                   <InspeccionRecepcionPage />
                 </PrivateRoute>
               }
@@ -428,7 +424,7 @@ const App = () => {
             <Route
               path="/vehiculo-detalle/:inspeccion_id"
               element={
-                <PrivateRoute allow={["administrador", "calidad"]}>
+                <PrivateRoute allow={getRouteAllow("/vehiculo-detalle/:inspeccion_id")}>
                   <VehiculoDetallePage />
                 </PrivateRoute>
               }
@@ -437,7 +433,7 @@ const App = () => {
             <Route
               path="/hoja-tecnica/:inspeccion_id"
               element={
-                <PrivateRoute allow={["administrador"]}>
+                <PrivateRoute allow={getRouteAllow("/hoja-tecnica/:inspeccion_id")}>
                   <HojaTecnicaPage />
                 </PrivateRoute>
               }
@@ -446,7 +442,7 @@ const App = () => {
             <Route
               path="/entrega-cliente/:inspeccion_id"
               element={
-                <PrivateRoute allow={["administrador", "calidad"]}>
+                <PrivateRoute allow={getRouteAllow("/entrega-cliente/:inspeccion_id")}>
                   <EntregaClientePage />
                 </PrivateRoute>
               }
@@ -455,7 +451,7 @@ const App = () => {
             <Route
               path="/inspecciones-guardadas"
               element={
-                <PrivateRoute allow={["administrador"]}>
+                <PrivateRoute allow={getRouteAllow("/inspecciones-guardadas")}>
                   <InspeccionesGuardadasPage />
                 </PrivateRoute>
               }
@@ -464,7 +460,7 @@ const App = () => {
             <Route
               path="/acta-entrega/:id"
               element={
-                <PrivateRoute allow={["administrador", "encargado", "detailing", "calidad"]}>
+                <PrivateRoute allow={getRouteAllow("/acta-entrega/:id")}>
                   <ActaEntregaView />
                 </PrivateRoute>
               }
@@ -476,33 +472,18 @@ const App = () => {
             />
 
             <Route
-              path="/pendientes-entrega"
-              element={<Navigate to="/inspecciones-guardadas?tab=pendientes" replace />}
-            />
-
-            <Route
-              path="/firma-entrega"
-              element={<Navigate to="/repaso-entrega?tab=firma" replace />}
-            />
-
-            <Route
               path="/repaso-entrega"
               element={
-                <PrivateRoute allow={["administrador", "detailing", "calidad"]}>
+                <PrivateRoute allow={getRouteAllow("/repaso-entrega")}>
                   <RepasoEntregaPage />
                 </PrivateRoute>
               }
             />
 
             <Route
-              path="/estado-coches"
-              element={<Navigate to="/repaso-entrega?tab=estado" replace />}
-            />
-
-            <Route
               path="/fichar"
               element={
-                <PrivateRoute allow={["administrador", "encargado", "detailing", "calidad", "pintura", "tapicero"]}>
+                <PrivateRoute allow={getRouteAllow("/fichar")}>
                   <FicharPage />
                 </PrivateRoute>
               }
@@ -511,7 +492,7 @@ const App = () => {
             <Route
               path="/horarios"
               element={
-                <PrivateRoute allow={["administrador", "encargado"]}>
+                <PrivateRoute allow={getRouteAllow("/horarios")}>
                   <HorariosAdminPage />
                 </PrivateRoute>
               }
@@ -519,13 +500,8 @@ const App = () => {
 
             <Route
               path="/entregados"
-              element={<Navigate to="/inspecciones-guardadas?tab=entregados" replace />}
-            />
-
-            <Route
-              path="/entregados-page"
               element={
-                <PrivateRoute allow={["administrador"]}>
+                <PrivateRoute allow={getRouteAllow("/entregados")}>
                   <CochesEntregadosPage />
                 </PrivateRoute>
               }

@@ -123,7 +123,7 @@ const ActaEntregaDocumento = () => {
         navigate(-1);
         return;
       }
-      navigate("/pendientes-entrega", { replace: true });
+      navigate("/inspecciones-guardadas?tab=pendientes", { replace: true });
     };
 
   const observacionesEntrega = useMemo(() => {

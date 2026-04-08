@@ -306,342 +306,479 @@ export function AdminPartesTrabajoFinalizados() {
     }
   };
 
+  /* ── SVG icons ── */
+  const ICONS = {
+    check:    (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>),
+    refresh:  (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0115.454-3.454M20 15a9 9 0 01-15.454 3.454"/></svg>),
+    search:   (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>),
+    pen:      (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>),
+    trash:    (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>),
+    clock:    (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>),
+    close:    (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>),
+    save:     (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>),
+    bolt:     (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>),
+    chart:    (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>),
+    euro:     (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 10h12M4 14h12M19.5 8A7.5 7.5 0 1 0 19.5 16"/></svg>),
+    calendar: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>),
+  };
+
+  const desvioColor = (costeReal - costeEstimado) > 0 ? "#ef4444" : "#22c55e";
+
   return (
-    <div className="container py-4" style={{ maxWidth: "1200px" }}>
-      {/* HEADER PREMIUM */}
-      <div
-        className="d-flex justify-content-between align-items-center p-3 mb-4 shadow-sm sw-header-dark"
-        style={{ borderRadius: "12px" }}
-      >
-        <h2 className="fw-bold m-0 sw-accent-text" style={{ fontSize: "clamp(1.2rem, 4vw, 1.75rem)" }}>
-          ✅ Partes Finalizados
-        </h2>
-        <p className="m-0 d-none d-md-block" style={{ fontSize: "0.85rem", color: "var(--sw-muted)" }}>
-          Historial de trabajos completados y entregas finales
-        </p>
-      </div>
+    <div className="sw-ent-wrapper">
 
-      {/* STATS CARDS */}
-      <div className="row g-3 mb-4">
-        <div className="col-md-4">
-          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid var(--sw-border)" }}>
-            <div className="card-body">
-              <p className="text-muted mb-2">📦 Total finalizados</p>
-              <h4 className="fw-bold sw-accent-text">{partes.length}</h4>
+      {/* ── Hero ── */}
+      <div className="sw-veh-hero">
+        <div className="sw-veh-hero-inner container">
+          <div className="sw-veh-hero-body">
+            <div className="sw-veh-hero-icon">
+              <span style={{ width: 24, height: 24, display: "flex" }}>{ICONS.check}</span>
             </div>
-          </div>
-        </div>
-        <div className="col-md-4">
-          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid var(--sw-border)" }}>
-            <div className="card-body">
-              <p className="text-muted mb-2">⏱️ Tiempo real total (h)</p>
-              <h4 className="fw-bold sw-accent-text">{calcularTiempoTotal().toFixed(2)}</h4>
+            <div style={{ flex: 1 }}>
+              <p className="sw-home-eyebrow" style={{ marginBottom: "0.2rem" }}>Taller · Historial</p>
+              <h1 className="sw-veh-hero-title">Partes Finalizados</h1>
+              <p className="sw-veh-hero-sub">Historial de trabajos completados y análisis de rendimiento</p>
             </div>
-          </div>
-        </div>
-        <div className="col-md-4">
-          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid var(--sw-border)" }}>
-            <div className="card-body">
-              <p className="text-muted mb-2">🎯 Estimado total</p>
-              <h4 className="fw-bold sw-accent-text">{formatMinutes(calcularEstimadoTotalMin())}</h4>
-            </div>
+            <button
+              className="sw-ent-submit-btn"
+              onClick={cargarPartes}
+              style={{ padding: "0.6rem 1.4rem", display: "flex", alignItems: "center", gap: "0.45rem" }}
+            >
+              <span style={{ width: 16, height: 16, display: "inline-flex" }}>{ICONS.refresh}</span>
+              Actualizar
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="card mb-4 shadow-sm" style={{ borderRadius: "12px", border: "1px solid var(--sw-border)" }}>
-        <div className="card-body">
-          <h5 className="card-title fw-semibold mb-3">💶 Coste interno por hora (solo gestión)</h5>
-          <div className="row g-3 align-items-end">
-            <div className="col-12 col-md-4">
-              <label className="form-label">Coste por hora (€)</label>
+      <div className="container sw-ent-content" style={{ maxWidth: 1200 }}>
+
+        {/* ── Error ── */}
+        {error && (
+          <div style={{
+            background: "color-mix(in srgb,var(--sw-danger,#ef4444) 12%,transparent)",
+            border: "1px solid color-mix(in srgb,var(--sw-danger,#ef4444) 30%,transparent)",
+            color: "var(--sw-danger,#ef4444)", borderRadius: 12, padding: "0.75rem 1rem",
+            display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.9rem",
+          }}>
+            {error}
+            <button onClick={() => setError("")} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", display: "flex" }}>
+              <span style={{ width: 18, height: 18, display: "flex" }}>{ICONS.close}</span>
+            </button>
+          </div>
+        )}
+
+        {/* ── Stats ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: "1rem" }}>
+          {[
+            { label: "Total finalizados",  value: partes.length,                              color: "var(--sw-accent,#d4af37)" },
+            { label: "Tiempo real (h)",    value: calcularTiempoTotal().toFixed(2),            color: "#38bdf8" },
+            { label: "Estimado total",     value: formatMinutes(calcularEstimadoTotalMin()),   color: "#a78bfa" },
+            { label: "Coste real",         value: costeHoraSeguro > 0 ? `${costeReal.toFixed(2)} €` : "—", color: "#22c55e" },
+          ].map((item) => (
+            <div key={item.label} style={{
+              background: "var(--sw-surface)", border: "1px solid var(--sw-border)",
+              borderRadius: 14, padding: "1rem 1.25rem", display: "flex", flexDirection: "column", gap: "0.25rem",
+            }}>
+              <span style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-muted)" }}>{item.label}</span>
+              <span style={{ fontSize: "1.35rem", fontWeight: 800, color: item.color, lineHeight: 1.2 }}>{item.value}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Coste interno ── */}
+        <div className="sw-ent-card">
+          <div className="sw-ent-card-header">
+            <div className="sw-ent-card-header-icon" style={{ background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.22)", color: "var(--sw-accent,#d4af37)" }}>
+              <span style={{ width: 18, height: 18, display: "flex" }}>{ICONS.euro}</span>
+            </div>
+            <div>
+              <p className="sw-ent-card-eyebrow">Gestión interna</p>
+              <h2 className="sw-ent-card-title">Coste por hora</h2>
+            </div>
+          </div>
+          <div className="sw-ent-card-body">
+            <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
               <input
                 type="number"
                 min="0"
                 step="0.01"
-                className="form-control"
+                className="form-control sw-pinput"
+                style={{ maxWidth: 180 }}
                 value={costeHoraInterno}
                 onChange={(e) => setCosteHoraInterno(e.target.value)}
-                placeholder="Ej. 18"
-                style={{ borderRadius: "8px" }}
+                placeholder="€/hora (ej. 18)"
               />
-            </div>
-            <div className="col-12 col-md-8">
-              <div className="d-flex flex-wrap gap-3">
-                <span className="badge bg-secondary p-2">Coste estimado: {costeEstimado.toFixed(2)} €</span>
-                <span className="badge bg-dark p-2">Coste real: {costeReal.toFixed(2)} €</span>
-                <span className={`badge p-2 ${costeReal - costeEstimado > 0 ? "bg-danger" : "bg-success"}`}>
-                  Desvío coste: {(costeReal - costeEstimado > 0 ? "+" : "") + (costeReal - costeEstimado).toFixed(2)} €
-                </span>
+              <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                {[
+                  { label: "Estimado", value: `${costeEstimado.toFixed(2)} €`, color: "var(--sw-muted)" },
+                  { label: "Real",     value: `${costeReal.toFixed(2)} €`,     color: "#38bdf8" },
+                  { label: "Desvío",   value: `${(costeReal - costeEstimado) > 0 ? "+" : ""}${(costeReal - costeEstimado).toFixed(2)} €`, color: desvioColor },
+                ].map(({ label, value, color }) => (
+                  <div key={label} style={{
+                    background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)",
+                    borderRadius: 10, padding: "0.45rem 0.9rem", display: "flex", flexDirection: "column", gap: "0.1rem",
+                  }}>
+                    <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--sw-muted)" }}>{label}</span>
+                    <span style={{ fontWeight: 800, color, fontSize: "1rem" }}>{value}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {error && (
-        <div className="alert alert-danger alert-dismissible fade show" role="alert">
-          <strong>Error:</strong> {error}
-          <button type="button" className="btn-close" onClick={() => setError("")}></button>
-        </div>
-      )}
-
-      {/* FILTERS */}
-      <div className="card mb-4 shadow-sm" style={{ borderRadius: "12px", border: "1px solid var(--sw-border)" }}>
-        <div className="card-body">
-          <h5 className="card-title fw-semibold mb-3">🔎 Filtros</h5>
-          <div className="row g-3">
-            <div className="col-md-6">
-              <label className="form-label">Empleado</label>
-              <select
-                className="form-select"
-                value={empleadoFiltro}
-                onChange={(e) => setEmpleadoFiltro(e.target.value)}
-                style={{ borderRadius: "8px" }}
-              >
-                <option value="">Todos</option>
-                {empleadosDisponibles.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.nombre}
-                  </option>
-                ))}
-              </select>
+        {/* ── Filtros ── */}
+        <div className="sw-ent-card">
+          <div className="sw-ent-card-header">
+            <div className="sw-ent-card-header-icon" style={{ background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.22)", color: "var(--sw-accent,#d4af37)" }}>
+              <span style={{ width: 18, height: 18, display: "flex" }}>{ICONS.search}</span>
             </div>
-            <div className="col-md-6">
-              <label className="form-label">Coche</label>
-              <select
-                className="form-select"
-                value={cocheFiltro}
-                onChange={(e) => setCocheFiltro(e.target.value)}
-                style={{ borderRadius: "8px" }}
-              >
-                <option value="">Todos</option>
-                {cochesCatalogo.map((c) => (
-                  <option key={c.coche_id} value={c.coche_id}>
-                    {c.matricula} {c.coche_descripcion ? ` - ${c.coche_descripcion}` : ""} {c.cliente_nombre ? ` - ${c.cliente_nombre}` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="col-md-6">
-              <label className="form-label">Fecha desde</label>
-              <input
-                type="date"
-                className="form-control"
-                value={fechaInicioFiltro}
-                onChange={(e) => setFechaInicioFiltro(e.target.value)}
-                style={{ borderRadius: "8px" }}
-              />
-            </div>
-            <div className="col-md-6">
-              <label className="form-label">Fecha hasta</label>
-              <input
-                type="date"
-                className="form-control"
-                value={fechaFinFiltro}
-                onChange={(e) => setFechaFinFiltro(e.target.value)}
-                style={{ borderRadius: "8px" }}
-              />
+            <div>
+              <p className="sw-ent-card-eyebrow">Búsqueda</p>
+              <h2 className="sw-ent-card-title">Filtrar partes</h2>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* PERFORMANCE ANALYSIS */}
-      {!loading && analisisEmpleados.length > 0 && (
-        <div className="card mb-4 shadow-sm" style={{ borderRadius: "12px", border: "1px solid var(--sw-border)" }}>
-          <div className="card-body">
-            <h5 className="card-title fw-semibold mb-3">📊 Análisis de rendimiento</h5>
-
-            <div className="row g-3 mb-4">
-              <div className="col-md-6">
-                <div className="p-3" style={{ background: "color-mix(in srgb, var(--sw-success, #198754) 10%, var(--sw-surface))", borderRadius: "8px", border: "1px solid var(--sw-border)" }}>
-                  <p className="text-muted mb-1">⚡ Más rápido</p>
-                  <h6 className="fw-bold">{ranking.rapido?.nombre || "-"}</h6>
-                  <small className="text-muted">{ranking.rapido ? `${ranking.rapido.promedio_horas.toFixed(2)} h/parte` : "-"}</small>
-                </div>
-              </div>
-              <div className="col-md-6">
-                <div className="p-3" style={{ background: "color-mix(in srgb, var(--sw-danger, #dc3545) 10%, var(--sw-surface))", borderRadius: "8px", border: "1px solid var(--sw-border)" }}>
-                  <p className="text-muted mb-1">🐢 Más lento</p>
-                  <h6 className="fw-bold">{ranking.lento?.nombre || "-"}</h6>
-                  <small className="text-muted">{ranking.lento ? `${ranking.lento.promedio_horas.toFixed(2)} h/parte` : "-"}</small>
-                </div>
-              </div>
-            </div>
-
-            {analisisEmpleados.map((row) => (
-              <div key={row.empleado_id} className="mb-3">
-                <div className="d-flex justify-content-between mb-1">
-                  <strong>{row.nombre}</strong>
-                  <small className="text-muted">{row.total_partes} partes · {row.total_horas.toFixed(2)} h reales</small>
-                </div>
-                <div className="progress" style={{ height: "6px" }}>
-                  <div
-                    className="progress-bar"
-                    role="progressbar"
-                    style={{
-                      width: `${scoreRapidez(row.promedio_horas)}%`,
-                      background: "var(--sw-accent)",
-                    }}
-                  />
-                </div>
-                <small className="text-muted">
-                  Promedio: {row.promedio_horas.toFixed(2)} h/parte · Desvío total: {deviationBadge(row.desviacion_minutos)}
-                </small>
-              </div>
-            ))}
-
-            <hr />
-
-            <h6 className="fw-semibold mt-3 mb-3">Detalle por día</h6>
-            <div className="table-responsive">
-              <table className="table table-sm table-hover">
-                <thead className="sw-table-header">
-                  <tr>
-                    <th>Empleado</th>
-                    <th>Fecha</th>
-                    <th>Horas ese día</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filasPorDia.map((fila, idx) => (
-                    <tr key={`${fila.empleado}-${fila.fecha}-${idx}`}>
-                      <td>{fila.empleado}</td>
-                      <td className="small">{fila.fecha}</td>
-                      <td className="fw-semibold">{fila.horas.toFixed(2)}</td>
-                    </tr>
+          <div className="sw-ent-card-body">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: "0.75rem" }}>
+              {/* Empleado */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+                <span style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--sw-muted)" }}>Empleado</span>
+                <select className="form-select sw-pinput" value={empleadoFiltro} onChange={(e) => setEmpleadoFiltro(e.target.value)}>
+                  <option value="">Todos</option>
+                  {empleadosDisponibles.map((u) => (
+                    <option key={u.id} value={u.id}>{u.nombre}</option>
                   ))}
-                </tbody>
-              </table>
+                </select>
+              </div>
+              {/* Coche */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+                <span style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--sw-muted)" }}>Coche</span>
+                <select className="form-select sw-pinput" value={cocheFiltro} onChange={(e) => setCocheFiltro(e.target.value)}>
+                  <option value="">Todos</option>
+                  {cochesCatalogo.map((c) => (
+                    <option key={c.coche_id} value={c.coche_id}>
+                      {c.matricula}{c.coche_descripcion ? ` - ${c.coche_descripcion}` : ""}{c.cliente_nombre ? ` - ${c.cliente_nombre}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {/* Desde */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+                <span style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--sw-muted)" }}>Desde</span>
+                <input type="date" className="form-control sw-pinput" value={fechaInicioFiltro} onChange={(e) => setFechaInicioFiltro(e.target.value)} />
+              </div>
+              {/* Hasta */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+                <span style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--sw-muted)" }}>Hasta</span>
+                <input type="date" className="form-control sw-pinput" value={fechaFinFiltro} onChange={(e) => setFechaFinFiltro(e.target.value)} />
+              </div>
             </div>
           </div>
         </div>
-      )}
 
-      {/* LISTA FINALIZADOS */}
-      {loading ? (
-        <div className="text-center py-5">
-          <p className="text-muted">Cargando partes finalizados...</p>
-        </div>
-      ) : partes.length === 0 ? (
-        <div className="alert alert-info">📭 No hay partes finalizados aún. ¡Completa trabajos para verlos aquí!</div>
-      ) : (
-        <div>
-          {groupByDate(partes).map(([fecha, grupoPartes]) => (
-            <div key={fecha} className="mb-4">
-              <h5 className="mb-3 sw-accent-text" style={{ fontWeight: "600" }}>📅 {fecha}</h5>
-              <div className="table-responsive">
-                <table className="table table-hover" style={{ borderRadius: "12px", overflow: "hidden" }}>
-                  <thead className="sw-table-header">
-                    <tr>
-                      <th>ID</th>
-                      <th>Coche</th>
-                      <th>Empleado</th>
-                      <th>Trabajo</th>
-                      <th>Inicio</th>
-                      <th>Fin</th>
-                      <th>Estimado</th>
-                      <th>Duración (h)</th>
-                      <th>Desvío</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {grupoPartes.map((p) => (
-                      <tr key={p.id}>
-                        <td>#{p.id}</td>
-                        <td>{cocheTextoPorId(p.coche_id)}</td>
-                        <td>{empleadoNombrePorId(p.empleado_id)}</td>
-                        <td>
-                          <div>{p.observaciones || "-"}</div>
-                          <div className="small text-muted">
-                            Estimado: {formatMinutes(p.tiempo_estimado_minutos || 0)}
-                          </div>
-                        </td>
-                        <td className="small">{formatDate(p.fecha_inicio)}</td>
-                        <td className="small">{formatDate(p.fecha_fin)}</td>
-                        <td>{formatMinutes(p.tiempo_estimado_minutos || 0)}</td>
-                        <td>{typeof p.duracion_horas === "number" ? p.duracion_horas.toFixed(2) : "-"}</td>
-                        <td>{deviationBadge(p.desviacion_minutos)}</td>
-                        <td>
-                          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                            <button className="btn btn-sm btn-outline-secondary" onClick={() => onAbrirEditar(p)}>
-                              ✏️ Editar
-                            </button>
-                            <button className="btn btn-sm btn-outline-danger" onClick={() => onEliminarParte(p)}>
-                              🗑️ Borrar
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+        {/* ── Análisis rendimiento ── */}
+        {!loading && analisisEmpleados.length > 0 && (
+          <div className="sw-ent-card">
+            <div className="sw-ent-card-header">
+              <div className="sw-ent-card-header-icon" style={{ background: "rgba(56,189,248,0.1)", border: "1px solid rgba(56,189,248,0.22)", color: "#38bdf8" }}>
+                <span style={{ width: 18, height: 18, display: "flex" }}>{ICONS.chart}</span>
+              </div>
+              <div>
+                <p className="sw-ent-card-eyebrow">Estadísticas</p>
+                <h2 className="sw-ent-card-title">Análisis de rendimiento</h2>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+            <div className="sw-ent-card-body" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
 
-      {editandoId && (
-        <div className="modal d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
-          <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
-            <div className="modal-content">
-              <div className="modal-header sw-modal-header-dark" style={{ borderBottom: "none" }}>
-                <h5 className="modal-title fw-bold sw-accent-text">✏️ Editar Parte #{editandoId}</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={onCancelarEditar}></button>
-              </div>
-              <div className="modal-body">
-                <div className="mb-3">
-                  <label className="form-label">Empleado</label>
-                  <select
-                    className="form-select"
-                    value={editEmpleadoId}
-                    onChange={(e) => setEditEmpleadoId(e.target.value)}
-                    disabled={editLoading}
-                    style={{ borderRadius: "8px" }}
-                  >
-                    <option value="">Selecciona empleado...</option>
-                    {empleadosDisponibles.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.nombre} ({u.rol})
-                      </option>
-                    ))}
-                  </select>
+              {/* Ranking rápido/lento */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: "0.75rem" }}>
+                <div style={{ background: "color-mix(in srgb,#22c55e 10%,transparent)", border: "1px solid color-mix(in srgb,#22c55e 25%,transparent)", borderRadius: 12, padding: "1rem 1.25rem" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.4rem" }}>
+                    <span style={{ width: 14, height: 14, display: "flex", color: "#22c55e" }}>{ICONS.bolt}</span>
+                    <span style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "#22c55e" }}>Más rápido</span>
+                  </div>
+                  <p style={{ margin: 0, fontWeight: 700, color: "var(--sw-text)", fontSize: "1rem" }}>{ranking.rapido?.nombre || "—"}</p>
+                  <p style={{ margin: 0, color: "var(--sw-muted)", fontSize: "0.82rem" }}>{ranking.rapido ? `${ranking.rapido.promedio_horas.toFixed(2)} h/parte` : "—"}</p>
                 </div>
+                <div style={{ background: "color-mix(in srgb,#ef4444 10%,transparent)", border: "1px solid color-mix(in srgb,#ef4444 25%,transparent)", borderRadius: 12, padding: "1rem 1.25rem" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.4rem" }}>
+                    <span style={{ width: 14, height: 14, display: "flex", color: "#ef4444" }}>{ICONS.clock}</span>
+                    <span style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "#ef4444" }}>Más lento</span>
+                  </div>
+                  <p style={{ margin: 0, fontWeight: 700, color: "var(--sw-text)", fontSize: "1rem" }}>{ranking.lento?.nombre || "—"}</p>
+                  <p style={{ margin: 0, color: "var(--sw-muted)", fontSize: "0.82rem" }}>{ranking.lento ? `${ranking.lento.promedio_horas.toFixed(2)} h/parte` : "—"}</p>
+                </div>
+              </div>
 
-                <div className="mb-3">
-                  <label className="form-label">Servicio *</label>
-                  <select
-                    className="form-select"
-                    value={editServicioId}
-                    onChange={(e) => setEditServicioId(e.target.value)}
-                    disabled={editLoading}
-                    style={{ borderRadius: "8px" }}
-                  >
-                    <option value="">Selecciona servicio...</option>
-                    {serviciosCatalogo.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.nombre} {s.precio_base != null ? `(${Number(s.precio_base).toFixed(2)}€)` : ""}
-                      </option>
-                    ))}
-                  </select>
-                  {serviciosCatalogo.length === 0 && (
-                    <div className="form-text text-muted">
-                      No hay servicios en el catálogo. Crea servicios antes de editar el parte.
+              {/* Barras por empleado */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                {analisisEmpleados.map((row) => (
+                  <div key={row.empleado_id}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.3rem" }}>
+                      <span style={{ fontWeight: 700, color: "var(--sw-text)", fontSize: "0.9rem" }}>{row.nombre}</span>
+                      <span style={{ color: "var(--sw-muted)", fontSize: "0.78rem" }}>{row.total_partes} partes · {row.total_horas.toFixed(2)} h</span>
                     </div>
-                  )}
+                    <div style={{ height: 6, background: "var(--sw-border)", borderRadius: 4, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${scoreRapidez(row.promedio_horas)}%`, background: "var(--sw-accent,#d4af37)", borderRadius: 4, transition: "width 0.4s ease" }} />
+                    </div>
+                    <div style={{ marginTop: "0.25rem", fontSize: "0.75rem", color: "var(--sw-muted)" }}>
+                      Promedio: {row.promedio_horas.toFixed(2)} h/parte · Desvío: {deviationBadge(row.desviacion_minutos)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Detalle por día */}
+              <div>
+                <p style={{ margin: "0 0 0.6rem", fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-accent,#d4af37)" }}>
+                  Detalle por día
+                </p>
+                <div style={{ background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderRadius: 12, overflow: "hidden" }}>
+                  <div className="table-responsive">
+                    <table className="table align-middle mb-0" style={{ color: "var(--sw-text)" }}>
+                      <thead>
+                        <tr style={{ background: "var(--sw-surface-2)", borderBottom: "2px solid var(--sw-border)" }}>
+                          {["Empleado", "Fecha", "Horas"].map((h) => (
+                            <th key={h} style={{ padding: "0.7rem 1rem", fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-muted)", border: "none" }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filasPorDia.map((fila, idx) => (
+                          <tr key={`${fila.empleado}-${fila.fecha}-${idx}`}
+                            style={{ borderBottom: "1px solid var(--sw-border)" }}
+                            onMouseEnter={e => e.currentTarget.style.background = "color-mix(in srgb,var(--sw-accent,#d4af37) 5%,transparent)"}
+                            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                          >
+                            <td style={{ padding: "0.7rem 1rem", fontWeight: 600 }}>{fila.empleado}</td>
+                            <td style={{ padding: "0.7rem 1rem", color: "var(--sw-muted)", fontSize: "0.85rem" }}>{fila.fecha}</td>
+                            <td style={{ padding: "0.7rem 1rem", fontWeight: 700, color: "var(--sw-accent,#d4af37)" }}>{fila.horas.toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={onCancelarEditar} disabled={editLoading}>
-                  Cancelar
-                </button>
-                <button type="button" className="btn sw-btn-gold" onClick={onGuardarEdicion} disabled={editLoading}>
-                  {editLoading ? "Guardando..." : "✅ Guardar"}
-                </button>
+
+            </div>
+          </div>
+        )}
+
+        {/* ── Lista partes finalizados ── */}
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "4rem", color: "var(--sw-muted)" }}>
+            <div className="spinner-border spinner-border-sm me-2" style={{ color: "var(--sw-accent,#d4af37)" }} />
+            Cargando partes finalizados…
+          </div>
+        ) : partes.length === 0 ? (
+          <div style={{
+            background: "var(--sw-surface)", border: "1px solid var(--sw-border)",
+            borderRadius: 14, padding: "3rem", textAlign: "center", color: "var(--sw-muted)", fontSize: "0.9rem",
+          }}>
+            No hay partes finalizados aún.
+          </div>
+        ) : (
+          groupByDate(partes).map(([fecha, grupoPartes]) => (
+            <div key={fecha}>
+              {/* Cabecera de grupo fecha */}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.75rem" }}>
+                <span style={{ width: 16, height: 16, display: "flex", color: "var(--sw-accent,#d4af37)" }}>{ICONS.calendar}</span>
+                <span style={{ fontSize: "0.78rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--sw-accent,#d4af37)" }}>{fecha}</span>
+                <span style={{ fontSize: "0.72rem", color: "var(--sw-muted)", fontWeight: 500 }}>({grupoPartes.length} partes)</span>
               </div>
+
+              <div style={{
+                background: "var(--sw-surface)", border: "1px solid var(--sw-border)",
+                borderRadius: 16, overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.18)",
+                marginBottom: "1.5rem",
+              }}>
+                <div className="table-responsive">
+                  <table className="table align-middle mb-0" style={{ color: "var(--sw-text)" }}>
+                    <thead>
+                      <tr style={{ background: "var(--sw-surface-2)", borderBottom: "2px solid var(--sw-border)" }}>
+                        {["#", "Coche", "Empleado", "Trabajo", "Inicio", "Fin", "Estimado", "Real (h)", "Desvío", ""].map((h) => (
+                          <th key={h} style={{
+                            padding: "0.85rem 1rem", fontSize: "0.65rem", fontWeight: 700,
+                            letterSpacing: "0.08em", textTransform: "uppercase",
+                            color: "var(--sw-muted)", border: "none",
+                            textAlign: h === "" ? "right" : "left",
+                          }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {grupoPartes.map((p) => (
+                        <tr key={p.id}
+                          style={{ borderBottom: "1px solid var(--sw-border)", transition: "background 0.15s" }}
+                          onMouseEnter={e => e.currentTarget.style.background = "color-mix(in srgb,var(--sw-accent,#d4af37) 5%,transparent)"}
+                          onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                        >
+                          <td style={{ padding: "0.85rem 1rem", color: "var(--sw-muted)", fontSize: "0.78rem", fontWeight: 600 }}>#{p.id}</td>
+                          <td style={{ padding: "0.85rem 1rem", fontWeight: 700, color: "var(--sw-text)", fontSize: "0.88rem" }}>{cocheTextoPorId(p.coche_id)}</td>
+                          <td style={{ padding: "0.85rem 1rem", color: "var(--sw-muted)", fontSize: "0.85rem" }}>{empleadoNombrePorId(p.empleado_id)}</td>
+                          <td style={{ padding: "0.85rem 1rem" }}>
+                            <span style={{ fontWeight: 600, color: "var(--sw-text)", fontSize: "0.88rem" }}>{p.observaciones || "—"}</span>
+                          </td>
+                          <td style={{ padding: "0.85rem 1rem", color: "var(--sw-muted)", fontSize: "0.78rem" }}>{formatDate(p.fecha_inicio)}</td>
+                          <td style={{ padding: "0.85rem 1rem", color: "var(--sw-muted)", fontSize: "0.78rem" }}>{formatDate(p.fecha_fin)}</td>
+                          <td style={{ padding: "0.85rem 1rem", color: "var(--sw-muted)", fontSize: "0.82rem" }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                              <span style={{ width: 12, height: 12, display: "inline-flex", opacity: 0.6 }}>{ICONS.clock}</span>
+                              {formatMinutes(p.tiempo_estimado_minutos || 0)}
+                            </span>
+                          </td>
+                          <td style={{ padding: "0.85rem 1rem", fontWeight: 700, color: "var(--sw-accent,#d4af37)" }}>
+                            {typeof p.duracion_horas === "number" ? p.duracion_horas.toFixed(2) : "—"}
+                          </td>
+                          <td style={{ padding: "0.85rem 1rem" }}>{deviationBadge(p.desviacion_minutos)}</td>
+                          <td style={{ padding: "0.85rem 1rem", textAlign: "right" }}>
+                            <div style={{ display: "flex", gap: "0.4rem", justifyContent: "flex-end" }}>
+                              <button
+                                onClick={() => onAbrirEditar(p)}
+                                title="Editar"
+                                style={{
+                                  background: "color-mix(in srgb,var(--sw-accent,#d4af37) 12%,transparent)",
+                                  border: "1px solid color-mix(in srgb,var(--sw-accent,#d4af37) 30%,transparent)",
+                                  color: "var(--sw-accent,#d4af37)", borderRadius: 8,
+                                  padding: "0.35rem 0.55rem", cursor: "pointer", display: "flex", alignItems: "center",
+                                }}
+                              >
+                                <span style={{ width: 14, height: 14, display: "flex" }}>{ICONS.pen}</span>
+                              </button>
+                              <button
+                                onClick={() => onEliminarParte(p)}
+                                title="Eliminar"
+                                style={{
+                                  background: "color-mix(in srgb,var(--sw-danger,#ef4444) 10%,transparent)",
+                                  border: "1px solid color-mix(in srgb,var(--sw-danger,#ef4444) 28%,transparent)",
+                                  color: "var(--sw-danger,#ef4444)", borderRadius: 8,
+                                  padding: "0.35rem 0.55rem", cursor: "pointer", display: "flex", alignItems: "center",
+                                }}
+                              >
+                                <span style={{ width: 14, height: 14, display: "flex" }}>{ICONS.trash}</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+
+      </div>
+
+      {/* ── Modal editar ── */}
+      {editandoId && (
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 1050,
+            background: "var(--sw-overlay-bg,rgba(0,0,0,0.6))",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "1rem", backdropFilter: "blur(4px)",
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) onCancelarEditar(); }}
+        >
+          <div style={{
+            background: "var(--sw-surface)", border: "1px solid var(--sw-border)",
+            borderRadius: 20, width: "100%", maxWidth: 520,
+            boxShadow: "0 24px 60px rgba(0,0,0,0.5)",
+            animation: "sw-fade-up 0.22s ease both",
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: "1.25rem 1.5rem", borderBottom: "1px solid var(--sw-border)",
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                <span style={{
+                  width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "color-mix(in srgb,var(--sw-accent,#d4af37) 14%,transparent)",
+                  border: "1px solid color-mix(in srgb,var(--sw-accent,#d4af37) 28%,transparent)",
+                  color: "var(--sw-accent,#d4af37)",
+                }}>
+                  <span style={{ width: 18, height: 18, display: "flex" }}>{ICONS.pen}</span>
+                </span>
+                <div>
+                  <p style={{ margin: 0, fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-muted)" }}>Modificar parte</p>
+                  <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "var(--sw-text)" }}>Editar Parte #{editandoId}</h3>
+                </div>
+              </div>
+              <button onClick={onCancelarEditar} style={{ background: "none", border: "none", color: "var(--sw-muted)", cursor: "pointer", padding: "0.25rem", borderRadius: 6, display: "flex" }}>
+                <span style={{ width: 20, height: 20, display: "flex" }}>{ICONS.close}</span>
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                <span style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--sw-muted)" }}>Empleado</span>
+                <select
+                  className="form-select sw-pinput"
+                  value={editEmpleadoId}
+                  onChange={(e) => setEditEmpleadoId(e.target.value)}
+                  disabled={editLoading}
+                >
+                  <option value="">Selecciona empleado…</option>
+                  {empleadosDisponibles.map((u) => (
+                    <option key={u.id} value={u.id}>{u.nombre} ({u.rol})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                <span style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--sw-muted)" }}>Servicio</span>
+                <select
+                  className="form-select sw-pinput"
+                  value={editServicioId}
+                  onChange={(e) => setEditServicioId(e.target.value)}
+                  disabled={editLoading}
+                >
+                  <option value="">Selecciona servicio…</option>
+                  {serviciosCatalogo.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nombre}{s.precio_base != null ? ` (${Number(s.precio_base).toFixed(2)} €)` : ""}
+                    </option>
+                  ))}
+                </select>
+                {serviciosCatalogo.length === 0 && (
+                  <span style={{ fontSize: "0.8rem", color: "var(--sw-muted)" }}>No hay servicios en el catálogo.</span>
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding: "1rem 1.5rem", borderTop: "1px solid var(--sw-border)", display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
+              <button
+                onClick={onCancelarEditar}
+                disabled={editLoading}
+                style={{
+                  background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)",
+                  color: "var(--sw-muted)", borderRadius: 10, padding: "0.6rem 1.2rem",
+                  fontWeight: 600, fontSize: "0.85rem", cursor: "pointer",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={onGuardarEdicion}
+                disabled={editLoading}
+                style={{
+                  background: "var(--sw-accent,#d4af37)", border: "none",
+                  color: "#000", borderRadius: 10, padding: "0.6rem 1.4rem",
+                  fontWeight: 700, fontSize: "0.85rem", cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: "0.4rem",
+                  opacity: editLoading ? 0.6 : 1,
+                }}
+              >
+                <span style={{ width: 14, height: 14, display: "flex" }}>{ICONS.save}</span>
+                {editLoading ? "Guardando…" : "Guardar"}
+              </button>
             </div>
           </div>
         </div>
