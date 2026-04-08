@@ -6,7 +6,6 @@ from flask_jwt_extended import get_jwt, jwt_required
 
 ALLOWED_ROLES = {
     "administrador",
-    "encargado",
     "detailing",
     "calidad",
     "pintura",
@@ -23,8 +22,6 @@ def normalize_role(role):
         return "administrador"
     if r in ("employee", "staff", "empleado"):
         return "detailing"
-    if r in ("manager", "responsable"):
-        return "encargado"
     if r in ("quality",):
         return "calidad"
     if r in ("paint", "painter"):

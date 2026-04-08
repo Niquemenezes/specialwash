@@ -268,8 +268,8 @@ def _jwt_user_id():
         return None
 
 
-INSPECCION_ALLOWED_ROLES = {"administrador", "detailing", "calidad"}
-INSPECCION_MANAGER_ROLES = {"administrador", "calidad"}
+INSPECCION_ALLOWED_ROLES = {"administrador", "calidad"}
+INSPECCION_MANAGER_ROLES = {"administrador"}
 
 
 def _is_inspeccion_role(user):
@@ -618,7 +618,7 @@ def role_required(*roles):
 
 # ============ CREAR INSPECCIÓN ============
 @inspeccion_bp.route("/inspeccion-recepcion", methods=["POST"])
-@role_required("administrador", "detailing", "calidad")
+@role_required("administrador", "calidad")
 def crear_inspeccion():
     """
     Crear una nueva inspección de recepción.
@@ -866,7 +866,7 @@ def listar_inspecciones():
 
 # ============ LISTAR PENDIENTES DE ENTREGA (OPERATIVO) ============
 @inspeccion_bp.route("/inspeccion-recepcion/pendientes-entrega", methods=["GET"])
-@role_required("administrador", "detailing", "calidad")
+@role_required("administrador", "calidad")
 def listar_pendientes_entrega():
     """
     Lista operativa para firma de entrega.
@@ -1048,12 +1048,21 @@ def actualizar_inspeccion(inspeccion_id):
 
 
 @inspeccion_bp.route("/inspeccion-recepcion/<int:inspeccion_id>/cobro", methods=["POST"])
-@role_required("administrador", "calidad", "detailing")
+@role_required("administrador", "calidad")
 def registrar_cobro_inspeccion(inspeccion_id):
-    """Registrar cobro parcial o total y reflejarlo en caja (finanzas)."""
+    """Registrar cobro parcial o total y reflejarlo en caja (finanzas).
+    Calidad solo puede cobrar particulares. Admin puede cobrar ambos."""
     inspeccion = InspeccionRecepcion.query.get(inspeccion_id)
     if not inspeccion:
         return jsonify({"msg": "Inspección no encontrada"}), 404
+
+    # Validar permisos: Calidad solo particulares, Admin todo
+    user_id = _jwt_user_id()
+    user = User.query.get(user_id) if user_id else None
+    user_role = normalize_role(getattr(user, "rol", "")) if user else ""
+
+    if user_role == "calidad" and inspeccion.es_concesionario:
+        return jsonify({"msg": "Calidad solo puede cobrar clientes particulares"}), 403
 
     data = request.get_json(silent=True) or {}
 
@@ -1128,8 +1137,9 @@ def listar_cobros_profesionales():
 
 # ============ REGISTRAR ENTREGA ==========
 @inspeccion_bp.route("/inspeccion-recepcion/<int:inspeccion_id>/acta", methods=["POST"])
-@role_required("administrador", "detailing", "calidad")
+@role_required("administrador")
 def guardar_acta_entrega(inspeccion_id):
+    """Guardar hoja técnica de intervención (solo Admin)."""
     """
     Guardar/actualizar el acta de entrega como documento en estado pendiente.
     No marca el vehiculo como entregado.
@@ -1158,7 +1168,7 @@ def guardar_acta_entrega(inspeccion_id):
 
 
 @inspeccion_bp.route("/inspeccion-recepcion/<int:inspeccion_id>/entrega", methods=["POST"])
-@role_required("administrador", "detailing", "calidad")
+@role_required("administrador", "calidad")
 def registrar_entrega(inspeccion_id):
     """
     Registrar entrega del vehiculo con acta tecnica.
@@ -1350,7 +1360,7 @@ def registrar_pago_profesional(inspeccion_id):
 
 
 @inspeccion_bp.route("/inspeccion-recepcion/<int:inspeccion_id>/repaso", methods=["POST"])
-@role_required("administrador", "detailing", "calidad")
+@role_required("administrador", "calidad")
 def guardar_repaso_entrega(inspeccion_id):
     """Guardar checklist de repaso pre-entrega y marcar listo para entrega."""
     inspeccion = InspeccionRecepcion.query.get(inspeccion_id)
@@ -1417,7 +1427,7 @@ def ver_acta_final(inspeccion_id):
 
 
 @inspeccion_bp.route("/actas-entregadas", methods=["GET"])
-@role_required("administrador", "encargado")
+@role_required("administrador")
 def listar_actas_entregadas():
     """Listar actas finales de coches entregados."""
     items = ActaEntrega.query.order_by(ActaEntrega.fecha_entrega.desc()).all()
@@ -1426,7 +1436,7 @@ def listar_actas_entregadas():
 
 # ============ SUGERIR ACTA PREMIUM CON GPT ==========
 @inspeccion_bp.route("/inspeccion-recepcion/<int:inspeccion_id>/sugerir-acta", methods=["POST"])
-@role_required("administrador", "detailing", "calidad")
+@role_required("administrador")
 def sugerir_acta_premium(inspeccion_id):
     """Genera un texto formal de acta de entrega con GPT usando OpenAI API."""
     inspeccion = InspeccionRecepcion.query.get(inspeccion_id)
@@ -1460,7 +1470,7 @@ def sugerir_acta_premium(inspeccion_id):
 
 # ============ CHATBOT OPENAI PARA ACTA ==========
 @inspeccion_bp.route("/inspeccion-recepcion/<int:inspeccion_id>/chat-acta", methods=["POST"])
-@role_required("administrador", "detailing", "calidad")
+@role_required("administrador")
 def chat_acta_premium(inspeccion_id):
     """Chat conversacional para redactar acta de entrega con contexto de la inspeccion."""
     inspeccion = InspeccionRecepcion.query.get(inspeccion_id)
@@ -1957,7 +1967,7 @@ def eliminar_video(inspeccion_id, video_index):
 
 # ============ PAGOS DE PROFESIONALES (COCHES CONCESIONARIO ENTREGADOS) ============
 @inspeccion_bp.route("/inspeccion-recepcion/profesionales/pagos-pendientes", methods=["GET"])
-@role_required("administrador", "detailing", "calidad")
+@role_required("administrador")
 def listar_pagos_profesionales_pendientes_detalle():
     """
     Lista coches de profesionales entregados pendientes de pago.
@@ -1999,7 +2009,7 @@ def listar_pagos_profesionales_pendientes_detalle():
 
 
 @inspeccion_bp.route("/inspeccion-recepcion/<int:inspeccion_id>/registrar-pago-profesional", methods=["POST"])
-@role_required("administrador", "detailing", "calidad")
+@role_required("administrador")
 def registrar_pago_profesional_detalle(inspeccion_id):
     """
     Registra el pago de un profesional y genera ingreso en finanzas.
