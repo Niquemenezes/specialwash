@@ -8,6 +8,7 @@ Flask-Cors==4.0.0
 Flask-JWT-Extended==4.6.0
 Flask-SQLAlchemy==3.1.1
 greenlet==3.3.0
+gunicorn==25.3.0
 itsdangerous==2.2.0
 Jinja2==3.1.6
 MarkupSafe==3.0.3
@@ -16,7 +17,7 @@ PyJWT==2.10.1
 Pillow==11.1.0
 pytesseract==0.3.13
 python-dotenv==1.0.1
-requests>=2.31.0
+requests==2.32.3
 SQLAlchemy==2.0.45
 typing_extensions==4.15.0
 Werkzeug==3.1.4

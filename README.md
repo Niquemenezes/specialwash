@@ -113,7 +113,7 @@ WHATSAPP_TOKEN=          # Opcional — para notificaciones WhatsApp
 
 ## Deploy en producción
 
-El servidor de producción es un VPS Ubuntu en IONOS (`194.164.164.78`) con Nginx + Gunicorn + systemd.
+El servidor de producción es un VPS Ubuntu en IONOS (`YOUR_SERVER_IP`) con Nginx + Gunicorn + systemd.
 
 ```bash
 # 1. Compilar frontend
@@ -125,10 +125,10 @@ tar --exclude='./backend/venv' --exclude='./backend/instance' \
     --exclude='./frontend/src' -czf deploy.tar.gz ./backend ./frontend/build ./deploy
 
 # 3. Subir al servidor
-scp deploy.tar.gz root@194.164.164.78:/tmp/
+scp deploy.tar.gz root@YOUR_SERVER_IP:/tmp/
 
 # 4. En el servidor
-ssh root@194.164.164.78
+ssh root@YOUR_SERVER_IP
 cd /var/www/specialwash/app
 tar --strip-components=1 -xzf /tmp/deploy.tar.gz
 source backend/venv/bin/activate
