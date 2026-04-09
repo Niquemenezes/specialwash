@@ -7,14 +7,9 @@ import { obtenerHoy } from "./utils/horarioApi";
 import { ROUTE_PERMISSIONS } from "./config/rolePermissions.js";
 
 import NavbarSW from "./component/NavbarSW.jsx";
+import SidebarSW from "./component/SidebarSW.jsx";
 import Footer from "./component/Footer.jsx";
 import PrivateRoute from "./component/PrivateRoute.js";
-
-// Helper: obtener permisos para una ruta desde la configuración centralizada
-const getRouteAllow = (routePath) => {
-  const allowed = ROUTE_PERMISSIONS[routePath];
-  return allowed ? (allowed.includes("*") ? [] : allowed) : [];
-};
 
 // Páginas
 import Login from "./pages/login.js";
@@ -59,6 +54,12 @@ import AdminPage from "./pages/AdminPage.jsx";
 import VehiculoDetallePage from "./pages/VehiculoDetallePage.jsx";
 import HojaTecnicaPage from "./pages/HojaTecnicaPage.jsx";
 import EntregaClientePage from "./pages/EntregaClientePage.jsx";
+
+// Helper: obtener permisos para una ruta desde la configuración centralizada
+const getRouteAllow = (routePath) => {
+  const allowed = ROUTE_PERMISSIONS[routePath];
+  return allowed ? (allowed.includes("*") ? [] : allowed) : [];
+};
 
 const isLogged = () =>
   Boolean(sessionStorage.getItem("token") || localStorage.getItem("token"));
@@ -152,8 +153,10 @@ const App = () => {
           </div>
         )}
 
-        <main className="sw-main">
-          <Routes>
+        <div className="sw-layout">
+          <SidebarSW />
+          <main className="sw-main">
+            <Routes>
             <Route path="/" element={<Home />} />
 
             <Route
@@ -516,7 +519,8 @@ const App = () => {
               }
             />
           </Routes>
-        </main>
+          </main>
+        </div>
 
         <Footer />
       </div>
