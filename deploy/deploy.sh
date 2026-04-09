@@ -34,18 +34,36 @@ success "Requisitos OK"
 echo ""
 
 # ──────────────────────────────────────────────────────────────
-# 2. Setup directories
+# 2. Create dedicated system user
+# ──────────────────────────────────────────────────────────────
+echo "Creando usuario del sistema 'specialwash'..."
+
+if ! id -u specialwash >/dev/null 2>&1; then
+    useradd --system --no-create-home --shell /usr/sbin/nologin --groups www-data specialwash
+    success "Usuario 'specialwash' creado"
+else
+    success "Usuario 'specialwash' ya existe"
+fi
+echo ""
+
+# ──────────────────────────────────────────────────────────────
+# 3. Setup directories
 # ──────────────────────────────────────────────────────────────
 echo "Configurando directorios..."
 
 mkdir -p /var/www/specialwash/{app,logs,data,backup}
 chmod 755 /var/www/specialwash
+# Directories that the service user needs to write to
+chown specialwash:www-data /var/www/specialwash/logs
+chown specialwash:www-data /var/www/specialwash/data
+chmod 750 /var/www/specialwash/logs
+chmod 750 /var/www/specialwash/data
 
 success "Directorios listos"
 echo ""
 
 # ──────────────────────────────────────────────────────────────
-# 3. Backend setup
+# 4. Backend setup
 # ──────────────────────────────────────────────────────────────
 echo "Configurando backend Python..."
 
@@ -69,7 +87,7 @@ success "Backend dependencias instaladas"
 echo ""
 
 # ──────────────────────────────────────────────────────────────
-# 4. Environment check
+# 5. Environment check
 # ──────────────────────────────────────────────────────────────
 echo "Verificando configuración..."
 
@@ -88,12 +106,13 @@ success ".env encontrado"
 echo ""
 
 # ──────────────────────────────────────────────────────────────
-# 5. Database init (if needed)
+# 6. Database init (if needed)
 # ──────────────────────────────────────────────────────────────
 echo "Verificando base de datos..."
 
 mkdir -p /var/www/specialwash/data
-chmod 755 /var/www/specialwash/data
+chown specialwash:www-data /var/www/specialwash/data
+chmod 750 /var/www/specialwash/data
 
 python init_db.py 2>&1 || warning "init_db no pudo completarse"
 python update_servicio_catalogo_schema.py 2>&1 || warning "schema update no aplicado"
@@ -102,7 +121,7 @@ success "Base de datos lista"
 echo ""
 
 # ──────────────────────────────────────────────────────────────
-# 6. Nginx configuration
+# 7. Nginx configuration
 # ──────────────────────────────────────────────────────────────
 echo "Configurando nginx..."
 
@@ -127,7 +146,7 @@ fi
 echo ""
 
 # ──────────────────────────────────────────────────────────────
-# 7. Systemd service
+# 8. Systemd service
 # ──────────────────────────────────────────────────────────────
 echo "Configurando servicio systemd..."
 
@@ -146,7 +165,7 @@ fi
 echo ""
 
 # ──────────────────────────────────────────────────────────────
-# 8. Verification
+# 9. Verification
 # ──────────────────────────────────────────────────────────────
 echo "Verificando status..."
 echo ""

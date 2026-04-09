@@ -34,7 +34,9 @@ load_dotenv()
 
 
 def _db_bootstrap_enabled():
-  raw = str(os.getenv("ENABLE_DB_BOOTSTRAP", "1")).strip().lower()
+  is_production = os.getenv("FLASK_ENV", "development").strip().lower() == "production"
+  default = "0" if is_production else "1"
+  raw = str(os.getenv("ENABLE_DB_BOOTSTRAP", default)).strip().lower()
   return raw in {"1", "true", "yes", "on"}
 
 

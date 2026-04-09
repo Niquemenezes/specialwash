@@ -2,6 +2,7 @@ import os
 from flask import abort
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
+from flask_jwt_extended import get_jwt, verify_jwt_in_request
 from wtforms.fields import PasswordField
 from models import (
     db, User, Producto, ProductoCodigoBarras, Proveedor, Entrada, Salida, 
@@ -15,8 +16,24 @@ def _is_production():
 
 
 def _admin_enabled():
-    # Mantener panel admin visible para recuperar el comportamiento anterior.
-    return True
+    """
+    Panel de admin solo habilitado cuando ENABLE_ADMIN=1.
+    Por defecto deshabilitado en producción; en desarrollo se puede activar
+    explícitamente con ENABLE_ADMIN=1.
+    """
+    raw = str(os.getenv("ENABLE_ADMIN", "0")).strip().lower()
+    return raw in {"1", "true", "yes", "on"}
+
+
+def _current_user_is_admin():
+    """Devuelve True si hay un JWT válido con rol 'administrador'."""
+    try:
+        verify_jwt_in_request()
+        claims = get_jwt() or {}
+        from utils.auth_utils import normalize_role
+        return normalize_role(claims.get("rol")) == "administrador"
+    except Exception:
+        return False
 
 
 # === Clases personalizadas para mejorar apariencia y seguridad ===
@@ -39,10 +56,14 @@ class SecureModelView(ModelView):
     }
 
     def is_accessible(self):
-        return _admin_enabled()
+        if not _admin_enabled():
+            return False
+        return _current_user_is_admin()
 
     def inaccessible_callback(self, name, **kwargs):
-        return abort(403)
+        if not _admin_enabled():
+            abort(404)
+        abort(403)
 
 
 class UserAdmin(SecureModelView):
