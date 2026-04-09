@@ -6,6 +6,7 @@ from flask_jwt_extended import get_jwt, jwt_required
 
 ALLOWED_ROLES = {
     "administrador",
+    "encargado",
     "detailing",
     "calidad",
     "pintura",
@@ -28,6 +29,8 @@ def normalize_role(role):
         return "pintura"
     if r in ("tapiceria", "tapicería", "upholstery", "upholsterer"):
         return "tapicero"
+    if r in ("manager", "supervisor"):
+        return "encargado"
     return r
 
 
@@ -46,7 +49,7 @@ def _dev_auth_bypass_enabled():
 def role_required(*roles):
     def decorator(fn):
         @wraps(fn)
-        @jwt_required(optional=True)
+        @jwt_required()
         def wrapper(*args, **kwargs):
             claims = get_jwt() or {}
             rol = normalize_role(claims.get("rol"))

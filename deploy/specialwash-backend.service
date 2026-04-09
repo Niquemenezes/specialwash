@@ -12,7 +12,7 @@ Wants=specialwash-logs.service
 
 [Service]
 Type=notify
-User=root
+User=specialwash
 Group=www-data
 
 # Working directory
