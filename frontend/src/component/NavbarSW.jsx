@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import logo from "../img/logo-specialwash-icon-black.png";
 import { buildApiUrl } from "../utils/apiBase";
-import { clearStoredSession, getStoredRol, getStoredToken, isEmployeeRole } from "../utils/authSession";
+import { clearStoredSession, getStoredRol, getStoredToken } from "../utils/authSession";
 import { NAVIGATION_BY_ROLE, ROLES } from "../config/rolePermissions.js";
 
 // ─── Campana de notificaciones ───────────────────────────────────────────────
@@ -180,6 +180,7 @@ const NavbarSW = () => {
   const navigate = useNavigate();
   const token = getStoredToken();
   const rol = getStoredRol();
+  const isAdmin = rol === "administrador";
 
   const [theme, setTheme] = useState(
     () => localStorage.getItem("sw-theme") || document.documentElement.getAttribute("data-theme") || "dark"
@@ -191,7 +192,6 @@ const NavbarSW = () => {
     localStorage.setItem("sw-theme", next);
   };
 
-  const isEmpleadoOperativo = isEmployeeRole(rol);
   const handleLogout = async () => {
     try {
       await fetch(buildApiUrl("/api/auth/logout"), {
@@ -206,8 +206,20 @@ const NavbarSW = () => {
   return (
     <nav className="navbar navbar-expand-lg sw-navbar shadow-sm">
       <div className="container-fluid">
-        {/* Brand + Primeros items del menú (lado izquierdo) */}
-        <div className="d-flex align-items-center gap-1 flex-grow-1">
+        {/* Sidebar toggle (admin) + Brand */}
+        <div className="d-flex align-items-center gap-2 flex-grow-1">
+          {/* Botón para abrir/colapsar el sidebar — solo admin */}
+          {token && isAdmin && (
+            <button
+              className="sw-sidebar-nav-toggle"
+              onClick={() => window.dispatchEvent(new Event("sw:sidebar-toggle"))}
+              title="Mostrar / ocultar menú lateral"
+              aria-label="Mostrar / ocultar menú lateral"
+            >
+              <i className="fas fa-bars" />
+            </button>
+          )}
+
           {/* Brand */}
           <Link
             className="navbar-brand d-flex align-items-center sw-brand"
@@ -218,48 +230,6 @@ const NavbarSW = () => {
               <img src={logo} alt="SpecialWash" className="sw-logo-img" />
             </div>
           </Link>
-
-          {/* Primeros cuatro items del menú al lado del logo (solo desktop) */}
-          {token && (
-            <ul className="navbar-nav d-none d-lg-flex gap-1 sw-nav-highlighted">
-              {(() => {
-                const navItems = NAVIGATION_BY_ROLE[rol];
-                if (!navItems || navItems.length < 4) return null;
-
-                // Mostrar solo los primeros 4 items si tienen section (dropdowns)
-                if (navItems[0].section && navItems[1].section && navItems[2].section && navItems[3].section) {
-                  return [navItems[0], navItems[1], navItems[2], navItems[3]].map((grupo, idx) => (
-                    <li key={idx} className="nav-item dropdown">
-                      <button
-                        className="nav-link dropdown-toggle sw-navlink btn btn-link"
-                        id={`navHighlight${idx}`}
-                        type="button"
-                        data-bs-toggle="dropdown"
-                        aria-expanded="false"
-                      >
-                        {grupo.section}
-                      </button>
-                      <ul className="dropdown-menu dropdown-menu-start" aria-labelledby={`navHighlight${idx}`}>
-                        {grupo.items.map((item, itemIdx) => (
-                          <li key={itemIdx}>
-                            <NavLink
-                              to={item.to}
-                              className={({ isActive }) =>
-                                `dropdown-item ${isActive ? "active" : ""}`
-                              }
-                            >
-                              {item.label}
-                            </NavLink>
-                          </li>
-                        ))}
-                      </ul>
-                    </li>
-                  ));
-                }
-                return null;
-              })()}
-            </ul>
-          )}
         </div>
 
         {/* Toggler */}
@@ -277,53 +247,14 @@ const NavbarSW = () => {
 
         {/* Collapsable */}
         <div className="collapse navbar-collapse" id="swNav">
-          {/* Menú por rol (resto de items después de los primeros cuatro) */}
-          {token && (
+          {/* Menú por rol — solo roles no-admin (admin usa el sidebar lateral) */}
+          {token && !isAdmin && (
             <ul className="navbar-nav me-auto mt-3 mt-lg-0 sw-nav-left">
               {(() => {
                 const navItems = NAVIGATION_BY_ROLE[rol];
                 if (!navItems) return null;
 
-                // Si para este rol los items son objetos con "section" (admin), renderizar con dropdowns
-                if (navItems.length > 0 && navItems[0].section) {
-                  // Saltar los primeros 4 items (ya están al lado del logo)
-                  const restItems = navItems.slice(4);
-                  return restItems.map((grupo, idx) => (
-                    <li key={idx} className="nav-item dropdown">
-                      <button
-                        className="nav-link dropdown-toggle sw-navlink btn btn-link"
-                        id={`nav${idx + 4}`}
-                        type="button"
-                        data-bs-toggle="dropdown"
-                        aria-expanded="false"
-                      >
-                        {grupo.section}
-                      </button>
-                      <ul className="dropdown-menu dropdown-menu-start" aria-labelledby={`nav${idx + 4}`}>
-                        {grupo.items.map((item, itemIdx) => (
-                          <li key={itemIdx}>
-                            <NavLink
-                              to={item.to}
-                              className={({ isActive }) =>
-                                `dropdown-item ${isActive ? "active" : ""}`
-                              }
-                              onClick={() => {
-                                const toggler = document.querySelector('.navbar-toggler');
-                                if (toggler && !window.matchMedia('(min-width: 992px)').matches) {
-                                  toggler.click();
-                                }
-                              }}
-                            >
-                              {item.label}
-                            </NavLink>
-                          </li>
-                        ))}
-                      </ul>
-                    </li>
-                  ));
-                }
-
-                // Si los items son directos (calidad, empleados, encargado), renderizar sin dropdowns (todos)
+                // Roles operativos: items directos (sin section/dropdown)
                 return navItems.map((item, idx) => (
                   <li key={idx} className="nav-item">
                     <NavLink
@@ -332,8 +263,8 @@ const NavbarSW = () => {
                         `nav-link sw-navlink ${isActive ? "active" : ""}`
                       }
                       onClick={() => {
-                        const toggler = document.querySelector('.navbar-toggler');
-                        if (toggler && !window.matchMedia('(min-width: 992px)').matches) {
+                        const toggler = document.querySelector(".navbar-toggler");
+                        if (toggler && !window.matchMedia("(min-width: 992px)").matches) {
                           toggler.click();
                         }
                       }}
