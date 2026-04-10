@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useContext, useRef, useMemo } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Context } from "../store/appContext";
-import SignaturePad from "../component/SignaturePad.jsx";
-import GoldSelect from "../component/GoldSelect.jsx";
-import ProgressIndicator from "../component/ProgressIndicator.jsx";
-import NextStepsModal from "../component/NextStepsModal.jsx";
+import SignaturePad from "../components/SignaturePad.jsx";
+import ProgressIndicator from "../components/ProgressIndicator.jsx";
+import NextStepsModal from "../components/NextStepsModal.jsx";
 import { getStoredRol, normalizeRol } from "../utils/authSession";
 import "../styles/inspeccion-responsive.css";
 import "../styles/progress-indicator.css";
@@ -46,6 +45,21 @@ const ROLE_OPTIONS = [
   { value: "otro", label: "Otro" },
 ];
 
+const ROUTEABLE_SERVICE_ROLES = new Set(["detailing", "pintura", "tapicero", "calidad"]);
+const CATALOG_ROLE_SECTIONS = [
+  { rol: "detailing", label: "Detailing", color: "#6366f1" },
+  { rol: "pintura", label: "Pintura", color: "#f87171" },
+  { rol: "tapicero", label: "Tapicería", color: "#fbbf24" },
+];
+const EMPTY_CATALOG_SELECTION = CATALOG_ROLE_SECTIONS.reduce((acc, { rol }) => {
+  acc[rol] = "";
+  return acc;
+}, {});
+const resolveCatalogRole = (servicio) => {
+  const normalized = normalizeRol(servicio?.rol_responsable || servicio?.tipo_tarea || "");
+  return ROUTEABLE_SERVICE_ROLES.has(normalized) ? normalized : "otro";
+};
+
 const getRoleBadgeClass = (role) => {
   switch (normalizeRol(role)) {
     case "detailing":
@@ -63,7 +77,8 @@ const getRoleBadgeClass = (role) => {
 
 const mapServicioForPayload = (servicio) => {
   const tipoRaw = servicio?.tipo_tarea || servicio?.rol_responsable || "";
-  const tipo = normalizeRol(tipoRaw) || undefined;
+  const tipoNormalizado = normalizeRol(tipoRaw);
+  const tipo = ROUTEABLE_SERVICE_ROLES.has(tipoNormalizado) ? tipoNormalizado : undefined;
   return {
     origen: servicio?.origen || "manual",
     servicio_catalogo_id: servicio?.servicio_catalogo_id ?? null,
@@ -82,6 +97,18 @@ const normalizeText = (value) =>
     .toLowerCase();
 
 const normalizePhoneDigits = (value) => String(value || "").replace(/\D/g, "");
+const sameClientName = (cliente, nombre) => {
+  if (!cliente) return false;
+  const nombreManual = normalizeText(nombre);
+  if (!nombreManual) return true;
+  return normalizeText(cliente?.nombre) === nombreManual;
+};
+const sameClientPhone = (cliente, telefono) => {
+  if (!cliente) return false;
+  const telefonoManual = normalizePhoneDigits(telefono);
+  if (!telefonoManual) return true;
+  return normalizePhoneDigits(cliente?.telefono) === telefonoManual;
+};
 
 const InspeccionRecepcionPage = () => {
   const { actions } = useContext(Context);
@@ -103,10 +130,10 @@ const InspeccionRecepcionPage = () => {
   const [cargandoEdicion, setCargandoEdicion] = useState(false);
   const [inspeccionCreada, setInspeccionCreada] = useState(null);
   const [formError, setFormError] = useState("");
-  const [formSuccess, setFormSuccess] = useState("");
   const [servicioManualError, setServicioManualError] = useState("");
   const [inspeccionEditandoId, setInspeccionEditandoId] = useState(null);
   const [catalogoServicios, setCatalogoServicios] = useState([]);
+  const [catalogoServiciosCargando, setCatalogoServiciosCargando] = useState(true);
   const [clientesDisponibles, setClientesDisponibles] = useState([]);
   const [servicioManual, setServicioManual] = useState({
     nombre: "",
@@ -115,13 +142,10 @@ const InspeccionRecepcionPage = () => {
     tiempo_estimado_horas: "",
     tipo_tarea: "",
   });
-  const [servicioCatalogoSeleccionado, setServicioCatalogoSeleccionado] = useState({
-    detailing: "",
-    pintura: "",
-    tapicero: "",
-  });
+  const [servicioCatalogoSeleccionado, setServicioCatalogoSeleccionado] = useState(EMPTY_CATALOG_SELECTION);
   const [showNextStepsModal, setShowNextStepsModal] = useState(false);
   const [esProfesional, setEsProfesional] = useState(false);
+  const [clienteExistenteBusqueda, setClienteExistenteBusqueda] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
   const rol = getStoredRol();
   const isAdmin = rol === "administrador";
@@ -161,6 +185,11 @@ const InspeccionRecepcionPage = () => {
             ? inspeccion.servicios_aplicados.map(mapServicioForPayload)
             : []
         });
+        setClienteExistenteBusqueda(
+          inspeccion.cliente_nombre
+            ? `${inspeccion.cliente_nombre}${inspeccion.cliente_telefono ? ` · ${inspeccion.cliente_telefono}` : ""}`
+            : ""
+        );
         setInspeccionEditandoId(inspeccion.id);
         setFotos([]);
         setVideos([]);
@@ -182,11 +211,14 @@ const InspeccionRecepcionPage = () => {
   useEffect(() => {
     let active = true;
     (async () => {
+      if (active) setCatalogoServiciosCargando(true);
       try {
         const servicios = await actions.getServiciosCatalogo(true);
         if (active) setCatalogoServicios(Array.isArray(servicios) ? servicios : []);
       } catch {
         if (active) setCatalogoServicios([]);
+      } finally {
+        if (active) setCatalogoServiciosCargando(false);
       }
     })();
 
@@ -240,9 +272,36 @@ const InspeccionRecepcionPage = () => {
     return exacta || null;
   };
 
+  const formatClienteExistenteLabel = (cliente) => {
+    if (!cliente) return "";
+    const nombre = String(cliente?.nombre || "Sin nombre").trim();
+    const telefono = String(cliente?.telefono || "").trim();
+    return telefono ? `${nombre} · ${telefono}` : nombre;
+  };
+
+  const buscarClienteExistentePorBusqueda = (value) => {
+    const raw = String(value || "").trim();
+    if (!raw) return null;
+
+    const nombreBase = raw.split("·")[0]?.trim() || raw;
+    const nombreNormalizado = normalizeText(nombreBase);
+    const telefonoDigits = normalizePhoneDigits(raw);
+
+    return clientesDisponibles.find((cliente) => {
+      const nombreCliente = normalizeText(cliente?.nombre);
+      const telefonoCliente = normalizePhoneDigits(cliente?.telefono);
+      return (
+        (nombreNormalizado && nombreCliente === nombreNormalizado) ||
+        (telefonoDigits && telefonoCliente && telefonoCliente === telefonoDigits)
+      );
+    }) || null;
+  };
+
   const handleClienteExistenteChange = (e) => {
-    const selectedId = String(e.target.value || "").trim();
-    if (!selectedId) {
+    const rawValue = String(e.target.value || "");
+    setClienteExistenteBusqueda(rawValue);
+
+    if (!rawValue.trim()) {
       setFormData((prev) => ({
         ...prev,
         cliente_id: "",
@@ -250,16 +309,34 @@ const InspeccionRecepcionPage = () => {
       return;
     }
 
-    const cliente = clientesDisponibles.find((c) => String(c?.id) === selectedId);
+    const cliente = buscarClienteExistentePorBusqueda(rawValue);
     if (!cliente) return;
 
     setFormData((prev) => ({
       ...prev,
-      cliente_id: selectedId,
-      cliente_nombre: cliente?.nombre || "",
-      cliente_telefono: cliente?.telefono || "",
+      cliente_id: String(cliente.id || ""),
+      cliente_nombre: cliente?.nombre || prev.cliente_nombre,
+      cliente_telefono: cliente?.telefono || prev.cliente_telefono,
     }));
+    setClienteExistenteBusqueda(formatClienteExistenteLabel(cliente));
   };
+
+  const clientesExistentesSugeridos = useMemo(() => {
+    const texto = normalizeText(clienteExistenteBusqueda || formData.cliente_nombre);
+    const telefono = normalizePhoneDigits(clienteExistenteBusqueda);
+    const listaOrdenada = [...clientesDisponibles].sort((a, b) => String(a?.nombre || "").localeCompare(String(b?.nombre || ""), "es"));
+
+    if (!texto && !telefono) return listaOrdenada.slice(0, 40);
+
+    return listaOrdenada.filter((cliente) => {
+      const nombre = normalizeText(cliente?.nombre);
+      const tel = normalizePhoneDigits(cliente?.telefono);
+      return (
+        (texto && nombre.includes(texto)) ||
+        (telefono && tel.includes(telefono))
+      );
+    }).slice(0, 40);
+  }, [clientesDisponibles, clienteExistenteBusqueda, formData.cliente_nombre]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -267,23 +344,37 @@ const InspeccionRecepcionPage = () => {
 
     if (name === "cliente_nombre") {
       const clienteCoincidente = buscarClientePorNombre(value);
-      setFormData((prev) => ({
-        ...prev,
-        cliente_id: clienteCoincidente?.id ? String(clienteCoincidente.id) : "",
-        cliente_nombre: value,
-        cliente_telefono: clienteCoincidente?.telefono || prev.cliente_telefono
-      }));
+      setFormData((prev) => {
+        const vincularCliente = Boolean(
+          clienteCoincidente?.id && sameClientPhone(clienteCoincidente, prev.cliente_telefono)
+        );
+        return {
+          ...prev,
+          cliente_id: vincularCliente ? String(clienteCoincidente.id) : "",
+          cliente_nombre: value,
+          cliente_telefono: !prev.cliente_telefono && vincularCliente
+            ? (clienteCoincidente?.telefono || "")
+            : prev.cliente_telefono,
+        };
+      });
       return;
     }
 
     if (name === "cliente_telefono") {
       const clienteCoincidente = buscarClientePorTelefono(value);
-      setFormData((prev) => ({
-        ...prev,
-        cliente_id: clienteCoincidente?.id ? String(clienteCoincidente.id) : "",
-        cliente_nombre: clienteCoincidente?.nombre || prev.cliente_nombre,
-        cliente_telefono: value,
-      }));
+      setFormData((prev) => {
+        const vincularCliente = Boolean(
+          clienteCoincidente?.id && sameClientName(clienteCoincidente, prev.cliente_nombre)
+        );
+        return {
+          ...prev,
+          cliente_id: vincularCliente ? String(clienteCoincidente.id) : "",
+          cliente_nombre: !prev.cliente_nombre && vincularCliente
+            ? (clienteCoincidente?.nombre || "")
+            : prev.cliente_nombre,
+          cliente_telefono: value,
+        };
+      });
       return;
     }
 
@@ -303,6 +394,12 @@ const InspeccionRecepcionPage = () => {
     const servicioId = Number(servicio?.id);
     if (!servicioId) return;
 
+    const rolServicio = resolveCatalogRole(servicio);
+    if (rolServicio === "otro") {
+      setFormError(`El servicio "${servicio?.nombre || "seleccionado"}" no tiene un rol válido asignado en el catálogo. Asígnale detailing, pintura, tapicería o calidad.`);
+      return;
+    }
+
     setFormData((prev) => {
       const existentes = prev.servicios_aplicados || [];
       if (existentes.some((s) => Number(s.servicio_catalogo_id) === servicioId)) {
@@ -311,7 +408,7 @@ const InspeccionRecepcionPage = () => {
 
       return {
         ...prev,
-            servicios_aplicados: [
+        servicios_aplicados: [
           ...existentes,
           {
             origen: "catalogo",
@@ -319,7 +416,7 @@ const InspeccionRecepcionPage = () => {
             nombre: servicio.nombre || "Servicio",
             precio: Number(servicio.precio_base || 0),
             tiempo_estimado_minutos: Number.parseInt(servicio.tiempo_estimado_minutos || 0, 10) || 0,
-            tipo_tarea: normalizeRol(servicio.rol_responsable || "") || "otro",
+            tipo_tarea: rolServicio,
           },
         ],
       };
@@ -492,11 +589,24 @@ const InspeccionRecepcionPage = () => {
     e.preventDefault();
     
     setFormError("");
-    setFormSuccess("");
+
+    const { servicios: serviciosPreparados, agregados: serviciosAutoAgregados } = construirServiciosConPendientes();
+
+    if (serviciosAutoAgregados.length > 0) {
+      setFormData((prev) => ({
+        ...prev,
+        servicios_aplicados: serviciosPreparados,
+      }));
+      setServicioCatalogoSeleccionado(EMPTY_CATALOG_SELECTION);
+    }
 
     if (!formData.cliente_nombre || !formData.cliente_telefono ||
         !formData.coche_descripcion || !formData.matricula || !formData.kilometros) {
       setFormError("Completa todos los campos obligatorios antes de guardar.");
+      return;
+    }
+    if (!serviciosPreparados.length) {
+      setFormError("Añade al menos un servicio. Recuerda pulsar «Añadir servicio» para que aparezca en la lista de abajo.");
       return;
     }
     if (!formData.es_concesionario && !formData.firma_cliente_recepcion) {
@@ -516,10 +626,10 @@ const InspeccionRecepcionPage = () => {
     setGuardando(true);
 
     try {
-      const serviciosPayload = (formData.servicios_aplicados || []).map(mapServicioForPayload);
-      const serviciosSinRol = serviciosPayload.filter((servicio) => !normalizeRol(servicio?.tipo_tarea || ""));
+      const serviciosPayload = serviciosPreparados.map(mapServicioForPayload);
+      const serviciosSinRol = serviciosPayload.filter((servicio) => !ROUTEABLE_SERVICE_ROLES.has(normalizeRol(servicio?.tipo_tarea || "")));
       if (serviciosSinRol.length > 0) {
-        setFormError("Todos los servicios deben tener un rol/área asignado para enrutar correctamente el parte.");
+        setFormError("Todos los servicios deben tener un rol válido del catálogo (detailing, pintura, tapicería o calidad) para enrutar correctamente el parte.");
         setGuardando(false);
         return;
       }
@@ -563,20 +673,11 @@ const InspeccionRecepcionPage = () => {
         }
       });
 
-      // Mensaje de resultado
-      let mensaje = inspeccionEditandoId
-        ? `✅ Inspección #${inspeccion.id} actualizada correctamente`
-        : `✅ Inspección #${inspeccion.id} creada correctamente`;
-      if (fotosSubidas > 0) mensaje += `\n📸 ${fotosSubidas} foto(s) subida(s)`;
-      if (fotosFallidas > 0) mensaje += `\n⚠️ ${fotosFallidas} foto(s) fallaron`;
-      if (videosSubidos > 0) mensaje += `\n🎥 ${videosSubidos} video(s) subido(s)`;
-      if (videosFallidos > 0) mensaje += `\n⚠️ ${videosFallidos} video(s) fallaron`;
-
-      setFormSuccess(mensaje);
       window.scrollTo({ top: 0, behavior: "smooth" });
 
       // Limpiar formulario
       setFormData(INITIAL_FORM_DATA);
+      setClienteExistenteBusqueda("");
       setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "", tipo_tarea: "" });
       setFotos([]);
       setVideos([]);
@@ -600,6 +701,7 @@ const InspeccionRecepcionPage = () => {
     setInspeccionEditandoId(null);
     setSearchParams({});
     setFormData(INITIAL_FORM_DATA);
+    setClienteExistenteBusqueda("");
     setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "", tipo_tarea: "" });
     setFotos([]);
     setVideos([]);
@@ -616,21 +718,25 @@ const InspeccionRecepcionPage = () => {
   };
 
   const serviciosCatalogoPorRol = useMemo(() => {
-    const grupos = {
-      detailing: [],
-      pintura: [],
-      tapicero: [],
-    };
+    const grupos = CATALOG_ROLE_SECTIONS.reduce((acc, { rol }) => {
+      acc[rol] = [];
+      return acc;
+    }, {});
 
     for (const servicio of catalogoServicios || []) {
-      const rolServicio = normalizeRol(servicio?.rol_responsable || servicio?.tipo_tarea || "");
-      if (rolServicio === "detailing" || rolServicio === "pintura" || rolServicio === "tapicero") {
+      const rolServicio = resolveCatalogRole(servicio);
+      if (rolServicio !== "otro") {
         grupos[rolServicio].push(servicio);
       }
     }
 
     return grupos;
   }, [catalogoServicios]);
+
+  const serviciosCatalogoSinRol = useMemo(
+    () => (catalogoServicios || []).filter((servicio) => resolveCatalogRole(servicio) === "otro"),
+    [catalogoServicios]
+  );
 
   const seleccionarServicioCatalogoPorRol = (rolServicio, servicioId) => {
     setServicioCatalogoSeleccionado((prev) => ({ ...prev, [rolServicio]: servicioId }));
@@ -647,6 +753,67 @@ const InspeccionRecepcionPage = () => {
 
     agregarServicioCatalogo(servicio);
     setServicioCatalogoSeleccionado((prev) => ({ ...prev, [rolServicio]: "" }));
+  };
+
+  const serviciosCatalogoPendientes = useMemo(() => {
+    const pendientes = [];
+
+    for (const { rol, label } of CATALOG_ROLE_SECTIONS) {
+      const servicioId = servicioCatalogoSeleccionado?.[rol];
+      if (!servicioId) continue;
+
+      const servicio = (serviciosCatalogoPorRol[rol] || []).find(
+        (s) => String(s.id) === String(servicioId)
+      );
+      if (!servicio) continue;
+
+      pendientes.push({
+        rol,
+        label,
+        nombre: servicio.nombre || "Servicio",
+      });
+    }
+
+    return pendientes;
+  }, [servicioCatalogoSeleccionado, serviciosCatalogoPorRol]);
+
+  const construirServiciosConPendientes = () => {
+    const actuales = Array.isArray(formData.servicios_aplicados)
+      ? [...formData.servicios_aplicados]
+      : [];
+    const agregados = [];
+
+    for (const { rol } of CATALOG_ROLE_SECTIONS) {
+      const servicioId = servicioCatalogoSeleccionado?.[rol];
+      if (!servicioId) continue;
+
+      const servicio = (serviciosCatalogoPorRol[rol] || []).find(
+        (s) => String(s.id) === String(servicioId)
+      );
+      if (!servicio) continue;
+
+      const yaExiste = actuales.some(
+        (item) => Number(item?.servicio_catalogo_id) === Number(servicio.id)
+      );
+      if (yaExiste) continue;
+
+      const rolServicio = resolveCatalogRole(servicio);
+      if (rolServicio === "otro") continue;
+
+      const servicioNormalizado = {
+        origen: "catalogo",
+        servicio_catalogo_id: Number(servicio.id),
+        nombre: servicio.nombre || "Servicio",
+        precio: Number(servicio.precio_base || 0),
+        tiempo_estimado_minutos: Number.parseInt(servicio.tiempo_estimado_minutos || 0, 10) || 0,
+        tipo_tarea: rolServicio,
+      };
+
+      actuales.push(servicioNormalizado);
+      agregados.push(servicioNormalizado);
+    }
+
+    return { servicios: actuales, agregados };
   };
 
   const _inp = { background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "10px" };
@@ -698,13 +865,6 @@ const InspeccionRecepcionPage = () => {
             <button type="button" className="btn-close btn-sm" onClick={() => setFormError("")} />
           </div>
         )}
-        {formSuccess && (
-          <div style={{ background: "color-mix(in srgb, var(--sw-success) 12%, var(--sw-surface))", border: "1px solid color-mix(in srgb, var(--sw-success) 35%, transparent)", borderRadius: "10px", padding: "0.85rem 1rem", marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", color: "var(--sw-success)" }}>
-            <span style={{ whiteSpace: "pre-line" }}>{formSuccess}</span>
-            <button type="button" className="btn-close btn-sm" onClick={() => setFormSuccess("")} />
-          </div>
-        )}
-
         {/* BANNER SIGUIENTE (arriba) */}
         {inspeccionCreada && (
           <div style={{ background: "color-mix(in srgb, var(--sw-success) 10%, var(--sw-surface))", border: "1px solid color-mix(in srgb, var(--sw-success) 30%, transparent)", borderRadius: "12px", padding: "1rem 1.25rem", color: "var(--sw-success)", marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
@@ -732,23 +892,34 @@ const InspeccionRecepcionPage = () => {
               <div className="row g-3">
 
                 <div className="col-12 col-md-6">
-                  <label style={_lbl}>Cliente existente (opcional)</label>
-                  <select className="form-select sw-pinput" name="cliente_id" value={formData.cliente_id} onChange={handleClienteExistenteChange} style={_inp}>
-                    <option value="">-- Selecciona cliente registrado --</option>
-                    {clientesDisponibles.slice().sort((a, b) => String(a?.nombre || "").localeCompare(String(b?.nombre || ""), "es")).map((cliente) => (
-                      <option key={cliente.id} value={cliente.id}>{cliente.nombre || "Sin nombre"}{cliente.telefono ? ` · ${cliente.telefono}` : ""}</option>
-                    ))}
-                  </select>
-                  <small style={{ color: "var(--sw-muted)", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>Si lo seleccionas, se reutiliza ese cliente y evita duplicados.</small>
-                </div>
-
-                <div className="col-12 col-md-6">
                   <label style={_lbl}>Nombre del cliente <span style={{ color: "#f87171" }}>*</span></label>
-                  <input type="text" className="form-control" name="cliente_nombre" value={formData.cliente_nombre} onChange={handleInputChange} placeholder="Ej: Taller Acme" list="clientes-existentes" autoComplete="off" required style={_inp} />
+                  <input type="text" className="form-control" name="cliente_nombre" value={formData.cliente_nombre} onChange={handleInputChange} placeholder="Ej: Monique / Taller Acme" list="clientes-existentes" autoComplete="off" required style={_inp} />
                   <datalist id="clientes-existentes">
                     {clientesDisponibles.map((c) => String(c?.nombre || "").trim()).filter((n, i, a) => n && a.indexOf(n) === i).sort((a, b) => a.localeCompare(b, "es")).map((n) => (<option key={n} value={n} />))}
                   </datalist>
-                  <small style={{ color: "var(--sw-muted)", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>Escribe o selecciona nombre existente para rellenar automáticamente el teléfono.</small>
+                  <small style={{ color: "var(--sw-muted)", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>Primero escribe el nombre. Si ya existe, puedes seleccionarlo justo al lado.</small>
+                </div>
+
+                <div className="col-12 col-md-6">
+                  <label style={_lbl}>Cliente existente (opcional)</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="cliente_existente_busqueda"
+                    value={clienteExistenteBusqueda}
+                    onChange={handleClienteExistenteChange}
+                    placeholder="Busca cliente ya creado: Toyota"
+                    list="clientes-registrados-busqueda"
+                    autoComplete="off"
+                    style={_inp}
+                  />
+                  <datalist id="clientes-registrados-busqueda">
+                    {clientesExistentesSugeridos.map((cliente) => {
+                      const label = formatClienteExistenteLabel(cliente);
+                      return <option key={cliente.id} value={label} />;
+                    })}
+                  </datalist>
+                  <small style={{ color: "var(--sw-muted)", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>Si existe, escribe por ejemplo <strong>Toyota</strong> y selecciónalo para traer sus datos. Si no, sigues rellenando normal.</small>
                 </div>
 
                 <div className="col-12 col-md-6">
@@ -783,6 +954,7 @@ const InspeccionRecepcionPage = () => {
                     </label>
                   </div>
                 </div>
+
 
               </div>
             </div>
@@ -900,14 +1072,25 @@ const InspeccionRecepcionPage = () => {
               {/* Catálogo por rol */}
               <div style={{ marginBottom: "1.5rem" }}>
                 <p style={{ ..._lbl, marginBottom: "0.75rem" }}>Catálogo activo</p>
-                {catalogoServicios.length === 0 && (
+                {catalogoServiciosCargando ? (
+                  <p style={{ color: "var(--sw-muted)", fontSize: "0.85rem" }}>Cargando servicios del catálogo…</p>
+                ) : catalogoServicios.length === 0 ? (
                   <p style={{ color: "var(--sw-muted)", fontSize: "0.85rem" }}>No hay servicios activos en catálogo.</p>
+                ) : null}
+                <div style={{ marginBottom: "0.85rem", background: "color-mix(in srgb, var(--sw-warning, #f59e0b) 10%, var(--sw-surface))", border: "1px solid color-mix(in srgb, var(--sw-warning, #f59e0b) 30%, transparent)", borderRadius: "10px", padding: "0.7rem 0.9rem", color: "var(--sw-text)", fontSize: "0.82rem" }}>
+                  <strong>Paso importante:</strong> después de escoger un servicio pulsa <strong>+ Añadir servicio</strong> para que baje a <strong>Servicios añadidos</strong>. Si se te olvida pero lo dejas seleccionado, el sistema lo añadirá automáticamente al guardar.
+                </div>
+                {!catalogoServiciosCargando && serviciosCatalogoSinRol.length > 0 && (
+                  <div style={{ marginBottom: "0.85rem", background: "color-mix(in srgb, var(--sw-warning, #f59e0b) 10%, var(--sw-surface))", border: "1px solid color-mix(in srgb, var(--sw-warning, #f59e0b) 30%, transparent)", borderRadius: "10px", padding: "0.7rem 0.9rem", color: "var(--sw-text)", fontSize: "0.82rem" }}>
+                    Hay {serviciosCatalogoSinRol.length} servicio(s) en el catálogo sin un rol válido. Asígnales <strong>detailing</strong>, <strong>pintura</strong>, <strong>tapicería</strong> o <strong>calidad</strong> para que salgan aquí.
+                  </div>
                 )}
-                {[
-                  { rol: "detailing", label: "Detailing", color: "#6366f1" },
-                  { rol: "pintura",   label: "Pintura",   color: "#f87171" },
-                  { rol: "tapicero",  label: "Tapicería", color: "#fbbf24" },
-                ].map(({ rol, label, color }) => (
+                {serviciosCatalogoPendientes.length > 0 && (
+                  <div style={{ marginBottom: "0.85rem", background: "color-mix(in srgb, var(--sw-accent) 10%, var(--sw-surface))", border: "1px solid color-mix(in srgb, var(--sw-accent) 28%, transparent)", borderRadius: "10px", padding: "0.7rem 0.9rem", color: "var(--sw-text)", fontSize: "0.82rem" }}>
+                    <strong>Pendiente por añadir:</strong> {serviciosCatalogoPendientes.map((servicio) => `${servicio.nombre} (${servicio.label})`).join(", ")}
+                  </div>
+                )}
+                {CATALOG_ROLE_SECTIONS.map(({ rol, label, color }) => (
                   <details key={rol} style={{ marginBottom: "0.75rem", background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", borderLeft: `3px solid ${color}`, borderRadius: "10px", overflow: "hidden" }} open>
                     <summary style={{ padding: "0.7rem 1rem", cursor: "pointer", fontWeight: 600, fontSize: "0.88rem", color: "var(--sw-text)", listStyle: "none", display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <span style={{ color, fontSize: "0.65rem" }}>▶</span> Servicios de {label}
@@ -918,20 +1101,38 @@ const InspeccionRecepcionPage = () => {
                       ) : (
                         <div className="d-flex flex-column flex-md-row gap-2">
                           <div className="flex-grow-1">
-                            <GoldSelect
+                            <select
+                              className="form-select"
                               value={servicioCatalogoSeleccionado[rol]}
-                              onChange={(value) => seleccionarServicioCatalogoPorRol(rol, value)}
-                              placeholder={`Seleccionar servicio de ${label.toLowerCase()}...`}
-                              searchable
-                              options={serviciosCatalogoPorRol[rol].map((s) => ({
-                                value: s.id,
-                                label: `${s.nombre} · ${Number(s.precio_base || 0).toFixed(2)} €${Number(s.tiempo_estimado_minutos || 0) > 0 ? ` · ${Number(s.tiempo_estimado_minutos)} min` : ""}`,
-                              }))}
-                            />
+                              onChange={(e) => seleccionarServicioCatalogoPorRol(rol, e.target.value)}
+                              style={_inp}
+                            >
+                              <option value="">Seleccionar servicio de {label.toLowerCase()}...</option>
+                              {serviciosCatalogoPorRol[rol].map((s) => (
+                                <option key={s.id} value={s.id}>
+                                  {`${s.nombre} · ${Number(s.precio_base || 0).toFixed(2)} €${Number(s.tiempo_estimado_minutos || 0) > 0 ? ` · ${Number(s.tiempo_estimado_minutos)} min` : ""}`}
+                                </option>
+                              ))}
+                            </select>
                           </div>
-                          <button type="button" onClick={() => agregarServicioCatalogoPorRol(rol)} disabled={!servicioCatalogoSeleccionado[rol]}
-                            style={{ background: "color-mix(in srgb, var(--sw-accent) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--sw-accent) 35%, transparent)", color: "var(--sw-accent)", borderRadius: "9px", padding: "0.4rem 1.1rem", fontWeight: 600, fontSize: "0.85rem", cursor: servicioCatalogoSeleccionado[rol] ? "pointer" : "not-allowed", opacity: servicioCatalogoSeleccionado[rol] ? 1 : 0.4, whiteSpace: "nowrap" }}>
-                            + Añadir
+                          <button
+                            type="button"
+                            onClick={() => agregarServicioCatalogoPorRol(rol)}
+                            disabled={!servicioCatalogoSeleccionado[rol]}
+                            style={{
+                              background: "color-mix(in srgb, var(--sw-accent) 12%, transparent)",
+                              border: "1px solid color-mix(in srgb, var(--sw-accent) 35%, transparent)",
+                              color: "var(--sw-accent)",
+                              borderRadius: "9px",
+                              padding: "0.4rem 1.1rem",
+                              fontWeight: 600,
+                              fontSize: "0.85rem",
+                              cursor: servicioCatalogoSeleccionado[rol] ? "pointer" : "not-allowed",
+                              opacity: servicioCatalogoSeleccionado[rol] ? 1 : 0.4,
+                              whiteSpace: "nowrap"
+                            }}
+                          >
+                            + Añadir servicio
                           </button>
                         </div>
                       )}
@@ -1103,22 +1304,6 @@ const InspeccionRecepcionPage = () => {
           </div>
 
         </form>
-
-        {inspeccionCreada && (
-          <div style={{ background: "color-mix(in srgb, var(--sw-success) 10%, var(--sw-surface))", border: "1px solid color-mix(in srgb, var(--sw-success) 30%, transparent)", borderRadius: "12px", padding: "1rem 1.25rem", color: "var(--sw-success)", marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
-            <div>
-              <div>✦ Inspección #{inspeccionCreada.id} creada correctamente</div>
-              <small style={{ opacity: 0.8 }}>Partes de trabajo creados automáticamente</small>
-            </div>
-            <button
-              type="button"
-              onClick={() => navigate(`/vehiculo-detalle/${inspeccionCreada.id}`)}
-              style={{ background: "#22c55e", border: "none", color: "#ffffff", fontWeight: 600, fontSize: "0.9rem", borderRadius: "8px", padding: "0.6rem 1.2rem", cursor: "pointer", whiteSpace: "nowrap" }}
-            >
-              Siguiente →
-            </button>
-          </div>
-        )}
 
       </div>
     </div>

@@ -2,8 +2,8 @@ import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } 
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Context } from "../store/appContext";
 import CochesPendientesEntrega from "./CochesPendientesEntrega";
-import CochesEntregadosPage from "./CochesEntregadosPage";
 import { getApiBase } from "../utils/apiBase";
+import { confirmar } from "../utils/confirmar";
 import "../styles/inspeccion-responsive.css";
 
 /* ─── SVG icons ─── */
@@ -93,7 +93,8 @@ const InspeccionesGuardadasPage = () => {
   const [actionError, setActionError] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState("todos");
   const focoAbiertoRef = useRef(null);
-  const activeTab = searchParams.get("tab") || "guardadas";
+  const requestedTab = searchParams.get("tab") || "guardadas";
+  const activeTab = ["guardadas", "pendientes"].includes(requestedTab) ? requestedTab : "guardadas";
   const inspeccionesGuardadas = inspecciones.filter((insp) => !insp?.entregado);
 
   const conteoPorEstado = useMemo(() => {
@@ -163,7 +164,7 @@ const InspeccionesGuardadasPage = () => {
   }, [loading, inspeccionesGuardadas, searchParams, setSearchParams, verDetalle]);
 
   const eliminarInspeccion = async (id) => {
-    if (!window.confirm("¿Seguro que quieres eliminar esta inspección?")) return;
+    if (!await confirmar("¿Seguro que quieres eliminar esta inspección?")) return;
 
     try {
       await actions.eliminarInspeccion(id);
@@ -246,7 +247,6 @@ const InspeccionesGuardadasPage = () => {
           {[
             { key: "guardadas", label: "Guardadas", count: inspeccionesGuardadas.length },
             { key: "pendientes", label: "Pendientes / Hoja", count: null },
-            { key: "entregados", label: "Entregados", count: null },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -768,7 +768,6 @@ const InspeccionesGuardadasPage = () => {
         )}
 
         {activeTab === "pendientes" && <CochesPendientesEntrega />}
-        {activeTab === "entregados" && <CochesEntregadosPage />}
       </div>
     </div>
   );

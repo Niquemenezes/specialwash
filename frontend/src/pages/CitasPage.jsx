@@ -1,23 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { buildApiUrl } from "../utils/apiBase";
-import { getStoredToken } from "../utils/authSession";
+import Paginacion from "../components/Paginacion.jsx";
+import { confirmar } from "../utils/confirmar";
+import { apiFetch } from "../utils/apiFetch";
 
-async function apiFetch(path, options = {}) {
-  const token = getStoredToken();
-  const res = await fetch(buildApiUrl(path), {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
-  });
-  const raw = await res.text();
-  let data = null;
-  try { data = raw ? JSON.parse(raw) : null; } catch { data = raw; }
-  if (!res.ok) throw new Error((data && (data.msg || data.message || data.error)) || `HTTP ${res.status}`);
-  return data;
-}
+const POR_PAGINA = 25;
 
 const ESTADOS = [
   { value: "pendiente",  label: "Pendiente",  color: "warning" },
@@ -87,6 +73,8 @@ export default function CitasPage() {
   const [filtroEstado, setFiltroEstado] = useState("");
   const [filtroFecha, setFiltroFecha] = useState("");
   const [soloProximas, setSoloProximas] = useState(false);
+  const [pagina, setPagina] = useState(1);
+  const [errores, setErrores] = useState({});
   const [clienteModo, setClienteModo] = useState("existente");
   const [clienteForm, setClienteForm] = useState(EMPTY_CLIENTE_FORM);
   const [actualizarClienteExistente, setActualizarClienteExistente] = useState(false);
@@ -105,6 +93,7 @@ export default function CitasPage() {
       const query = params.length ? `?${params.join("&")}` : "";
       const data = await apiFetch(`/api/citas${query}`);
       setCitas(Array.isArray(data) ? data : []);
+      setPagina(1);
     } catch (e) {
       setError(e.message || "Error al cargar citas");
     } finally {
@@ -204,13 +193,19 @@ export default function CitasPage() {
     setCocheModo("existente");
     setCocheForm(EMPTY_COCHE_FORM);
     setModalError("");
+    setErrores({});
   };
 
   // ── Guardar ─────────────────────────────────────────────────────────────────
   const guardar = async (e) => {
     e.preventDefault();
-    if (!form.fecha_hora) { setModalError("Debes indicar fecha y hora."); return; }
-    if (!form.motivo.trim()) { setModalError("El motivo es obligatorio."); return; }
+    const errs = {};
+    if (!form.fecha_hora) errs.fecha_hora = "La fecha y hora son obligatorias.";
+    if (!form.motivo.trim()) errs.motivo = "El motivo es obligatorio.";
+    if (!editandoId && clienteModo === "existente" && !form.cliente_id) errs.cliente_id = "Selecciona un cliente.";
+    if (!editandoId && clienteModo === "nuevo" && !clienteForm.nombre.trim()) errs.nombre_cliente = "El nombre del cliente es obligatorio.";
+    if (Object.keys(errs).length) { setErrores(errs); return; }
+    setErrores({});
 
     setSaving(true);
     setModalError("");
@@ -314,7 +309,7 @@ export default function CitasPage() {
 
   // ── Eliminar ────────────────────────────────────────────────────────────────
   const eliminar = async (cita) => {
-    if (!window.confirm(`¿Eliminar la cita de "${cita.cliente_nombre}" el ${formatFechaHora(cita.fecha_hora)}?`)) return;
+    if (!await confirmar(`¿Eliminar la cita de "${cita.cliente_nombre}" el ${formatFechaHora(cita.fecha_hora)}?`)) return;
     try {
       await apiFetch(`/api/citas/${cita.id}`, { method: "DELETE" });
       await cargarCitas();
@@ -323,8 +318,11 @@ export default function CitasPage() {
     }
   };
 
+  // ── Paginación ──────────────────────────────────────────────────────────────
+  const citasPagina = citas.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
+
   // ── Agrupar por fecha ───────────────────────────────────────────────────────
-  const citasPorFecha = citas.reduce((acc, cita) => {
+  const citasPorFecha = citasPagina.reduce((acc, cita) => {
     const fecha = cita.fecha_hora
       ? new Date(cita.fecha_hora).toLocaleDateString("es-ES", { weekday: "long", year: "numeric", month: "long", day: "numeric" })
       : "Sin fecha";
@@ -550,7 +548,7 @@ export default function CitasPage() {
                     </div>
                     <p className="mb-1 small"><strong>🕐</strong> {formatFechaHora(cita.fecha_hora)}</p>
                     <p className="mb-2 small sw-text-muted">{cita.motivo}</p>
-                    <div className="d-flex flex-wrap gap-2">
+                    <div className="d-flex flex-wrap gap-2 align-items-center">
                       <select
                         className="form-select form-select-sm w-auto"
                         value={cita.estado}
@@ -559,8 +557,10 @@ export default function CitasPage() {
                       >
                         {ESTADOS.map((e) => <option key={e.value} value={e.value}>{e.label}</option>)}
                       </select>
-                      <button className="btn btn-sm btn-outline-primary" style={{ borderRadius: "8px" }} onClick={() => abrirEditar(cita)}>✏️</button>
-                      <button className="btn btn-sm btn-outline-danger" style={{ borderRadius: "8px" }} onClick={() => eliminar(cita)}>🗑️</button>
+                      <div className="sw-ent-row-actions">
+                        <button className="sw-ent-icon-btn" onClick={() => abrirEditar(cita)} title="Editar" aria-label={`Editar cita de ${cita.cliente_nombre}`}>✏️</button>
+                        <button className="sw-ent-icon-btn sw-ent-icon-btn--danger" onClick={() => eliminar(cita)} title="Eliminar" aria-label={`Eliminar cita de ${cita.cliente_nombre}`}>🗑️</button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -607,11 +607,11 @@ export default function CitasPage() {
                         </select>
                       </td>
                       <td className="text-end">
-                        <div className="d-flex justify-content-end gap-2">
-                          <button className="btn btn-sm btn-outline-primary" style={{ borderRadius: "8px" }} onClick={() => abrirEditar(cita)}>
-                            ✏️ Editar
+                        <div className="sw-ent-row-actions">
+                          <button className="sw-ent-icon-btn" style={{ marginLeft: "auto" }} onClick={() => abrirEditar(cita)} title="Editar" aria-label={`Editar cita de ${cita.cliente_nombre}`}>
+                            ✏️
                           </button>
-                          <button className="btn btn-sm btn-outline-danger" style={{ borderRadius: "8px" }} onClick={() => eliminar(cita)}>
+                          <button className="sw-ent-icon-btn sw-ent-icon-btn--danger" onClick={() => eliminar(cita)} title="Eliminar" aria-label={`Eliminar cita de ${cita.cliente_nombre}`}>
                             🗑️
                           </button>
                         </div>
@@ -624,6 +624,13 @@ export default function CitasPage() {
           </div>
         ))
       )}
+
+      <Paginacion
+        total={citas.length}
+        page={pagina}
+        limit={POR_PAGINA}
+        onChange={setPagina}
+      />
 
       {/* MODAL CREAR / EDITAR */}
       {showModal && (
@@ -704,8 +711,9 @@ export default function CitasPage() {
                       <label className="form-label fw-semibold">Cliente *</label>
                       <select
                         className="form-select"
+                        style={errores.cliente_id ? { borderColor: "#ef4444" } : {}}
                         value={form.cliente_id}
-                        onChange={(e) => setForm({ ...form, cliente_id: e.target.value, coche_id: "" })}
+                        onChange={(e) => { setForm({ ...form, cliente_id: e.target.value, coche_id: "" }); setErrores((p) => ({ ...p, cliente_id: undefined })); }}
                         required
                       >
                         <option value="">Selecciona cliente...</option>
@@ -713,6 +721,7 @@ export default function CitasPage() {
                           <option key={c.id} value={c.id}>{c.nombre}{c.telefono ? ` · ${c.telefono}` : ""}</option>
                         ))}
                       </select>
+                      {errores.cliente_id && <div style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "0.25rem" }}>{errores.cliente_id}</div>}
                     </div>
                   )}
 
@@ -741,10 +750,12 @@ export default function CitasPage() {
                           <label className="form-label small">Nombre *</label>
                           <input
                             className="form-control"
+                            style={errores.nombre_cliente ? { borderColor: "#ef4444" } : {}}
                             value={clienteForm.nombre}
-                            onChange={(e) => setClienteForm((p) => ({ ...p, nombre: e.target.value }))}
+                            onChange={(e) => { setClienteForm((p) => ({ ...p, nombre: e.target.value })); setErrores((p) => ({ ...p, nombre_cliente: undefined })); }}
                             required={clienteModo === "nuevo"}
                           />
+                          {errores.nombre_cliente && <div style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "0.25rem" }}>{errores.nombre_cliente}</div>}
                         </div>
                         <div className="col-md-6">
                           <label className="form-label small">Teléfono</label>
@@ -897,10 +908,12 @@ export default function CitasPage() {
                     <input
                       type="datetime-local"
                       className="form-control"
+                      style={errores.fecha_hora ? { borderColor: "#ef4444" } : {}}
                       value={form.fecha_hora}
-                      onChange={(e) => setForm({ ...form, fecha_hora: e.target.value })}
+                      onChange={(e) => { setForm({ ...form, fecha_hora: e.target.value }); setErrores((p) => ({ ...p, fecha_hora: undefined })); }}
                       required
                     />
+                    {errores.fecha_hora && <div style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "0.25rem" }}>{errores.fecha_hora}</div>}
                   </div>
 
                   <div className="mb-3">
@@ -930,11 +943,13 @@ export default function CitasPage() {
                     <input
                       type="text"
                       className="form-control"
+                      style={errores.motivo ? { borderColor: "#ef4444" } : {}}
                       value={form.motivo}
-                      onChange={(e) => setForm({ ...form, motivo: e.target.value })}
+                      onChange={(e) => { setForm({ ...form, motivo: e.target.value }); setErrores((p) => ({ ...p, motivo: undefined })); }}
                       placeholder="Ej.: Lavado completo + encerado"
                       required
                     />
+                    {errores.motivo && <div style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "0.25rem" }}>{errores.motivo}</div>}
                   </div>
 
                   <div className="mb-1">

@@ -2,8 +2,9 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
 import { Context } from "../store/appContext";
 import { detectBarcodeFromFile } from "../utils/barcode";
+import { toast } from "../utils/toast";
 
-export default function ProductoFormModal({ show, onClose, onSaved, initial }) {
+export default function ProductoFormModal({ show, onClose, onSaved, initial, suggestedBarcode = "" }) {
   const { actions } = useContext(Context);
   const isEdit = !!initial;
 
@@ -12,6 +13,7 @@ export default function ProductoFormModal({ show, onClose, onSaved, initial }) {
   const [scanLoading, setScanLoading] = useState(false);
   const barcodeCameraRef = useRef(null);
   const barcodeGalleryRef = useRef(null);
+  const cleanedSuggestedBarcode = String(suggestedBarcode || "").trim();
   const [form, setForm] = useState({
     nombre: "",
     categoria: "",
@@ -21,23 +23,57 @@ export default function ProductoFormModal({ show, onClose, onSaved, initial }) {
     stock_actual: 0,
   });
 
-  useEffect(() => {
-    if (isEdit) {
-      setForm({
-        nombre: initial?.nombre || "",
-        categoria: initial?.categoria || "",
-        codigo_barras: initial?.codigo_barras || "",
-        codigos_barras_text: (initial?.codigos_barras || [])
-          .map((c) => c?.codigo_barras)
+  const parseCodigosAlternativos = (rawValue, codigoPrincipal = "") => {
+    const principal = String(codigoPrincipal || "").trim();
+    return Array.from(
+      new Set(
+        String(rawValue || "")
+          .split(/[\n,;]+/)
+          .map((v) => v.trim())
           .filter(Boolean)
-          .join("\n"),
-        stock_minimo: Number(initial?.stock_minimo ?? 0),
-        stock_actual: Number(initial?.stock_actual ?? 0),
-      });
-    } else {
-      setForm({ nombre: "", categoria: "", codigo_barras: "", codigos_barras_text: "", stock_minimo: 0, stock_actual: 0 });
+      )
+    ).filter((codigo) => codigo !== principal);
+  };
+
+  const buildFormState = (producto = null) => {
+    const principalActual = String(producto?.codigo_barras || "").trim();
+    const alternativos = parseCodigosAlternativos(
+      (producto?.codigos_barras || []).map((c) => c?.codigo_barras).join("\n"),
+      principalActual
+    );
+
+    let codigoPrincipal = principalActual;
+    const codigosAlternativos = [...alternativos];
+
+    if (cleanedSuggestedBarcode) {
+      if (!codigoPrincipal) {
+        codigoPrincipal = cleanedSuggestedBarcode;
+      } else if (
+        cleanedSuggestedBarcode !== codigoPrincipal &&
+        !codigosAlternativos.includes(cleanedSuggestedBarcode)
+      ) {
+        codigosAlternativos.push(cleanedSuggestedBarcode);
+      }
     }
-  }, [isEdit, initial]);
+
+    return {
+      nombre: producto?.nombre || "",
+      categoria: producto?.categoria || "",
+      codigo_barras: codigoPrincipal,
+      codigos_barras_text: codigosAlternativos.join("\n"),
+      stock_minimo: Number(producto?.stock_minimo ?? 0),
+      stock_actual: Number(producto?.stock_actual ?? 0),
+    };
+  };
+
+  useEffect(() => {
+    setForm(buildFormState(isEdit ? initial : null));
+    setScanMsg(
+      cleanedSuggestedBarcode
+        ? "Se ha rellenado el código detectado. Puedes guardarlo o borrarlo; no es obligatorio."
+        : ""
+    );
+  }, [isEdit, initial, cleanedSuggestedBarcode]);
 
   const onChange = (e) => {
     const { name, value } = e.target;
@@ -53,28 +89,25 @@ export default function ProductoFormModal({ show, onClose, onSaved, initial }) {
   const onSubmit = async (e) => {
     e.preventDefault();
     if (!form.nombre.trim()) {
-      alert("El nombre es obligatorio");
+      toast.error("El nombre es obligatorio");
       return;
     }
     if (form.stock_minimo < 0 || form.stock_actual < 0) {
-      alert("Los valores de stock no pueden ser negativos");
+      toast.error("Los valores de stock no pueden ser negativos");
       return;
     }
 
     setSaving(true);
     try {
-      const codigos = Array.from(
-        new Set(
-          String(form.codigos_barras_text || "")
-            .split(/[\n,;]+/)
-            .map((v) => v.trim())
-            .filter(Boolean)
-        )
+      const codigoPrincipal = String(form.codigo_barras || "").trim();
+      const codigos = parseCodigosAlternativos(
+        form.codigos_barras_text,
+        codigoPrincipal
       ).map((codigo) => ({ codigo_barras: codigo }));
 
       const payload = {
         ...form,
-        codigo_barras: String(form.codigo_barras || "").trim(),
+        codigo_barras: codigoPrincipal,
         codigos_barras: codigos,
       };
 
@@ -83,23 +116,20 @@ export default function ProductoFormModal({ show, onClose, onSaved, initial }) {
       } else {
         await actions.createProducto(payload);
       }
+      toast.success(isEdit ? "Producto actualizado" : "Producto creado");
       onSaved && onSaved();
       onClose && onClose();
     } catch (err) {
-      alert(err?.message || "Error guardando el producto");
+      toast.error(err?.message || "Error guardando el producto");
     } finally {
       setSaving(false);
     }
   };
 
   const anexarCodigoAlternativo = (codigo) => {
-    const existing = Array.from(
-      new Set(
-        String(form.codigos_barras_text || "")
-          .split(/[\n,;]+/)
-          .map((v) => v.trim())
-          .filter(Boolean)
-      )
+    const existing = parseCodigosAlternativos(
+      form.codigos_barras_text,
+      form.codigo_barras
     );
     if (!existing.includes(codigo)) {
       existing.push(codigo);
@@ -213,7 +243,7 @@ export default function ProductoFormModal({ show, onClose, onSaved, initial }) {
                   </button>
                 </div>
                 <small className="text-muted">
-                  Codigo principal. Opcional.
+                  Código principal del fabricante. Es opcional: puedes guardarlo ahora o dejarlo vacío.
                 </small>
                 {scanMsg && (
                   <small className={`d-block mt-1 ${scanMsg.includes("No se pudo") || scanMsg.includes("no soporta") ? "text-warning" : "text-success"}`}>

@@ -43,10 +43,14 @@ echo -e "${GREEN}✅ Código preparado${NC}"
 echo ""
 
 echo -e "${BLUE}🔐 Paso 3: Crear .env${NC}"
-cat > backend/.env << 'EOF'
+: "${SECRET_KEY:?Export SECRET_KEY antes de ejecutar el deploy}"
+: "${JWT_SECRET_KEY:?Export JWT_SECRET_KEY antes de ejecutar el deploy}"
+cat > backend/.env <<EOF
 FLASK_ENV=production
-SECRET_KEY=1KhLYdAAE756l5M-Vi3uxrNXlBq4ZE3HK2biDvh6FB0
-JWT_SECRET_KEY=PNjqxbysLopHwF217sT3dq9z00cZrNhtRoJh-owmACs
+ENABLE_ADMIN=0
+ENABLE_DB_BOOTSTRAP=0
+SECRET_KEY=${SECRET_KEY}
+JWT_SECRET_KEY=${JWT_SECRET_KEY}
 DATABASE_URL=sqlite:////var/www/specialwash/data/specialwash.db
 FRONTEND_URLS=https://specialwash.studio,https://www.specialwash.studio
 DEBUG=False
@@ -70,8 +74,13 @@ echo ""
 echo -e "${BLUE}🗄️  Paso 5: Inicializar / migrar base de datos${NC}"
 mkdir -p "$DATA_DIR"
 cd backend
-python init_db.py 2>&1 || echo "  ⚠️  init_db puede requerir configuracion extra"
-python update_servicio_catalogo_schema.py 2>&1 || echo "  ⚠️  schema update no aplicado"
+if [ "${ENABLE_DB_BOOTSTRAP:-0}" = "1" ]; then
+  echo "  ENABLE_DB_BOOTSTRAP=1 → ejecutando bootstrap inicial"
+  python init_db.py 2>&1 || echo "  ⚠️  init_db puede requerir configuracion extra"
+  python update_servicio_catalogo_schema.py 2>&1 || echo "  ⚠️  schema update no aplicado"
+else
+  echo "  Bootstrap de BD desactivado (ENABLE_DB_BOOTSTRAP=0)"
+fi
 cd ..
 echo -e "${GREEN}✅ Base de datos lista${NC}"
 echo ""

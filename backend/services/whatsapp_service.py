@@ -175,7 +175,7 @@ def enviar_notificacion_entrega_cliente(
         with urlrequest.urlopen(req, timeout=8) as resp:
             status = resp.getcode()
             if status == 200:
-                logger.info("WhatsApp: notificación de entrega enviada a cliente %s (%s)", cliente_nombre, digits)
+                logger.info("WhatsApp: notificación de entrega enviada a cliente %s (***%s)", cliente_nombre, digits[-4:])
                 return True
             else:
                 logger.warning("WhatsApp: respuesta inesperada HTTP %s (entrega)", status)

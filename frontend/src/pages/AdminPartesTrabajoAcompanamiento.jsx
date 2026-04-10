@@ -1,13 +1,7 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Context } from "../store/appContext";
-import {
-  obtenerCochesEnProgreso,
-  listarPartesTrabajo,
-  cambiarEstadoParte,
-  formatDate,
-  formatMinutes,
-} from "../utils/parteTrabajoApi";
+import { listarPartesTrabajo, formatMinutes } from "../utils/parteTrabajoApi";
+import EstadoCochesPage from "./EstadoCochesPage";
 
 const ICONS = {
   back: (
@@ -120,22 +114,43 @@ const ICONS = {
 
 const ACCENT = "#6366f1";
 
-function VehicleTimeline({ parte, stats }) {
+const normalizeParteEstado = (estado = "") => {
+  const value = String(estado || "").trim().toLowerCase();
+  if (value === "nuevo") return "pendiente";
+  if (value === "pausado") return "en_pausa";
+  if (value === "completado") return "finalizado";
+  if (value === "entreg") return "entregado";
+  return value;
+};
+
+const matchesParteEstado = (parte, ...expected) => expected.includes(normalizeParteEstado(parte?.estado));
+
+const getParteReferenceDate = (parte) => (
+  parte?.fecha_inicio || parte?.fecha_fin || parte?.created_at || parte?.fecha_creacion || null
+);
+
+function VehicleTimeline({ parte }) {
   const getEstadoBadge = (estado) => {
     const configs = {
       pendiente: { bg: "#f3f4f6", text: "#6b7280", label: "Pendiente" },
       nuevo: { bg: "#f3f4f6", text: "#6b7280", label: "Nuevo" },
       en_progreso: { bg: `${ACCENT}15`, text: ACCENT, label: "En progreso" },
-      pausado: { bg: "#fef3c7", text: "#92400e", label: "En pausa" },
-      completado: { bg: "#d1fae5", text: "#065f46", label: "Completado" },
+      en_pausa: { bg: "#fef3c7", text: "#92400e", label: "En pausa" },
+      finalizado: { bg: "#d1fae5", text: "#065f46", label: "Completado" },
       en_calidad: { bg: "#dbeafe", text: "#0c4a6e", label: "En calidad" },
-      entreg: { bg: "#d1fae5", text: "#065f46", label: "Entregado" },
+      entregado: { bg: "#d1fae5", text: "#065f46", label: "Entregado" },
     };
     const config = configs[estado] || configs.pendiente;
     return config;
   };
 
-  const estadoConfig = getEstadoBadge(parte.estado);
+  const estadoNormalizado = normalizeParteEstado(parte?.estado);
+  const estadoConfig = getEstadoBadge(estadoNormalizado);
+  const matricula = parte.matricula || parte.coche_matricula || "---";
+  const vehiculo = [parte.marca || parte.coche_marca || "Vehículo", parte.modelo || parte.coche_modelo || ""]
+    .join(" ")
+    .trim();
+  const cliente = parte.cliente_nombre || parte.coche_cliente_nombre || "Sin cliente";
 
   return (
     <div
@@ -160,14 +175,15 @@ function VehicleTimeline({ parte, stats }) {
             marginBottom: "8px",
           }}
         >
-          {parte.coche_matricula || "---"} ·{" "}
-          {parte.coche_marca || "Vehículo"}
+          {matricula} · {vehiculo}
         </div>
-        <div style={{ display: "flex", gap: "12px", fontSize: "13px", color: "#6b7280" }}>
+        <div style={{ display: "flex", gap: "12px", fontSize: "13px", color: "#6b7280", flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
             {ICONS.user}
             {parte.empleado_nombre || "Sin asignar"}
           </div>
+          <span>·</span>
+          <span>{cliente}</span>
           {parte.tipo_tarea && (
             <>
               <span>·</span>
@@ -262,6 +278,8 @@ function StatsCard({ label, value, color = ACCENT, icon = null }) {
 }
 
 export default function AdminPartesTrabajoAcompanamiento() {
+  return <EstadoCochesPage />;
+
   const [partes, setPartes] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
@@ -280,23 +298,26 @@ export default function AdminPartesTrabajoAcompanamiento() {
       const data = await listarPartesTrabajo();
       const lista = Array.isArray(data) ? data : [];
 
-      // Obtener hoy
       const hoy = new Date().toISOString().split("T")[0];
-      const partesHoy = lista.filter((p) => {
-        const fech = (p.created_at || p.fecha_creacion || "").split("T")[0];
-        return fech === hoy;
+      const partesVisibles = lista.filter((parte) => {
+        if (matchesParteEstado(parte, "pendiente", "en_proceso", "en_pausa", "en_calidad")) {
+          return true;
+        }
+        const refDate = getParteReferenceDate(parte);
+        if (!refDate) return false;
+        return String(refDate).split("T")[0] === hoy;
       });
 
-      setPartes(partesHoy);
+      setPartes(partesVisibles);
 
       // Calcular stats
       const statsObj = {
-        total: partesHoy.length,
-        enProgreso: partesHoy.filter((p) => p.estado === "en_progreso").length,
-        enPausa: partesHoy.filter((p) => p.estado === "pausado").length,
-        pendiente: partesHoy.filter((p) => p.estado === "pendiente" || p.estado === "nuevo").length,
-        completado: partesHoy.filter((p) => p.estado === "completado").length,
-        enCalidad: partesHoy.filter((p) => p.estado === "en_calidad").length,
+        total: partesVisibles.length,
+        enProgreso: partesVisibles.filter((p) => matchesParteEstado(p, "en_proceso")).length,
+        enPausa: partesVisibles.filter((p) => matchesParteEstado(p, "en_pausa")).length,
+        pendiente: partesVisibles.filter((p) => matchesParteEstado(p, "pendiente")).length,
+        completado: partesVisibles.filter((p) => matchesParteEstado(p, "finalizado")).length,
+        enCalidad: partesVisibles.filter((p) => matchesParteEstado(p, "en_calidad")).length,
       };
       setStats(statsObj);
       setError(null);
@@ -315,11 +336,11 @@ export default function AdminPartesTrabajoAcompanamiento() {
   }, []);
 
   const partesOrdenados = {
-    enProgreso: partes.filter((p) => p.estado === "en_progreso"),
-    enPausa: partes.filter((p) => p.estado === "pausado"),
-    enCalidad: partes.filter((p) => p.estado === "en_calidad"),
-    completado: partes.filter((p) => p.estado === "completado"),
-    pendiente: partes.filter((p) => p.estado === "pendiente" || p.estado === "nuevo"),
+    enProgreso: partes.filter((p) => matchesParteEstado(p, "en_proceso")),
+    enPausa: partes.filter((p) => matchesParteEstado(p, "en_pausa")),
+    enCalidad: partes.filter((p) => matchesParteEstado(p, "en_calidad")),
+    completado: partes.filter((p) => matchesParteEstado(p, "finalizado")),
+    pendiente: partes.filter((p) => matchesParteEstado(p, "pendiente")),
   };
 
   return (
@@ -439,7 +460,7 @@ export default function AdminPartesTrabajoAcompanamiento() {
               En progreso ({partesOrdenados.enProgreso.length})
             </h2>
             {partesOrdenados.enProgreso.map((parte) => (
-              <VehicleTimeline key={parte.id} parte={parte} stats={stats} />
+              <VehicleTimeline key={parte.id} parte={parte} />
             ))}
           </div>
         )}
@@ -469,7 +490,7 @@ export default function AdminPartesTrabajoAcompanamiento() {
               En pausa ({partesOrdenados.enPausa.length})
             </h2>
             {partesOrdenados.enPausa.map((parte) => (
-              <VehicleTimeline key={parte.id} parte={parte} stats={stats} />
+              <VehicleTimeline key={parte.id} parte={parte} />
             ))}
           </div>
         )}
@@ -499,7 +520,7 @@ export default function AdminPartesTrabajoAcompanamiento() {
               En calidad ({partesOrdenados.enCalidad.length})
             </h2>
             {partesOrdenados.enCalidad.map((parte) => (
-              <VehicleTimeline key={parte.id} parte={parte} stats={stats} />
+              <VehicleTimeline key={parte.id} parte={parte} />
             ))}
           </div>
         )}
@@ -518,7 +539,7 @@ export default function AdminPartesTrabajoAcompanamiento() {
               Pendientes ({partesOrdenados.pendiente.length})
             </h2>
             {partesOrdenados.pendiente.map((parte) => (
-              <VehicleTimeline key={parte.id} parte={parte} stats={stats} />
+              <VehicleTimeline key={parte.id} parte={parte} />
             ))}
           </div>
         )}

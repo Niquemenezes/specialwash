@@ -1,6 +1,9 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import { Context } from "../store/appContext";
+import { confirmar } from "../utils/confirmar";
+import { toast } from "../utils/toast";
+import EmptyState from "../components/EmptyState.jsx";
 
 
 
@@ -416,12 +419,12 @@ export default function Maquinaria() {
 
   const remove = async (m) => {
 
-    if (!window.confirm(`¿Eliminar máquina "${m.nombre}"?`)) return;
+    if (!await confirmar(`¿Eliminar máquina "${m.nombre}"?`)) return;
 
     try {
 
       await actions.deleteMaquina(m.id);
-
+      toast.success("Máquina eliminada");
     } catch (err) {
 
       setFormError(err.message);
@@ -592,7 +595,7 @@ export default function Maquinaria() {
 
     if (!editing?.id) return;
 
-    if (!window.confirm("¿Eliminar esta factura de la maquinaria?")) return;
+    if (!await confirmar("¿Eliminar esta factura de la maquinaria?")) return;
 
 
 
@@ -915,7 +918,11 @@ export default function Maquinaria() {
                   <tr><td colSpan="12" style={{ textAlign: "center", padding: "2rem", color: "var(--sw-muted)", fontSize: "0.875rem" }}>Cargando…</td></tr>
                 )}
                 {!loading && items.length === 0 && (
-                  <tr><td colSpan="12" style={{ textAlign: "center", padding: "2rem", color: "var(--sw-muted)", fontSize: "0.875rem" }}>Sin maquinaria registrada</td></tr>
+                  <EmptyState
+                    colSpan={12}
+                    title="Sin maquinaria registrada"
+                    subtitle="Añade la primera máquina con el botón Nueva máquina."
+                  />
                 )}
                 {!loading && items.map((m) => {
                   const info = getWarrantyInfo(m);

@@ -156,7 +156,11 @@ def productos_create():
             )
         )
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(p.to_dict()), 201
 
 
@@ -214,7 +218,11 @@ def productos_update(pid):
         p.pedido_canal = None
         p.pedido_proveedor_id = None
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(p.to_dict()), 200
 
 
@@ -240,7 +248,11 @@ def producto_codigo_create(pid):
 
     item = ProductoCodigoBarras(producto_id=p.id, codigo_barras=codigo, marca=marca)
     db.session.add(item)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(item.to_dict()), 201
 
 
@@ -250,7 +262,11 @@ def producto_codigo_delete(pid, cid):
     p = Producto.query.get_or_404(pid)
     item = ProductoCodigoBarras.query.filter_by(id=cid, producto_id=p.id).first_or_404()
     db.session.delete(item)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify({"msg": "Codigo de barras eliminado"}), 200
 
 
@@ -263,5 +279,5 @@ def productos_delete(pid):
         db.session.commit()
     except Exception:
         db.session.rollback()
-        return jsonify({"error": "No se puede eliminar: el producto tiene entradas o salidas asociadas"}), 400
+        return jsonify({"msg": "No se puede eliminar: el producto tiene entradas o salidas asociadas"}), 400
     return jsonify({"msg": "Producto eliminado"}), 200

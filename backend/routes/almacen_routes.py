@@ -15,6 +15,7 @@ from services.stock_service import (
     revertir_stock_salida,
 )
 from utils.auth_utils import normalize_role, role_required
+from utils.helpers import parse_decimal as _parse_decimal
 
 almacen_bp = Blueprint("almacen_routes", __name__)
 
@@ -24,22 +25,6 @@ try:
 except Exception:  # pragma: no cover - optional dependency
     Image = None
     pytesseract = None
-
-
-def _parse_decimal(value):
-    if value is None:
-        return None
-    candidate = value.strip().replace(" ", "")
-    if not candidate:
-        return None
-    if "," in candidate and "." in candidate:
-        candidate = candidate.replace(".", "").replace(",", ".")
-    else:
-        candidate = candidate.replace(",", ".")
-    try:
-        return round(float(candidate), 2)
-    except ValueError:
-        return None
 
 
 def _extract_ocr_fields(raw_text):
@@ -164,7 +149,11 @@ def registrar_entrada():
     )
 
     db.session.add(entrada)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
 
     return jsonify({"msg": "Entrada registrada", "producto": producto.to_dict()}), 201
 
@@ -353,7 +342,11 @@ def entrada_update(eid):
             entrada.valor_iva = nuevo_valor_iva
             entrada.precio_con_iva = nuevo_precio_con_iva
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(entrada.to_dict()), 200
 
 
@@ -371,7 +364,7 @@ def entrada_delete(eid):
         db.session.commit()
     except Exception:
         db.session.rollback()
-        return jsonify({"error": "No se puede eliminar la entrada"}), 400
+        return jsonify({"msg": "No se puede eliminar la entrada"}), 400
     return jsonify({"msg": "Entrada eliminada"}), 200
 
 
@@ -442,7 +435,11 @@ def registrar_salida():
     )
 
     db.session.add(salida)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
 
     return jsonify({
         **salida.to_dict(),
@@ -523,7 +520,11 @@ def salida_update(sid):
     elif cambio_cantidad and salida.precio_unitario:
         salida.precio_total = round(salida.precio_unitario * nueva_cantidad, 2)
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(salida.to_dict()), 200
 
 
@@ -541,7 +542,7 @@ def salida_delete(sid):
         db.session.commit()
     except Exception:
         db.session.rollback()
-        return jsonify({"error": "No se puede eliminar la salida"}), 400
+        return jsonify({"msg": "No se puede eliminar la salida"}), 400
     return jsonify({"msg": "Salida eliminada"}), 200
 
 

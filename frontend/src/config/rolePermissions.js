@@ -25,17 +25,20 @@ export const ROUTE_PERMISSIONS = {
   // ═══ FLUJO CALIDAD (Inspección → Repaso → Entrega → Cobro) ═══
   "/inspeccion-recepcion": [ROLES.ADMIN, ROLES.CALIDAD],
   "/vehiculo-detalle/:inspeccion_id": [ROLES.ADMIN, ROLES.CALIDAD],
-  "/inspecciones-guardadas": [ROLES.ADMIN],
-  "/repaso-entrega": [ROLES.ADMIN, ROLES.CALIDAD, ...EMPLOYEE_ROLES],
+  "/inspecciones-guardadas": [ROLES.ADMIN, ROLES.CALIDAD],
+  "/repaso-entrega": [ROLES.ADMIN, ROLES.CALIDAD],
   "/calidad-entrega": [ROLES.ADMIN, ROLES.CALIDAD],
   "/entrega-cliente/:inspeccion_id": [ROLES.ADMIN, ROLES.CALIDAD],
-  "/acta-entrega/:id": [ROLES.ADMIN, ...EMPLOYEE_ROLES, ROLES.CALIDAD],
+  "/entregados": [ROLES.ADMIN, ROLES.CALIDAD],
+  "/acta-entrega/:id": [ROLES.ADMIN, ROLES.CALIDAD],
+  "/acta-entrega-doc/:id": [ROLES.ADMIN, ROLES.CALIDAD],
 
   // ═══ INFORME TÉCNICO (Solo Admin) ═══
   "/hoja-tecnica/:inspeccion_id": [ROLES.ADMIN],
 
   // ═══ PARTES DE TRABAJO ═══
   "/partes-trabajo": [ROLES.ADMIN, ROLES.CALIDAD], // Acompañamiento en tiempo real
+  "/productividad-trabajadores": [ROLES.ADMIN, ROLES.CALIDAD],
   "/mis-partes-trabajo": [...EMPLOYEE_ROLES], // Mis trabajos
   "/partes-trabajo-finalizados": [ROLES.ADMIN],
   "/partes": [ROLES.ADMIN, ROLES.CALIDAD, ...EMPLOYEE_ROLES],
@@ -55,7 +58,7 @@ export const ROUTE_PERMISSIONS = {
   "/clientes": [ROLES.ADMIN],
   "/coches": [ROLES.ADMIN],
   "/resumen-clientes": [ROLES.ADMIN],
-  "/vehiculos": [ROLES.ADMIN, ROLES.CALIDAD, ...EMPLOYEE_ROLES],
+  "/vehiculos": [ROLES.ADMIN, ROLES.CALIDAD],
   "/proveedores": [ROLES.ADMIN],
   "/maquinaria": [ROLES.ADMIN],
   "/catalogo-servicios": [ROLES.ADMIN],
@@ -66,9 +69,13 @@ export const ROUTE_PERMISSIONS = {
   "/cobro-particulares": [ROLES.ADMIN, ROLES.CALIDAD], // Cobro particulares (NUEVO)
 
   // ═══ CITAS Y RESPALDO ═══
-  "/citas": [ROLES.ADMIN, ROLES.CALIDAD, ROLES.DETAILING],
+  "/citas": [ROLES.ADMIN, ROLES.CALIDAD],
   "/fichar": [ROLES.ADMIN, ROLES.CALIDAD, ...EMPLOYEE_ROLES],
   "/horarios": [ROLES.ADMIN],
+
+  // ═══ PEDIDOS ═══
+  "/pedido-bajo-stock": [ROLES.ADMIN],
+  "/pedido-bajo-stock/imprimir": [ROLES.ADMIN],
 };
 
 /**
@@ -78,19 +85,14 @@ export const ROUTE_PERMISSIONS = {
 export const NAVIGATION_BY_ROLE = {
   [ROLES.ADMIN]: [
     {
-      section: "Flujo de Trabajo",
+      section: "Flujo principal",
       items: [
-        { label: "👁️ Acompañamiento en tiempo real", to: "/partes-trabajo" },
-        { label: "📋 Historial de trabajos", to: "/partes-trabajo-finalizados" },
-      ],
-    },
-    {
-      section: "Inspección y Entrega",
-      items: [
-        { label: "🔍 Inspección de entrada", to: "/inspeccion-recepcion" },
+        { label: "🚗 Estado de coches", to: "/partes-trabajo" },
+        { label: "� Productividad equipo", to: "/productividad-trabajadores" },
+        { label: "�🔍 Inspección de entrada", to: "/inspeccion-recepcion" },
         { label: "📝 Inspecciones guardadas", to: "/inspecciones-guardadas" },
-        { label: "🏁 Repaso y firma", to: "/repaso-entrega" },
-        { label: "✅ Finalizar entrega", to: "/calidad-entrega" },
+        { label: "✅ Control final", to: "/repaso-entrega?tab=repaso" },
+        { label: "✍️ Entrega / firma", to: "/repaso-entrega?tab=firma" },
         { label: "✓ Coches entregados", to: "/entregados" },
       ],
     },
@@ -100,43 +102,38 @@ export const NAVIGATION_BY_ROLE = {
         { label: "📦 Productos", to: "/productos" },
         { label: "⤓ Entradas", to: "/entradas" },
         { label: "⤒ Salidas", to: "/salidas" },
-        { label: "📊 Resumen Entradas", to: "/resumen-entradas" },
+        { label: "📥 Historial de entradas", to: "/resumen-entradas" },
+        { label: "📤 Historial de salidas", to: "/historial-salidas" },
       ],
     },
     {
-      section: "Administración",
+      section: "Gestión",
       items: [
         { label: "📊 Dashboard", to: "/dashboard" },
         { label: "👥 Clientes", to: "/clientes" },
         { label: "🚗 Coches", to: "/coches" },
-        { label: "📋 Resumen Clientes", to: "/resumen-clientes" },
-        { label: "💶 Finanzas", to: "/administracion/finanzas" },
-        { label: "💼 Cobros Concesionarios", to: "/administracion/cobros-profesionales" },
-        { label: "🏭 Maquinaria", to: "/maquinaria" },
+        { label: "� Proveedores", to: "/proveedores" },
+        { label: "🛠️ Maquinarias", to: "/maquinaria" },
         { label: "👤 Usuarios", to: "/usuarios" },
-        { label: "🚚 Proveedores", to: "/proveedores" },
-        { label: "🛠️ Servicios", to: "/catalogo-servicios" },
-        { label: "🕒 Horarios", to: "/horarios" },
+        { label: "�💶 Finanzas", to: "/administracion/finanzas" },
+        { label: "💼 Cobros Concesionarios", to: "/administracion/cobros-profesionales" },
       ],
     },
   ],
 
-  [ROLES.CALIDAD]: [
-    { label: "🔍 Inspección de entrada", to: "/inspeccion-recepcion" },
-    { label: "🏁 Repaso y firma", to: "/repaso-entrega" },
-    { label: "✅ Finalizar entrega", to: "/calidad-entrega" },
-    { label: "⤒ Salida de productos", to: "/salidas" },
-    { label: "💰 Cobro de particulares", to: "/cobro-particulares" },
-  ],
+  [ROLES.CALIDAD]: [],
 
   [ROLES.DETAILING]: [
     { label: "📋 Mis trabajos", to: "/mis-partes-trabajo" },
+    { label: "⤒ Salida de productos", to: "/salidas" },
   ],
   [ROLES.PINTURA]: [
     { label: "📋 Mis trabajos", to: "/mis-partes-trabajo" },
+    { label: "⤒ Salida de productos", to: "/salidas" },
   ],
   [ROLES.TAPICERO]: [
     { label: "📋 Mis trabajos", to: "/mis-partes-trabajo" },
+    { label: "⤒ Salida de productos", to: "/salidas" },
   ],
 };
 
@@ -145,10 +142,10 @@ export const NAVIGATION_BY_ROLE = {
  */
 export const ROLE_DESCRIPTIONS = {
   [ROLES.ADMIN]: "Acceso completo: administración, control de flujos, finanzas y usuarios",
-  [ROLES.CALIDAD]: "Inspección, repaso, entrega de vehículos y cobro de particulares",
-  [ROLES.DETAILING]: "Realización de trabajos de detailing",
-  [ROLES.PINTURA]: "Realización de trabajos de pintura",
-  [ROLES.TAPICERO]: "Realización de trabajos de tapicería",
+  [ROLES.CALIDAD]: "Inspección, repaso, entrega, citas, salidas y cobro de particulares",
+  [ROLES.DETAILING]: "Fichaje, salida de productos y partes de detailing",
+  [ROLES.PINTURA]: "Fichaje, salida de productos y partes de pintura",
+  [ROLES.TAPICERO]: "Fichaje, salida de productos y partes de tapicería",
 };
 
 /**

@@ -11,6 +11,12 @@ sys.path.insert(0, os.getcwd())
 from dotenv import load_dotenv
 load_dotenv()
 
+is_production = os.getenv("FLASK_ENV", "development").strip().lower() == "production"
+bootstrap_enabled = str(os.getenv("ENABLE_DB_BOOTSTRAP", "0" if is_production else "1")).strip().lower() in {"1", "true", "yes", "on"}
+
+if is_production and not bootstrap_enabled:
+    raise SystemExit("Bootstrap de BD desactivado en producción. Usa ENABLE_DB_BOOTSTRAP=1 solo para una inicialización controlada.")
+
 # Importar Flask y configuración
 from flask import Flask
 from config import Config

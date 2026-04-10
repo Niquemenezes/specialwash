@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Context } from "../store/appContext";
+import { confirmar } from "../utils/confirmar";
 
 const DEFAULT_FORM = {
   fecha: new Date().toISOString().split("T")[0],
@@ -297,7 +298,7 @@ export default function GastosEmpresaPage() {
   };
 
   const eliminarGasto = async (id) => {
-    if (!window.confirm("Deseas eliminar este gasto?")) return;
+    if (!await confirmar("¿Deseas eliminar este gasto?")) return;
     try {
       await actions.deleteGastoEmpresa(id);
       await cargarDatos();

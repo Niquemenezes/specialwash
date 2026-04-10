@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Context } from "../store/appContext";
-import GoldSelect from "../component/GoldSelect.jsx";
+import GoldSelect from "../components/GoldSelect.jsx";
+import { confirmar } from "../utils/confirmar";
 
 /* ── Iconos SVG ─────────────────────────────────────────────────── */
 const ICONS = {
@@ -10,6 +11,8 @@ const ICONS = {
   csv:     (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>),
   search:  (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>),
   clear:   (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>),
+  edit:    (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>),
+  trash:   (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>),
 };
 
 
@@ -32,7 +35,42 @@ const fmtDateTime = (s) => {
 
 };
 
+const Feedback = ({ msg, type, onClose }) => {
+  if (!msg) return null;
 
+  const colors = {
+    success: { border: "#22c55e", bg: "rgba(34,197,94,0.08)", text: "#86efac" },
+    danger: { border: "#ef4444", bg: "rgba(239,68,68,0.08)", text: "#fca5a5" },
+    warning: { border: "#f59e0b", bg: "rgba(245,158,11,0.08)", text: "#fcd34d" },
+  };
+
+  const c = colors[type] || colors.warning;
+
+  return (
+    <div
+      className="no-print"
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+        gap: "0.75rem",
+        padding: "0.85rem 1.1rem",
+        borderRadius: 10,
+        marginBottom: "1.25rem",
+        background: c.bg,
+        border: `1px solid ${c.border}30`,
+        color: c.text,
+        fontSize: "0.875rem",
+        fontWeight: 500,
+      }}
+    >
+      <span>{msg}</span>
+      <button onClick={onClose} style={{ background: "none", border: "none", color: "inherit", opacity: 0.6, cursor: "pointer", padding: 0, lineHeight: 1, fontSize: "1rem" }}>
+        ✕
+      </button>
+    </div>
+  );
+};
 
 export default function ResumenEntradas() {
 
@@ -55,6 +93,9 @@ export default function ResumenEntradas() {
   const [q, setQ] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const [editando, setEditando] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
 
 
@@ -172,6 +213,35 @@ export default function ResumenEntradas() {
 
     }
 
+  };
+
+  const handleEditar = (entrada) => {
+    setEditando(entrada);
+    setShowEditModal(true);
+  };
+
+  const handleEliminar = async (entrada) => {
+    const nombre = entrada?.producto?.nombre || "esta entrada";
+    if (!await confirmar(`¿Seguro que deseas eliminar ${nombre}? Esta acción descontará el stock registrado.`)) return;
+
+    setLoading(true);
+    setFeedback(null);
+    try {
+      await actions.eliminarEntrada(entrada.id);
+      await actions.getEntradas({
+        desde: desde || undefined,
+        hasta: hasta || undefined,
+        proveedor_id: proveedorId || undefined,
+        producto_id: productoId || undefined,
+        q: q.trim() || undefined,
+      });
+      await actions.getProductos();
+      setFeedback({ type: "success", msg: "Movimiento de entrada eliminado correctamente." });
+    } catch {
+      setFeedback({ type: "danger", msg: "No se pudo eliminar el movimiento de entrada." });
+    } finally {
+      setLoading(false);
+    }
   };
 
 
@@ -452,6 +522,7 @@ export default function ResumenEntradas() {
         </div>
 
         <div className="container sw-ent-content" style={{ maxWidth: 1140 }}>
+          <Feedback msg={feedback?.msg} type={feedback?.type} onClose={() => setFeedback(null)} />
 
           {/* ── Filtros ────────────────────────────────────────── */}
           <div className="sw-ent-card no-print">
@@ -533,19 +604,20 @@ export default function ResumenEntradas() {
                     <th className="text-end">IVA</th>
                     <th className="text-end">Con IVA</th>
                     <th>Doc.</th>
+                    <th className="text-end no-print">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading && (
                     <tr>
-                      <td colSpan={9} style={{ textAlign: "center", padding: "2rem", color: "var(--sw-muted)", fontSize: "0.875rem" }}>
+                      <td colSpan={10} style={{ textAlign: "center", padding: "2rem", color: "var(--sw-muted)", fontSize: "0.875rem" }}>
                         Cargando…
                       </td>
                     </tr>
                   )}
                   {!loading && filtradas.length === 0 && (
                     <tr>
-                      <td colSpan={9} style={{ textAlign: "center", padding: "2rem", color: "var(--sw-muted)", fontSize: "0.875rem" }}>
+                      <td colSpan={10} style={{ textAlign: "center", padding: "2rem", color: "var(--sw-muted)", fontSize: "0.875rem" }}>
                         Sin resultados.
                       </td>
                     </tr>
@@ -563,6 +635,48 @@ export default function ResumenEntradas() {
                       <td className="text-end" style={{ fontSize: "0.82rem" }}>{isFinite(r.valor_iva) ? r.valor_iva.toFixed(2) : "0.00"} €</td>
                       <td className="text-end" style={{ fontWeight: 600, color: "#22c55e" }}>{isFinite(r.precio_con_iva) ? r.precio_con_iva.toFixed(2) : "0.00"} €</td>
                       <td style={{ fontSize: "0.78rem", color: "var(--sw-muted)" }}>{r.numero_albaran || "-"}</td>
+                      <td className="text-end no-print" style={{ whiteSpace: "nowrap" }}>
+                        <div style={{ display: "inline-flex", gap: "0.4rem" }}>
+                          <button
+                            type="button"
+                            onClick={() => handleEditar(r)}
+                            title="Editar movimiento"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              width: 34,
+                              height: 34,
+                              borderRadius: 10,
+                              border: "1px solid var(--sw-border)",
+                              background: "var(--sw-surface-2)",
+                              color: "var(--sw-accent,#d4af37)",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <span style={{ width: 14, height: 14, display: "flex" }}>{ICONS.edit}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleEliminar(r)}
+                            title="Eliminar movimiento"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              width: 34,
+                              height: 34,
+                              borderRadius: 10,
+                              border: "1px solid rgba(239,68,68,0.35)",
+                              background: "rgba(239,68,68,0.08)",
+                              color: "#ef4444",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <span style={{ width: 14, height: 14, display: "flex" }}>{ICONS.trash}</span>
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -576,6 +690,7 @@ export default function ResumenEntradas() {
                       <td className="text-end" style={{ fontWeight: 700, padding: "0.75rem 0.9rem" }}>{tot.iva.toFixed(2)} €</td>
                       <td className="text-end" style={{ fontWeight: 800, color: "#22c55e", padding: "0.75rem 0.9rem" }}>{tot.con.toFixed(2)} €</td>
                       <td></td>
+                      <td className="no-print"></td>
                     </tr>
                   </tfoot>
                 )}
@@ -607,12 +722,217 @@ export default function ResumenEntradas() {
                   Con IVA: {r.precio_con_iva.toFixed(2)} €
                 </div>
                 {r.numero_albaran && <div style={{ fontSize: "0.75rem", color: "var(--sw-muted)", marginTop: "0.2rem" }}>Doc: {r.numero_albaran}</div>}
+                <div className="no-print" style={{ display: "flex", gap: "0.5rem", marginTop: "0.8rem" }}>
+                  <button
+                    type="button"
+                    onClick={() => handleEditar(r)}
+                    style={{
+                      flex: 1,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "0.35rem",
+                      borderRadius: 10,
+                      border: "1px solid var(--sw-border)",
+                      background: "var(--sw-surface-2)",
+                      color: "var(--sw-accent,#d4af37)",
+                      padding: "0.55rem 0.75rem",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span style={{ width: 14, height: 14, display: "flex" }}>{ICONS.edit}</span>
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleEliminar(r)}
+                    style={{
+                      flex: 1,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "0.35rem",
+                      borderRadius: 10,
+                      border: "1px solid rgba(239,68,68,0.35)",
+                      background: "rgba(239,68,68,0.08)",
+                      color: "#ef4444",
+                      padding: "0.55rem 0.75rem",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span style={{ width: 14, height: 14, display: "flex" }}>{ICONS.trash}</span>
+                    Eliminar
+                  </button>
+                </div>
               </div>
             ))}
           </div>
 
         </div>
       </div>
+
+      {editando && (
+        <EditarEntradaModal
+          show={showEditModal}
+          entrada={editando}
+          productos={store.productos || []}
+          proveedores={store.proveedores || []}
+          onClose={() => {
+            setShowEditModal(false);
+            setEditando(null);
+          }}
+          onSaved={async () => {
+            setShowEditModal(false);
+            setEditando(null);
+            setLoading(true);
+            try {
+              await actions.getEntradas({
+                desde: desde || undefined,
+                hasta: hasta || undefined,
+                proveedor_id: proveedorId || undefined,
+                producto_id: productoId || undefined,
+                q: q.trim() || undefined,
+              });
+              await actions.getProductos();
+              setFeedback({ type: "success", msg: "Movimiento de entrada actualizado correctamente." });
+            } finally {
+              setLoading(false);
+            }
+          }}
+        />
+      )}
     </>
   );
 }
+
+const EditarEntradaModal = ({ show, entrada, productos, proveedores, onClose, onSaved }) => {
+  const { actions } = useContext(Context);
+
+  const precioUnitarioInicial = entrada.cantidad > 0 && entrada.precio_sin_iva > 0
+    ? +(entrada.precio_sin_iva / entrada.cantidad).toFixed(4)
+    : "";
+
+  const [form, setForm] = useState({
+    producto_id: entrada.producto?.id || entrada.producto_id || "",
+    proveedor_id: entrada.proveedor?.id || entrada.proveedor_id || "",
+    cantidad: entrada.cantidad || "",
+    numero_documento: entrada.numero_albaran || entrada.numero_documento || "",
+    precio_unitario: precioUnitarioInicial,
+    descuento_porcentaje: "0",
+    iva_porcentaje: entrada.porcentaje_iva || "21",
+  });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.producto_id || !form.cantidad || !form.precio_unitario) {
+      setErr("Producto, cantidad y precio unitario son obligatorios.");
+      return;
+    }
+
+    setSaving(true);
+    setErr("");
+    try {
+      await actions.actualizarEntrada(entrada.id, {
+        producto_id: Number(form.producto_id),
+        proveedor_id: form.proveedor_id ? Number(form.proveedor_id) : null,
+        cantidad: Number(form.cantidad),
+        numero_albaran: form.numero_documento || null,
+        precio_unitario: Number(form.precio_unitario) || 0,
+        porcentaje_iva: Number(form.iva_porcentaje) || 0,
+        descuento_porcentaje: Number(form.descuento_porcentaje) || 0,
+      });
+      await onSaved();
+    } catch {
+      setErr("Error al actualizar la entrada.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!show) return null;
+
+  const Field = ({ label, required, children }) => (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+      <label className="sw-plbl">{label}{required && <span style={{ color: "var(--sw-accent,#d4af37)", marginLeft: 2 }}>*</span>}</label>
+      {children}
+    </div>
+  );
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "var(--sw-overlay-bg-strong,rgba(0,0,0,0.7))", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "1rem" }}>
+      <div style={{ background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderRadius: 16, width: "100%", maxWidth: 700, maxHeight: "90vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1.25rem 1.5rem", borderBottom: "1px solid var(--sw-border)", background: "var(--sw-surface-2)", borderRadius: "16px 16px 0 0" }}>
+          <div>
+            <p style={{ margin: 0, fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--sw-accent,#d4af37)", opacity: 0.85 }}>Entrada de stock</p>
+            <h5 style={{ margin: 0, fontWeight: 700, color: "var(--sw-text)", fontSize: "1rem" }}>Editar movimiento</h5>
+          </div>
+          <button type="button" onClick={onClose} style={{ background: "none", border: "none", color: "var(--sw-muted)", fontSize: "1.1rem", cursor: "pointer", padding: "0.25rem", borderRadius: 6, lineHeight: 1 }}>✕</button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+            {err && <Feedback msg={err} type="danger" onClose={() => setErr("")} />}
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem" }}>
+              <Field label="Producto" required>
+                <GoldSelect
+                  value={form.producto_id}
+                  onChange={(v) => setForm((prev) => ({ ...prev, producto_id: v }))}
+                  placeholder="— Seleccione —"
+                  options={productos.map((p) => ({ value: p.id, label: p.nombre }))}
+                />
+              </Field>
+
+              <Field label="Proveedor">
+                <GoldSelect
+                  value={form.proveedor_id || ""}
+                  onChange={(v) => setForm((prev) => ({ ...prev, proveedor_id: v }))}
+                  placeholder="—"
+                  options={proveedores.map((p) => ({ value: p.id, label: p.nombre }))}
+                />
+              </Field>
+
+              <Field label="Nº Albarán / Factura">
+                <input className="form-control sw-pinput" name="numero_documento" value={form.numero_documento} onChange={handleChange} />
+              </Field>
+
+              <Field label="Cantidad" required>
+                <input type="number" min="1" className="form-control sw-pinput" name="cantidad" value={form.cantidad} onChange={handleChange} required />
+              </Field>
+
+              <Field label="Precio unitario (€ sin IVA)" required>
+                <input type="number" min="0" step="0.01" className="form-control sw-pinput" name="precio_unitario" value={form.precio_unitario} onChange={handleChange} required />
+              </Field>
+
+              <Field label="% Descuento">
+                <input type="number" min="0" max="100" step="0.01" className="form-control sw-pinput" name="descuento_porcentaje" value={form.descuento_porcentaje} onChange={handleChange} />
+              </Field>
+
+              <Field label="% IVA" required>
+                <input type="number" min="0" step="0.01" className="form-control sw-pinput" name="iva_porcentaje" value={form.iva_porcentaje} onChange={handleChange} required />
+              </Field>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", padding: "1rem 1.5rem", borderTop: "1px solid var(--sw-border)", background: "var(--sw-surface-2)", borderRadius: "0 0 16px 16px" }}>
+            <button type="button" onClick={onClose} style={{ padding: "0.5rem 1.2rem", borderRadius: 8, border: "1px solid var(--sw-border)", background: "transparent", color: "var(--sw-muted)", fontSize: "0.85rem", cursor: "pointer" }}>
+              Cancelar
+            </button>
+            <button type="submit" className="sw-ent-submit-btn" disabled={saving} style={{ padding: "0.5rem 1.5rem" }}>
+              {saving ? "Guardando…" : "Guardar cambios"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};

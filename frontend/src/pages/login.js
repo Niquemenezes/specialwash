@@ -24,7 +24,10 @@ export default function Login() {
         return;
       }
 
-      // flux.js saveTokenAndUser ya persiste token, rol y userId en storage
+      // Disparar aviso de fichaje pendiente al iniciar sesión si aplica
+      window.dispatchEvent(new Event("sw:login-success"));
+
+      // Todos aterrizan en su panel principal; empleados verán sus dos tarjetas operativas
       navigate("/", { replace: true });
     } catch (error) {
       setErr("Error de conexión. Inténtelo de nuevo.");
@@ -65,14 +68,14 @@ export default function Login() {
 
             <form onSubmit={onSubmit} className="sw-auth-form">
               <div className="mb-3">
-                <label className="form-label sw-auth-label">Email</label>
+                <label className="form-label sw-auth-label">Email o usuario</label>
                 <input
                   className="form-control sw-auth-input"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="username"
-                  placeholder="tucorreo@specialwash.es"
-                  type="email"
+                  placeholder="ej. c@c o Carlos"
+                  type="text"
                   required
                 />
               </div>

@@ -47,6 +47,28 @@ def _can_manage_all_partes():
 ASSIGNABLE_PARTE_ROLES = set(WORKSHOP_ROLES) | {'encargado'}
 
 
+def _role_tarea_values(role):
+    normalized = normalize_role(role)
+    if not normalized:
+        return []
+    if normalized == 'tapicero':
+        return ['tapicero', 'tapiceria']
+    return [normalized]
+
+
+def _employee_pending_visibility_filter(role):
+    role_values = _role_tarea_values(role)
+    if not role_values:
+        return None
+
+    from sqlalchemy import and_ as _and
+    return _and(
+        ParteTrabajo.empleado_id.is_(None),
+        ParteTrabajo.estado == EstadoParte.pendiente,
+        ParteTrabajo.tipo_tarea.in_(role_values),
+    )
+
+
 def _parse_tiempo_estimado_minutos(value):
     if value in (None, ""):
         return 0
@@ -221,7 +243,11 @@ def crear_parte_interno():
         es_tarea_interna=True,
     )
     db.session.add(parte)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(_serialize_parte(parte, include_sensitive=True)), 201
 
 
@@ -277,7 +303,11 @@ def sumarme_a_coche_activo(coche_id):
         es_tarea_interna=False,
     )
     db.session.add(parte)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(_serialize_parte(parte, include_sensitive=True)), 201
 
 # Crear parte de trabajo (solo admin/calidad)
@@ -385,7 +415,11 @@ def crear_parte_trabajo():
         if not partes_creados:
             return jsonify({'msg': 'Debes incluir al menos un servicio/tarea válido'}), 400
 
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            return jsonify({"msg": "Error al guardar en base de datos"}), 500
         return jsonify({
             'lote_uid': lote_uid,
             'total_partes': len(partes_creados),
@@ -416,7 +450,11 @@ def crear_parte_trabajo():
         tipo_tarea=tipo_tarea,
     )
     db.session.add(parte)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify({'id': parte.id, 'lote_uid': parte.lote_uid, 'total_partes': 1}), 201
 
 # Listar partes de trabajo (filtros por estado, coche, empleado)
@@ -434,23 +472,28 @@ def listar_partes_trabajo():
     if not _can_manage_all_partes():
         current_user_id = int(get_jwt_identity())
         current_role = normalize_role(_current_role())
-        # Empleados ven sus propios partes + todos los pendientes (para poder tomarlos)
+        own_filter = ParteTrabajo.empleado_id == current_user_id
+        pending_visible_filter = _employee_pending_visibility_filter(current_role)
+        allowed_role_values = set(_role_tarea_values(current_role))
+
+        if tipo_tarea_filtro and allowed_role_values and tipo_tarea_normalizado not in allowed_role_values:
+            return jsonify({'msg': 'Solo puedes ver trabajos de tu rol'}), 403
+
         if estado == 'pendiente':
-            pass  # sin filtro de empleado: todos los pendientes son visibles
-        elif estado in ('en_proceso', 'en_pausa'):
-            # Si filtra por su propio rol/tipo, permitimos ver activos de su rol
-            # para coordinar trabajos en el mismo coche entre varios empleados.
-            if tipo_tarea_normalizado and tipo_tarea_normalizado == current_role:
-                pass
+            if pending_visible_filter is not None:
+                query = query.filter(_or(own_filter, pending_visible_filter))
             else:
-                query = query.filter(ParteTrabajo.empleado_id == current_user_id)
+                query = query.filter(own_filter)
+        elif estado in ('en_proceso', 'en_pausa'):
+            if tipo_tarea_normalizado and tipo_tarea_normalizado in allowed_role_values:
+                query = query.filter(ParteTrabajo.tipo_tarea.in_(list(allowed_role_values)))
+            else:
+                query = query.filter(own_filter)
         else:
-            query = query.filter(
-                _or(
-                    ParteTrabajo.empleado_id == current_user_id,
-                    ParteTrabajo.estado == EstadoParte.pendiente,
-                )
-            )
+            if pending_visible_filter is not None:
+                query = query.filter(_or(own_filter, pending_visible_filter))
+            else:
+                query = query.filter(own_filter)
 
     if estado:
         try:
@@ -504,6 +547,12 @@ def editar_parte_trabajo(parte_id):
 
         parte.empleado_id = empleado.id
 
+    if 'tipo_tarea' in data:
+        tipo = normalize_role(data.get('tipo_tarea') or '')
+        if not tipo:
+            return jsonify({'msg': 'tipo_tarea inválido'}), 400
+        parte.tipo_tarea = tipo
+
     if 'observaciones' in data:
         parte.observaciones = (data.get('observaciones') or '').strip()
 
@@ -513,7 +562,11 @@ def editar_parte_trabajo(parte_id):
         except ValueError as e:
             return jsonify({'msg': str(e)}), 400
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
 
     return jsonify(_serialize_parte(parte, include_sensitive=True))
 
@@ -580,7 +633,11 @@ def cambiar_estado_parte(parte_id):
         parte.estado = EstadoParte.en_pausa
     elif nuevo_estado == 'pendiente':
         parte.estado = EstadoParte.pendiente
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify({'estado': parte.estado.value})
 
 
@@ -597,7 +654,11 @@ def tomar_parte_trabajo(parte_id):
 
     if parte.empleado_id != current_user_id:
         parte.empleado_id = current_user_id
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            return jsonify({"msg": "Error al guardar en base de datos"}), 500
 
     return jsonify({'ok': True, 'empleado_id': parte.empleado_id}), 200
 
@@ -619,7 +680,11 @@ def quitar_pausa(parte_id):
                 break
         parte.pausas = json.dumps(pausas)
         parte.estado = EstadoParte.en_proceso
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify({'estado': parte.estado.value})
 
 # Analítica: partes por empleado y semana
@@ -711,6 +776,7 @@ def reporte_empleados():
                 'marca': coche.marca if coche else None,
                 'modelo': coche.modelo if coche else None,
                 'tipo_tarea': p.tipo_tarea,
+                'observaciones': (p.observaciones or '').strip() or None,
                 'es_tarea_interna': es_interno,
                 'estado': p.estado.value,
                 'duracion_minutos': int(round(p.duracion_total() * 60)),
@@ -718,6 +784,7 @@ def reporte_empleados():
                 'fecha_inicio': p.fecha_inicio.isoformat() if p.fecha_inicio else None,
                 'fecha_fin': p.fecha_fin.isoformat() if p.fecha_fin else None,
             })
+        detalle.sort(key=lambda item: item.get('fecha_inicio') or '')
         resultado.append({
             'empleado_id': emp_id,
             'nombre': nombre,
@@ -730,3 +797,74 @@ def reporte_empleados():
         })
     resultado.sort(key=lambda x: x['total_minutos'], reverse=True)
     return jsonify(resultado)
+
+
+@bp.route('/parte_trabajo/empleado', methods=['GET'])
+@jwt_required()
+def listar_partes_empleado():
+    """Devuelve los partes del empleado autenticado.
+    Para empleados operativos incluye también trabajos pendientes sin asignar de su propio rol."""
+    current_user_id = int(get_jwt_identity())
+    current_role = normalize_role(_current_role())
+    empleado_id_param = request.args.get('empleado_id')
+    estado_param = request.args.get('estado')
+
+    if empleado_id_param:
+        try:
+            target_id = int(empleado_id_param)
+        except (TypeError, ValueError):
+            return jsonify({'msg': 'empleado_id inválido'}), 400
+        if not _can_manage_all_partes() and target_id != current_user_id:
+            return jsonify({'msg': 'Acceso denegado'}), 403
+    else:
+        target_id = current_user_id
+
+    query = ParteTrabajo.query.filter(ParteTrabajo.empleado_id == target_id)
+    if not _can_manage_all_partes() and target_id == current_user_id:
+        pending_visible_filter = _employee_pending_visibility_filter(current_role)
+        if pending_visible_filter is not None:
+            from sqlalchemy import or_ as _or
+            query = ParteTrabajo.query.filter(
+                _or(
+                    ParteTrabajo.empleado_id == target_id,
+                    pending_visible_filter,
+                )
+            )
+
+    if estado_param:
+        try:
+            query = query.filter(ParteTrabajo.estado == EstadoParte(estado_param))
+        except ValueError:
+            return jsonify({'msg': f'Estado inválido: {estado_param}'}), 400
+
+    partes = query.order_by(ParteTrabajo.id.desc()).all()
+    include_sensitive = _can_manage_all_partes() or target_id == current_user_id
+    return jsonify([_serialize_parte(p, include_sensitive=include_sensitive) for p in partes])
+
+
+@bp.route('/parte_trabajo/empleado/<int:empleado_id>/siguiente', methods=['GET'])
+@jwt_required()
+def siguiente_parte_empleado(empleado_id):
+    """Devuelve el próximo parte pendiente para el empleado (sugerencia)."""
+    current_user_id = int(get_jwt_identity())
+    if not _can_manage_all_partes() and empleado_id != current_user_id:
+        return jsonify({'msg': 'Acceso denegado'}), 403
+
+    siguiente = ParteTrabajo.query.filter(
+        ParteTrabajo.empleado_id == empleado_id,
+        ParteTrabajo.estado == EstadoParte.pendiente,
+    ).order_by(ParteTrabajo.id.asc()).first()
+
+    if not siguiente and not _can_manage_all_partes():
+        role_values = _role_tarea_values(_current_role())
+        if role_values:
+            siguiente = ParteTrabajo.query.filter(
+                ParteTrabajo.empleado_id.is_(None),
+                ParteTrabajo.estado == EstadoParte.pendiente,
+                ParteTrabajo.tipo_tarea.in_(role_values),
+            ).order_by(ParteTrabajo.id.asc()).first()
+
+    if not siguiente:
+        return jsonify(None), 200
+
+    return jsonify(_serialize_parte(siguiente)), 200

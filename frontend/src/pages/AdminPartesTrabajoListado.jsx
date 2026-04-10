@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { confirmar } from "../utils/confirmar";
 import {
   listarPartesTrabajo,
   cambiarEstadoParte,
   quitarPausa,
   eliminarParteTrabajo,
+  editarParteTrabajo,
   listarEmpleadosDisponibles,
   listarCochesCatalogo,
 } from "../utils/parteTrabajoApi";
@@ -156,8 +158,8 @@ export default function AdminPartesTrabajoListado() {
   };
 
   const onEliminarParte = async (parte) => {
-    const confirmado = window.confirm(
-      `Vas a eliminar el parte #${parte.id} (${parte.matricula || `coche ${parte.coche_id}`}). Esta acción no se puede deshacer.\n\n¿Deseas continuar?`
+    const confirmado = await confirmar(
+      `Vas a eliminar el parte #${parte.id} (${parte.matricula || `coche ${parte.coche_id}`}). Esta acción no se puede deshacer.`
     );
     if (!confirmado) return;
 
@@ -182,8 +184,8 @@ export default function AdminPartesTrabajoListado() {
 
   const onBorrarGrupo = async (partes) => {
     const matricula = partes[0]?.matricula || `coche ${partes[0]?.coche_id}`;
-    const confirmado = window.confirm(
-      `Vas a eliminar los ${partes.length} parte(s) de ${matricula}. Esta acción no se puede deshacer.\n\n¿Deseas continuar?`
+    const confirmado = await confirmar(
+      `Vas a eliminar los ${partes.length} parte(s) de ${matricula}. Esta acción no se puede deshacer.`
     );
     if (!confirmado) return;
     setError("");
@@ -202,6 +204,19 @@ export default function AdminPartesTrabajoListado() {
       await cargarPartes();
     } catch (e) {
       setError(e?.message || "No se pudo reanudar el grupo.");
+    }
+  };
+
+  const [editandoAreaId, setEditandoAreaId] = useState(null);
+
+  const onCambiarArea = async (parteId, nuevoTipo) => {
+    setError("");
+    try {
+      await editarParteTrabajo(parteId, { tipo_tarea: nuevoTipo });
+      setEditandoAreaId(null);
+      await cargarPartes();
+    } catch (e) {
+      setError(e?.message || "No se pudo cambiar el área.");
     }
   };
 
@@ -389,6 +404,30 @@ export default function AdminPartesTrabajoListado() {
                                   <span style={{ fontSize: "0.87rem", color: "var(--sw-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                     {p.observaciones || getTipoTareaLabel(p.tipo_tarea)}
                                   </span>
+                                  {editandoAreaId === p.id ? (
+                                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexShrink: 0 }}>
+                                      <select
+                                        defaultValue={p.tipo_tarea || ""}
+                                        onChange={(e) => e.target.value && onCambiarArea(p.id, e.target.value)}
+                                        style={{ fontSize: "0.78rem", padding: "0.2rem 0.5rem", borderRadius: "6px", border: "1px solid rgba(212,175,55,0.4)", background: "var(--sw-surface)", color: "var(--sw-text)", cursor: "pointer" }}
+                                      >
+                                        <option value="">-- Seleccionar --</option>
+                                        <option value="detailing">Detailing</option>
+                                        <option value="pintura">Pintura</option>
+                                        <option value="tapicero">Tapicería</option>
+                                        <option value="otro">Otro</option>
+                                      </select>
+                                      <button onClick={() => setEditandoAreaId(null)} style={{ fontSize: "0.7rem", background: "none", border: "none", color: "var(--sw-muted)", cursor: "pointer" }}>✕</button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => setEditandoAreaId(p.id)}
+                                      title="Cambiar área del parte"
+                                      style={{ fontSize: "0.68rem", padding: "0.15rem 0.45rem", borderRadius: "5px", border: "1px solid rgba(212,175,55,0.25)", background: "rgba(212,175,55,0.07)", color: "var(--sw-accent)", cursor: "pointer", flexShrink: 0, fontWeight: 600 }}
+                                    >
+                                      {getTipoTareaLabel(p.tipo_tarea)} ✎
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             ))}

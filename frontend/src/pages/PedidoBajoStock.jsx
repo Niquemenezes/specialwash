@@ -2,6 +2,7 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Context } from "../store/appContext";
 import { useNavigate } from "react-router-dom";
+import { confirmar } from "../utils/confirmar";
 import logo from "../img/logo-specialwash-icon-black.png";
 
 export default function PedidoBajoStock() {
@@ -164,7 +165,7 @@ export default function PedidoBajoStock() {
   };
 
   const marcarComoRecibido = async (producto) => {
-    if (!window.confirm(`Marcar "${producto.nombre}" como recibido?`)) return;
+    if (!await confirmar(`¿Marcar "${producto.nombre}" como recibido?`, { danger: false, labelConfirmar: "Sí, marcar recibido" })) return;
     setSaving(true);
     try {
       await actions.updateProducto(producto.id, {

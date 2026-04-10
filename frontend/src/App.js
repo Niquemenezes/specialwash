@@ -6,10 +6,12 @@ import { touchSessionActivity, getStoredRol, isEmployeeRole } from "./utils/auth
 import { obtenerHoy } from "./utils/horarioApi";
 import { ROUTE_PERMISSIONS } from "./config/rolePermissions.js";
 
-import NavbarSW from "./component/NavbarSW.jsx";
-import SidebarSW from "./component/SidebarSW.jsx";
-import Footer from "./component/Footer.jsx";
-import PrivateRoute from "./component/PrivateRoute.js";
+import NavbarSW from "./components/NavbarSW.jsx";
+import SidebarSW from "./components/SidebarSW.jsx";
+import Footer from "./components/Footer.jsx";
+import PrivateRoute from "./components/PrivateRoute.js";
+import ModalConfirmar from "./components/ModalConfirmar.jsx";
+import ToastSW from "./components/ToastSW.jsx";
 
 // Páginas
 import Login from "./pages/login.js";
@@ -35,14 +37,13 @@ import InspeccionesGuardadasPage from "./pages/InspeccionesGuardadasPage.jsx";
 import { EmpleadoPartesTrabajo } from "./pages/PartesTrabajo";
 import AdminPartesTrabajoListado from "./pages/AdminPartesTrabajoListado";
 import AdminPartesTrabajoAcompanamiento from "./pages/AdminPartesTrabajoAcompanamiento";
-import EmpleadoMisTrabajosSimple from "./pages/EmpleadoMisTrabajosSimple";
+import ProductividadTrabajadoresPage from "./pages/ProductividadTrabajadoresPage.jsx";
 import { AdminPartesTrabajoFinalizados } from "./pages/PartesTrabajoFinalizados";
 import CatalogoServiciosPage from "./pages/CatalogoServiciosPage";
 import CalidadEntregaPage from "./pages/CalidadEntregaPage";
 import CitasPage from "./pages/CitasPage";
 import GastosEmpresaPage from "./pages/GastosEmpresaPage.jsx";
 import ProfesionalesPage from "./pages/ProfesionalesPage.jsx";
-import CobroParticularesPage from "./pages/CobroParticularesPage.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
 import RepasoEntregaPage from "./pages/RepasoEntregaPage.jsx";
 import FicharPage from "./pages/FicharPage.jsx";
@@ -61,18 +62,17 @@ const getRouteAllow = (routePath) => {
   return allowed ? (allowed.includes("*") ? [] : allowed) : [];
 };
 
-const isLogged = () =>
-  Boolean(sessionStorage.getItem("token") || localStorage.getItem("token"));
+const isLogged = () => Boolean(localStorage.getItem("token"));
 
 // Usa sessionStorage primero (sesión de pestaña), igual que token y rol
-const getStoredUserId = () =>
-  sessionStorage.getItem("userId") || localStorage.getItem("userId") || "";
+const getStoredUserId = () => localStorage.getItem("userId") || "";
 
 const RedirectIfLogged = ({ children }) =>
   isLogged() ? <Navigate to="/" replace /> : children;
 
 const App = () => {
   const [recordatorio, setRecordatorio] = useState("");
+  const [mostrarModalRecordatorio, setMostrarModalRecordatorio] = useState(false);
 
   useEffect(() => {
     let lastTouch = 0;
@@ -98,41 +98,53 @@ const App = () => {
 
     const getRecordatorioPendiente = (registro) => {
       if (!registro || !registro.entrada) return "Recuerda fichar tu entrada.";
-      if (registro.inicio_comida && !registro.fin_comida) return "Recuerda fichar el fin de comida.";
+      if (registro?.descanso_activo) return "Recuerda fichar el fin de descanso.";
       if (!registro.salida) return "Recuerda fichar tu salida al finalizar.";
       return "";
     };
 
     const lanzarRecordatorioDiario = async () => {
-      const token = sessionStorage.getItem("token") || localStorage.getItem("token");
-      if (!token) return;
+      const token = localStorage.getItem("token");
+      if (!token) {
+        if (!cancelado) {
+          setRecordatorio("");
+          setMostrarModalRecordatorio(false);
+        }
+        return;
+      }
 
       const rol = getStoredRol();
-      if (!isEmployeeRole(rol)) return;
-
-      const userId = getStoredUserId() || "anon";
-      const hoy = new Date().toISOString().slice(0, 10);
-      const key = `sw_recordatorio_fichaje_${userId}_${hoy}`;
-      const yaMostrado = sessionStorage.getItem(key) || localStorage.getItem(key);
-      if (yaMostrado) return;
+      if (!isEmployeeRole(rol)) {
+        if (!cancelado) {
+          setRecordatorio("");
+          setMostrarModalRecordatorio(false);
+        }
+        return;
+      }
 
       try {
         const registro = await obtenerHoy();
         if (cancelado) return;
 
         const msg = getRecordatorioPendiente(registro);
-        if (!msg) return;
-
         setRecordatorio(msg);
-        sessionStorage.setItem(key, "1");
-        localStorage.setItem(key, "1");
+        setMostrarModalRecordatorio(Boolean(msg));
       } catch {
         // Silencioso para no romper carga inicial por fallo de red.
       }
     };
 
-    lanzarRecordatorioDiario();
-    return () => { cancelado = true; };
+    const onLoginSuccess = () => {
+      void lanzarRecordatorioDiario();
+    };
+
+    window.addEventListener("sw:login-success", onLoginSuccess);
+
+    void lanzarRecordatorioDiario();
+    return () => {
+      cancelado = true;
+      window.removeEventListener("sw:login-success", onLoginSuccess);
+    };
   }, []);
 
   return (
@@ -140,16 +152,83 @@ const App = () => {
       <div className="sw-app">
         <NavbarSW />
 
-        {recordatorio && (
-          <div className="alert alert-warning alert-dismissible mb-0 rounded-0" role="alert">
-            {recordatorio}{" "}
-            <a href="/fichar" className="alert-link">Abrir pantalla de Fichar.</a>
-            <button
-              type="button"
-              className="btn-close"
-              onClick={() => setRecordatorio("")}
-              aria-label="Cerrar"
-            />
+        {recordatorio && mostrarModalRecordatorio && (
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="sw-recordatorio-title"
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 1200,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "1rem",
+              background: "rgba(3, 7, 18, 0.68)",
+              backdropFilter: "blur(2px)",
+            }}
+          >
+            <div
+              style={{
+                width: "min(560px, 96vw)",
+                borderRadius: "18px",
+                border: "1px solid rgba(239,68,68,0.28)",
+                background: "linear-gradient(180deg, rgba(24,10,10,0.98), rgba(15,23,42,0.98))",
+                boxShadow: "0 24px 90px rgba(0,0,0,0.45)",
+                overflow: "hidden",
+              }}
+            >
+              <div style={{ padding: "1rem 1.15rem", borderBottom: "1px solid rgba(239,68,68,0.18)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
+                <div style={{ color: "#fca5a5", fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", fontSize: "0.76rem" }}>
+                  Aviso importante
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMostrarModalRecordatorio(false)}
+                  aria-label="Cerrar aviso"
+                  style={{ background: "none", border: "none", color: "#fca5a5", fontSize: "1.2rem", cursor: "pointer", lineHeight: 1 }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div style={{ padding: "1.35rem 1.15rem 1.2rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", marginBottom: "0.85rem" }}>
+                  <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(239,68,68,0.14)", border: "1px solid rgba(239,68,68,0.28)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem" }}>
+                    ⏰
+                  </div>
+                  <div>
+                    <div id="sw-recordatorio-title" style={{ color: "#fff", fontSize: "1.25rem", fontWeight: 800 }}>
+                      Te has olvidado de fichar
+                    </div>
+                    <div style={{ color: "#cbd5e1", fontSize: "0.94rem", marginTop: "0.2rem" }}>
+                      {recordatorio}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.18)", color: "#e5e7eb", borderRadius: "12px", padding: "0.9rem 1rem", fontSize: "0.92rem", lineHeight: 1.5 }}>
+                  Este aviso aparecerá al iniciar sesión si tienes un fichaje pendiente. Puedes cerrarlo y seguir trabajando, pero conviene registrarlo cuanto antes.
+                </div>
+
+                <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", flexWrap: "wrap", marginTop: "1rem" }}>
+                  <button
+                    type="button"
+                    onClick={() => setMostrarModalRecordatorio(false)}
+                    style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.14)", color: "#e5e7eb", borderRadius: "10px", padding: "0.7rem 1rem", fontWeight: 700, cursor: "pointer" }}
+                  >
+                    Cerrar aviso
+                  </button>
+                  <a
+                    href="/fichar"
+                    style={{ background: "#ef4444", color: "#fff", borderRadius: "10px", padding: "0.72rem 1rem", fontWeight: 800, textDecoration: "none" }}
+                  >
+                    Ir a fichar ahora
+                  </a>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -289,10 +368,19 @@ const App = () => {
               path="/mis-partes-trabajo"
               element={
                 <PrivateRoute allow={getRouteAllow("/mis-partes-trabajo")}>
-                  <EmpleadoMisTrabajosSimple
+                  <EmpleadoPartesTrabajo
                     empleadoId={getStoredUserId()}
                     userRol={getStoredRol()}
                   />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/productividad-trabajadores"
+              element={
+                <PrivateRoute allow={getRouteAllow("/productividad-trabajadores")}>
+                  <ProductividadTrabajadoresPage />
                 </PrivateRoute>
               }
             />
@@ -374,7 +462,7 @@ const App = () => {
               path="/cobro-particulares"
               element={
                 <PrivateRoute allow={getRouteAllow("/cobro-particulares")}>
-                  <CobroParticularesPage />
+                  <Navigate to="/repaso-entrega?tab=firma" replace />
                 </PrivateRoute>
               }
             />
@@ -471,7 +559,11 @@ const App = () => {
 
             <Route
               path="/acta-entrega-doc/:id"
-              element={<ActaEntregaDocumento />}
+              element={
+                <PrivateRoute allow={getRouteAllow("/acta-entrega/:id")}>
+                  <ActaEntregaDocumento />
+                </PrivateRoute>
+              }
             />
 
             <Route
@@ -524,6 +616,8 @@ const App = () => {
 
         <Footer />
       </div>
+      <ModalConfirmar />
+      <ToastSW />
     </BrowserRouter>
   );
 };

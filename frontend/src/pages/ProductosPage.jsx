@@ -1,7 +1,12 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Context } from "../store/appContext";
-import ProductoFormModal from "../component/ProductoFormModal.jsx";
+import ProductoFormModal from "../components/ProductoFormModal.jsx";
+import Paginacion from "../components/Paginacion.jsx";
+import { confirmar } from "../utils/confirmar";
+import EmptyState from "../components/EmptyState.jsx";
 import { useNavigate } from "react-router-dom";
+
+const POR_PAGINA = 50;
 
 const isBajoStock = (p) =>
   p?.stock_minimo != null &&
@@ -27,6 +32,7 @@ export default function ProductosPage() {
   const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [pagina, setPagina] = useState(1);
 
   useEffect(() => {
     let active = true;
@@ -60,6 +66,13 @@ export default function ProductosPage() {
     });
   }, [productos, filtro, soloBajoStock]);
 
+  useEffect(() => { setPagina(1); }, [filtro, soloBajoStock]);
+
+  const productosPagina = useMemo(
+    () => productosFiltrados.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA),
+    [productosFiltrados, pagina]
+  );
+
   const bajosDeStock = useMemo(() => productos.filter(isBajoStock), [productos]);
   const bajosEnPedido = useMemo(
     () => productos.filter((p) =>
@@ -81,7 +94,7 @@ export default function ProductosPage() {
 
   const onDelete = async (id) => {
     const p = productos.find((x) => x.id === id);
-    if (!window.confirm(`¿Eliminar el producto "${p?.nombre || id}"?`)) return;
+    if (!await confirmar(`¿Eliminar el producto "${p?.nombre || id}"?`)) return;
     try {
       await actions.deleteProducto(id);
     } catch (err) {
@@ -200,7 +213,7 @@ export default function ProductosPage() {
                       { label: "Código barras" },
                       { label: "Stock", align: "right", w: 100 },
                       { label: "Mínimo", align: "right", w: 100 },
-                      { label: "Acciones", align: "right", w: 140, cls: "no-print" },
+                      { label: "Acciones", align: "right", w: 110, cls: "no-print" },
                     ].map((h) => (
                       <th key={h.label} className={h.cls || ""}
                         style={{ padding: "0.65rem 0.85rem", color: "var(--sw-muted)", fontWeight: 600, textTransform: "uppercase", fontSize: "0.68rem", letterSpacing: "0.07em", whiteSpace: "nowrap", textAlign: h.align || "left", width: h.w }}>
@@ -218,13 +231,13 @@ export default function ProductosPage() {
                     </tr>
                   )}
                   {!loading && productosFiltrados.length === 0 && (
-                    <tr>
-                      <td colSpan={7} style={{ textAlign: "center", padding: "2.5rem", color: "var(--sw-muted)" }}>
-                        {filtro || soloBajoStock ? "No hay productos que coincidan con los filtros." : "No hay productos registrados todavía."}
-                      </td>
-                    </tr>
+                    <EmptyState
+                      colSpan={7}
+                      title={filtro || soloBajoStock ? "Sin resultados" : "Sin productos"}
+                      subtitle={filtro || soloBajoStock ? "Ningún producto coincide con los filtros aplicados." : "No hay productos registrados. Añade el primero con Nueva entrada."}
+                    />
                   )}
-                  {!loading && productosFiltrados.map((p, i) => {
+                  {!loading && productosPagina.map((p, i) => {
                     const bajo = isBajoStock(p);
                     const codigos = Array.from(new Set(
                       [p.codigo_barras, ...((p.codigos_barras || []).map((c) => c?.codigo_barras))].filter(Boolean)
@@ -254,14 +267,24 @@ export default function ProductosPage() {
                         <td style={{ padding: "0.65rem 0.85rem", textAlign: "right", fontWeight: 700, color: bajo ? "var(--sw-warning)" : "var(--sw-text)" }}>{p.stock_actual ?? 0}</td>
                         <td style={{ padding: "0.65rem 0.85rem", textAlign: "right", color: "var(--sw-muted)" }}>{p.stock_minimo ?? "—"}</td>
                         <td className="no-print" style={{ padding: "0.65rem 0.85rem", textAlign: "right" }}>
-                          <button onClick={() => openEditar(p)} title="Editar"
-                            style={{ background: "color-mix(in srgb, #6366f1 12%, transparent)", border: "1px solid color-mix(in srgb, #6366f1 30%, transparent)", color: "#6366f1", borderRadius: "7px", padding: "0.25rem 0.6rem", fontSize: "0.8rem", cursor: "pointer", marginRight: "0.4rem" }}>
-                            ✏ Editar
-                          </button>
-                          <button onClick={() => onDelete(p.id)} title="Eliminar"
-                            style={{ background: "color-mix(in srgb, var(--sw-danger) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--sw-danger) 25%, transparent)", color: "var(--sw-danger)", borderRadius: "7px", padding: "0.25rem 0.6rem", fontSize: "0.8rem", cursor: "pointer" }}>
-                            🗑
-                          </button>
+                          <div className="sw-ent-row-actions">
+                            <button
+                              className="sw-ent-icon-btn"
+                              onClick={() => openEditar(p)}
+                              title="Editar"
+                              aria-label={`Editar ${p.nombre}`}
+                            >
+                              ✏
+                            </button>
+                            <button
+                              className="sw-ent-icon-btn sw-ent-icon-btn--danger"
+                              onClick={() => onDelete(p.id)}
+                              title="Eliminar"
+                              aria-label={`Eliminar ${p.nombre}`}
+                            >
+                              🗑
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -270,7 +293,12 @@ export default function ProductosPage() {
               </table>
             </div>
           </div>
-
+          <Paginacion
+            total={productosFiltrados.length}
+            page={pagina}
+            limit={POR_PAGINA}
+            onChange={setPagina}
+          />
         </div>
       </div>
 

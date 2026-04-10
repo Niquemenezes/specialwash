@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { confirmar } from "../utils/confirmar";
 import {
   listarPartesTrabajo,
   tomarParteTrabajo,
@@ -455,8 +456,8 @@ export function AdminPartesTrabajo() {
   };
 
   const onEliminarParte = async (parte) => {
-    const confirmado = window.confirm(
-      `Vas a eliminar el parte #${parte.id} (${parte.matricula || `coche ${parte.coche_id}`}). Esta acción no se puede deshacer.\n\n¿Deseas continuar?`
+    const confirmado = await confirmar(
+      `Vas a eliminar el parte #${parte.id} (${parte.matricula || `coche ${parte.coche_id}`}). Esta acción no se puede deshacer.`
     );
     if (!confirmado) return;
 
@@ -481,8 +482,8 @@ export function AdminPartesTrabajo() {
 
   const onBorrarGrupo = async (partes) => {
     const matricula = partes[0]?.matricula || `coche ${partes[0]?.coche_id}`;
-    const confirmado = window.confirm(
-      `Vas a eliminar los ${partes.length} parte(s) de ${matricula}. Esta acción no se puede deshacer.\n\n¿Deseas continuar?`
+    const confirmado = await confirmar(
+      `Vas a eliminar los ${partes.length} parte(s) de ${matricula}. Esta acción no se puede deshacer.`
     );
     if (!confirmado) return;
     setError("");
@@ -1240,9 +1241,59 @@ function Cronometro({ parte }) {
 // ── Categorías de trabajo ─────────────────────────────────────────────────────
 
 // ── Tarjeta de coche: un timer y un set de botones para todos los servicios ───
-function CocheGrupoCard({ grupo, empleadoId, onAccionParte, onSumarmeCoche, cargando }) {
+const DEPTO_CONFIG = {
+  detailing:  { label: "Detailing",  color: "#6366f1" },
+  pintura:    { label: "Pintura",    color: "#f87171" },
+  tapicero:   { label: "Tapicería",  color: "#fbbf24" },
+  calidad:    { label: "Calidad",    color: "#22d3ee" },
+};
+
+function OtrosDeptosBanner({ otrosDeptos }) {
+  if (!otrosDeptos || !otrosDeptos.length) return null;
+
+  const enProceso = otrosDeptos.filter(d => d.estado === "en_proceso");
+  const enPausa   = otrosDeptos.filter(d => d.estado === "en_pausa");
+
+  return (
+    <div style={{
+      margin: "0.5rem 0 0.2rem",
+      padding: "0.45rem 0.75rem",
+      background: enProceso.length ? "rgba(248,113,113,0.08)" : "rgba(251,191,36,0.08)",
+      border: `1px solid ${enProceso.length ? "rgba(248,113,113,0.25)" : "rgba(251,191,36,0.25)"}`,
+      borderRadius: "8px",
+      fontSize: "0.76rem",
+    }}>
+      <span style={{ fontWeight: 700, color: enProceso.length ? "#f87171" : "#fbbf24", marginRight: "0.5rem" }}>
+        {enProceso.length ? "⚠ Otros depto. activos:" : "ℹ Otros depto. en este coche:"}
+      </span>
+      <span style={{ display: "inline-flex", gap: "0.4rem", flexWrap: "wrap" }}>
+        {otrosDeptos.map((d) => {
+          const cfg = DEPTO_CONFIG[d.tipo_tarea] || { label: d.tipo_tarea || "Otro", color: "#9ca3af" };
+          const icon = d.estado === "en_proceso" ? "🔧" : "⏸";
+          return (
+            <span key={d._key} style={{
+              background: `${cfg.color}18`,
+              border: `1px solid ${cfg.color}40`,
+              color: cfg.color,
+              borderRadius: "5px",
+              padding: "0.1rem 0.45rem",
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+            }}>
+              {icon} {cfg.label}{d.empleado_nombre ? ` · ${d.empleado_nombre}` : ""}
+            </span>
+          );
+        })}
+      </span>
+    </div>
+  );
+}
+
+function CocheGrupoCard({ grupo, empleadoId, onAccionParte, onSumarmeCoche, cargando, otrosDeptos = [] }) {
   const { matricula, marca, modelo, cliente_nombre, partes } = grupo;
   const descCoche = [marca, modelo].filter(Boolean).join(" ");
+  const vehicleTitle = descCoche || (!grupo.es_tarea_interna ? "Vehículo sin modelo" : "Tarea interna");
+  const plateLabel = matricula || `#${partes[0].coche_id}`;
 
   // Estado global del grupo: en_proceso > en_pausa > pendiente
   const estadoGlobal = partes.some(p => p.estado === "en_proceso") ? "en_proceso"
@@ -1265,10 +1316,12 @@ function CocheGrupoCard({ grupo, empleadoId, onAccionParte, onSumarmeCoche, carg
       (estadoGlobal === "en_pausa" ? " sw-parte-card--paused" : "")
     }>
       <div className="sw-parte-card__header">
-        <div>
-          <span className="sw-parte-card__matricula">{matricula || `#${partes[0].coche_id}`}</span>
-          {descCoche && <span className="sw-parte-card__desc"> · {descCoche}</span>}
-          {cliente_nombre && <span className="sw-parte-card__cliente"> · {cliente_nombre}</span>}
+        <div className="sw-parte-card__vehicle-block">
+          <div className="sw-parte-card__vehicle-name">{vehicleTitle}</div>
+          <div className="sw-parte-card__vehicle-meta">
+            <span className="sw-parte-card__chip sw-parte-card__chip--plate">🚘 {plateLabel}</span>
+            {cliente_nombre && <span className="sw-parte-card__chip">👤 {cliente_nombre}</span>}
+          </div>
           {hayOtroTrabajando && (
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.4rem", flexWrap: "wrap" }}>
               <span style={{ background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.35)", color: "#fbbf24", borderRadius: "6px", padding: "0.15rem 0.6rem", fontSize: "0.72rem", fontWeight: 600 }}>⚠ Ya hay alguien trabajando</span>
@@ -1284,6 +1337,7 @@ function CocheGrupoCard({ grupo, empleadoId, onAccionParte, onSumarmeCoche, carg
               )}
             </div>
           )}
+          {!esTareaInterna && <OtrosDeptosBanner otrosDeptos={otrosDeptos} />}
         </div>
         <EstadoBadge estado={estadoGlobal} />
       </div>
@@ -1309,6 +1363,19 @@ function CocheGrupoCard({ grupo, empleadoId, onAccionParte, onSumarmeCoche, carg
                   {(p.estado === "en_proceso" || p.estado === "en_pausa") && p.empleado_nombre && (
                     <span style={{ color: "var(--sw-muted)" }}> · {p.empleado_nombre}</span>
                   )}
+                  {!esTareaInterna && (
+                    <div className="sw-parte-card__service-meta">
+                      <span>🚗 {vehicleTitle}</span>
+                      <span>·</span>
+                      <span>🔖 {plateLabel}</span>
+                      {cliente_nombre && (
+                        <>
+                          <span>·</span>
+                          <span>👤 {cliente_nombre}</span>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="d-flex align-items-center gap-2">
                   <EstadoBadge estado={p.estado} />
@@ -1316,7 +1383,17 @@ function CocheGrupoCard({ grupo, empleadoId, onAccionParte, onSumarmeCoche, carg
                     <button
                       className="sw-parte-btn sw-parte-btn--start"
                       disabled={cargando}
-                      onClick={() => onAccionParte(p.id, "tomar_e_iniciar")}
+                      onClick={() => {
+                        if (otrosDeptos.length) {
+                          const nombres = otrosDeptos.map(d => {
+                            const cfg = DEPTO_CONFIG[d.tipo_tarea];
+                            const estadoLabel = d.estado === "en_proceso" ? "activo" : "en pausa";
+                            return (cfg?.label || d.tipo_tarea) + (d.empleado_nombre ? ` (${d.empleado_nombre})` : "") + ` — ${estadoLabel}`;
+                          }).join("\n· ");
+                          if (!window.confirm(`⚠ Otros departamentos están trabajando en este coche:\n· ${nombres}\n\n¿Seguro que quieres iniciar tu parte ahora?`)) return;
+                        }
+                        onAccionParte(p.id, "tomar_e_iniciar");
+                      }}
                     >
                       ▶ Iniciar
                     </button>
@@ -1390,30 +1467,57 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
   const [tareaInternaTexto, setTareaInternaTexto] = useState("");
   const [tareaInternaLoading, setTareaInternaLoading] = useState(false);
 
+  const [otrosDeptosPorCoche, setOtrosDeptosPorCoche] = useState({});
+
   const cargarPartes = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
       const rolNormalizado = normalizeRol(userRol);
       const tipoRol = ROL_TO_TIPO[rolNormalizado] || rolNormalizado || "";
-      const [pendientes, enProceso, enPausa] = await Promise.all([
-        listarPartesTrabajo({
-          estado: "pendiente",
-          ...(tipoRol ? { tipo_tarea: tipoRol } : {}),
-        }),
+      const [pendientes, enProceso, enPausa, todosEnProceso, todosEnPausa] = await Promise.all([
+        listarPartesTrabajo({ estado: "pendiente",  ...(tipoRol ? { tipo_tarea: tipoRol } : {}) }),
         listarPartesTrabajo({ estado: "en_proceso", ...(tipoRol ? { tipo_tarea: tipoRol } : {}) }),
-        listarPartesTrabajo({ estado: "en_pausa", ...(tipoRol ? { tipo_tarea: tipoRol } : {}) }),
+        listarPartesTrabajo({ estado: "en_pausa",   ...(tipoRol ? { tipo_tarea: tipoRol } : {}) }),
+        listarPartesTrabajo({ estado: "en_proceso" }),
+        listarPartesTrabajo({ estado: "en_pausa" }),
       ]);
+
+      // Partes propios del trabajador
       const merged = [...(pendientes || []), ...(enProceso || []), ...(enPausa || [])];
       const seen = new Set();
       const dedup = [];
+      const yoId = Number(empleadoId);
       for (const p of merged) {
         const id = Number(p?.id);
         if (!Number.isFinite(id) || seen.has(id)) continue;
+        if (p.es_tarea_interna && Number(p.empleado_id) !== yoId) continue;
         seen.add(id);
         dedup.push(p);
       }
       setPartes(dedup);
+
+      // Mapa coche_id → otros departamentos activos (excluyendo el rol propio)
+      const misCocheIds = new Set(dedup.filter(p => !p.es_tarea_interna).map(p => p.coche_id));
+      const otrosMap = {};
+      for (const p of [...(todosEnProceso || []), ...(todosEnPausa || [])]) {
+        if (!p.coche_id || !misCocheIds.has(p.coche_id)) continue;
+        if (p.es_tarea_interna) continue;
+        const pTipo = normalizeRol(p.tipo_tarea || "");
+        if (tipoRol && pTipo === tipoRol) continue; // mismo rol, ya lo ve en su card
+        if (!otrosMap[p.coche_id]) otrosMap[p.coche_id] = [];
+        // evitar duplicados por tipo+estado
+        const key = `${pTipo}-${p.estado}`;
+        if (!otrosMap[p.coche_id].some(x => x._key === key)) {
+          otrosMap[p.coche_id].push({
+            _key: key,
+            tipo_tarea: pTipo || p.tipo_tarea || "otro",
+            estado: p.estado,
+            empleado_nombre: p.empleado_nombre || null,
+          });
+        }
+      }
+      setOtrosDeptosPorCoche(otrosMap);
     } catch (e) {
       setError(e?.message || "No se pudieron cargar los trabajos.");
     } finally {
@@ -1524,9 +1628,9 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
   return (
     <div className="sw-flujo-shell">
       <div className="sw-flujo-header">
-        <div>
+        <div className="sw-flujo-header-copy">
           <h2 className="sw-flujo-title">{panelTitle || "👨‍🔧 Mis trabajos pendientes"}</h2>
-          {panelSubtitle && <p className="sw-flujo-subtitle" style={{ margin: 0, fontSize: "0.85rem", color: "#999" }}>{panelSubtitle}</p>}
+          {panelSubtitle && <p className="sw-flujo-subtitle">{panelSubtitle}</p>}
         </div>
         <button className="sw-flujo-refresh" onClick={cargarPartes} disabled={loading}>
           {loading ? "⏳" : "↻"} Actualizar
@@ -1551,12 +1655,11 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
         </div>
       ) : (
         <div className="sw-flujo-body">
-          <div style={{ margin: "0 1rem 1rem", background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderTop: "2px solid rgba(212,175,55,0.3)", borderRadius: "14px", padding: "1rem 1.1rem" }}>
-            <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(212,175,55,0.7)", margin: "0 0 0.6rem" }}>🧹 Tarea interna (sin coche)</p>
-            <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+          <div className="sw-flujo-internal-card">
+            <p className="sw-flujo-internal-label">🧹 Tarea interna (sin coche)</p>
+            <div className="sw-flujo-internal-actions">
               <input
-                className="form-control"
-                style={{ maxWidth: "420px", background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "9px" }}
+                className="form-control sw-flujo-internal-input"
                 placeholder="Ej: Limpiar baño, ordenar almacén, preparar materiales..."
                 value={tareaInternaTexto}
                 onChange={(e) => setTareaInternaTexto(e.target.value)}
@@ -1579,6 +1682,7 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
                 onAccionParte={onAccionParte}
                 onSumarmeCoche={onSumarmeCoche}
                 cargando={accionCargando}
+                otrosDeptos={otrosDeptosPorCoche[grupo.partes[0]?.coche_id] || []}
               />
             ))}
           </div>

@@ -2,6 +2,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useState } from "re
 import { Link, useNavigate } from "react-router-dom";
 import { Context } from "../store/appContext";
 import { getApiBase } from "../utils/apiBase";
+import { confirmar } from "../utils/confirmar";
 
 const toDateInputValue = (date) => {
   const d = new Date(date);
@@ -147,8 +148,8 @@ const CochesEntregadosPage = () => {
   };
 
   const eliminarInspeccion = async (item) => {
-    const confirmado = window.confirm(
-      `Vas a eliminar la inspeccion #${item.id} de ${item.cliente_nombre || "cliente"}.\n\nEsta accion no se puede deshacer.\n\n¿Deseas continuar?`
+    const confirmado = await confirmar(
+      `Vas a eliminar la inspeccion #${item.id} de ${item.cliente_nombre || "cliente"}. Esta acción no se puede deshacer.`
     );
     if (!confirmado) return;
 

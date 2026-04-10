@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import SignaturePad from "../component/SignaturePad.jsx";
+import SignaturePad from "../components/SignaturePad.jsx";
 import { Context } from "../store/appContext";
 import { isEmployeeRole, normalizeRol } from "../utils/authSession";
 
@@ -197,10 +197,6 @@ const ActaEntregaView = () => {
   const finalizarEntrega = async () => {
     if (!inspeccion) return;
     setFormError("");
-    if (!esConcesionario && !(inspeccion.trabajos_realizados || "").trim()) {
-      setFormError("Debes preparar y guardar la hoja de intervencion antes de finalizar la entrega.");
-      return;
-    }
     if (!nombreFirmante.trim()) {
       setFormError("Debes indicar el nombre de la persona que firma la recepcion del vehiculo.");
       return;

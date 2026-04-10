@@ -21,6 +21,7 @@ class InspeccionRecepcion(db.Model):
 
     # Firmas de recepción
     es_concesionario = db.Column(db.Boolean, default=False, nullable=False)
+    requiere_hoja_intervencion = db.Column(db.Boolean, default=False, nullable=False)
     firma_cliente_recepcion = db.Column(db.Text)
     firma_empleado_recepcion = db.Column(db.Text)
     consentimiento_datos_recepcion = db.Column(db.Boolean, default=False, nullable=False)
@@ -92,6 +93,7 @@ class InspeccionRecepcion(db.Model):
             "matricula": self.matricula,
             "kilometros": self.kilometros,
             "es_concesionario": self.es_concesionario,
+            "requiere_hoja_intervencion": self.requiere_hoja_intervencion,
             "firma_cliente_recepcion": self.firma_cliente_recepcion,
             "firma_empleado_recepcion": self.firma_empleado_recepcion,
             "consentimiento_datos_recepcion": self.consentimiento_datos_recepcion,

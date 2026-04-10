@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useContext } from "react";
 import { Context } from "../store/appContext";
+import { confirmar } from "../utils/confirmar";
+import EmptyState from "../components/EmptyState.jsx";
 
 /* ── Iconos SVG ─────────────────────────────────────────────────── */
 const ICONS = {
@@ -38,8 +40,8 @@ const ClientesPage = () => {
 
   const handleEliminar = async (cliente) => {
     const nombre = cliente?.nombre || "este cliente";
-    const confirmado = window.confirm(
-      `Vas a eliminar a "${nombre}".\n\n¿Seguro que deseas continuar? Esta accion no se puede deshacer.`
+    const confirmado = await confirmar(
+      `Vas a eliminar a "${nombre}". Esta acción no se puede deshacer.`
     );
     if (!confirmado) return;
 
@@ -171,11 +173,11 @@ const ClientesPage = () => {
                   </tr>
                 ))}
                 {clientesFiltrados.length === 0 && (
-                  <tr>
-                    <td colSpan="7" style={{ textAlign: "center", color: "var(--sw-muted)", padding: "2.5rem", fontSize: "0.875rem" }}>
-                      {busqueda ? `No hay clientes que coincidan con "${busqueda}"` : "No hay clientes registrados"}
-                    </td>
-                  </tr>
+                  <EmptyState
+                    colSpan={7}
+                    title={busqueda ? "Sin resultados" : "Sin clientes"}
+                    subtitle={busqueda ? `Ningún cliente coincide con "${busqueda}".` : "No hay clientes registrados. Añade el primero con Nuevo cliente."}
+                  />
                 )}
               </tbody>
             </table>
@@ -343,7 +345,7 @@ const CochesClienteModal = ({ show, cliente, onClose }) => {
   };
 
   const handleEliminar = async (cocheId) => {
-    if (!window.confirm("¿Eliminar este coche?")) return;
+    if (!await confirmar("¿Eliminar este coche?")) return;
     try {
       await actions.eliminarCoche(cocheId);
       await cargarCoches();

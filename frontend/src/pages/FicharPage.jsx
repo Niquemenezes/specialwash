@@ -4,8 +4,8 @@ import { getStoredToken } from "../utils/authSession";
 
 const TIPOS = [
   { key: "entrada", label: "Entrada", icon: "fa-sign-in-alt", color: "success", requiereFoto: true },
-  { key: "inicio_comida", label: "Inicio comida", icon: "fa-utensils", color: "warning", requiereFoto: false },
-  { key: "fin_comida", label: "Fin comida", icon: "fa-check-circle", color: "info", requiereFoto: false },
+  { key: "inicio_comida", label: "Inicio descanso", icon: "fa-mug-hot", color: "warning", requiereFoto: false },
+  { key: "fin_comida", label: "Fin descanso", icon: "fa-check-circle", color: "info", requiereFoto: false },
   { key: "salida", label: "Salida", icon: "fa-sign-out-alt", color: "danger", requiereFoto: true },
 ];
 
@@ -21,12 +21,21 @@ function formatFecha(isoStr) {
   return d.toLocaleDateString("es-ES", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 }
 
+function formatMinutesShort(totalMinutes) {
+  const total = Number.isFinite(Number(totalMinutes)) ? Math.max(0, Number(totalMinutes)) : 0;
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0) return `${m} min`;
+  if (m === 0) return `${h} h`;
+  return `${h} h ${m} min`;
+}
+
 function getRecordatorioPendiente(registro) {
   if (!registro || !registro.entrada) {
     return "No olvides fichar tu entrada para iniciar la jornada.";
   }
-  if (registro.inicio_comida && !registro.fin_comida) {
-    return "Tienes pendiente fichar el fin de comida.";
+  if (registro?.descanso_activo) {
+    return "Tienes pendiente fichar el fin de descanso.";
   }
   if (!registro.salida) {
     return "No olvides fichar tu salida al terminar la jornada.";
@@ -113,7 +122,7 @@ export default function FicharPage() {
     setCamaraActiva(false);
     setTipoSeleccionado(null);
     setCapturaBlob(null);
-    setCapturaUrl(null);
+    setCapturaUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
   };
 
   const capturar = () => {
@@ -128,8 +137,10 @@ export default function FicharPage() {
 
     canvas.toBlob((blob) => {
       setCapturaBlob(blob);
-      const url = URL.createObjectURL(blob);
-      setCapturaUrl(url);
+      setCapturaUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(blob);
+      });
       // Stop stream after capture
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
@@ -159,21 +170,90 @@ export default function FicharPage() {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
   const recordatorioPendiente = getRecordatorioPendiente(registro);
+  const descansoTotalMin = Number(registro?.descanso_total_minutos || 0);
+  const descansoActivo = Boolean(registro?.descanso_activo);
+  const descansoDisponibleMin = Math.max(0, 60 - descansoTotalMin);
+
+  const isTipoDisabled = (key) => {
+    if (fichando) return true;
+    if (key === "entrada") return Boolean(registro?.entrada);
+    if (key === "inicio_comida") return !registro?.entrada || Boolean(registro?.salida) || descansoActivo || descansoDisponibleMin <= 0;
+    if (key === "fin_comida") return !descansoActivo || Boolean(registro?.salida);
+    if (key === "salida") return !registro?.entrada || Boolean(registro?.salida) || descansoActivo;
+    return false;
+  };
+
+  const getTipoButtonText = (key, label) => {
+    if (key === "entrada" && registro?.entrada) return `${label} ✓`;
+    if (key === "salida" && registro?.salida) return `${label} ✓`;
+    if (key === "inicio_comida" && descansoDisponibleMin <= 0) return `Descanso completo ✓`;
+    if (key === "inicio_comida" && descansoActivo) return "Descanso en curso";
+    if (key === "fin_comida" && descansoActivo) return label;
+    if (key === "fin_comida" && descansoTotalMin > 0) return `${label} ✓`;
+    return label;
+  };
+
+  const tipoActual = TIPOS.find((t) => t.key === tipoSeleccionado);
 
   return (
     <div className="container py-4" style={{ maxWidth: 540 }}>
       <h4 className="mb-1 fw-bold">Control de horario</h4>
       <p className="text-muted small mb-4 text-capitalize">{hoy}</p>
 
-      {/* Estado del día */}
+      {/* Alertas */}
+      {!!recordatorioPendiente && !error && (
+        <div className="alert alert-warning py-2 mb-3">
+          <i className="fa-solid fa-triangle-exclamation me-2" />
+          {recordatorioPendiente}
+        </div>
+      )}
+      {error && <div className="alert alert-danger py-2 mb-3">{error}</div>}
+      {exito && <div className="alert alert-success py-2 mb-3">{exito}</div>}
+
+      <div className="alert alert-info py-2 mb-3">
+        <i className="fa-solid fa-mug-hot me-2" />
+        Descanso usado hoy: <strong>{formatMinutesShort(descansoTotalMin)}</strong> · disponible: <strong>{formatMinutesShort(descansoDisponibleMin)}</strong> de 1 h.
+      </div>
+
+      {/* Botones de fichaje */}
+      <div className="row g-3 mb-4">
+        {TIPOS.map(({ key, label, icon, color, requiereFoto }) => {
+          const marcado = key === "entrada" || key === "salida"
+            ? Boolean(registro?.[key])
+            : (descansoActivo || descansoTotalMin > 0);
+          return (
+            <div key={key} className="col-6">
+              <button
+                className={`btn w-100 ${marcado ? `btn-${color}` : `btn-outline-${color}`}`}
+                style={{ padding: "1rem 0.5rem", fontSize: "1rem", fontWeight: 600, borderRadius: 14 }}
+                disabled={isTipoDisabled(key)}
+                onClick={() => requiereFoto ? abrirCamara(key) : ficharSinFoto(key)}
+              >
+                {fichando === key ? (
+                  <span className="spinner-border spinner-border-sm" />
+                ) : (
+                  <i className={`fa-solid ${icon} d-block mb-1`} style={{ fontSize: "1.4rem" }} />
+                )}
+                <span style={{ fontSize: "0.85rem" }}>
+                  {getTipoButtonText(key, label)}
+                </span>
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Estado del día — resumen de horas */}
       {cargando ? (
         <div className="text-center py-4">
           <span className="spinner-border spinner-border-sm me-2" />Cargando...
         </div>
       ) : (
-        <div className="card mb-4">
+        <div className="card">
           <div className="card-body">
-            <h6 className="card-title mb-3">Hoy</h6>
+            <h6 className="card-title mb-3 text-muted" style={{ fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+              Registro de hoy
+            </h6>
             <div className="row g-2">
               {TIPOS.map(({ key, label, icon, color }) => (
                 <div key={key} className="col-6">
@@ -193,100 +273,127 @@ export default function FicharPage() {
         </div>
       )}
 
-      {/* Alertas */}
-      {!!recordatorioPendiente && !error && (
-        <div className="alert alert-warning py-2">
-          <i className="fa-solid fa-triangle-exclamation me-2" />
-          {recordatorioPendiente}
-        </div>
-      )}
-      {error && <div className="alert alert-danger py-2">{error}</div>}
-      {exito && <div className="alert alert-success py-2">{exito}</div>}
-
-      {/* Botones de fichaje */}
-      {!camaraActiva && (
-        <div className="row g-2">
-          {TIPOS.map(({ key, label, icon, color, requiereFoto }) => {
-            const yaFichado = registro?.[key];
-            return (
-              <div key={key} className="col-6">
-                <button
-                  className={`btn btn-outline-${color} w-100 py-3`}
-                  disabled={!!yaFichado || !!fichando}
-                  onClick={() => requiereFoto ? abrirCamara(key) : ficharSinFoto(key)}
-                >
-                  <i className={`fa-solid ${icon} me-2`} />
-                  {yaFichado ? `${label} ✓` : label}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Cámara / captura */}
+      {/* Modal cámara */}
       {camaraActiva && (
-        <div className="card">
-          <div className="card-body text-center">
-            <h6 className="mb-3">
-              Hazte una selfie para confirmar:{" "}
-              <strong>{TIPOS.find((t) => t.key === tipoSeleccionado)?.label}</strong>
-            </h6>
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={!fichando ? cerrarCamara : undefined}
+            style={{
+              position: "fixed", inset: 0,
+              background: "rgba(0,0,0,0.75)",
+              zIndex: 1050,
+            }}
+          />
 
-            {!capturaBlob ? (
-              <>
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="rounded mb-3"
-                  style={{ width: "100%", maxHeight: 360, background: "#000", objectFit: "cover" }}
-                />
-                <canvas ref={canvasRef} style={{ display: "none" }} />
-                <div className="d-flex gap-2 justify-content-center">
-                  <button className="btn btn-primary" onClick={capturar}>
-                    <i className="fa-solid fa-camera me-2" />Capturar
-                  </button>
-                  <button className="btn btn-secondary" onClick={cerrarCamara}>Cancelar</button>
+          {/* Modal centrado */}
+          <div
+            style={{
+              position: "fixed",
+              top: "50%", left: "50%",
+              transform: "translate(-50%, -50%)",
+              zIndex: 1055,
+              width: "min(480px, 94vw)",
+              background: "var(--sw-surface, #fff)",
+              borderRadius: 16,
+              boxShadow: "0 24px 60px rgba(0,0,0,0.4)",
+              overflow: "hidden",
+            }}
+          >
+            {/* Header */}
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "1rem 1.25rem 0.75rem",
+              borderBottom: "1px solid var(--sw-border, #e5e7eb)",
+            }}>
+              <div>
+                <div style={{ fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--sw-muted, #888)", marginBottom: 2 }}>
+                  Fichaje con foto
                 </div>
-              </>
-            ) : (
-              <>
-                <img
-                  src={capturaUrl}
-                  alt="Selfie"
-                  className="rounded mb-3"
-                  style={{ width: "100%", maxHeight: 360, objectFit: "cover" }}
-                />
-                <p className="text-muted small mb-3">¿La foto es correcta?</p>
-                <div className="d-flex gap-2 justify-content-center">
-                  <button
-                    className="btn btn-success"
-                    onClick={confirmarFichaje}
-                    disabled={!!fichando}
-                  >
-                    {fichando ? (
-                      <><span className="spinner-border spinner-border-sm me-2" />Registrando...</>
-                    ) : (
-                      <><i className="fa-solid fa-check me-2" />Confirmar fichaje</>
-                    )}
-                  </button>
-                  <button
-                    className="btn btn-outline-secondary"
-                    onClick={() => { setCapturaBlob(null); setCapturaUrl(null); abrirCamara(tipoSeleccionado); }}
-                    disabled={!!fichando}
-                  >
-                    Repetir
-                  </button>
-                  <button className="btn btn-secondary" onClick={cerrarCamara} disabled={!!fichando}>
-                    Cancelar
-                  </button>
-                </div>
-              </>
-            )}
+                <strong style={{ fontSize: "1rem" }}>
+                  {tipoActual?.label}
+                </strong>
+              </div>
+              <button
+                type="button"
+                onClick={cerrarCamara}
+                disabled={!!fichando}
+                aria-label="Cerrar"
+                style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  color: "var(--sw-muted, #888)", fontSize: "1.3rem", lineHeight: 1,
+                  padding: "0.25rem 0.4rem", borderRadius: 6,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Cuerpo */}
+            <div style={{ padding: "1.25rem" }}>
+              {!capturaBlob ? (
+                <>
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    style={{
+                      width: "100%", borderRadius: 10,
+                      background: "#000", objectFit: "cover",
+                      maxHeight: 300, display: "block", marginBottom: "1rem",
+                    }}
+                  />
+                  <canvas ref={canvasRef} style={{ display: "none" }} />
+                  <p className="text-muted small text-center mb-3" style={{ margin: 0 }}>
+                    Colócate frente a la cámara y captura la foto
+                  </p>
+                  <div className="d-flex gap-2 mt-3">
+                    <button className="btn btn-primary flex-fill" onClick={capturar}>
+                      <i className="fa-solid fa-camera me-2" />Capturar foto
+                    </button>
+                    <button className="btn btn-outline-secondary" onClick={cerrarCamara}>
+                      Cancelar
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <img
+                    src={capturaUrl}
+                    alt="Selfie"
+                    style={{
+                      width: "100%", borderRadius: 10,
+                      objectFit: "cover", maxHeight: 300,
+                      display: "block", marginBottom: "1rem",
+                    }}
+                  />
+                  <p className="text-muted small text-center mb-3">¿La foto se ve bien?</p>
+                  <div className="d-flex gap-2">
+                    <button
+                      className="btn btn-success flex-fill"
+                      onClick={confirmarFichaje}
+                      disabled={!!fichando}
+                    >
+                      {fichando ? (
+                        <><span className="spinner-border spinner-border-sm me-2" />Registrando...</>
+                      ) : (
+                        <><i className="fa-solid fa-check me-2" />Confirmar fichaje</>
+                      )}
+                    </button>
+                    <button
+                      className="btn btn-outline-secondary"
+                      onClick={() => { setCapturaBlob(null); setCapturaUrl(null); abrirCamara(tipoSeleccionado); }}
+                      disabled={!!fichando}
+                    >
+                      <i className="fa-solid fa-rotate-left me-1" />Repetir
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

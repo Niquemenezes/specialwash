@@ -5,8 +5,10 @@ import React, {
   useContext,
 } from "react";
 import { Context } from "../store/appContext";
-import ProductoFormModal from "../component/ProductoFormModal.jsx";
-import GoldSelect from "../component/GoldSelect.jsx";
+import ProductoFormModal from "../components/ProductoFormModal.jsx";
+import GoldSelect from "../components/GoldSelect.jsx";
+import { confirmar } from "../utils/confirmar";
+import EmptyState from "../components/EmptyState.jsx";
 
 /* ======================
    Utils
@@ -104,6 +106,7 @@ const RegistrarEntradaPage = () => {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrMsg, setOcrMsg] = useState("");
   const [showNuevo, setShowNuevo] = useState(false);
+  const [productoModalInitial, setProductoModalInitial] = useState(null);
   const [editando, setEditando] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
@@ -123,6 +126,14 @@ const RegistrarEntradaPage = () => {
   const totalSinIva    = +(subtotal - descuento).toFixed(2);
   const totalIva       = +(totalSinIva * (ivaPct / 100)).toFixed(2);
   const totalConIva    = +(totalSinIva + totalIva).toFixed(2);
+  const productoSeleccionado = (store.productos || []).find(
+    (p) => String(p.id) === String(form.producto_id)
+  );
+
+  const openProductoModal = (producto = null) => {
+    setProductoModalInitial(producto || null);
+    setShowNuevo(true);
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -168,7 +179,7 @@ const RegistrarEntradaPage = () => {
   };
 
   const handleEliminar = async (entradaId) => {
-    if (!window.confirm("¿Seguro que deseas eliminar esta entrada?")) return;
+    if (!await confirmar("¿Seguro que deseas eliminar esta entrada?")) return;
     try {
       await actions.eliminarEntrada(entradaId);
       setFeedback({ type: "success", msg: "Entrada eliminada correctamente." });
@@ -255,17 +266,6 @@ const RegistrarEntradaPage = () => {
 
         {/* ── Tarjeta formulario ───────────────────────────────── */}
         <div className="sw-ent-card">
-          {/* Cabecera de tarjeta */}
-          <div className="sw-ent-card-header">
-            <div className="sw-ent-card-header-icon" style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.22)", color: "#22c55e" }}>
-              <span style={{ width: 18, height: 18, display: "flex" }}>{ICONS.plus}</span>
-            </div>
-            <div>
-              <p className="sw-ent-card-eyebrow">Nuevo registro</p>
-              <h2 className="sw-ent-card-title">Nueva entrada de producto</h2>
-            </div>
-          </div>
-
           <form onSubmit={handleSubmit}>
             <div className="sw-ent-card-body">
 
@@ -316,15 +316,56 @@ const RegistrarEntradaPage = () => {
               {/* ── Grid campos ────────────────────────────────── */}
               <div className="sw-ent-grid">
                 <Field label="Producto" required>
-                  <GoldSelect
-                    value={form.producto_id}
-                    onChange={(v) => setForm((f) => ({ ...f, producto_id: v }))}
-                    placeholder="— Seleccione un producto —"
-                    options={(store.productos || []).map((p) => ({
-                      value: p.id,
-                      label: p.nombre + (p.categoria ? ` — ${p.categoria}` : ""),
-                    }))}
-                  />
+                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "stretch" }}>
+                    <div style={{ flex: "1 1 260px" }}>
+                      <GoldSelect
+                        value={form.producto_id}
+                        onChange={(v) => setForm((f) => ({ ...f, producto_id: v }))}
+                        placeholder="— Seleccione un producto —"
+                        options={(store.productos || []).map((p) => ({
+                          value: p.id,
+                          label: p.nombre + (p.categoria ? ` — ${p.categoria}` : ""),
+                        }))}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openProductoModal(null)}
+                      style={{
+                        background: "var(--sw-surface-2)",
+                        border: "1px solid var(--sw-border)",
+                        color: "var(--sw-accent,#d4af37)",
+                        borderRadius: "10px",
+                        padding: "0.55rem 0.9rem",
+                        fontWeight: 600,
+                        whiteSpace: "nowrap",
+                        cursor: "pointer",
+                      }}
+                    >
+                      + Nuevo producto
+                    </button>
+                    {productoSeleccionado && (
+                      <button
+                        type="button"
+                        onClick={() => openProductoModal(productoSeleccionado)}
+                        style={{
+                          background: "var(--sw-surface-2)",
+                          border: "1px solid var(--sw-border)",
+                          color: "var(--sw-accent,#d4af37)",
+                          borderRadius: "10px",
+                          padding: "0.55rem 0.9rem",
+                          fontWeight: 600,
+                          whiteSpace: "nowrap",
+                          cursor: "pointer",
+                        }}
+                      >
+                        ✏ Editar producto / código
+                      </button>
+                    )}
+                  </div>
+                  <span style={{ fontSize: "0.72rem", color: "var(--sw-muted)" }}>
+                    Si lo tienes a mano, puedes guardar aquí el código del fabricante; no es obligatorio.
+                  </span>
                   {!form.producto_id && (
                     <span style={{ fontSize: "0.72rem", color: "var(--sw-danger,#ef4444)" }}>
                       Debe seleccionar un producto
@@ -332,16 +373,19 @@ const RegistrarEntradaPage = () => {
                   )}
                 </Field>
 
-                <Field label="Proveedor">
+                <Field label="Proveedor (opcional)">
                   <GoldSelect
                     value={form.proveedor_id || ""}
                     onChange={(v) => setForm((f) => ({ ...f, proveedor_id: v }))}
-                    placeholder="—"
+                    placeholder="— Sin proveedor / opcional —"
                     options={(store.proveedores || []).map((p) => ({
                       value: p.id,
                       label: p.nombre,
                     }))}
                   />
+                  <span style={{ fontSize: "0.72rem", color: "var(--sw-muted)" }}>
+                    Puedes dejarlo vacío si no quieres indicar proveedor ahora.
+                  </span>
                 </Field>
 
                 <Field label="Nº Albarán / Factura">
@@ -454,11 +498,11 @@ const RegistrarEntradaPage = () => {
                   );
                 })}
                 {entradasOrdenadas.length === 0 && (
-                  <tr>
-                    <td colSpan="8" style={{ textAlign: "center", color: "var(--sw-muted)", padding: "2rem", fontSize: "0.875rem" }}>
-                      No hay entradas registradas
-                    </td>
-                  </tr>
+                  <EmptyState
+                    colSpan={8}
+                    title="Sin entradas registradas"
+                    subtitle="Registra la primera entrada de stock con el formulario de arriba."
+                  />
                 )}
               </tbody>
             </table>
@@ -485,8 +529,16 @@ const RegistrarEntradaPage = () => {
 
       <ProductoFormModal
         show={showNuevo}
-        onClose={() => setShowNuevo(false)}
-        onSaved={() => { setShowNuevo(false); actions.getProductos(); }}
+        initial={productoModalInitial}
+        onClose={() => {
+          setShowNuevo(false);
+          setProductoModalInitial(null);
+        }}
+        onSaved={() => {
+          setShowNuevo(false);
+          setProductoModalInitial(null);
+          actions.getProductos();
+        }}
       />
     </div>
   );
@@ -585,10 +637,15 @@ const EditarEntradaModal = ({ show, entrada, productos, proveedores, onClose, on
                   placeholder="— Seleccione —"
                   options={productos.map((p) => ({ value: p.id, label: p.nombre }))} />
               </Field>
-              <Field label="Proveedor">
-                <GoldSelect value={form.proveedor_id || ""} onChange={(v) => setForm((f) => ({ ...f, proveedor_id: v }))}
-                  placeholder="—"
-                  options={proveedores.map((p) => ({ value: p.id, label: p.nombre }))} />
+              <Field label="Proveedor (opcional)">
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                  <GoldSelect value={form.proveedor_id || ""} onChange={(v) => setForm((f) => ({ ...f, proveedor_id: v }))}
+                    placeholder="— Sin proveedor / opcional —"
+                    options={proveedores.map((p) => ({ value: p.id, label: p.nombre }))} />
+                  <span style={{ fontSize: "0.72rem", color: "var(--sw-muted)" }}>
+                    Este campo se puede dejar vacío.
+                  </span>
+                </div>
               </Field>
               <Field label="Nº Albarán / Factura">
                 <input className="form-control sw-pinput" name="numero_documento" value={form.numero_documento} onChange={handleChange} />

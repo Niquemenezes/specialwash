@@ -1,5 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Context } from "../store/appContext";
+import { confirmar } from "../utils/confirmar";
 
 const money = (n) => `${Number(n || 0).toFixed(2)} EUR`;
 const COBRO_METODOS = ["transferencia", "efectivo", "bizum", "tarjeta"];
@@ -136,7 +137,7 @@ export default function ProfesionalesPage() {
   };
 
   const marcarPagado = async (inspeccionId) => {
-    if (!window.confirm("Marcar esta inspección como pagada al 100%?")) return;
+    if (!await confirmar("¿Marcar esta inspección como pagada al 100%?", { danger: false, labelConfirmar: "Sí, marcar pagada" })) return;
 
     setSavingId(inspeccionId);
     try {

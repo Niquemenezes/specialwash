@@ -1,5 +1,5 @@
 import os
-from flask import abort
+from flask import abort, has_request_context, request
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 from flask_jwt_extended import get_jwt, verify_jwt_in_request
@@ -15,13 +15,20 @@ def _is_production():
     return os.getenv("FLASK_ENV", "development").strip().lower() == "production"
 
 
+def _is_local_request():
+    if not has_request_context():
+        return False
+    host = (request.host or "").split(":")[0].strip().lower()
+    return host in {"127.0.0.1", "localhost"}
+
+
 def _admin_enabled():
     """
-    Panel de admin solo habilitado cuando ENABLE_ADMIN=1.
-    Por defecto deshabilitado en producción; en desarrollo se puede activar
-    explícitamente con ENABLE_ADMIN=1.
+    Panel de admin habilitado por defecto en desarrollo y deshabilitado
+    por defecto en producción, salvo que ENABLE_ADMIN=1 lo fuerce.
     """
-    raw = str(os.getenv("ENABLE_ADMIN", "0")).strip().lower()
+    default = "0" if _is_production() else "1"
+    raw = str(os.getenv("ENABLE_ADMIN", default)).strip().lower()
     return raw in {"1", "true", "yes", "on"}
 
 
@@ -56,8 +63,14 @@ class SecureModelView(ModelView):
     }
 
     def is_accessible(self):
+        if _is_local_request():
+            # En desarrollo, localhost siempre puede entrar.
+            # En producción, solo se permite mantenimiento local si ENABLE_ADMIN=1.
+            return (not _is_production()) or _admin_enabled()
         if not _admin_enabled():
             return False
+        if not _is_production():
+            return True
         return _current_user_is_admin()
 
     def inaccessible_callback(self, name, **kwargs):
@@ -126,6 +139,11 @@ def setup_admin(app):
     if not app.secret_key:
         # Evita fallback inseguro; usa solo claves reales de entorno si no hay una ya configurada.
         app.secret_key = os.environ.get("FLASK_APP_KEY") or os.environ.get("SECRET_KEY")
+    if not app.secret_key:
+        raise RuntimeError(
+            "[SECURITY] Flask secret_key no está configurada. "
+            "Define SECRET_KEY o FLASK_APP_KEY en el entorno antes de arrancar."
+        )
     app.config['FLASK_ADMIN_SWATCH'] = 'flatly'   # 🌙 Tema moderno y limpio
 
     admin = Admin(

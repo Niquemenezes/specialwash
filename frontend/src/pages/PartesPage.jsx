@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
 import { Context } from "../store/appContext";
 import { normalizeRol, getStoredRol } from "../utils/authSession";
 
@@ -27,13 +27,13 @@ const GRUPOS = [
     items: [
       {
         to: "/partes-trabajo",
-        label: "Acompañamiento",
-        detail: "Dashboard en tiempo real del flujo de coches en taller",
+        label: "Estado de coches",
+        detail: "Dónde está cada coche y en qué fase va", 
         icon: "list",
         roles: ["administrador", "calidad"],
       },
       {
-        to: "/calidad-entrega",
+        to: "/repaso-entrega?tab=firma",
         label: "Calidad y entrega",
         detail: "Vehículos completados listos para entregar al cliente",
         icon: "check",
@@ -113,6 +113,7 @@ function GrupoCard({ grupo, rol }) {
 
 export default function PartesPage() {
   const { store } = useContext(Context);
+  const location = useLocation();
   const rol = normalizeRol(store?.user?.rol) || normalizeRol(getStoredRol()) || "detailing";
 
   const visibleGrupos = GRUPOS.filter((g) =>
@@ -123,6 +124,11 @@ export default function PartesPage() {
   const ctaLink = ["detailing", "pintura", "tapicero"].includes(rol)
     ? "/mis-partes-trabajo"
     : "/partes-trabajo";
+
+  const showHub = new URLSearchParams(location.search).get("hub") === "1";
+  if (!showHub) {
+    return <Navigate to={ctaLink} replace />;
+  }
 
   const ctaLabel = ["administrador", "calidad"].includes(rol)
     ? "Ver acompañamiento"

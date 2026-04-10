@@ -14,6 +14,7 @@ from flask_jwt_extended import get_jwt
 citas_bp = Blueprint("citas", __name__)
 
 ESTADOS_VALIDOS = {e.value for e in EstadoCita}
+CITAS_ALLOWED_ROLES = {"administrador", "encargado", "calidad"}
 
 
 def _parse_datetime_flexible(raw_value):
@@ -37,14 +38,24 @@ def _current_role():
     return normalize_role(claims.get("rol", ""))
 
 
+def _ensure_citas_access():
+    if _current_role() not in CITAS_ALLOWED_ROLES:
+        return jsonify({"msg": "Acceso denegado"}), 403
+    return None
+
+
 # ── Listar citas ──────────────────────────────────────────────────────────────
 @citas_bp.route("/citas", methods=["GET"])
-@jwt_required()
+@role_required("administrador", "encargado", "calidad")
 def listar_citas():
     """
     GET /api/citas
     Filtros: ?cliente_id=&estado=&fecha=YYYY-MM-DD&proximas=true
     """
+    denied = _ensure_citas_access()
+    if denied:
+        return denied
+
     q = Cita.query
 
     cliente_id = request.args.get("cliente_id")
@@ -90,17 +101,25 @@ def listar_citas():
 
 # ── Obtener una cita ──────────────────────────────────────────────────────────
 @citas_bp.route("/citas/<int:cita_id>", methods=["GET"])
-@jwt_required()
+@role_required("administrador", "encargado", "calidad")
 def obtener_cita(cita_id):
+    denied = _ensure_citas_access()
+    if denied:
+        return denied
+
     cita = Cita.query.get_or_404(cita_id)
     return jsonify(cita.to_dict())
 
 
 # ── Crear cita ────────────────────────────────────────────────────────────────
 @citas_bp.route("/citas", methods=["POST"])
-@role_required("administrador", "encargado", "calidad", "detailing")
+@role_required("administrador", "encargado", "calidad")
 def crear_cita():
-    """Permitir operaciones de Citas para rol detailing en backend."""
+    """Permite gestionar citas a administración, encargado y calidad."""
+    denied = _ensure_citas_access()
+    if denied:
+        return denied
+
     """
     POST /api/citas
     Body:
@@ -149,15 +168,23 @@ def crear_cita():
         creada_por_id=int(get_jwt_identity()),
     )
     db.session.add(cita)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(cita.to_dict()), 201
 
 
 # ── Editar cita ───────────────────────────────────────────────────────────────
 @citas_bp.route("/citas/<int:cita_id>", methods=["PUT"])
-@role_required("administrador", "encargado", "calidad", "detailing")
+@role_required("administrador", "encargado", "calidad")
 def editar_cita(cita_id):
-    """Permitir operaciones de Citas para rol detailing en backend."""
+    """Permite editar citas a administración, encargado y calidad."""
+    denied = _ensure_citas_access()
+    if denied:
+        return denied
+
     cita = Cita.query.get_or_404(cita_id)
     data = request.get_json() or {}
 
@@ -196,22 +223,34 @@ def editar_cita(cita_id):
             return jsonify({"msg": f"Estado inválido. Opciones: {', '.join(ESTADOS_VALIDOS)}"}), 400
         cita.estado = estado
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(cita.to_dict())
 
 
 # ── Cambiar solo el estado ─────────────────────────────────────────────────────
 @citas_bp.route("/citas/<int:cita_id>/estado", methods=["PATCH"])
-@role_required("administrador", "encargado", "calidad", "detailing")
+@role_required("administrador", "encargado", "calidad")
 def cambiar_estado_cita(cita_id):
-    """Permitir operaciones de Citas para rol detailing en backend."""
+    """Permite actualizar el estado de citas a administración, encargado y calidad."""
+    denied = _ensure_citas_access()
+    if denied:
+        return denied
+
     cita = Cita.query.get_or_404(cita_id)
     data = request.get_json() or {}
     estado = (data.get("estado") or "").strip()
     if estado not in ESTADOS_VALIDOS:
         return jsonify({"msg": f"Estado inválido. Opciones: {', '.join(sorted(ESTADOS_VALIDOS))}"}), 400
     cita.estado = estado
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(cita.to_dict())
 
 
@@ -221,5 +260,9 @@ def cambiar_estado_cita(cita_id):
 def eliminar_cita(cita_id):
     cita = Cita.query.get_or_404(cita_id)
     db.session.delete(cita)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify({"msg": "Cita eliminada"}), 200
