@@ -181,6 +181,11 @@ const InspeccionesGuardadasPage = () => {
     navigate(`/inspeccion-recepcion?editId=${id}`);
   };
 
+  const abrirFichaCompleta = (id) => {
+    setDetalle(null);
+    navigate(`/vehiculo-detalle/${id}`);
+  };
+
   const ESTADO_COLORS = {
     todos: "#d4af37",
     en_proceso: "#38bdf8",
@@ -450,7 +455,7 @@ const InspeccionesGuardadasPage = () => {
                             )}
                           </td>
                           <td style={{ padding: "0.8rem 0.9rem", textAlign: "right" }}>
-                            <div style={{ display: "flex", gap: "0.4rem", justifyContent: "flex-end" }}>
+                            <div style={{ display: "flex", gap: "0.4rem", justifyContent: "flex-end", flexWrap: "wrap" }}>
                               <button
                                 onClick={() => verDetalle(insp.id)}
                                 title="Ver detalle"
@@ -462,6 +467,19 @@ const InspeccionesGuardadasPage = () => {
                                 }}
                               >
                                 <span style={{ width: 14, height: 14, display: "flex" }}><IconEye /></span>
+                              </button>
+                              <button
+                                onClick={() => abrirFichaCompleta(insp.id)}
+                                title="Abrir ficha completa"
+                                style={{
+                                  background: "color-mix(in srgb,#6366f1 12%,transparent)",
+                                  border: "1px solid color-mix(in srgb,#6366f1 30%,transparent)",
+                                  color: "#818cf8", borderRadius: 8,
+                                  padding: "0.35rem 0.65rem", cursor: "pointer", display: "flex", alignItems: "center",
+                                  fontWeight: 700, fontSize: "0.72rem",
+                                }}
+                              >
+                                Ficha
                               </button>
                               {phoneToDigits(insp.cliente_telefono) && (
                                 <a
@@ -722,6 +740,17 @@ const InspeccionesGuardadasPage = () => {
 
                   {/* Footer */}
                   <div style={{ padding: "1rem 1.5rem", borderTop: "1px solid var(--sw-border)", display: "flex", justifyContent: "flex-end", gap: "0.75rem", flexWrap: "wrap" }}>
+                    <button
+                      onClick={() => abrirFichaCompleta(detalle.id)}
+                      style={{
+                        background: "color-mix(in srgb,#6366f1 14%,transparent)",
+                        border: "1px solid color-mix(in srgb,#6366f1 32%,transparent)",
+                        color: "#818cf8", borderRadius: 10, padding: "0.6rem 1.2rem",
+                        fontWeight: 700, fontSize: "0.85rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.4rem",
+                      }}
+                    >
+                      Abrir ficha completa
+                    </button>
                     <button
                       onClick={() => irAEditar(detalle.id)}
                       style={{
