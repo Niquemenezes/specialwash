@@ -396,23 +396,24 @@ export default function RepasoEntregaPage() {
                           />
                         </div>
 
-                        {/* Hoja de intervención (solo particulares) */}
-                        {!isProfesional(selected) && (
-                          <div className="form-check mb-3 p-3 border rounded">
-                            <input
-                              className="form-check-input"
-                              type="checkbox"
-                              id="requiere_hoja_intervencion"
-                              checked={hojaIntervencionDraft}
-                              onChange={(e) => setHojaIntervencionDraft(e.target.checked)}
-                              disabled={selected.repaso_completado}
-                            />
-                            <label className="form-check-label" htmlFor="requiere_hoja_intervencion">
-                              <strong>Incluir informe de intervención técnica</strong>
-                              <span className="text-muted d-block small">Marca si el cliente ha contratado un servicio premium que requiere acta detallada. El administrador recibirá una notificación.</span>
-                            </label>
-                          </div>
-                        )}
+                        {/* Hoja de intervención */}
+                        <div className="form-check mb-3 p-3 border rounded">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id="requiere_hoja_intervencion"
+                            checked={hojaIntervencionDraft}
+                            onChange={(e) => setHojaIntervencionDraft(e.target.checked)}
+                            disabled={saving}
+                          />
+                          <label className="form-check-label" htmlFor="requiere_hoja_intervencion">
+                            <strong>Generar hoja de intervención técnica</strong>
+                            <span className="text-muted d-block small">Márcala si este coche necesita informe o acta de intervención. Puedes activarla ahora o incluso después de cerrar el repaso.</span>
+                            {isProfesional(selected) && (
+                              <span className="text-muted d-block small">También queda disponible para coches profesionales o de concesionario.</span>
+                            )}
+                          </label>
+                        </div>
 
                         {/* Botones */}
                         <div className="d-flex flex-column flex-sm-row flex-wrap gap-2">

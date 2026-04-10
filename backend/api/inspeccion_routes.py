@@ -1491,7 +1491,7 @@ def guardar_repaso_entrega(inspeccion_id):
 
         inspeccion.repaso_checklist = json.dumps(checklist)
         inspeccion.repaso_notas = notas
-        if requiere_hoja_intervencion is not None and not inspeccion.es_concesionario:
+        if requiere_hoja_intervencion is not None:
             inspeccion.requiere_hoja_intervencion = bool(requiere_hoja_intervencion)
 
         if marcar_listo:
@@ -1509,7 +1509,7 @@ def guardar_repaso_entrega(inspeccion_id):
         db.session.commit()
 
         # Notificación al administrador si hay hoja de intervención pendiente
-        if marcar_listo and inspeccion.requiere_hoja_intervencion and not inspeccion.es_concesionario:
+        if marcar_listo and inspeccion.requiere_hoja_intervencion:
             try:
                 notif = Notificacion(
                     tipo="hoja_intervencion",
