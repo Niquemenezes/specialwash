@@ -1325,10 +1325,10 @@ button,
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   TABLET ACCESSIBILITY — Texto y campos más grandes (768px–1199px)
-   Para empleados con dificultades de visión
+   RESPONSIVE ACCESSIBILITY — Texto y campos más grandes (<1200px)
+   Para empleados con dificultades de visión (móvil + tablet)
    ═══════════════════════════════════════════════════════════════ */
-@media (min-width: 768px) and (max-width: 1199.98px) {
+@media (max-width: 1199.98px) {
 
   /* Base del contenido principal */
   .sw-main {
