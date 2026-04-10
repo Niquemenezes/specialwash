@@ -1246,6 +1246,7 @@ const DEPTO_CONFIG = {
   pintura:    { label: "Pintura",    color: "#f87171" },
   tapicero:   { label: "Tapicería",  color: "#fbbf24" },
   calidad:    { label: "Calidad",    color: "#22d3ee" },
+  otro:       { label: "Otro",       color: "#a78bfa" },
 };
 
 function OtrosDeptosBanner({ otrosDeptos }) {

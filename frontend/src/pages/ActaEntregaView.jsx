@@ -142,12 +142,13 @@ const ActaEntregaView = () => {
         setNombreFirmante(parsedObs.firmante || data?.cliente_nombre || "");
         setConsentimiento(Boolean(data?.consentimiento_datos_entrega));
         setConformidad(Boolean(data?.conformidad_revision_entrega));
-        setCobroMetodo(data?.cobro?.metodo || data?.cobro_metodo || "efectivo");
-        setCobroReferencia(data?.cobro?.referencia || data?.cobro_referencia || "");
-        setCobroObservaciones(data?.cobro?.observaciones || data?.cobro_observaciones || "");
-        // Precarga el importe total si es "marcar_pagado_total"
-        if (data?.cobro?.importe_total && data?.cobro?.importe_total > 0) {
-          setCobroImporte(String(data.cobro.importe_total));
+        setCobroMetodo(data?.cobro_metodo || data?.cobro?.metodo || "efectivo");
+        setCobroReferencia(data?.cobro_referencia || data?.cobro?.referencia || "");
+        setCobroObservaciones(data?.cobro_observaciones || data?.cobro?.observaciones || "");
+        // Precarga el importe total automáticamente
+        const importeTotal = data?.cobro?.importe_total || 0;
+        if (importeTotal > 0) {
+          setCobroImporte(String(Number(importeTotal).toFixed(2)));
         }
       } catch (err) {
         if (active) setError(err.message || "No se pudo cargar la hoja de intervencion");
@@ -578,7 +579,7 @@ const ActaEntregaView = () => {
                 <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-2">
                   <div>
                     <div className="fw-bold">Cobro en entrega</div>
-                    {inspeccion?.cobro?.importe_total > 0 && (
+                    {(inspeccion?.cobro?.importe_total || 0) > 0 && (
                       <div className="small text-muted mt-1">
                         Importe total a pagar: <strong style={{ color: "#d4af37", fontSize: "1.1em" }}>{Number(inspeccion.cobro.importe_total).toFixed(2)} €</strong>
                       </div>
@@ -634,7 +635,7 @@ const ActaEntregaView = () => {
                         className="form-control form-control-sm"
                         value={cobroImporte}
                         onChange={(e) => setCobroImporte(e.target.value)}
-                        placeholder={inspeccion?.cobro?.importe_total ? String(Number(inspeccion.cobro.importe_total).toFixed(2)) : "0.00"}
+                        placeholder={(inspeccion?.cobro?.importe_total || 0) > 0 ? String(Number(inspeccion.cobro.importe_total).toFixed(2)) : "0.00"}
                       />
                     </div>
                     <div className="col-12 col-md-3">

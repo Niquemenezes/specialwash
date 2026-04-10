@@ -9,6 +9,7 @@ const TIPO_COLORES = {
   pintura:   "#f87171",
   tapicero:  "#fbbf24",
   calidad:   "#22d3ee",
+  otro:      "#a78bfa",
 };
 
 const buildChecklistItems = (selected) => {

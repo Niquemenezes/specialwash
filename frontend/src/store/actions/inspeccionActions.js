@@ -88,10 +88,6 @@ export function createInspeccionActions({ apiFetch }) {
       try { return await apiFetch(`/api/inspeccion-recepcion/${id}/registrar-pago-profesional`, { method: "POST", body: payload }); }
       catch (err) { console.error("registrarPagoProfesional:", err); throw err; }
     },
-    registrarPagoProesional: async (id, payload) => {
-      try { return await apiFetch(`/api/inspeccion-recepcion/${id}/pago-profesional`, { method: "POST", body: payload }); }
-      catch (err) { console.error("registrarPagoProesional:", err); throw err; }
-    },
     getNotificaciones: async () => {
       try { return await apiFetch("/api/notificaciones"); }
       catch { return []; }
