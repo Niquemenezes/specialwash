@@ -68,7 +68,7 @@ const FirmaEntregaPage = () => {
         </div>
         <div className="card-body p-3">
           <p className="text-muted mb-3" style={{ fontSize: "0.95rem" }}>
-            Aquí puedes abrir la hoja de intervención desde el sidebar y completar la firma o cierre de entrega.
+            Aquí puedes abrir la hoja de intervención desde el sidebar, prepararla si está pendiente y completar la firma o cierre de entrega.
           </p>
 
           {loading && <p className="text-muted mb-0">Cargando pendientes...</p>}
@@ -104,9 +104,12 @@ const FirmaEntregaPage = () => {
                           {esConcesionario ? "💼 Cerrar entrega" : "📝 Abrir hoja / firmar"}
                         </Link>
                       ) : (
-                        <button className="btn btn-outline-secondary sw-firma-btn" disabled>
-                          ⏳ Hoja de intervencion pendiente
-                        </button>
+                        <Link
+                          className="btn btn-outline-warning sw-firma-btn"
+                          to={`/hoja-tecnica/${item.id}`}
+                        >
+                          🛠️ Preparar hoja pendiente
+                        </Link>
                       )}
                     </div>
                   </div>
