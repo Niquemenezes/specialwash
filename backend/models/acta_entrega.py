@@ -14,7 +14,7 @@ class ActaEntrega(db.Model):
     trabajos_realizados = db.Column(db.Text, nullable=False)
     entrega_observaciones = db.Column(db.Text)
 
-    firma_cliente_entrega = db.Column(db.Text, nullable=False)
+    firma_cliente_entrega = db.Column(db.Text, nullable=True)  # Solo particulares, concesionarios no firman
     firma_empleado_entrega = db.Column(db.Text)
 
     consentimiento_datos_entrega = db.Column(db.Boolean, default=False, nullable=False)

@@ -9,7 +9,7 @@ const formatFecha = (value) => {
   return d.toLocaleString("es-ES");
 };
 
-const PagosProfesinalesPage = () => {
+const PagosProfesionalesPage = () => {
   const { actions } = useContext(Context);
   const [pagos, setPagos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -98,9 +98,7 @@ const PagosProfesinalesPage = () => {
     <div className="container py-4" style={{ maxWidth: "1200px" }}>
       <div
         className="d-flex justify-content-between align-items-center p-3 mb-4 shadow-sm sw-header-dark"
-        style={{
-          borderRadius: "12px",
-        }}
+        style={{ borderRadius: "12px" }}
       >
         <h2 className="fw-bold m-0 sw-accent-text" style={{ fontSize: "clamp(1.2rem, 4vw, 1.75rem)" }}>
           💼 Pagos de Profesionales
@@ -117,10 +115,9 @@ const PagosProfesinalesPage = () => {
         </div>
       )}
 
-      {/* STATS */}
       <div className="row g-3 mb-4">
         <div className="col-md-6">
-          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
+          <div className="card shadow-sm" style={{ borderRadius: "12px" }}>
             <div className="card-body">
               <p className="text-muted mb-2">📋 Pagos pendientes</p>
               <h4 className="fw-bold sw-accent-text">{pagos.length}</h4>
@@ -128,7 +125,7 @@ const PagosProfesinalesPage = () => {
           </div>
         </div>
         <div className="col-md-6">
-          <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
+          <div className="card shadow-sm" style={{ borderRadius: "12px" }}>
             <div className="card-body">
               <p className="text-muted mb-2">💰 Total a cobrar</p>
               <h4 className="fw-bold sw-accent-text">{totalPendiente.toFixed(2)} €</h4>
@@ -144,7 +141,7 @@ const PagosProfesinalesPage = () => {
       ) : pagos.length === 0 ? (
         <div className="alert alert-info">✅ No hay pagos pendientes. ¡Todos al día!</div>
       ) : (
-        <div className="card shadow-sm" style={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
+        <div className="card shadow-sm" style={{ borderRadius: "12px" }}>
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0">
               <thead className="sw-table-header">
@@ -193,7 +190,6 @@ const PagosProfesinalesPage = () => {
         </div>
       )}
 
-      {/* MODAL REGISTRAR PAGO */}
       {registroModal && (
         <div className="modal d-block" style={{ backgroundColor: "var(--sw-overlay-bg)" }}>
           <div className="modal-dialog modal-dialog-centered">
@@ -207,36 +203,27 @@ const PagosProfesinalesPage = () => {
                   <label className="form-label fw-bold">Cliente</label>
                   <p>{registroModal.cliente_nombre || "-"}</p>
                 </div>
-
                 <div className="mb-3">
                   <label className="form-label fw-bold">Coche</label>
-                  <p>
-                    {registroModal.coche_descripcion || "-"} · {registroModal.matricula || "-"}
-                  </p>
+                  <p>{registroModal.coche_descripcion || "-"} · {registroModal.matricula || "-"}</p>
                 </div>
-
                 <div className="mb-3">
                   <label className="form-label fw-bold">Importe total</label>
                   <p className="sw-accent-text" style={{ fontSize: "1.2em" }}>
                     {Number(registroModal.importe_total || 0).toFixed(2)} €
                   </p>
                 </div>
-
                 <hr />
-
                 <div className="mb-3">
                   <label className="form-label">Importe a registrar *</label>
                   <input
-                    type="number"
-                    min="0"
-                    step="0.01"
+                    type="number" min="0" step="0.01"
                     className="form-control"
                     value={formData.importe}
                     onChange={(e) => setFormData({ ...formData, importe: e.target.value })}
                     placeholder="0.00"
                   />
                 </div>
-
                 <div className="mb-3">
                   <label className="form-label">Método de pago *</label>
                   <select
@@ -245,29 +232,23 @@ const PagosProfesinalesPage = () => {
                     onChange={(e) => setFormData({ ...formData, metodo: e.target.value })}
                   >
                     {METODOS.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
+                      <option key={m} value={m}>{m}</option>
                     ))}
                   </select>
                 </div>
-
                 <div className="mb-3">
                   <label className="form-label">Referencia (operación/ticket)</label>
                   <input
-                    type="text"
-                    className="form-control"
+                    type="text" className="form-control"
                     value={formData.referencia}
                     onChange={(e) => setFormData({ ...formData, referencia: e.target.value })}
                     placeholder="Ej. TXN123456 o K02"
                   />
                 </div>
-
                 <div className="mb-3">
                   <label className="form-label">Observaciones</label>
                   <input
-                    type="text"
-                    className="form-control"
+                    type="text" className="form-control"
                     value={formData.observaciones}
                     onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
                     placeholder="Nota interna"
@@ -279,8 +260,7 @@ const PagosProfesinalesPage = () => {
                   Cancelar
                 </button>
                 <button
-                  type="button"
-                  className="btn btn-success"
+                  type="button" className="btn btn-success"
                   onClick={registrarPago}
                   disabled={registrando || !formData.importe}
                 >
@@ -295,4 +275,4 @@ const PagosProfesinalesPage = () => {
   );
 };
 
-export default PagosProfesinalesPage;
+export default PagosProfesionalesPage;

@@ -223,7 +223,7 @@ const NavbarSW = () => {
   const showQuickShortcuts = token && !isAdmin && quickNavItems.length > 0 && location.pathname !== "/" && location.pathname !== "/login" && !(rol === "calidad" && location.pathname === "/repaso-entrega");
   const canAccessCitas = Boolean(
     token &&
-    (rol === "administrador" || rol === "encargado" || rol === "calidad" || roleNavItems.some((item) => item?.to === "/citas"))
+    (rol === "administrador" || rol === "calidad" || roleNavItems.some((item) => item?.to === "/citas"))
   );
 
   const renderMobileHeaderLink = (to, title, icon, extraClass = "") => (
@@ -405,8 +405,8 @@ const NavbarSW = () => {
               </>
             ) : (
               <>
-                {/* Campana: solo admin y encargado */}
-                {(rol === "administrador" || rol === "encargado") && (
+                {/* Campana: solo admin */}
+                {rol === "administrador" && (
                   <CampanaNotificaciones token={token} />
                 )}
 
