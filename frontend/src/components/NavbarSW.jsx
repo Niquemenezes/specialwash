@@ -65,7 +65,7 @@ const CampanaNotificaciones = ({ token }) => {
       return n.ref_id ? `/inspecciones-guardadas?focusId=${n.ref_id}` : "/inspecciones-guardadas";
     }
     if (n.tipo === "hoja_intervencion") {
-      return n.ref_id ? `/hoja-tecnica/${n.ref_id}` : "/vehiculos";
+      return n.ref_id ? `/acta-entrega/${n.ref_id}` : "/vehiculos";
     }
     if (n.tipo === "parte_finalizado") return "/partes-trabajo-finalizados";
     if (n.tipo === "entrega") return "/entregados";

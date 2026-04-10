@@ -65,6 +65,7 @@ export default function VehiculoDetallePage() {
   const [partes, setPartes] = useState([]);
   const [checklistDraft, setChecklistDraft] = useState(defaultChecklistState().items);
   const [notasDraft, setNotasDraft] = useState("");
+  const [hojaIntervencionDraft, setHojaIntervencionDraft] = useState(false);
 
   // LOAD INSPECCION & PARTES
   const cargar = useCallback(async () => {
@@ -92,6 +93,7 @@ export default function VehiculoDetallePage() {
       if (insp?.repaso_notas) {
         setNotasDraft(insp.repaso_notas);
       }
+      setHojaIntervencionDraft(Boolean(insp?.requiere_hoja_intervencion));
     } catch (err) {
       console.error("Error cargando inspección", err);
       setFeedback({ type: "error", msg: "Error al cargar inspección" });
@@ -110,21 +112,26 @@ export default function VehiculoDetallePage() {
     return partes.every((p) => p.estado === "finalizado");
   }, [partes]);
 
-  const repasoCompletado = inspeccion?.repaso_completado || false;
-  const esConcesionario = inspeccion?.es_concesionario || false;
-  const requiereHojaIntervencion = inspeccion?.requiere_hoja_intervencion || false;
+  const repasoCompletado = Boolean(inspeccion?.repaso_completado);
+  const requiereHojaIntervencion = Boolean(inspeccion?.requiere_hoja_intervencion);
 
   // GUARDAR REPASO
-  const guardarRepaso = async () => {
+  const guardarRepaso = async (marcarListo = !repasoCompletado) => {
     setSaving(true);
     setFeedback(null);
     try {
       await actions.guardarRepasoInspeccion(inspeccion_id, {
         checklist: checklistDraft,
         notas: notasDraft,
-        marcar_listo: true,
+        marcar_listo: marcarListo,
+        requiere_hoja_intervencion: hojaIntervencionDraft,
       });
-      setFeedback({ type: "success", msg: "Repaso guardado. Listo para entrega." });
+      setFeedback({
+        type: "success",
+        msg: marcarListo
+          ? "Repaso guardado. Listo para entrega."
+          : "Cambios de repaso guardados correctamente.",
+      });
       setTimeout(() => {
         cargar(); // Recargar para ver repaso_completado
       }, 500);
@@ -348,7 +355,7 @@ export default function VehiculoDetallePage() {
                           id={item.key}
                           checked={checklistDraft[item.key] || false}
                           onChange={() => handleChecklistChange(item.key)}
-                          disabled={!todosPartesFinalizados || (repasoCompletado && !saving)}
+                          disabled={!todosPartesFinalizados || saving}
                         />
                         <label className="form-check-label" htmlFor={item.key}>
                           {item.label}
@@ -363,27 +370,49 @@ export default function VehiculoDetallePage() {
                   <textarea
                     className="form-control mb-4"
                     rows="4"
-                    placeholder="Observaciones or notas de la reparación..."
+                    placeholder="Observaciones o notas de la reparación..."
                     value={notasDraft}
                     onChange={handleNotasChange}
-                    disabled={repasoCompletado && !saving}
+                    disabled={saving}
                   />
 
-                  {/* BOTÓN GUARDAR/COMPLETADO */}
-                  {!repasoCompletado && todosPartesFinalizados ? (
+                  <div className="form-check mb-4 p-3 border rounded bg-light">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id="requiere_hoja_intervencion"
+                      checked={hojaIntervencionDraft}
+                      onChange={(e) => setHojaIntervencionDraft(e.target.checked)}
+                      disabled={saving}
+                    />
+                    <label className="form-check-label" htmlFor="requiere_hoja_intervencion">
+                      <strong>Generar hoja de intervención técnica</strong>
+                      <span className="d-block text-muted small">
+                        Márcala si este coche necesita informe o acta de intervención. Puedes activarla incluso después de cerrar el repaso.
+                      </span>
+                    </label>
+                  </div>
+
+                  {todosPartesFinalizados && (
                     <button
                       className="btn btn-primary btn-lg w-100"
-                      onClick={guardarRepaso}
+                      onClick={() => guardarRepaso(!repasoCompletado)}
                       disabled={saving}
                     >
-                      {saving ? "Guardando..." : "✓ Guardar Repaso y Marcar Listo"}
+                      {saving
+                        ? "Guardando..."
+                        : repasoCompletado
+                          ? "💾 Guardar cambios de repaso"
+                          : "✓ Guardar Repaso y Marcar Listo"}
                     </button>
-                  ) : repasoCompletado ? (
-                    <div className="alert alert-success mb-0">
+                  )}
+
+                  {repasoCompletado && (
+                    <div className="alert alert-success mb-0 mt-3">
                       ✓ Repaso completado por {inspeccion.repaso_completado_por_nombre} el{" "}
                       {safeDate(inspeccion.repaso_completado_at)}
                     </div>
-                  ) : null}
+                  )}
                 </>
               )}
             </div>
@@ -404,8 +433,8 @@ export default function VehiculoDetallePage() {
               className="btn btn-primary w-100"
               disabled={!repasoCompletado}
               onClick={() => {
-                if (!esConcesionario && requiereHojaIntervencion) {
-                  navigate(`/hoja-tecnica/${inspeccion_id}`);
+                if (requiereHojaIntervencion) {
+                  navigate(`/acta-entrega/${inspeccion_id}`);
                 } else {
                   navigate(`/entrega-cliente/${inspeccion_id}`);
                 }
