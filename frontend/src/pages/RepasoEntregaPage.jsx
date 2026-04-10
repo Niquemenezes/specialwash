@@ -188,7 +188,7 @@ export default function RepasoEntregaPage() {
           <div style={{ display: "flex", gap: 0, marginBottom: "-1px" }}>
             {[
               { key: "repaso", icon: "✅", label: "Control final" },
-              { key: "firma",  icon: "✍️", label: "Entrega" },
+              { key: "firma",  icon: "📝", label: "Hoja / firma" },
             ].map(({ key, icon, label }) => {
               const active = activeTab === key;
               return (

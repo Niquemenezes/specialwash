@@ -55,7 +55,7 @@ const FirmaEntregaPage = () => {
       <div className="card shadow-sm border-0">
         <div className="card-header py-3 sw-modal-header-dark">
           <div className="d-flex justify-content-between align-items-center">
-            <span>Firma de Entrega</span>
+            <span>Hoja de intervención / firma</span>
             <div className="d-flex gap-2">
               <button className="btn btn-outline-secondary btn-sm" onClick={volver}>
                 Volver
@@ -68,7 +68,7 @@ const FirmaEntregaPage = () => {
         </div>
         <div className="card-body p-3">
           <p className="text-muted mb-3" style={{ fontSize: "0.95rem" }}>
-            Coches con hoja de intervencion lista. Pulsa el boton para abrirla y firmar.
+            Aquí puedes abrir la hoja de intervención desde el sidebar y completar la firma o cierre de entrega.
           </p>
 
           {loading && <p className="text-muted mb-0">Cargando pendientes...</p>}
@@ -101,7 +101,7 @@ const FirmaEntregaPage = () => {
                           className="btn btn-success sw-firma-btn"
                           to={`/acta-entrega/${item.id}`}
                         >
-                          {esConcesionario ? "💼 Cerrar entrega" : "✍️ Firmar entrega"}
+                          {esConcesionario ? "💼 Cerrar entrega" : "📝 Abrir hoja / firmar"}
                         </Link>
                       ) : (
                         <button className="btn btn-outline-secondary sw-firma-btn" disabled>
