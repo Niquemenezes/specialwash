@@ -2,7 +2,6 @@ import React, { useCallback, useContext, useEffect, useMemo, useState } from "re
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Context } from "../store/appContext";
 import FirmaEntregaPage from "./FirmaEntregaPage";
-import EstadoCochesPage from "./EstadoCochesPage";
 import "../styles/inspeccion-responsive.css";
 
 const CHECKLIST_ITEMS = [
@@ -42,7 +41,8 @@ export default function RepasoEntregaPage() {
   const { actions } = useContext(Context);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") || "repaso";
+  const requestedTab = searchParams.get("tab") || "repaso";
+  const activeTab = ["repaso", "firma"].includes(requestedTab) ? requestedTab : "repaso";
 
   const switchTab = (tab) => {
     const next = new URLSearchParams(searchParams);
@@ -58,6 +58,7 @@ export default function RepasoEntregaPage() {
   const [selectedId, setSelectedId] = useState(null);
   const [checklistDraft, setChecklistDraft] = useState(defaultChecklistState().items);
   const [notasDraft, setNotasDraft] = useState("");
+  const [hojaIntervencionDraft, setHojaIntervencionDraft] = useState(false);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -76,7 +77,12 @@ export default function RepasoEntregaPage() {
   const pendientes = useMemo(() => {
     const term = busqueda.trim().toLowerCase();
     return (inspecciones || [])
-      .filter((i) => !i.entregado)
+      .filter((i) => {
+        if (i.entregado) return false;
+        // Solo coches con todos los partes finalizados o ya con repaso completado
+        const estado = i.estado_coche?.estado;
+        return estado === "en_repaso" || estado === "listo_entrega" || i.repaso_completado;
+      })
       .filter((i) => {
         if (!term) return true;
         const txt = `${i.cliente_nombre || ""} ${i.coche_descripcion || ""} ${i.matricula || ""}`.toLowerCase();
@@ -121,6 +127,7 @@ export default function RepasoEntregaPage() {
       : {};
     setChecklistDraft({ ...defaultChecklistState().items, ...savedItems });
     setNotasDraft(selected.repaso_notas || "");
+    setHojaIntervencionDraft(Boolean(selected.requiere_hoja_intervencion));
   }, [selected]);
 
   const progress = useMemo(() => {
@@ -155,6 +162,7 @@ export default function RepasoEntregaPage() {
         checklist: checklistDraft,
         notas: notasDraft,
         marcar_listo: marcarListo,
+        requiere_hoja_intervencion: hojaIntervencionDraft,
       });
 
       // Flujo directo para profesionales: al dejarlo listo, se entrega sin firma.
@@ -191,17 +199,17 @@ export default function RepasoEntregaPage() {
       }}>
         <div className="container" style={{ maxWidth: "1200px", paddingTop: "1.5rem" }}>
           <p style={{ fontSize: "0.73rem", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--sw-accent)", opacity: 0.85, marginBottom: "0.3rem" }}>
-            Gestión de entregas · SpecialWash
+            Entrega de coches · SpecialWash
           </p>
           <h2 style={{ fontSize: "clamp(1.3rem, 2.5vw, 1.8rem)", fontWeight: 700, color: "var(--sw-text)", margin: "0 0 1.2rem", letterSpacing: "-0.01em" }}>
-            Repaso y Entrega
+            Control final y entrega
           </h2>
           {/* Pill tabs */}
           <div style={{ display: "flex", gap: 0, marginBottom: "-1px" }}>
             {[
-              { key: "estado", icon: "🚗", label: "Estado" },
-              { key: "repaso", icon: "✅", label: "Repaso" },
-              { key: "firma", icon: "✍️", label: "Firma" },
+
+              { key: "repaso", icon: "✅", label: "Control final" },
+              { key: "firma", icon: "✍️", label: "Entrega" },
             ].map(({ key, icon, label }) => {
               const active = activeTab === key;
               return (
@@ -345,11 +353,47 @@ export default function RepasoEntregaPage() {
                   {selected && (
                     <>
                       <div className="mb-3 p-3 rounded border sw-repaso-resumen" style={{ fontSize: "0.95rem" }}>
-                        <div><strong>Cliente:</strong> {selected.cliente_nombre || "-"}</div>
-                        <div><strong>Vehículo:</strong> {selected.coche_descripcion || "-"}</div>
-                        <div><strong>Matrícula:</strong> {selected.matricula || "-"}</div>
+                        <div className="row g-1 mb-2">
+                          <div className="col-12 col-sm-4"><strong>Cliente:</strong> {selected.cliente_nombre || "-"}</div>
+                          <div className="col-12 col-sm-4"><strong>Vehículo:</strong> {selected.coche_descripcion || "-"}</div>
+                          <div className="col-12 col-sm-4"><strong>Matrícula:</strong> {selected.matricula || "-"}</div>
+                        </div>
+
+                        {/* TRABAJOS REALIZADOS */}
+                        {(() => {
+                          const partes = selected.estado_coche?.partes_finalizados_detalle || [];
+                          if (!partes.length) return (
+                            <div className="text-muted small mt-2">Sin partes de trabajo registrados.</div>
+                          );
+                          const colores = { detailing: "#6366f1", pintura: "#f87171", tapicero: "#fbbf24", calidad: "#22d3ee" };
+                          return (
+                            <div className="mt-2">
+                              <div className="fw-semibold small mb-1" style={{ color: "var(--sw-muted)" }}>TRABAJOS REALIZADOS</div>
+                              <div className="d-flex flex-wrap gap-2">
+                                {partes.map((p) => (
+                                  <div key={p.id} style={{
+                                    background: "var(--sw-surface-2)",
+                                    border: `1px solid ${colores[p.tipo_tarea] || "#6c757d"}40`,
+                                    borderLeft: `3px solid ${colores[p.tipo_tarea] || "#6c757d"}`,
+                                    borderRadius: "8px",
+                                    padding: "0.4rem 0.75rem",
+                                    fontSize: "0.82rem",
+                                    minWidth: "140px",
+                                  }}>
+                                    <div className="fw-semibold" style={{ color: colores[p.tipo_tarea] || "#6c757d", textTransform: "capitalize" }}>
+                                      {p.tipo_tarea || "Sin tipo"}
+                                    </div>
+                                    <div style={{ color: "var(--sw-text)" }}>{p.empleado_nombre || "Sin asignar"}</div>
+                                    {p.observaciones && <div className="text-muted" style={{ fontSize: "0.75rem" }}>{p.observaciones}</div>}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+
                         {selected.repaso_completado && (
-                          <div className="text-success fw-semibold mt-1">
+                          <div className="text-success fw-semibold mt-2">
                             ✅ Listo por {selected.repaso_completado_por_nombre || "-"}
                           </div>
                         )}
@@ -390,6 +434,24 @@ export default function RepasoEntregaPage() {
                         />
                       </div>
 
+                      {/* HOJA DE INTERVENCIÓN (solo particulares) */}
+                      {!isProfesional(selected) && (
+                        <div className="form-check mb-3 p-3 border rounded">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id="requiere_hoja_intervencion"
+                            checked={hojaIntervencionDraft}
+                            onChange={(e) => setHojaIntervencionDraft(e.target.checked)}
+                            disabled={selected.repaso_completado}
+                          />
+                          <label className="form-check-label" htmlFor="requiere_hoja_intervencion">
+                            <strong>Incluir informe de intervención técnica</strong>
+                            <span className="text-muted d-block small">Marca si el cliente ha contratado un servicio premium que requiere acta detallada. El administrador recibirá una notificación.</span>
+                          </label>
+                        </div>
+                      )}
+
                       <div className="d-flex flex-column flex-sm-row flex-wrap gap-2">
                         <button type="button" className="btn btn-outline-secondary sw-action-btn" onClick={() => guardarRepaso(false)} disabled={saving}>
                           {saving ? "Guardando..." : "💾 Guardar"}
@@ -426,7 +488,6 @@ export default function RepasoEntregaPage() {
         </div>
       )}
 
-      {activeTab === "estado" && <EstadoCochesPage />}
       {activeTab === "firma" && (
         <div className="container py-3" style={{ maxWidth: "1200px" }}>
           <FirmaEntregaPage />

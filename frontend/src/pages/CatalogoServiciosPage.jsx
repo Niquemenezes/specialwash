@@ -1,23 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { buildApiUrl } from "../utils/apiBase";
-import { getStoredToken } from "../utils/authSession";
-
-async function apiFetch(path, options = {}) {
-  const token = getStoredToken();
-  const res = await fetch(buildApiUrl(path), {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
-  });
-  const raw = await res.text();
-  let data = null;
-  try { data = raw ? JSON.parse(raw) : null; } catch { data = raw; }
-  if (!res.ok) throw new Error((data && (data.msg || data.message)) || `HTTP ${res.status}`);
-  return data;
-}
+import { confirmar } from "../utils/confirmar";
+import { toast } from "../utils/toast";
+import { apiFetch } from "../utils/apiFetch";
 
 /* ── Iconos SVG ─────────────────────────────────────────────────── */
 const ICONS = {
@@ -147,6 +131,7 @@ export default function CatalogoServiciosPage() {
       } else {
         await apiFetch("/api/servicios_catalogo", { method: "POST", body: JSON.stringify(payload) });
       }
+      toast.success(editandoId ? "Servicio actualizado" : "Servicio creado");
       await cargar();
       cerrarModal();
     } catch (e) {
@@ -166,9 +151,10 @@ export default function CatalogoServiciosPage() {
   };
 
   const eliminar = async (s) => {
-    if (!window.confirm(`¿Eliminar el servicio "${s.nombre}"?`)) return;
+    if (!await confirmar(`¿Eliminar el servicio "${s.nombre}"?`)) return;
     try {
       await apiFetch(`/api/servicios_catalogo/${s.id}`, { method: "DELETE" });
+      toast.success("Servicio eliminado");
       await cargar();
     } catch (e) {
       setError(e.message || "Error al eliminar");

@@ -1,5 +1,11 @@
+import os
 import paramiko
-ssh=paramiko.SSHClient(); ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy()); ssh.connect('194.164.164.78', username='root', password='cwtC7sJe', timeout=20)
+host = os.getenv("SPECIALWASH_DEPLOY_HOST", "YOUR_SERVER_IP")
+user = os.getenv("SPECIALWASH_DEPLOY_USER", "root")
+pwd = os.getenv("SPECIALWASH_DEPLOY_PASSWORD")
+if not pwd or host == "YOUR_SERVER_IP":
+    raise SystemExit("Set SPECIALWASH_DEPLOY_HOST and SPECIALWASH_DEPLOY_PASSWORD before running this script.")
+ssh=paramiko.SSHClient(); ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy()); ssh.connect(host, username=user, password=pwd, timeout=20)
 for c in [
 "systemctl is-active specialwash-backend.service",
 "systemctl is-active nginx",

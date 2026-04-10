@@ -42,7 +42,11 @@ def marcar_leida(nid):
     """Marca una notificación como leída."""
     n = Notificacion.query.get_or_404(nid)
     n.leida = True
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(n.to_dict()), 200
 
 
@@ -51,5 +55,9 @@ def marcar_leida(nid):
 def marcar_todas_leidas():
     """Marca todas las notificaciones como leídas."""
     Notificacion.query.filter_by(leida=False).update({"leida": True})
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify({"msg": "Todas marcadas como leídas"}), 200

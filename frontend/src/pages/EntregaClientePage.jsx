@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Context } from "../store/appContext";
-import SignaturePad from "../component/SignaturePad";
+import SignaturePad from "../components/SignaturePad";
 import "../styles/inspeccion-responsive.css";
 
 const safeDate = (value) => {

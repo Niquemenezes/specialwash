@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
 from werkzeug.security import check_password_hash, generate_password_hash
+from sqlalchemy import func, or_
 import secrets
 import string
 import os
@@ -103,7 +104,11 @@ def signup():
     )
 
     db.session.add(user)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar el usuario"}), 500
 
     return jsonify({"user": user.to_dict()}), 201
 
@@ -112,9 +117,10 @@ def signup():
 def login_json():
     data = request.get_json() or {}
 
-    email = (data.get("email") or "").strip().lower()
+    identifier = (data.get("email") or data.get("identifier") or "").strip()
+    lookup_value = identifier.lower()
     password = data.get("password") or ""
-    rate_key = _login_rate_key(email)
+    rate_key = _login_rate_key(lookup_value)
 
     blocked, retry_after = _check_blocked(rate_key)
     if blocked:
@@ -123,10 +129,15 @@ def login_json():
         response.headers["Retry-After"] = str(retry_after)
         return response
 
-    if not email or not password:
-        return jsonify({"msg": "Email y contraseña son obligatorios"}), 400
+    if not lookup_value or not password:
+        return jsonify({"msg": "Usuario/email y contraseña son obligatorios"}), 400
 
-    user = User.query.filter_by(email=email).first()
+    user = User.query.filter(
+        or_(
+            func.lower(User.email) == lookup_value,
+            func.lower(User.nombre) == lookup_value,
+        )
+    ).first()
     if not user or not user.password_hash or not check_password_hash(user.password_hash, password):
         _register_login_failure(rate_key)
         return jsonify({"msg": "Credenciales inválidas"}), 401
@@ -191,8 +202,12 @@ def reset_password():
     temporal_password = "".join(secrets.choice(alphabet) for _ in range(10))
     
     user.password_hash = generate_password_hash(temporal_password)
-    db.session.commit()
-    
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al actualizar la contraseña"}), 500
+
     return jsonify({
         "msg": f"Contraseña generada para {user.nombre}. Comparte esta contraseña con el usuario.",
         "user": user.to_dict(),

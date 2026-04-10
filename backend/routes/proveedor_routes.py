@@ -19,10 +19,14 @@ def proveedores_create():
     data = request.get_json() or {}
     nombre = (data.get("nombre") or "").strip()
     if not nombre:
-        return jsonify({"error": "El nombre es obligatorio"}), 400
+        return jsonify({"msg": "El nombre es obligatorio"}), 400
     p = Proveedor(nombre=nombre)
     db.session.add(p)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(p.to_dict()), 201
 
 
@@ -39,7 +43,11 @@ def proveedores_update(pid):
     p.contacto = data.get("contacto", p.contacto)
     p.notas = data.get("notas", p.notas)
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(p.to_dict()), 200
 
 
@@ -52,5 +60,5 @@ def proveedores_delete(pid):
         db.session.commit()
     except Exception:
         db.session.rollback()
-        return jsonify({"error": "No se puede eliminar: el proveedor tiene entradas asociadas"}), 400
+        return jsonify({"msg": "No se puede eliminar: el proveedor tiene entradas asociadas"}), 400
     return jsonify({"msg": "Proveedor eliminado"}), 200

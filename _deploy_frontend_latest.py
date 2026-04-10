@@ -2,10 +2,12 @@ import os
 import posixpath
 import paramiko
 
-HOST='194.164.164.78'
-USER='root'
-PWD='cwtC7sJe'
-LOCAL_BUILD=r'C:\\Users\\moniq\\specialwash\\frontend\\build'
+HOST = os.getenv("SPECIALWASH_DEPLOY_HOST", "YOUR_SERVER_IP")
+USER = os.getenv("SPECIALWASH_DEPLOY_USER", "root")
+PWD = os.getenv("SPECIALWASH_DEPLOY_PASSWORD")
+if not PWD or HOST == "YOUR_SERVER_IP":
+    raise SystemExit("Set SPECIALWASH_DEPLOY_HOST and SPECIALWASH_DEPLOY_PASSWORD before running this script.")
+LOCAL_BUILD=r'C:\\Users\\moniq\\OneDrive\\Escritorio\\specialwash-nuevodesing\\frontend\\build'
 REMOTE_BUILD='/root/specialwash/frontend/build'
 
 ssh = paramiko.SSHClient()

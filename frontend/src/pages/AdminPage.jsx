@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
 import { Context } from "../store/appContext";
 import { normalizeRol, getStoredRol } from "../utils/authSession";
 
@@ -85,6 +85,7 @@ function GrupoCard({ grupo }) {
 
 export default function AdminPage() {
   const { store } = useContext(Context);
+  const location = useLocation();
   const rol = normalizeRol(store?.user?.rol) || normalizeRol(getStoredRol());
 
   // Solo accesible para administrador
@@ -96,6 +97,11 @@ export default function AdminPage() {
         </div>
       </div>
     );
+  }
+
+  const showHub = new URLSearchParams(location.search).get("hub") === "1";
+  if (!showHub) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (

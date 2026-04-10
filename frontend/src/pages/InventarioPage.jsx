@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
 import { Context } from "../store/appContext";
 import { normalizeRol, getStoredRol } from "../utils/authSession";
 
@@ -112,11 +112,18 @@ function GrupoCard({ grupo, rol }) {
 
 export default function InventarioPage() {
   const { store } = useContext(Context);
+  const location = useLocation();
   const rol = normalizeRol(store?.user?.rol) || normalizeRol(getStoredRol()) || "detailing";
 
   const visibleGrupos = GRUPOS.filter((g) =>
     g.items.some((i) => i.roles.includes(rol))
   );
+
+  const preferredRoute = rol === "administrador" ? "/productos" : "/salidas";
+  const showHub = new URLSearchParams(location.search).get("hub") === "1";
+  if (!showHub) {
+    return <Navigate to={preferredRoute} replace />;
+  }
 
   return (
     <div className="sw-veh-wrapper">

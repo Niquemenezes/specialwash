@@ -5,7 +5,7 @@ from models import ServicioCatalogo, User, db
 from utils.auth_utils import _dev_auth_bypass_enabled, normalize_role, role_required
 
 servicio_catalogo_bp = Blueprint("servicio_catalogo_routes", __name__)
-SERVICIO_SCOPED_ROLES = {"detailing", "pintura", "tapicero"}
+SERVICIO_SCOPED_ROLES = {"detailing", "pintura", "tapicero", "calidad", "otro"}
 
 
 def _current_role():
@@ -119,7 +119,11 @@ def crear_servicio_catalogo():
         activo=True,
     )
     db.session.add(servicio)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(servicio.to_dict()), 201
 
 
@@ -164,7 +168,11 @@ def editar_servicio_catalogo(servicio_id):
     if activo_resultante and (servicio.tiempo_estimado_minutos is None or int(servicio.tiempo_estimado_minutos) <= 0):
         return jsonify({"msg": "Un servicio activo debe tener tiempo estimado mayor que 0 minutos"}), 400
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(servicio.to_dict())
 
 
@@ -173,5 +181,9 @@ def editar_servicio_catalogo(servicio_id):
 def eliminar_servicio_catalogo(servicio_id):
     servicio = ServicioCatalogo.query.get_or_404(servicio_id)
     db.session.delete(servicio)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify({"msg": "Servicio eliminado"}), 200

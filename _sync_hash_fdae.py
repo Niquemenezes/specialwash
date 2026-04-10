@@ -1,5 +1,7 @@
 import os, paramiko
-host='194.164.164.78'; user='root'; pwd='cwtC7sJe'
+host = os.getenv("SPECIALWASH_DEPLOY_HOST", "YOUR_SERVER_IP"); user = os.getenv("SPECIALWASH_DEPLOY_USER", "root"); pwd = os.getenv("SPECIALWASH_DEPLOY_PASSWORD")
+if not pwd or host == "YOUR_SERVER_IP":
+    raise SystemExit("Set SPECIALWASH_DEPLOY_HOST and SPECIALWASH_DEPLOY_PASSWORD before running this script.")
 base=r'c:\\Users\\moniq\\specialwash\\frontend\\build'
 files=['index.html','asset-manifest.json','static/js/main.fdae5315.js','static/js/main.fdae5315.js.map','static/js/main.fdae5315.js.LICENSE.txt','static/css/main.e1aa99de.css','static/css/main.e1aa99de.css.map']
 ssh=paramiko.SSHClient(); ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy()); ssh.connect(host, username=user, password=pwd, timeout=20)

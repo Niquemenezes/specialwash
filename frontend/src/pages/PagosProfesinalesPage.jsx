@@ -1,5 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Context } from "../store/appContext";
+import { toast } from "../utils/toast";
 
 const formatFecha = (value) => {
   if (!value) return "-";
@@ -67,7 +68,7 @@ const PagosProfesinalesPage = () => {
 
     const importe = Number(formData.importe);
     if (!Number.isFinite(importe) || importe <= 0) {
-      alert("Importe inválido");
+      toast.error("Importe inválido");
       return;
     }
 
@@ -79,11 +80,11 @@ const PagosProfesinalesPage = () => {
         referencia: formData.referencia,
         observaciones: formData.observaciones,
       });
-      alert("Pago registrado correctamente");
+      toast.success("Pago registrado correctamente");
       cerrarRegistro();
       await cargarPagos();
     } catch (e) {
-      alert(`Error: ${e?.message || "No se pudo registrar el pago"}`);
+      toast.error(e?.message || "No se pudo registrar el pago");
     } finally {
       setRegistrando(false);
     }

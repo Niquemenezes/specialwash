@@ -21,68 +21,42 @@ const ICONS = {
 const PASOS = [
   {
     num: 1,
-    id: "recepcion",
-    label: "Recepción",
-    detail: "Registra el vehículo, estado inicial y firma del cliente",
-    tag: "ENTRADA",
+    id: "inspeccion",
+    label: "Inspección",
+    detail: "Recibe el vehículo, revisa el estado inicial y registra la entrada.",
+    tag: "PASO 1",
     accent: "#d4af37",
     to: "/inspeccion-recepcion",
-    ctaLabel: "Registrar vehículo",
+    ctaLabel: "Ir a inspección",
     ctaIcon: "plus",
     roles: ["administrador", "calidad"],
-    countKey: null,
+    countKey: "guardadas",
   },
   {
     num: 2,
-    id: "partes",
-    label: "Partes en Taller",
-    detail: "Monitorea el estado de los trabajos asignados en el taller",
-    tag: "SEGUIMIENTO",
+    id: "repaso",
+    label: "Control final",
+    detail: "Comprueba acabados y deja el coche listo para entregar.",
+    tag: "PASO 2",
     accent: "#38bdf8",
-    to: "/partes",
-    ctaLabel: "Ver mis partes",
-    ctaIcon: "eye",
-    roles: ["administrador", "calidad", "detailing", "pintura", "tapicero"],
-    countKey: "asignados",
-  },
-  {
-    num: 3,
-    id: "estado",
-    label: "Coches en Proceso",
-    detail: "Vista operativa de todos los vehículos en proceso en el taller",
-    tag: "OPERATIVO",
-    accent: "#a78bfa",
-    to: "/repaso-entrega?tab=estado",
-    ctaLabel: "Ver estado",
-    ctaIcon: "eye",
+    to: "/repaso-entrega?tab=repaso",
+    ctaLabel: "Abrir repaso",
+    ctaIcon: "pen",
     roles: ["administrador", "calidad"],
     countKey: "en_proceso",
   },
   {
-    num: 4,
-    id: "repaso",
-    label: "Repaso y Entrega",
-    detail: "Checklist final, firma del cliente y cierre del trabajo",
-    tag: "ENTREGA",
-    accent: "#06b6d4",
-    to: "/repaso-entrega?tab=repaso",
-    ctaLabel: "Ir a repaso",
-    ctaIcon: "pen",
+    num: 3,
+    id: "entrega",
+    label: "Entrega / firma",
+    detail: "Abre el acta, firma con el cliente y registra ahí el cobro si es particular.",
+    tag: "PASO 3",
+    accent: "#22c55e",
+    to: "/repaso-entrega?tab=firma",
+    ctaLabel: "Abrir entrega",
+    ctaIcon: "check",
     roles: ["administrador", "calidad"],
     countKey: "listos",
-  },
-  {
-    num: 5,
-    id: "historial",
-    label: "Coches Entregados",
-    detail: "Historial completo de vehículos ya finalizados y archivados",
-    tag: "ARCHIVO",
-    accent: "#22c55e",
-    to: "/entregados",
-    ctaLabel: "Ver historial",
-    ctaIcon: "check",
-    roles: ["administrador"],
-    countKey: "entregados",
   },
 ];
 
@@ -133,9 +107,9 @@ export default function VehiculosPage() {
           <div className="sw-veh-hero-body">
             <span className="sw-veh-hero-icon">{ICONS.car}</span>
             <div>
-              <h1 className="sw-veh-hero-title">Flujo de vehículos</h1>
+              <h1 className="sw-veh-hero-title">Seguimiento de vehículos</h1>
               <p className="sw-veh-hero-sub">
-                Sigue cada coche desde la recepción hasta la entrega final
+                Sigue el flujo paso a paso: inspección, repaso, entrega y cobro.
               </p>
             </div>
           </div>
@@ -224,7 +198,7 @@ export default function VehiculosPage() {
                 <p className="sw-veh-quick-label">Acción rápida</p>
                 <p className="sw-veh-quick-title">Registrar nuevo vehículo</p>
                 <p className="sw-veh-quick-sub">
-                  ¿Acaba de llegar un coche? Empieza aquí la inspección de entrada.
+                  ¿Acaba de llegar un coche? Empieza aquí el paso 1 del seguimiento.
                 </p>
               </div>
               <Link to="/inspeccion-recepcion" className="sw-veh-quick-btn">

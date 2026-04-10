@@ -202,8 +202,8 @@ function TrabajoCarte({ parte, onAccion, tipo = "proximo" }) {
                 gap: "6px",
                 transition: "all 0.2s",
               }}
-              onMouseEnter={(e) => (e.target.style.boxShadow = `0 4px 12px ${ACCENT}40`)}
-              onMouseLeave={(e) => (e.target.style.boxShadow = "none")}
+              onMouseEnter={(e) => (e.currentTarget.style.boxShadow = `0 4px 12px ${ACCENT}40`)}
+              onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
             >
               {ICONS.play}
               Iniciar
@@ -317,12 +317,10 @@ export default function EmpleadoMisTrabajosSimple({ empleadoId, userRol }) {
       const lista = Array.isArray(data) ? data : [];
 
       // Separar por estado
-      const enProg = lista.find((p) => p.estado === "en_progreso");
-      const enPa = lista.find((p) => p.estado === "pausado");
-      const pendientes = lista.filter(
-        (p) => p.estado === "pendiente" || p.estado === "nuevo"
-      );
-      const finaliz = lista.filter((p) => p.estado === "completado").length;
+      const enProg = lista.find((p) => p.estado === "en_proceso");
+      const enPa = lista.find((p) => p.estado === "en_pausa");
+      const pendientes = lista.filter((p) => p.estado === "pendiente");
+      const finaliz = lista.filter((p) => p.estado === "finalizado").length;
 
       setEnProgreso(enProg || null);
       setEnPausa(enPa || null);
@@ -347,13 +345,13 @@ export default function EmpleadoMisTrabajosSimple({ empleadoId, userRol }) {
     try {
       let nuevoEstado;
       if (accion === "iniciar") {
-        nuevoEstado = "en_progreso";
+        nuevoEstado = "en_proceso";
       } else if (accion === "pausar") {
-        nuevoEstado = "pausado";
+        nuevoEstado = "en_pausa";
       } else if (accion === "reanudar") {
-        nuevoEstado = "en_progreso";
+        nuevoEstado = "en_proceso";
       } else if (accion === "finalizar") {
-        nuevoEstado = "completado";
+        nuevoEstado = "finalizado";
       }
 
       await cambiarEstadoParte(parte.id, nuevoEstado);

@@ -1,6 +1,9 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Context } from "../store/appContext";
 import { normalizeRol } from "../utils/authSession";
+import { confirmar } from "../utils/confirmar";
+import { toast } from "../utils/toast";
+import EmptyState from "../components/EmptyState.jsx";
 
 /* ── Iconos SVG ─────────────────────────────────────────────────── */
 const ICONS = {
@@ -131,8 +134,10 @@ export default function Usuarios() {
 
       if (editing?.id) {
         await actions.updateUsuario(editing.id, payload);
+        toast.success("Usuario actualizado");
       } else {
         await actions.createUsuario(payload);
+        toast.success("Usuario creado");
       }
       cancel();
     } catch (err) {
@@ -141,9 +146,10 @@ export default function Usuarios() {
   };
 
   const remove = async (u) => {
-    if (!window.confirm(`¿Eliminar usuario "${u.nombre}"?`)) return;
+    if (!await confirmar(`¿Eliminar usuario "${u.nombre}"?`)) return;
     try {
       await actions.deleteUsuario(u.id);
+      toast.success("Usuario eliminado");
     } catch (err) {
       setError(err.message);
     }
@@ -331,11 +337,11 @@ export default function Usuarios() {
                   </tr>
                 )}
                 {!loading && usuarios.length === 0 && (
-                  <tr>
-                    <td colSpan="5" style={{ textAlign: "center", padding: "2rem", color: "var(--sw-muted)", fontSize: "0.875rem" }}>
-                      No hay usuarios registrados
-                    </td>
-                  </tr>
+                  <EmptyState
+                    colSpan={5}
+                    title="Sin usuarios"
+                    subtitle="No hay usuarios registrados. Crea el primero con el botón Nuevo usuario."
+                  />
                 )}
                 {!loading && usuarios.map((u) => {
                   const rol = normalizeRol(u.rol) || "detailing";

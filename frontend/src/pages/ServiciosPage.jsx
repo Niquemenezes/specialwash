@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useContext } from "react";
 import { Context } from "../store/appContext";
 import { useSearchParams } from "react-router-dom";
-import GoldSelect from "../component/GoldSelect.jsx";
+import GoldSelect from "../components/GoldSelect.jsx";
+import { confirmar } from "../utils/confirmar";
+import { toast } from "../utils/toast";
 
 const fmtDateTime = (s) => {
   if (!s) return "-";
@@ -43,7 +45,7 @@ const ServiciosPage = () => {
   };
 
   const handleEliminar = async (id) => {
-    if (!window.confirm("¿Eliminar este servicio?")) return;
+    if (!await confirmar("¿Eliminar este servicio?")) return;
     try {
       await actions.eliminarServicio(id);
       actions.getServicios();
@@ -134,20 +136,24 @@ const ServiciosPage = () => {
                 <td className="text-end">{s.precio ? `${s.precio.toFixed(2)}€` : "-"}</td>
                 <td>{s.usuario_nombre || "-"}</td>
                 <td className="text-center">
-                  <button
-                    className="btn btn-sm btn-outline-warning me-2"
-                    onClick={() => handleEditar(s)}
-                    title="Editar"
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    className="btn btn-sm btn-outline-danger"
-                    onClick={() => handleEliminar(s.id)}
-                    title="Eliminar"
-                  >
-                    🗑️
-                  </button>
+                  <div className="sw-ent-row-actions" style={{ justifyContent: "center" }}>
+                    <button
+                      className="sw-ent-icon-btn"
+                      onClick={() => handleEditar(s)}
+                      title="Editar"
+                      aria-label={`Editar servicio ${s.tipo_servicio || s.id}`}
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      className="sw-ent-icon-btn sw-ent-icon-btn--danger"
+                      onClick={() => handleEliminar(s.id)}
+                      title="Eliminar"
+                      aria-label={`Eliminar servicio ${s.tipo_servicio || s.id}`}
+                    >
+                      🗑️
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -287,10 +293,10 @@ const ServicioModal = ({ show, servicio, coches, onClose, onSaved }) => {
       } else {
         await actions.crearServicio(payload);
       }
-      alert(servicio ? "Servicio actualizado" : "Servicio registrado");
+      toast.success(servicio ? "Servicio actualizado" : "Servicio registrado");
       onSaved();
     } catch (err) {
-      alert("Error al guardar el servicio");
+      toast.error("Error al guardar el servicio");
     } finally {
       setSaving(false);
     }

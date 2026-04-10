@@ -35,8 +35,8 @@ bash ../deploy/generate-secrets.sh
 
 ```bash
 # Conectar
-ssh root@194.164.164.78
-# Contraseña: cwtC7sJe
+ssh root@YOUR_SERVER_IP
+# Usa clave SSH o solicita la credencial por canal seguro
 
 # Clonar o descargar código
 cd /var/www/specialwash/app
@@ -121,9 +121,22 @@ source venv/bin/activate
 - ✅ HTTPS obligatorio (Let's Encrypt)
 - ✅ CORS limitado a tu dominio
 - ✅ Archivos sensibles (.env, .git) bloqueados
+- ✅ `/admin/` restringido a localhost / túnel SSH
 - ✅ Headers de seguridad configurados
 - ✅ Gunicorn con timeout 120s
 - ✅ Nginx con gzip y caché de assets
+
+### Acceso temporal seguro al panel admin
+
+```bash
+# Crear túnel SSH desde tu equipo
+ssh -L 5050:127.0.0.1:443 root@YOUR_SERVER_IP
+
+# Luego abrir en tu navegador
+https://127.0.0.1:5050/admin/
+```
+
+> Mantén `ENABLE_ADMIN=0` por defecto y actívalo solo temporalmente si de verdad hace falta.
 
 ---
 
@@ -189,7 +202,7 @@ systemctl restart specialwash-backend.service
 ## ❓ FAQ
 
 **¿Mi BD actual se usa o se crea una nueva?**  
-→ Se crea una nueva en `/var/www/specialwash/data/`. Tu BD local se mantiene intacta.
+→ Por defecto el deploy **no bootstrappea** la BD en producción (`ENABLE_DB_BOOTSTRAP=0`). Solo se inicializa una nueva si activas ese flag de forma temporal y controlada.
 
 **¿Cómo hago backup de la BD en servidor?**  
 → Manual: `cp /var/www/specialwash/data/specialwash.db ./backup-$(date +%s).db`  

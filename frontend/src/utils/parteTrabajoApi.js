@@ -1,7 +1,6 @@
 // utils/parteTrabajoApi.js
-import { buildApiUrl } from "./apiBase";
-import { getStoredToken } from "./authSession";
 import { normalizeRol } from "./authSession";
+import { apiFetch } from "./apiFetch";
 
 export function formatDate(value) {
   if (!value) return "-";
@@ -26,60 +25,25 @@ export function formatMinutes(value) {
   return `${h} h ${m} min`;
 }
 
-async function apiFetch(path, options = {}) {
-  const { auth = true, headers = {}, ...rest } = options;
-  const finalHeaders = { ...headers };
-
-  if (auth) {
-    const token = getStoredToken();
-    if (token) {
-      finalHeaders.Authorization = `Bearer ${token}`;
-    }
-  }
-
-  const res = await fetch(buildApiUrl(path), {
-    ...rest,
-    headers: finalHeaders,
-  });
-  const raw = await res.text();
-
-  let data = null;
-  try {
-    data = raw ? JSON.parse(raw) : null;
-  } catch {
-    data = raw;
-  }
-
-  if (!res.ok) {
-    const msg = (data && (data.msg || data.message)) || `HTTP ${res.status}`;
-    throw new Error(msg);
-  }
-
-  return data;
-}
-
 // Crear parte de trabajo
 export async function crearParteTrabajo({ coche_id, empleado_id, observaciones, tiempo_estimado_minutos, tipo_tarea, servicios = [] }) {
   return apiFetch("/api/parte_trabajo", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ coche_id, empleado_id, observaciones, tiempo_estimado_minutos, tipo_tarea, servicios })
+    body: { coche_id, empleado_id, observaciones, tiempo_estimado_minutos, tipo_tarea, servicios },
   });
 }
 
 export async function crearParteInterno({ observaciones, tiempo_estimado_minutos = 0, tipo_tarea }) {
   return apiFetch("/api/parte_trabajo/interno", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ observaciones, tiempo_estimado_minutos, tipo_tarea }),
+    body: { observaciones, tiempo_estimado_minutos, tipo_tarea },
   });
 }
 
 export async function sumarmeACoche({ coche_id, observaciones = "", tiempo_estimado_minutos = 0, tipo_tarea }) {
   return apiFetch(`/api/parte_trabajo/coche/${coche_id}/sumarme`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ observaciones, tiempo_estimado_minutos, tipo_tarea }),
+    body: { observaciones, tiempo_estimado_minutos, tipo_tarea },
   });
 }
 
@@ -98,8 +62,7 @@ export async function listarPartesTrabajo({ estado, empleado_id, coche_id, tipo_
 export async function cambiarEstadoParte(parte_id, estado) {
   return apiFetch(`/api/parte_trabajo/${parte_id}/estado`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ estado })
+    body: { estado },
   });
 }
 
@@ -117,11 +80,10 @@ export async function quitarPausa(parte_id) {
 }
 
 // Editar parte de trabajo
-export async function editarParteTrabajo(parte_id, { empleado_id, observaciones, tiempo_estimado_minutos }) {
+export async function editarParteTrabajo(parte_id, { empleado_id, observaciones, tiempo_estimado_minutos, tipo_tarea }) {
   return apiFetch(`/api/parte_trabajo/${parte_id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ empleado_id, observaciones, tiempo_estimado_minutos })
+    body: { empleado_id, observaciones, tiempo_estimado_minutos, ...(tipo_tarea ? { tipo_tarea } : {}) },
   });
 }
 

@@ -1,26 +1,6 @@
 import { buildApiUrl } from "./apiBase";
 import { getStoredToken } from "./authSession";
-
-async function apiFetch(path, options = {}) {
-  const { auth = true, headers = {}, ...rest } = options;
-  const finalHeaders = { ...headers };
-
-  if (auth) {
-    const token = getStoredToken();
-    if (token) finalHeaders.Authorization = `Bearer ${token}`;
-  }
-
-  const res = await fetch(buildApiUrl(path), { ...rest, headers: finalHeaders });
-  const raw = await res.text();
-  let data = null;
-  try { data = raw ? JSON.parse(raw) : null; } catch { data = raw; }
-
-  if (!res.ok) {
-    const msg = (data && (data.msg || data.message)) || `HTTP ${res.status}`;
-    throw new Error(msg);
-  }
-  return data;
-}
+import { apiFetch } from "./apiFetch";
 
 export async function fichar(tipo, fotoBlob) {
   const formData = new FormData();
@@ -48,8 +28,7 @@ export async function obtenerEmpleadosActivos() {
 export async function editarRegistro(id, horas) {
   return apiFetch(`/api/horario/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(horas),
+    body: horas,
   });
 }
 

@@ -7,6 +7,7 @@ import {
   obtenerUltimaInspeccionPorCoche,
 } from "../utils/parteTrabajoApi";
 import { normalizeRol } from "../utils/authSession";
+import "../styles/crear-parte-trabajo.css";
 
 const TIPO_TAREA_OPTIONS = [
   { value: "pintura", label: "Pintor / Pintura" },
@@ -265,21 +266,21 @@ export default function CrearParteTrabajo({ isOpen, onClose, onSuccess }) {
   if (!isOpen) return null;
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", backdropFilter: "blur(4px)" }}>
-      <div style={{ background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderTop: "3px solid #d4af37", borderRadius: "18px", width: "100%", maxWidth: "560px", maxHeight: "90vh", boxShadow: "0 24px 64px rgba(0,0,0,0.7)", animation: "sw-fade-up 0.25s ease both", display: "flex", flexDirection: "column" }}>
+    <div className="sw-parte-modal-overlay">
+      <div className="sw-parte-modal">
         {/* Header */}
-        <div style={{ padding: "1.1rem 1.25rem", borderBottom: "1px solid var(--sw-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h5 style={{ fontWeight: 700, color: "var(--sw-text)", margin: 0, fontSize: "0.95rem" }}>
-            <span style={{ color: "var(--sw-accent)", marginRight: "0.5rem" }}>✦</span>
+        <div className="sw-parte-modal__header">
+          <h5 className="sw-parte-modal__title">
+            <span className="sw-parte-modal__accent">✦</span>
             Crear nuevo parte — Paso {paso}/3
           </h5>
-          <button onClick={onClose} style={{ background: "transparent", border: "none", color: "var(--sw-muted)", fontSize: "1.2rem", cursor: "pointer", lineHeight: 1 }}>×</button>
+          <button onClick={onClose} className="sw-parte-modal__close">×</button>
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "1.25rem" }}>
+        <div className="sw-parte-modal__content">
           {error && (
-            <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "10px", padding: "0.75rem 1rem", marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center", color: "#fca5a5", fontSize: "0.85rem" }}>
+            <div className="sw-parte-alert sw-parte-alert--error">
               <span>{error}</span>
               <button type="button" className="btn-close btn-close-white btn-sm" onClick={() => setError("")} />
             </div>
@@ -287,11 +288,11 @@ export default function CrearParteTrabajo({ isOpen, onClose, onSuccess }) {
 
           {paso === 1 && (
             <div>
-              <label style={{ color: "var(--sw-muted)", fontSize: "0.78rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "0.4rem" }}>Selecciona el coche *</label>
+              <label className="sw-parte-label">Selecciona el coche *</label>
               <select
                 value={nuevoCocheId}
                 onChange={(e) => setNuevoCocheId(e.target.value)}
-                style={{ width: "100%", background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "10px", padding: "0.6rem 0.8rem" }}
+                className="sw-parte-control"
               >
                 <option value="">Selecciona coche...</option>
                 {cochesDisponibles.map((c) => (
@@ -300,7 +301,7 @@ export default function CrearParteTrabajo({ isOpen, onClose, onSuccess }) {
                   </option>
                 ))}
               </select>
-              <p style={{ fontSize: "0.75rem", color: "var(--sw-muted)", marginTop: "0.6rem", marginBottom: 0 }}>
+              <p className="sw-parte-hint">
                 Se cargarán automáticamente los servicios de la última inspección
               </p>
             </div>
@@ -308,10 +309,10 @@ export default function CrearParteTrabajo({ isOpen, onClose, onSuccess }) {
 
           {paso === 2 && (
             <div>
-              <label style={{ color: "var(--sw-muted)", fontSize: "0.78rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "0.4rem" }}>Servicios del parte *</label>
+              <label className="sw-parte-label">Servicios del parte *</label>
 
               {hayServiciosSinTiempo && (
-                <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "8px", padding: "0.65rem 1rem", marginBottom: "0.75rem", color: "#fbbf24", fontSize: "0.83rem" }}>
+                <div className="sw-parte-alert--warning">
                   ⚠ Servicios sin tiempo: {serviciosSinTiempo.map(s => s.nombre).join(", ")}
                 </div>
               )}
@@ -321,7 +322,7 @@ export default function CrearParteTrabajo({ isOpen, onClose, onSuccess }) {
                   <select
                     value={nuevoServicioId}
                     onChange={(e) => setNuevoServicioId(e.target.value)}
-                    style={{ width: "100%", background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "10px", padding: "0.6rem 0.8rem" }}
+                    className="sw-parte-control"
                   >
                     <option value="">Añadir servicio del catálogo...</option>
                     {serviciosCatalogo.map((s) => (
@@ -335,7 +336,7 @@ export default function CrearParteTrabajo({ isOpen, onClose, onSuccess }) {
                   <button
                     type="button"
                     onClick={agregarServicioExtra}
-                    style={{ width: "100%", background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.3)", color: "var(--sw-accent)", borderRadius: "10px", fontWeight: 600, fontSize: "0.85rem", cursor: "pointer", padding: "0.6rem" }}
+                    className="sw-parte-btn sw-parte-btn--subtle"
                   >
                     + Añadir
                   </button>
@@ -349,7 +350,7 @@ export default function CrearParteTrabajo({ isOpen, onClose, onSuccess }) {
                     value={nuevoServicioManual.nombre}
                     onChange={(e) => setNuevoServicioManual({ ...nuevoServicioManual, nombre: e.target.value })}
                     placeholder="Servicio manual"
-                    style={{ width: "100%", background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "10px", padding: "0.6rem 0.8rem" }}
+                    className="sw-parte-control"
                   />
                 </div>
                 <div className="col-2">
@@ -358,7 +359,7 @@ export default function CrearParteTrabajo({ isOpen, onClose, onSuccess }) {
                     value={nuevoServicioManual.precio}
                     onChange={(e) => setNuevoServicioManual({ ...nuevoServicioManual, precio: e.target.value })}
                     placeholder="€"
-                    style={{ width: "100%", background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "10px", padding: "0.6rem 0.4rem", fontSize: "0.8rem" }}
+                    className="sw-parte-control sw-parte-control--compact"
                   />
                 </div>
                 <div className="col-2">
@@ -367,14 +368,14 @@ export default function CrearParteTrabajo({ isOpen, onClose, onSuccess }) {
                     value={nuevoServicioManual.horas}
                     onChange={(e) => setNuevoServicioManual({ ...nuevoServicioManual, horas: e.target.value })}
                     placeholder="h"
-                    style={{ width: "100%", background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "10px", padding: "0.6rem 0.4rem", fontSize: "0.8rem" }}
+                    className="sw-parte-control sw-parte-control--compact"
                   />
                 </div>
                 <div className="col-2">
                   <select
                     value={nuevoServicioManual.tipoTarea}
                     onChange={(e) => setNuevoServicioManual({ ...nuevoServicioManual, tipoTarea: e.target.value })}
-                    style={{ width: "100%", background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "10px", padding: "0.4rem 0.4rem", fontSize: "0.75rem" }}
+                    className="sw-parte-control sw-parte-control--tiny"
                   >
                     <option value="">Área...</option>
                     {TIPO_TAREA_OPTIONS.map((option) => (
@@ -386,7 +387,7 @@ export default function CrearParteTrabajo({ isOpen, onClose, onSuccess }) {
                   <button
                     type="button"
                     onClick={agregarServicioManual}
-                    style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "10px", fontWeight: 600, fontSize: "0.7rem", cursor: "pointer", padding: "0.6rem 0.2rem" }}
+                    className="sw-parte-btn sw-parte-btn--plus"
                   >
                     +
                   </button>
@@ -394,23 +395,23 @@ export default function CrearParteTrabajo({ isOpen, onClose, onSuccess }) {
               </div>
 
               {serviciosParteSeleccionados.length === 0 ? (
-                <div style={{ color: "var(--sw-muted)", fontSize: "0.83rem", borderRadius: "10px", padding: "0.9rem 1rem", border: "1px dashed rgba(255,255,255,0.07)", textAlign: "center", marginTop: "1rem" }}>
+                <div className="sw-parte-empty">
                   No hay servicios seleccionados
                 </div>
               ) : (
-                <div style={{ marginTop: "1rem" }}>
+                <div className="mt-3">
                   {hayServiciosSinTipo && (
-                    <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "8px", padding: "0.6rem 1rem", marginBottom: "0.75rem", color: "#fbbf24", fontSize: "0.82rem" }}>
+                    <div className="sw-parte-alert--warning">
                       ⚠ Hay servicios sin área asignada
                     </div>
                   )}
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.6rem" }}>
+                  <div className="sw-parte-list">
                     {serviciosParteSeleccionados.map((s) => (
-                      <div key={s.key} style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", borderRadius: "10px", padding: "0.6rem 0.8rem", fontSize: "0.8rem", minWidth: "180px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.4rem" }}>
-                          <div style={{ flex: 1 }}>
+                      <div key={s.key} className="sw-parte-chip">
+                        <div className="sw-parte-chip__head">
+                          <div className="sw-parte-chip__body">
                             <strong>{s.nombre}</strong>
-                            <div style={{ fontSize: "0.72rem", color: "var(--sw-muted)", marginTop: "0.2rem" }}>
+                            <div className="sw-parte-chip__meta">
                               {Number.isFinite(s.precio) ? `${Number(s.precio).toFixed(2)}€ · ` : ""}
                               {formatMinutes(Number.parseInt(s.tiempo_estimado_minutos || 0, 10) || 0)}
                             </div>
@@ -418,7 +419,7 @@ export default function CrearParteTrabajo({ isOpen, onClose, onSuccess }) {
                           <button
                             type="button"
                             onClick={() => quitarServicioSeleccionado(s.key)}
-                            style={{ background: "transparent", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171", borderRadius: "4px", width: "20px", height: "20px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.9rem", flexShrink: 0 }}
+                            className="sw-parte-chip__remove"
                           >
                             ×
                           </button>
@@ -426,7 +427,7 @@ export default function CrearParteTrabajo({ isOpen, onClose, onSuccess }) {
                         <select
                           value={s.tipo_tarea || ""}
                           onChange={(e) => actualizarTipoServicio(s.key, e.target.value)}
-                          style={{ width: "100%", marginTop: "0.4rem", background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "6px", fontSize: "0.75rem", padding: "0.3rem 0.4rem" }}
+                          className="sw-parte-control sw-parte-control--tiny mt-2"
                         >
                           <option value="">Selecciona área...</option>
                           {TIPO_TAREA_OPTIONS.map((option) => (
@@ -436,8 +437,8 @@ export default function CrearParteTrabajo({ isOpen, onClose, onSuccess }) {
                       </div>
                     ))}
                   </div>
-                  <p style={{ fontSize: "0.78rem", color: "var(--sw-muted)", marginTop: "0.75rem", marginBottom: 0 }}>
-                    Total: <strong style={{ color: "var(--sw-accent)" }}>{formatMinutes(serviciosParteSeleccionados.reduce((acc, s) => acc + (Number.parseInt(s.tiempo_estimado_minutos || 0, 10) || 0), 0))}</strong>
+                  <p className="sw-parte-total">
+                    Total: <strong>{formatMinutes(serviciosParteSeleccionados.reduce((acc, s) => acc + (Number.parseInt(s.tiempo_estimado_minutos || 0, 10) || 0), 0))}</strong>
                   </p>
                 </div>
               )}
@@ -447,17 +448,17 @@ export default function CrearParteTrabajo({ isOpen, onClose, onSuccess }) {
           {paso === 3 && (
             <div>
               <h6 style={{ fontWeight: 700, marginBottom: "1rem" }}>Resumen del parte</h6>
-              <div style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", borderRadius: "10px", padding: "1rem", marginBottom: "1rem" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.6rem" }}>
-                  <span style={{ color: "var(--sw-muted)" }}>Coche:</span>
+              <div className="sw-parte-summary">
+                <div className="sw-parte-summary__row">
+                  <span className="sw-parte-summary__label">Coche:</span>
                   <strong>{cochesDisponibles.find(c => c.coche_id == nuevoCocheId)?.matricula || nuevoCocheId}</strong>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.6rem" }}>
-                  <span style={{ color: "var(--sw-muted)" }}>Servicios:</span>
+                <div className="sw-parte-summary__row">
+                  <span className="sw-parte-summary__label">Servicios:</span>
                   <strong>{serviciosParteSeleccionados.length}</strong>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "var(--sw-muted)" }}>Tiempo estimado:</span>
+                <div className="sw-parte-summary__row">
+                  <span className="sw-parte-summary__label">Tiempo estimado:</span>
                   <strong style={{ color: "var(--sw-accent)" }}>{formatMinutes(serviciosParteSeleccionados.reduce((acc, s) => acc + (Number.parseInt(s.tiempo_estimado_minutos || 0, 10) || 0), 0))}</strong>
                 </div>
               </div>
@@ -469,23 +470,23 @@ export default function CrearParteTrabajo({ isOpen, onClose, onSuccess }) {
         </div>
 
         {/* Footer */}
-        <div style={{ padding: "1rem 1.25rem", borderTop: "1px solid var(--sw-border)", display: "flex", gap: "0.6rem", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", gap: "0.6rem" }}>
+        <div className="sw-parte-modal__footer">
+          <div className="sw-parte-footer-actions">
             {paso > 1 && (
               <button
                 onClick={() => setPaso(paso - 1)}
                 disabled={loading}
-                style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-muted)", borderRadius: "9px", padding: "0.45rem 1rem", fontSize: "0.84rem", cursor: "pointer" }}
+                className="sw-parte-btn sw-parte-btn--ghost"
               >
                 ← Atrás
               </button>
             )}
           </div>
-          <div style={{ display: "flex", gap: "0.6rem" }}>
+          <div className="sw-parte-footer-actions">
             <button
               onClick={onClose}
               disabled={loading}
-              style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-muted)", borderRadius: "9px", padding: "0.45rem 1rem", fontSize: "0.84rem", cursor: "pointer" }}
+              className="sw-parte-btn sw-parte-btn--ghost"
             >
               Cancelar
             </button>
@@ -503,7 +504,7 @@ export default function CrearParteTrabajo({ isOpen, onClose, onSuccess }) {
                   setError("");
                   setPaso(paso + 1);
                 }}
-                style={{ background: "linear-gradient(135deg,#f5e19a,#d4af37)", border: "none", color: "#0a0b0e", fontWeight: 700, borderRadius: "9px", padding: "0.45rem 1.2rem", fontSize: "0.84rem", cursor: "pointer" }}
+                className="sw-parte-btn sw-parte-btn--accent"
               >
                 Siguiente →
               </button>
@@ -512,7 +513,7 @@ export default function CrearParteTrabajo({ isOpen, onClose, onSuccess }) {
               <button
                 onClick={onCrearParte}
                 disabled={loading}
-                style={{ background: "linear-gradient(135deg,#f5e19a,#d4af37)", border: "none", color: "#0a0b0e", fontWeight: 700, borderRadius: "9px", padding: "0.45rem 1.2rem", fontSize: "0.84rem", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}
+                className="sw-parte-btn sw-parte-btn--accent"
               >
                 {loading ? "Creando…" : "✦ Crear parte"}
               </button>

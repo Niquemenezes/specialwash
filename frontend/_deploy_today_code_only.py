@@ -1,13 +1,18 @@
 import os
 import posixpath
+from pathlib import Path
 from datetime import datetime
 import paramiko
 
-HOST='194.164.164.78'
-USER='root'
-PASSWORD='cwtC7sJe'
-LOCAL_ROOT=r'c:\\Users\\moniq\\specialwash'
+HOST = os.getenv("SPECIALWASH_DEPLOY_HOST", "YOUR_SERVER_IP")
+USER = os.getenv("SPECIALWASH_DEPLOY_USER", "root")
+PASSWORD = os.getenv("SPECIALWASH_DEPLOY_PASSWORD")
+if not PASSWORD or HOST == "YOUR_SERVER_IP":
+    raise SystemExit("Set SPECIALWASH_DEPLOY_HOST and SPECIALWASH_DEPLOY_PASSWORD before running this script.")
+LOCAL_ROOT = str(Path(__file__).resolve().parents[1])
 REMOTE_ROOT='/root/specialwash'
+LIVE_FRONTEND_ROOT='/var/www/specialwash/public_html'
+print('LOCAL_ROOT', LOCAL_ROOT)
 
 # Excluir artefactos y datos sensibles/locales
 EXCLUDE_DIR_NAMES={'.git','node_modules','build','__pycache__','venv','.venv','media','instance'}
@@ -108,15 +113,18 @@ def run(cmd):
         print('STDERR:\n' + err.strip())
     return rc
 
-# Deploy sin tocar BD
+# Backup real de la BD activa y deploy del código sin tocarla
 for cmd in [
+    "mkdir -p /root/specialwash/backend/instance/backups && cp /root/specialwash/backend/instance/specialwash.db /root/specialwash/backend/instance/backups/specialwash-predeploy-$(date +%Y%m%d-%H%M%S).db && ls -1t /root/specialwash/backend/instance/backups | head -3",
     'cd /root/specialwash/frontend && npm run build',
+    "ts=$(date +%Y%m%d-%H%M%S); mkdir -p /var/www/specialwash/_frontend_backups; cp -a /var/www/specialwash/public_html /var/www/specialwash/_frontend_backups/public_html_$ts; find /var/www/specialwash/public_html -mindepth 1 -maxdepth 1 -exec rm -rf {} +; cp -a /root/specialwash/frontend/build/. /var/www/specialwash/public_html/; chown -R www-data:www-data /var/www/specialwash/public_html",
     'systemctl restart specialwash-backend.service',
     'systemctl restart nginx',
     "curl -s https://specialwash.studio | grep -o 'static/js/main[^\\\" ]*' | head -1",
     "B=$(curl -s https://specialwash.studio | grep -o 'static/js/main[^\\\" ]*' | head -1); echo BUNDLE=$B; curl -s https://specialwash.studio/$B | grep -o 'sw-theme-toggle' | head -1",
     "B=$(curl -s https://specialwash.studio | grep -o 'static/js/main[^\\\" ]*' | head -1); echo BUNDLE=$B; curl -s https://specialwash.studio/$B | grep -o 'Fichar' | head -1",
     "B=$(curl -s https://specialwash.studio | grep -o 'static/js/main[^\\\" ]*' | head -1); echo BUNDLE=$B; curl -s https://specialwash.studio/$B | grep -o 'Trabajar tambien' | head -1",
+    "python3 - << 'PY'\nimport sqlite3\nconn = sqlite3.connect('/root/specialwash/backend/instance/specialwash.db')\ncur = conn.cursor()\nfor table in ('entrada', 'producto_codigo_barras', 'inspeccion_recepcion', 'parte_trabajo'):\n    try:\n        cur.execute(f'SELECT COUNT(*) FROM {table}')\n        print(table, cur.fetchone()[0])\n    except Exception as exc:\n        print(table, 'ERR', exc)\nconn.close()\nPY",
     'systemctl is-active specialwash-backend.service',
     'systemctl is-active nginx',
 ]:

@@ -1,5 +1,8 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Context } from "../store/appContext";
+import { confirmar } from "../utils/confirmar";
+import { toast } from "../utils/toast";
+import EmptyState from "../components/EmptyState.jsx";
 
 /* ── Iconos SVG ─────────────────────────────────────────────────── */
 const ICONS = {
@@ -94,8 +97,10 @@ export default function Proveedores() {
       };
       if (editing?.id) {
         await actions.updateProveedor(editing.id, payload);
+        toast.success("Proveedor actualizado");
       } else {
         await actions.createProveedor(payload);
+        toast.success("Proveedor creado");
       }
       closeModal();
     } catch (err) {
@@ -106,9 +111,9 @@ export default function Proveedores() {
   };
 
   const remove = async (p) => {
-    if (!window.confirm(`¿Eliminar proveedor "${p.nombre}"?`)) return;
-    try { await actions.deleteProveedor(p.id); }
-    catch (err) { alert(err.message); }
+    if (!await confirmar(`¿Eliminar proveedor "${p.nombre}"?`)) return;
+    try { await actions.deleteProveedor(p.id); toast.success("Proveedor eliminado"); }
+    catch (err) { toast.error(err.message); }
   };
 
   const onField = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -216,11 +221,11 @@ export default function Proveedores() {
                   </tr>
                 )}
                 {!loading && proveedores.length === 0 && (
-                  <tr>
-                    <td colSpan={6} style={{ textAlign: "center", padding: "3rem", color: "var(--sw-muted)", fontSize: "0.9rem" }}>
-                      {filter ? "No hay proveedores que coincidan con la búsqueda." : "No hay proveedores registrados."}
-                    </td>
-                  </tr>
+                  <EmptyState
+                    colSpan={6}
+                    title={filter ? "Sin resultados" : "Sin proveedores"}
+                    subtitle={filter ? `Ningún proveedor coincide con "${filter}".` : "No hay proveedores registrados. Añade el primero con Nuevo proveedor."}
+                  />
                 )}
                 {!loading && proveedores.map((p) => (
                   <tr key={p.id} style={{ borderBottom: "1px solid var(--sw-border)", transition: "background 0.15s" }}

@@ -1,6 +1,10 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Context } from "../store/appContext";
-import GoldSelect from "../component/GoldSelect.jsx";
+import GoldSelect from "../components/GoldSelect.jsx";
+import Paginacion from "../components/Paginacion.jsx";
+import EmptyState from "../components/EmptyState.jsx";
+
+const POR_PAGINA = 50;
 
 /* ── Iconos SVG ─────────────────────────────────────────────────── */
 const ICONS = {
@@ -31,6 +35,7 @@ export default function HistorialSalidas() {
   const [productoId, setProductoId] = useState("");
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pagina, setPagina] = useState(1);
 
   useEffect(() => {
     actions.getProductos();
@@ -93,6 +98,14 @@ export default function HistorialSalidas() {
       (a, b) => new Date(b.fecha) - new Date(a.fecha)
     );
   }, [salidas, desde, hasta, productoId, q]);
+
+  // Reset página cuando cambian los filtros
+  useEffect(() => { setPagina(1); }, [desde, hasta, productoId, q]);
+
+  const paginadas = useMemo(
+    () => filtradas.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA),
+    [filtradas, pagina]
+  );
 
   // TOTALES (🔥 CLAVE)
   const tot = useMemo(
@@ -228,13 +241,13 @@ export default function HistorialSalidas() {
                     </tr>
                   )}
                   {!loading && filtradas.length === 0 && (
-                    <tr>
-                      <td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "var(--sw-muted)", fontSize: "0.875rem" }}>
-                        Sin resultados.
-                      </td>
-                    </tr>
+                    <EmptyState
+                      colSpan={7}
+                      title="Sin resultados"
+                      subtitle="No hay salidas que coincidan con los filtros aplicados."
+                    />
                   )}
-                  {!loading && filtradas.map((r) => (
+                  {!loading && paginadas.map((r) => (
                     <tr key={r.id}>
                       <td style={{ fontSize: "0.8rem", color: "var(--sw-muted)", whiteSpace: "nowrap" }}>{fmtDateTime(r.fecha)}</td>
                       <td style={{ fontWeight: 600, fontSize: "0.85rem" }}>{r.producto_nombre || "-"}</td>
@@ -262,6 +275,12 @@ export default function HistorialSalidas() {
               </table>
             </div>
           </div>
+          <Paginacion
+            total={filtradas.length}
+            page={pagina}
+            limit={POR_PAGINA}
+            onChange={setPagina}
+          />
         </div>
       </div>
     </>

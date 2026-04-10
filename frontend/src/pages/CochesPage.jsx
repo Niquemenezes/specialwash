@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useContext } from "react";
 import { Context } from "../store/appContext";
-import GoldSelect from "../component/GoldSelect.jsx";
+import GoldSelect from "../components/GoldSelect.jsx";
+import { confirmar } from "../utils/confirmar";
+import EmptyState from "../components/EmptyState.jsx";
 
 /* ── Iconos SVG ─────────────────────────────────────────────────── */
 const ICONS = {
@@ -35,7 +37,7 @@ const CochesPage = () => {
   };
 
   const handleEliminar = async (id) => {
-    if (!window.confirm("¿Eliminar este coche?")) return;
+    if (!await confirmar("¿Eliminar este coche?")) return;
     try {
       await actions.eliminarCoche(id);
       actions.getCoches();
@@ -151,11 +153,11 @@ const CochesPage = () => {
                   </tr>
                 ))}
                 {cochesFiltrados.length === 0 && (
-                  <tr>
-                    <td colSpan="6" style={{ textAlign: "center", color: "var(--sw-muted)", padding: "2.5rem", fontSize: "0.875rem" }}>
-                      {busqueda ? "Sin resultados para esa búsqueda." : "No hay coches registrados."}
-                    </td>
-                  </tr>
+                  <EmptyState
+                    colSpan={6}
+                    title={busqueda ? "Sin resultados" : "Sin coches"}
+                    subtitle={busqueda ? "Ningún coche coincide con esa búsqueda." : "No hay coches registrados. Añade el primero con Nuevo coche."}
+                  />
                 )}
               </tbody>
             </table>

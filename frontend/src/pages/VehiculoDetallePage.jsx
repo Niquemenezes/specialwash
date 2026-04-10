@@ -1,6 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Context } from "../store/appContext";
+import { listarPartesTrabajo } from "../utils/parteTrabajoApi";
 import "../styles/inspeccion-responsive.css";
 
 // ==================== CONSTANTES ====================
@@ -75,18 +76,8 @@ export default function VehiculoDetallePage() {
 
       // Cargar partes de trabajo del coche
       if (insp?.coche_id) {
-        const response = await fetch(
-          `${process.env.REACT_APP_BACKEND_URL || "http://localhost:5001/api"}/parte_trabajo?coche_id=${insp.coche_id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${sessionStorage.getItem("token") || localStorage.getItem("token")}`,
-            },
-          }
-        );
-        if (response.ok) {
-          const data = await response.json();
-          setPartes(Array.isArray(data) ? data : []);
-        }
+        const data = await listarPartesTrabajo({ coche_id: insp.coche_id });
+        setPartes(Array.isArray(data) ? data : []);
       }
 
       // Pre-cargar checklist si ya existe
@@ -121,6 +112,7 @@ export default function VehiculoDetallePage() {
 
   const repasoCompletado = inspeccion?.repaso_completado || false;
   const esConcesionario = inspeccion?.es_concesionario || false;
+  const requiereHojaIntervencion = inspeccion?.requiere_hoja_intervencion || false;
 
   // GUARDAR REPASO
   const guardarRepaso = async () => {
@@ -265,7 +257,10 @@ export default function VehiculoDetallePage() {
             </div>
             <div className="card-body">
               {partes.length === 0 ? (
-                <p className="text-muted">No hay partes de trabajo</p>
+                <div className="text-muted">
+                  <p className="mb-2">No hay partes de trabajo.</p>
+                  <p className="small mb-0">Revisa que en la inspección se haya añadido al menos un servicio para que se creen automáticamente.</p>
+                </div>
               ) : (
                 <div className="table-responsive">
                   <table className="table table-hover mb-0">
@@ -409,10 +404,10 @@ export default function VehiculoDetallePage() {
               className="btn btn-primary w-100"
               disabled={!repasoCompletado}
               onClick={() => {
-                if (esConcesionario) {
-                  navigate(`/entrega-cliente/${inspeccion_id}`);
-                } else {
+                if (!esConcesionario && requiereHojaIntervencion) {
                   navigate(`/hoja-tecnica/${inspeccion_id}`);
+                } else {
+                  navigate(`/entrega-cliente/${inspeccion_id}`);
                 }
               }}
             >

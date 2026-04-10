@@ -426,7 +426,10 @@ export default function HorariosAdminPage() {
             if (!totales[r.empleado_nombre]) totales[r.empleado_nombre] = 0;
             if (r.entrada && r.salida) {
               let ms = new Date(r.salida) - new Date(r.entrada);
-              if (r.inicio_comida && r.fin_comida) {
+              const descansoMin = Number(r.descanso_total_minutos || 0);
+              if (descansoMin > 0) {
+                ms -= descansoMin * 60000;
+              } else if (r.inicio_comida && r.fin_comida) {
                 const pausaMs = new Date(r.fin_comida) - new Date(r.inicio_comida);
                 if (pausaMs > 0) ms -= pausaMs;
               }

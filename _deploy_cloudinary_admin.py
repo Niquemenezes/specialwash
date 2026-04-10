@@ -2,9 +2,11 @@ import os
 import posixpath
 import paramiko
 
-HOST='194.164.164.78'
-USER='root'
-PASSWORD='cwtC7sJe'
+HOST = os.getenv("SPECIALWASH_DEPLOY_HOST", "YOUR_SERVER_IP")
+USER = os.getenv("SPECIALWASH_DEPLOY_USER", "root")
+PASSWORD = os.getenv("SPECIALWASH_DEPLOY_PASSWORD")
+if not PASSWORD or HOST == "YOUR_SERVER_IP":
+    raise SystemExit("Set SPECIALWASH_DEPLOY_HOST and SPECIALWASH_DEPLOY_PASSWORD before running this script.")
 LOCAL_ROOT=r'c:\\Users\\moniq\\specialwash'
 REMOTE_ROOT='/root/specialwash'
 

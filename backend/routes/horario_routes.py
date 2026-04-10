@@ -1,6 +1,7 @@
 import os
 import uuid
-from datetime import date, timedelta
+import json
+from datetime import date, timedelta, datetime
 from io import BytesIO
 from pathlib import Path
 
@@ -12,6 +13,8 @@ import cloudinary
 import cloudinary.uploader
 from cloudinary.utils import cloudinary_url
 
+from sqlalchemy import inspect, text
+
 from models import User, db
 from models.registro_horario import RegistroHorario
 from models.base import now_madrid
@@ -21,9 +24,48 @@ horario_bp = Blueprint("horario_routes", __name__)
 
 _MEDIA_BASE = Path(os.path.dirname(os.path.abspath(__file__))).parent / "media" / "horarios"
 
-TIPOS_VALIDOS = {"entrada", "inicio_comida", "fin_comida", "salida"}
+TIPOS_VALIDOS = {"entrada", "inicio_comida", "fin_comida", "salida", "inicio_descanso", "fin_descanso"}
 RETENCION_FOTOS_DIAS = 60
 _CLOUDINARY_READY = None
+_HORARIO_SCHEMA_READY = False
+_MAX_DESCANSO_MINUTOS = 60
+
+
+def _ensure_registro_horario_schema() -> None:
+    global _HORARIO_SCHEMA_READY
+    if _HORARIO_SCHEMA_READY:
+        return
+    inspector = inspect(db.engine)
+    columnas = {col.get("name") for col in inspector.get_columns("registro_horario")}
+    if "pausas" not in columnas:
+        db.session.execute(text("ALTER TABLE registro_horario ADD COLUMN pausas TEXT"))
+        db.session.commit()
+    _HORARIO_SCHEMA_READY = True
+
+
+def _get_pausas(registro: RegistroHorario):
+    try:
+        raw = json.loads(registro.pausas or "[]")
+        if isinstance(raw, list):
+            return [p for p in raw if isinstance(p, list) and len(p) >= 1 and p[0]]
+    except Exception:
+        pass
+    return []
+
+
+def _total_descanso_minutos(pausas) -> int:
+    total = 0
+    ahora = now_madrid()
+    for pausa in pausas or []:
+        try:
+            inicio = datetime.fromisoformat(str(pausa[0]).replace("Z", "+00:00"))
+            fin_iso = pausa[1] if len(pausa) > 1 else None
+            fin = datetime.fromisoformat(str(fin_iso).replace("Z", "+00:00")) if fin_iso else ahora
+            delta = max((fin - inicio).total_seconds(), 0)
+            total += int(round(delta / 60))
+        except Exception:
+            continue
+    return total
 
 
 def _foto_dir(empleado_id: int) -> Path:
@@ -33,6 +75,7 @@ def _foto_dir(empleado_id: int) -> Path:
 
 
 def _get_o_crear_registro(empleado_id: int, hoy: date) -> RegistroHorario:
+    _ensure_registro_horario_schema()
     registro = RegistroHorario.query.filter_by(empleado_id=empleado_id, fecha=hoy).first()
     if not registro:
         registro = RegistroHorario(empleado_id=empleado_id, fecha=hoy)
@@ -76,6 +119,7 @@ def _extract_public_id(value: str) -> str:
 
 def _purgar_fotos_antiguas() -> None:
     """Elimina fotos y referencias de fichajes con más de 60 días."""
+    _ensure_registro_horario_schema()
     limite = now_madrid().date() - timedelta(days=RETENCION_FOTOS_DIAS)
     viejos = RegistroHorario.query.filter(RegistroHorario.fecha < limite).all()
     if not viejos:
@@ -106,7 +150,10 @@ def _purgar_fotos_antiguas() -> None:
             hubo_cambios = True
 
     if hubo_cambios:
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
 
 # ─── POST /api/horario/fichar ────────────────────────────────────────────────
@@ -115,9 +162,10 @@ def _purgar_fotos_antiguas() -> None:
 def fichar():
     empleado_id = int(get_jwt_identity())
     tipo = (request.form.get("tipo") or "").strip().lower()
+    tipo = {"inicio_descanso": "inicio_comida", "fin_descanso": "fin_comida"}.get(tipo, tipo)
 
-    if tipo not in TIPOS_VALIDOS:
-        return jsonify({"msg": "Tipo inválido. Usa: entrada, inicio_comida, fin_comida, salida"}), 400
+    if tipo not in {"entrada", "inicio_comida", "fin_comida", "salida"}:
+        return jsonify({"msg": "Tipo inválido. Usa: entrada, inicio_descanso, fin_descanso o salida"}), 400
 
     TIPOS_CON_FOTO = {"entrada", "salida"}
     foto_file = request.files.get("foto")
@@ -130,10 +178,35 @@ def fichar():
 
     registro = _get_o_crear_registro(empleado_id, hoy)
 
-    # Validar orden: no permitir fichar si ya existe ese timestamp
-    campo_dt = tipo
-    if getattr(registro, campo_dt) is not None:
+    # Validar orden lógico y descansos múltiples
+    pausas = _get_pausas(registro)
+    descanso_activo = any((len(p) < 2 or p[1] in (None, "")) for p in pausas)
+    descanso_total_min = _total_descanso_minutos(pausas)
+
+    if tipo in {"entrada", "salida"} and getattr(registro, tipo) is not None:
         return jsonify({"msg": f"Ya fichaste '{tipo}' hoy"}), 409
+
+    if tipo == "entrada":
+        pass
+    elif tipo == "inicio_comida":
+        if registro.entrada is None:
+            return jsonify({"msg": "Debes fichar entrada antes de iniciar el descanso"}), 409
+        if registro.salida is not None:
+            return jsonify({"msg": "La jornada ya está cerrada con salida"}), 409
+        if descanso_activo:
+            return jsonify({"msg": "Ya tienes un descanso iniciado. Ficha su fin antes de abrir otro."}), 409
+        if descanso_total_min >= _MAX_DESCANSO_MINUTOS:
+            return jsonify({"msg": "Ya alcanzaste el máximo diario de 1 hora de descanso."}), 409
+    elif tipo == "fin_comida":
+        if registro.entrada is None:
+            return jsonify({"msg": "Debes fichar entrada antes de cerrar el descanso"}), 409
+        if not descanso_activo:
+            return jsonify({"msg": "No tienes ningún descanso iniciado ahora mismo."}), 409
+    elif tipo == "salida":
+        if registro.entrada is None:
+            return jsonify({"msg": "Debes fichar entrada antes de fichar la salida"}), 409
+        if descanso_activo:
+            return jsonify({"msg": "Tienes pendiente fichar el fin del descanso antes de la salida"}), 409
 
     # Guardar foto solo si viene (obligatoria para entrada/salida, opcional para el resto)
     foto_path = None
@@ -160,12 +233,34 @@ def fichar():
             foto_path = nombre
 
     # Asignar timestamp y foto
-    setattr(registro, campo_dt, now_madrid())
+    momento = now_madrid()
+    if tipo == "inicio_comida":
+        if registro.inicio_comida is None:
+            registro.inicio_comida = momento
+        pausas.append([momento.isoformat(), None])
+        registro.pausas = json.dumps(pausas)
+    elif tipo == "fin_comida":
+        for pausa in reversed(pausas):
+            if len(pausa) < 2 or pausa[1] in (None, ""):
+                if len(pausa) < 2:
+                    pausa.append(momento.isoformat())
+                else:
+                    pausa[1] = momento.isoformat()
+                break
+        registro.fin_comida = momento
+        registro.pausas = json.dumps(pausas)
+    else:
+        setattr(registro, tipo, momento)
+
     campo_foto = f"foto_{tipo}"
     if foto_path:
         setattr(registro, campo_foto, foto_path)
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify({"msg": "Fichaje registrado", "registro": registro.to_dict()}), 200
 
 
@@ -173,6 +268,7 @@ def fichar():
 @horario_bp.route("/horario/hoy", methods=["GET"])
 @jwt_required()
 def horario_hoy():
+    _ensure_registro_horario_schema()
     empleado_id = int(get_jwt_identity())
     hoy = now_madrid().date()
     registro = RegistroHorario.query.filter_by(empleado_id=empleado_id, fecha=hoy).first()
@@ -185,6 +281,7 @@ def horario_hoy():
 @horario_bp.route("/horario/mensual", methods=["GET"])
 @role_required("administrador", "encargado")
 def horario_mensual():
+    _ensure_registro_horario_schema()
     anio = request.args.get("anio", type=int, default=now_madrid().year)
     mes = request.args.get("mes", type=int, default=now_madrid().month)
     empleado_id = request.args.get("empleado_id", type=int)
@@ -205,6 +302,7 @@ def horario_mensual():
 @role_required("administrador", "encargado")
 def editar_registro(registro_id):
     """Permite a admin/encargado corregir o añadir horas de un registro."""
+    _ensure_registro_horario_schema()
     from zoneinfo import ZoneInfo
     from datetime import datetime
 
@@ -231,7 +329,17 @@ def editar_registro(registro_id):
                 except (ValueError, TypeError):
                     return jsonify({"msg": f"Formato de hora inválido para '{campo}'. Usa HH:MM"}), 400
 
-    db.session.commit()
+    if any(campo in data for campo in ("inicio_comida", "fin_comida")):
+        if registro.inicio_comida:
+            registro.pausas = json.dumps([[registro.inicio_comida.isoformat(), registro.fin_comida.isoformat() if registro.fin_comida else None]])
+        else:
+            registro.pausas = None
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify({"msg": "Registro actualizado", "registro": registro.to_dict()}), 200
 
 

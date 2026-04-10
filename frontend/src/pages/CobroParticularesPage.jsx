@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { confirmar } from "../utils/confirmar";
+import { toast } from "../utils/toast";
 
 const ICONS = {
   back: (
@@ -144,9 +146,9 @@ export default function CobroParticularesPage() {
   }, []);
 
   const handleMarcarCobrado = async (coche) => {
-    if (window.confirm(`¿Confirmar cobro del vehículo ${coche.matricula}?`)) {
+    if (await confirmar(`¿Confirmar cobro del vehículo ${coche.matricula}?`, { danger: false, labelConfirmar: "Sí, confirmar" })) {
       // Placeholder: aquí iría la lógica para marcar como cobrado
-      alert("Cobro registrado: " + coche.matricula);
+      toast.success("Cobro registrado: " + coche.matricula);
       setCoches(coches.filter(c => c.id !== coche.id));
     }
   };

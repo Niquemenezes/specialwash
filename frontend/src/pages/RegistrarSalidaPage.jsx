@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState, useContext } from "react";
 import { Context } from "../store/appContext";
-import ProductoFormModal from "../component/ProductoFormModal.jsx";
-import GoldSelect from "../component/GoldSelect.jsx";
+import ProductoFormModal from "../components/ProductoFormModal.jsx";
+import GoldSelect from "../components/GoldSelect.jsx";
+import { confirmar } from "../utils/confirmar";
 import { detectBarcodeFromFile, renderBarcodeToElement } from "../utils/barcode";
 import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
 import { getStoredRol, normalizeRol } from "../utils/authSession";
@@ -63,13 +64,23 @@ const RegistrarSalidaPage = () => {
   const [barcodeMsg, setBarcodeMsg] = useState("");
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState(null); // { type, msg }
-  const [showNuevo, setShowNuevo] = useState(false);
+  const [errores, setErrores] = useState({});
+  const [showProductoModal, setShowProductoModal] = useState(false);
+  const [productoModalInitial, setProductoModalInitial] = useState(null);
   const [editando, setEditando] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
   const cameraScanRef = useRef(null);
   const galleryScanRef = useRef(null);
   const barcodeContainerRef = useRef(null);
+  const cantidadInputRef = useRef(null);
+  const [scanPrompt, setScanPrompt] = useState({
+    open: false,
+    producto: null,
+    cantidad: "1",
+    codigo: "",
+    error: "",
+  });
 
   useEffect(() => {
     actions.getProductos();
@@ -79,7 +90,12 @@ const RegistrarSalidaPage = () => {
   }, []);
 
   useBarcodeScanner(
-    (codigo) => { if (codigo) { setCodigoBarras(codigo); buscarProductoPorCodigo(codigo); } },
+    (codigo) => {
+      if (codigo) {
+        setCodigoBarras(codigo);
+        buscarProductoPorCodigo(codigo, { abrirConfirmacion: true });
+      }
+    },
     { debounceTime: 100, enabled: true }
   );
 
@@ -90,36 +106,72 @@ const RegistrarSalidaPage = () => {
 
   const setProducto = (id) => setForm((f) => ({ ...f, producto_id: id }));
 
+  const closeScanPrompt = () => {
+    setScanPrompt({ open: false, producto: null, cantidad: "1", codigo: "", error: "" });
+  };
+
+  const clearSalidaForm = () => {
+    setForm((f) => ({ ...f, cantidad: "", observaciones: "", producto_id: "" }));
+    setCodigoBarras("");
+    setBarcodeMsg("");
+    setErrores({});
+    if (typeof document !== "undefined" && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  };
+
+  const openProductoModal = (producto = null) => {
+    setProductoModalInitial(producto || null);
+    setShowProductoModal(true);
+  };
+
+  const registrarSalidaProducto = async ({
+    productoId,
+    cantidad,
+    observaciones = form.observaciones,
+    usuarioId = form.usuario_id,
+    desdeEscaner = false,
+  }) => {
+    const payload = {
+      producto_id: Number(productoId),
+      cantidad: Number(cantidad),
+      observaciones: observaciones || "",
+    };
+    if (isAdmin && usuarioId) payload.usuario_id = Number(usuarioId);
+
+    const res = await actions.registrarSalida(payload);
+    const p = res?.producto;
+    const oper = res?.usuario_nombre || store.user?.nombre || "—";
+
+    setFeedback({
+      type: "success",
+      msg: desdeEscaner
+        ? `✅ ${p?.nombre || "Producto"} · ${cantidad} ud. dadas de baja por ${oper}. Stock restante: ${p?.stock_actual ?? "—"}`
+        : `✅ Salida registrada — Operario: ${oper} · Producto: ${p?.nombre || "Producto"} · Cantidad: ${cantidad} · Stock restante: ${p?.stock_actual ?? "—"}`,
+    });
+
+    if (isAdmin) await actions.getSalidas({}, true);
+    await actions.getProductos();
+    clearSalidaForm();
+    return res;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.producto_id) { setFeedback({ type: "warning", msg: "Debes seleccionar un producto." }); return; }
-    if (!form.cantidad)    { setFeedback({ type: "warning", msg: "La cantidad es obligatoria." }); return; }
-    if (isAdmin && !form.usuario_id) { setFeedback({ type: "warning", msg: "Selecciona el usuario que retira el producto." }); return; }
+    const errs = {};
+    if (!form.producto_id) errs.producto_id = "Selecciona un producto.";
+    if (!form.cantidad || Number(form.cantidad) < 1) errs.cantidad = "Indica una cantidad válida.";
+    if (isAdmin && !form.usuario_id) errs.usuario_id = "Selecciona el usuario que retira.";
+    if (Object.keys(errs).length) { setErrores(errs); return; }
+    setErrores({});
 
     setSaving(true);
     setFeedback(null);
     try {
-      const payload = {
-        producto_id: Number(form.producto_id),
-        cantidad: Number(form.cantidad),
-        observaciones: form.observaciones,
-      };
-      if (isAdmin) payload.usuario_id = Number(form.usuario_id);
-
-      const res = await actions.registrarSalida(payload);
-      const p = res?.producto;
-      const oper = res?.usuario_nombre || store.user?.nombre || "—";
-
-      setFeedback({
-        type: "success",
-        msg: `✅ Salida registrada — Operario: ${oper} · Producto: ${p?.nombre || "Producto"} · Cantidad: ${form.cantidad} · Stock restante: ${p?.stock_actual ?? "—"}`,
+      await registrarSalidaProducto({
+        productoId: form.producto_id,
+        cantidad: form.cantidad,
       });
-
-      setForm((f) => ({ ...f, cantidad: "", observaciones: "", producto_id: "" }));
-      setCodigoBarras("");
-
-      if (isAdmin) await actions.getSalidas({}, true);
-      await actions.getProductos();
     } catch (err) {
       const msg = err?.message || "Error desconocido";
       if (msg.includes("Stock insuficiente")) {
@@ -132,7 +184,8 @@ const RegistrarSalidaPage = () => {
     }
   };
 
-  const buscarProductoPorCodigo = async (forcedCode = "") => {
+  const buscarProductoPorCodigo = async (forcedCode = "", options = {}) => {
+    const { abrirConfirmacion = false } = options;
     const codigo = String(forcedCode || codigoBarras || "").trim();
     if (!codigo) { setBarcodeMsg("Introduce o escanea un código de barras."); return; }
 
@@ -141,15 +194,31 @@ const RegistrarSalidaPage = () => {
     try {
       const producto = await actions.getProductoPorCodigoBarras(codigo);
       if (!producto?.id) {
-        setBarcodeMsg("No hay producto vinculado a ese código. Selecciona el producto manualmente.");
+        setBarcodeMsg("No hay producto vinculado a ese código. Usa el buscador por nombre o selección manual.");
         return;
       }
       setProducto(String(producto.id));
+      setErrores((prev) => ({ ...prev, producto_id: undefined, cantidad: undefined }));
       setCodigoBarras(codigo);
       setBarcodeMsg(`Producto detectado: ${producto.nombre}.`);
       if (barcodeContainerRef.current) renderBarcodeToElement(codigo, barcodeContainerRef.current);
+
+      if (abrirConfirmacion && !isAdmin) {
+        setScanPrompt({
+          open: true,
+          producto,
+          cantidad: "1",
+          codigo,
+          error: "",
+        });
+      } else {
+        setTimeout(() => {
+          cantidadInputRef.current?.focus();
+          cantidadInputRef.current?.select?.();
+        }, 30);
+      }
     } catch {
-      setBarcodeMsg("No hay producto vinculado a ese código. Selecciona el producto manualmente.");
+      setBarcodeMsg("No hay producto vinculado a ese código. Usa el buscador por nombre o selección manual.");
     } finally {
       setBarcodeLoading(false);
     }
@@ -170,8 +239,40 @@ const RegistrarSalidaPage = () => {
     }
   };
 
+  const confirmarSalidaEscaneada = async () => {
+    const cantidad = Number(scanPrompt.cantidad);
+    if (!scanPrompt.producto?.id) {
+      closeScanPrompt();
+      return;
+    }
+    if (!cantidad || cantidad < 1) {
+      setScanPrompt((prev) => ({ ...prev, error: "Indica cuántas unidades han cogido." }));
+      return;
+    }
+
+    setSaving(true);
+    setFeedback(null);
+    try {
+      await registrarSalidaProducto({
+        productoId: scanPrompt.producto.id,
+        cantidad,
+        desdeEscaner: true,
+      });
+      closeScanPrompt();
+    } catch (err) {
+      const msg = err?.message || "Error desconocido";
+      const texto = msg.includes("Stock insuficiente")
+        ? `Stock insuficiente. ${msg}`
+        : `No se pudo registrar la salida. ${msg}`;
+      setScanPrompt((prev) => ({ ...prev, error: texto }));
+      setFeedback({ type: msg.includes("Stock insuficiente") ? "warning" : "danger", msg: `❌ ${texto}` });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleEliminar = async (salidaId) => {
-    if (!window.confirm("¿Seguro que deseas eliminar esta salida?")) return;
+    if (!await confirmar("¿Seguro que deseas eliminar esta salida?")) return;
     try {
       await actions.eliminarSalida(salidaId);
       await actions.getSalidas({}, true);
@@ -181,8 +282,18 @@ const RegistrarSalidaPage = () => {
     }
   };
 
+  const productosDisponibles = store.productos || [];
+
   const productoSeleccionado = (store.productos || []).find(
     (p) => String(p.id) === String(form.producto_id)
+  );
+  const barcodeDetectado = barcodeMsg.startsWith("Producto detectado");
+  const codigoPendienteAsignar = Boolean(codigoBarras && !barcodeDetectado);
+  const productoTieneCodigo = Boolean(
+    String(productoSeleccionado?.codigo_barras || "").trim() ||
+    (productoSeleccionado?.codigos_barras || []).some((item) =>
+      String(item?.codigo_barras || "").trim()
+    )
   );
   const stockActual = productoSeleccionado?.stock_actual ?? 0;
   const cantidadSolicitada = Number(form.cantidad) || 0;
@@ -210,16 +321,6 @@ const RegistrarSalidaPage = () => {
               <h1 className="sw-veh-hero-title">Registrar Salida de Stock</h1>
               <p className="sw-veh-hero-sub">Baja automática de inventario — escanea o selecciona el producto</p>
             </div>
-            {isAdmin && (
-              <button
-                className="sw-ent-submit-btn"
-                style={{ background: "linear-gradient(135deg, var(--sw-accent,#d4af37), color-mix(in srgb, var(--sw-accent,#d4af37) 75%, #fff))" }}
-                onClick={() => setShowNuevo(true)}
-              >
-                <span style={{ width: 16, height: 16, display: "inline-flex" }}>{ICONS.plus}</span>
-                Nuevo producto
-              </button>
-            )}
           </div>
         </div>
       </div>
@@ -229,16 +330,6 @@ const RegistrarSalidaPage = () => {
 
         {/* ── Tarjeta formulario ───────────────────────────────── */}
         <div className="sw-ent-card">
-          <div className="sw-ent-card-header">
-            <div className="sw-ent-card-header-icon" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.22)", color: "#ef4444" }}>
-              <span style={{ width: 18, height: 18, display: "flex" }}>{ICONS.salida}</span>
-            </div>
-            <div>
-              <p className="sw-ent-card-eyebrow">Nueva salida</p>
-              <h2 className="sw-ent-card-title">Registrar salida de producto</h2>
-            </div>
-          </div>
-
           <form onSubmit={handleSubmit}>
             <div className="sw-ent-card-body">
 
@@ -257,14 +348,18 @@ const RegistrarSalidaPage = () => {
                 <input ref={galleryScanRef} type="file" accept="image/*" style={{ display: "none" }}
                   onChange={(e) => escanearDesdeArchivo(e.target.files?.[0])} />
 
-                <div style={{ display: "flex", gap: "0.65rem", flexWrap: "wrap", alignItems: "center" }}>
+                <div className="sw-ent-ocr-actions">
                   <input
-                    className="form-control sw-pinput"
-                    style={{ maxWidth: "320px" }}
+                    className="form-control sw-pinput sw-ent-ocr-input"
                     value={codigoBarras}
                     onChange={(e) => setCodigoBarras(e.target.value)}
                     placeholder="Escanea o escribe el código"
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); buscarProductoPorCodigo(); } }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        buscarProductoPorCodigo("", { abrirConfirmacion: !isAdmin });
+                      }
+                    }}
                   />
                   <button type="button" className="sw-ent-ocr-btn sw-ent-ocr-btn--outline"
                     onClick={() => buscarProductoPorCodigo()} disabled={barcodeLoading}
@@ -291,6 +386,44 @@ const RegistrarSalidaPage = () => {
                     color: barcodeMsg.startsWith("Producto detectado") ? "var(--sw-success,#22c55e)" : "var(--sw-warning,#f59e0b)",
                   }}>{barcodeMsg}</p>
                 )}
+                {codigoBarras && barcodeMsg && !barcodeMsg.startsWith("Producto detectado") && (
+                  <div style={{
+                    marginTop: "0.6rem",
+                    padding: "0.7rem 0.85rem",
+                    borderRadius: 10,
+                    background: "color-mix(in srgb, var(--sw-accent,#d4af37) 6%, var(--sw-surface))",
+                    border: "1px solid color-mix(in srgb, var(--sw-accent,#d4af37) 18%, var(--sw-border))",
+                    display: "flex",
+                    gap: "0.6rem",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    fontSize: "0.76rem",
+                    color: "var(--sw-muted)",
+                  }}>
+                    <span>
+                      Puedes seguir con selección manual. Si quieres, guarda este código del fabricante para futuras salidas; no es obligatorio.
+                    </span>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => openProductoModal(productoSeleccionado || null)}
+                        style={{
+                          background: "var(--sw-surface-2)",
+                          border: "1px solid var(--sw-border)",
+                          color: "var(--sw-accent,#d4af37)",
+                          borderRadius: "8px",
+                          padding: "0.35rem 0.7rem",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {productoSeleccionado ? "Asignar este código al producto seleccionado" : "Crear producto con este código"}
+                      </button>
+                    )}
+                  </div>
+                )}
                 {codigoBarras && (
                   <div ref={barcodeContainerRef} style={{
                     marginTop: "0.75rem", padding: "0.75rem", borderRadius: 10,
@@ -298,35 +431,79 @@ const RegistrarSalidaPage = () => {
                     minHeight: 120, display: "flex", alignItems: "center", justifyContent: "center",
                   }} />
                 )}
+                {!isAdmin && (
+                  <p style={{ margin: "0.6rem 0 0", fontSize: "0.76rem", color: "var(--sw-muted)" }}>
+                    Modo pistola: escanea el producto, indica cuántas unidades han cogido y el sistema la dará de baja automáticamente.
+                  </p>
+                )}
               </div>
 
               {/* ── Grid de campos ──────────────────────────────── */}
               <div className="sw-ent-grid">
-                <div style={{ gridColumn: "span 2" }}>
+                <div className="sw-ent-grid-span-2">
                   <Field label="Producto" required>
                     <GoldSelect
                       value={String(form.producto_id || "")}
-                      onChange={setProducto}
-                      placeholder="— Seleccione un producto —"
-                      options={(store.productos || []).map((p) => ({
+                      onChange={(v) => { setProducto(v); setErrores((p) => ({ ...p, producto_id: undefined })); }}
+                      placeholder={productosDisponibles.length ? "— Seleccione un producto —" : "No hay productos disponibles"}
+                      searchable
+                      options={productosDisponibles.map((p) => ({
                         value: String(p.id),
                         label: p.nombre + (p.categoria ? ` — ${p.categoria}` : ""),
                       }))}
                     />
-                    {!form.producto_id && (
-                      <span style={{ fontSize: "0.72rem", color: "var(--sw-danger,#ef4444)" }}>
-                        Selecciona un producto antes de registrar
-                      </span>
+                    <div style={{ fontSize: "0.72rem", color: "var(--sw-muted)" }}>
+                      Si no tiene código de barras, abre el desplegable y escribe para buscarlo por nombre.
+                    </div>
+                    {errores.producto_id && <div style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "0.25rem" }}>{errores.producto_id}</div>}
+                    {productoSeleccionado && (
+                      <div style={{
+                        marginTop: "0.45rem",
+                        display: "flex",
+                        gap: "0.5rem",
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}>
+                        <span style={{ fontSize: "0.72rem", color: "var(--sw-muted)" }}>
+                          {productoTieneCodigo
+                            ? "Puedes revisar o añadir otro código del fabricante cuando lo necesites."
+                            : "Este producto aún no tiene código guardado. Puedes añadirlo si te viene bien, pero no es obligatorio."}
+                        </span>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => openProductoModal(productoSeleccionado)}
+                            style={{
+                              background: "var(--sw-surface-2)",
+                              border: "1px solid var(--sw-border)",
+                              color: "var(--sw-accent,#d4af37)",
+                              borderRadius: "8px",
+                              padding: "0.3rem 0.7rem",
+                              fontSize: "0.74rem",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {codigoPendienteAsignar ? "Asignar código escaneado" : "Editar códigos"}
+                          </button>
+                        )}
+                      </div>
                     )}
                   </Field>
                 </div>
 
                 <Field label="Cantidad" required>
                   <input
-                    type="number" min="1" className="form-control sw-pinput"
-                    name="cantidad" value={form.cantidad} onChange={handleChange}
+                    ref={cantidadInputRef}
+                    type="number" min="1" inputMode="numeric" className="form-control sw-pinput"
+                    name="cantidad" value={form.cantidad}
+                    onChange={(e) => { handleChange(e); setErrores((p) => ({ ...p, cantidad: undefined })); }}
+                    style={errores.cantidad ? { borderColor: "#ef4444" } : {}}
                     required placeholder="0"
                   />
+                  {errores.cantidad && <div style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "0.25rem" }}>{errores.cantidad}</div>}
                 </Field>
               </div>
 
@@ -366,10 +543,11 @@ const RegistrarSalidaPage = () => {
                 <Field label="Usuario que retira" required>
                   <GoldSelect
                     value={form.usuario_id}
-                    onChange={(v) => setForm((f) => ({ ...f, usuario_id: v }))}
+                    onChange={(v) => { setForm((f) => ({ ...f, usuario_id: v })); setErrores((p) => ({ ...p, usuario_id: undefined })); }}
                     placeholder="Selecciona…"
                     options={(store.usuarios || []).map((u) => ({ value: u.id, label: u.nombre }))}
                   />
+                  {errores.usuario_id && <div style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "0.25rem" }}>{errores.usuario_id}</div>}
                 </Field>
               )}
 
@@ -463,10 +641,35 @@ const RegistrarSalidaPage = () => {
 
       </div>{/* /container sw-ent-content */}
 
-      {showNuevo && (
-        <ProductoFormModal show onClose={() => setShowNuevo(false)}
-          onSaved={async () => { setShowNuevo(false); await actions.getProductos(); }} />
-      )}
+      <ScannerSalidaRapidaModal
+        show={scanPrompt.open}
+        producto={scanPrompt.producto}
+        codigo={scanPrompt.codigo}
+        cantidad={scanPrompt.cantidad}
+        saving={saving}
+        error={scanPrompt.error}
+        onChangeCantidad={(value) => setScanPrompt((prev) => ({ ...prev, cantidad: value, error: "" }))}
+        onClose={closeScanPrompt}
+        onConfirm={confirmarSalidaEscaneada}
+      />
+
+      <ProductoFormModal
+        show={showProductoModal}
+        initial={productoModalInitial}
+        suggestedBarcode={codigoBarras}
+        onClose={() => {
+          setShowProductoModal(false);
+          setProductoModalInitial(null);
+        }}
+        onSaved={async () => {
+          setShowProductoModal(false);
+          setProductoModalInitial(null);
+          await actions.getProductos();
+          if (codigoBarras) {
+            await buscarProductoPorCodigo(codigoBarras);
+          }
+        }}
+      />
 
       {isAdmin && showEditModal && editando && (
         <EditarSalidaModal
@@ -482,6 +685,90 @@ const RegistrarSalidaPage = () => {
           }}
         />
       )}
+    </div>
+  );
+};
+
+/* ─── Modal salida rápida por scanner ───────────────────────────────────── */
+const ScannerSalidaRapidaModal = ({ show, producto, codigo, cantidad, saving, error, onChangeCantidad, onClose, onConfirm }) => {
+  const cantidadRef = useRef(null);
+
+  useEffect(() => {
+    if (!show) return undefined;
+    const timer = setTimeout(() => {
+      cantidadRef.current?.focus();
+      cantidadRef.current?.select?.();
+    }, 30);
+    return () => clearTimeout(timer);
+  }, [show]);
+
+  if (!show || !producto) return null;
+
+  const stockActual = Number(producto?.stock_actual ?? 0);
+  const cantidadNum = Number(cantidad) || 0;
+  const stockRestante = stockActual - cantidadNum;
+  const stockInsuficiente = cantidadNum > stockActual;
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--sw-overlay-bg, rgba(0,0,0,0.55))", padding: "1rem" }}>
+      <div style={{ background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderRadius: 16, width: "100%", maxWidth: 460, boxShadow: "var(--sw-shadow)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1rem 1.25rem", borderBottom: "1px solid var(--sw-border)", background: "var(--sw-surface-2)", borderRadius: "16px 16px 0 0" }}>
+          <div>
+            <p style={{ margin: 0, fontSize: "0.72rem", color: "var(--sw-muted)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>Salida rápida</p>
+            <h5 style={{ margin: "0.2rem 0 0", fontWeight: 700, color: "var(--sw-text)", fontSize: "1rem" }}>Producto escaneado</h5>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--sw-muted)", cursor: "pointer", fontSize: "1.1rem", lineHeight: 1, padding: 4 }}>✕</button>
+        </div>
+
+        <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+          <div style={{ padding: "0.85rem 1rem", borderRadius: 10, background: "color-mix(in srgb, var(--sw-accent,#d4af37) 6%, var(--sw-surface))", border: "1px solid color-mix(in srgb, var(--sw-accent,#d4af37) 18%, var(--sw-border))" }}>
+            <div style={{ fontWeight: 700, color: "var(--sw-text)" }}>{producto?.nombre || "Producto"}</div>
+            <div style={{ marginTop: "0.2rem", fontSize: "0.78rem", color: "var(--sw-muted)" }}>
+              Código: <span style={{ fontFamily: "monospace" }}>{codigo || "—"}</span>
+            </div>
+          </div>
+
+          <label className="sw-plbl">¿Cuántas unidades han cogido?</label>
+          <input
+            ref={cantidadRef}
+            type="number"
+            min="1"
+            inputMode="numeric"
+            className="form-control sw-pinput"
+            value={cantidad}
+            onChange={(e) => onChangeCantidad(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                onConfirm();
+              }
+            }}
+            placeholder="1"
+          />
+
+          {error && (
+            <div style={{ padding: "0.7rem 0.85rem", borderRadius: 8, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#fca5a5", fontSize: "0.8rem" }}>
+              {error}
+            </div>
+          )}
+
+          <div style={{ padding: "0.8rem 0.95rem", borderRadius: 10, background: stockInsuficiente ? "rgba(239,68,68,0.07)" : "rgba(34,197,94,0.07)", border: `1px solid ${stockInsuficiente ? "rgba(239,68,68,0.25)" : "rgba(34,197,94,0.25)"}`, display: "flex", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap", fontSize: "0.82rem" }}>
+            <span>Disponible: <strong>{stockActual}</strong> uds.</span>
+            <span style={{ color: stockInsuficiente ? "var(--sw-danger,#ef4444)" : "var(--sw-text)" }}>
+              Quedará: <strong>{stockRestante}</strong> uds.
+            </span>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", padding: "1rem 1.25rem", borderTop: "1px solid var(--sw-border)", background: "var(--sw-surface-2)", borderRadius: "0 0 16px 16px" }}>
+          <button type="button" onClick={onClose} style={{ padding: "0.5rem 1.1rem", borderRadius: 8, border: "1px solid var(--sw-border)", background: "transparent", color: "var(--sw-text)", cursor: "pointer", fontWeight: 600, fontSize: "0.85rem" }}>
+            Cancelar
+          </button>
+          <button type="button" className="sw-ent-submit-btn" onClick={onConfirm} disabled={saving || !cantidadNum || stockInsuficiente} style={{ padding: "0.5rem 1.2rem" }}>
+            {saving ? "Registrando…" : "Dar de baja"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

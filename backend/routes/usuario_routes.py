@@ -41,7 +41,11 @@ def usuarios_create():
     )
 
     db.session.add(user)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
 
     return jsonify(user.to_dict()), 201
 
@@ -82,7 +86,11 @@ def usuarios_update(uid):
     if "activo" in data:
         u.activo = bool(data["activo"])
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(u.to_dict()), 200
 
 
@@ -95,5 +103,5 @@ def usuarios_delete(uid):
         db.session.commit()
     except Exception:
         db.session.rollback()
-        return jsonify({"error": "No se puede eliminar: el usuario tiene registros asociados"}), 400
+        return jsonify({"msg": "No se puede eliminar: el usuario tiene registros asociados"}), 400
     return jsonify({"msg": "Usuario eliminado"}), 200

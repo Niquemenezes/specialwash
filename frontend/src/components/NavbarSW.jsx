@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import logo from "../img/logo-specialwash-icon-black.png";
 import { buildApiUrl } from "../utils/apiBase";
 import { clearStoredSession, getStoredRol, getStoredToken } from "../utils/authSession";
-import { NAVIGATION_BY_ROLE, ROLES } from "../config/rolePermissions.js";
+import { NAVIGATION_BY_ROLE } from "../config/rolePermissions.js";
 
 // ─── Campana de notificaciones ───────────────────────────────────────────────
 const CampanaNotificaciones = ({ token }) => {
@@ -64,6 +64,9 @@ const CampanaNotificaciones = ({ token }) => {
     if (n.tipo === "inspeccion") {
       return n.ref_id ? `/inspecciones-guardadas?focusId=${n.ref_id}` : "/inspecciones-guardadas";
     }
+    if (n.tipo === "hoja_intervencion") {
+      return n.ref_id ? `/hoja-tecnica/${n.ref_id}` : "/vehiculos";
+    }
     if (n.tipo === "parte_finalizado") return "/partes-trabajo-finalizados";
     if (n.tipo === "entrega") return "/entregados";
     if (n.tipo === "cita") return "/citas";
@@ -72,6 +75,7 @@ const CampanaNotificaciones = ({ token }) => {
 
   const getIconoNotificacion = (tipo) => {
     if (tipo === "inspeccion") return "🚗";
+    if (tipo === "hoja_intervencion") return "📝";
     if (tipo === "parte_finalizado") return "🧰";
     if (tipo === "entrega") return "✅";
     if (tipo === "cita") return "📅";
@@ -178,9 +182,61 @@ const CampanaNotificaciones = ({ token }) => {
 // ─── Navbar principal ─────────────────────────────────────────────────────────
 const NavbarSW = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const token = getStoredToken();
   const rol = getStoredRol();
   const isAdmin = rol === "administrador";
+
+  const isPathActive = (path = "") => {
+    if (!path) return false;
+    if (location.pathname === path) return true;
+    return path !== "/" && location.pathname.startsWith(`${path}/`);
+  };
+
+  const closeCollapsedMenu = () => {
+    const toggler = document.querySelector(".navbar-toggler");
+    if (toggler && !window.matchMedia("(min-width: 1200px)").matches) {
+      toggler.click();
+    }
+  };
+
+  const roleNavItems = !token || isAdmin
+    ? []
+    : (NAVIGATION_BY_ROLE[rol] || []).flatMap((item) => Array.isArray(item?.items) ? item.items : [item]);
+
+  const quickNavItems = (() => {
+    if (!token || isAdmin) return [];
+
+    if (rol === "calidad") {
+      return [
+        { label: "🚗 Seguimiento", to: "/partes-trabajo" },
+        { label: "🔍 Inspección", to: "/inspeccion-recepcion" },
+        { label: "✍️ Entrega", to: "/repaso-entrega?tab=firma" },
+      ];
+    }
+
+    return roleNavItems.filter(
+      (item, index, arr) => item?.to && arr.findIndex((candidate) => candidate.to === item.to) === index
+    );
+  })();
+
+  const showQuickShortcuts = token && !isAdmin && quickNavItems.length > 0 && location.pathname !== "/" && location.pathname !== "/login" && !(rol === "calidad" && location.pathname === "/repaso-entrega");
+  const canAccessCitas = Boolean(
+    token &&
+    (rol === "administrador" || rol === "encargado" || rol === "calidad" || roleNavItems.some((item) => item?.to === "/citas"))
+  );
+
+  const renderMobileHeaderLink = (to, title, icon, extraClass = "") => (
+    <NavLink
+      to={to}
+      className={({ isActive }) => `sw-mobile-header-action${isActive ? " active" : ""}${extraClass ? ` ${extraClass}` : ""}`}
+      title={title}
+      aria-label={title}
+      onClick={closeCollapsedMenu}
+    >
+      <i className={`fas ${icon}`}></i>
+    </NavLink>
+  );
 
   const [theme, setTheme] = useState(
     () => localStorage.getItem("sw-theme") || document.documentElement.getAttribute("data-theme") || "dark"
@@ -204,8 +260,9 @@ const NavbarSW = () => {
   };
 
   return (
-    <nav className="navbar navbar-expand-lg sw-navbar shadow-sm">
-      <div className="container-fluid">
+    <>
+      <nav className="navbar navbar-expand-xl sw-navbar shadow-sm">
+        <div className="container-fluid">
         {/* Sidebar toggle (admin) + Brand */}
         <div className="d-flex align-items-center gap-2 flex-grow-1">
           {/* Botón para abrir/colapsar el sidebar — solo admin */}
@@ -229,56 +286,110 @@ const NavbarSW = () => {
             <div className="sw-logo-wrap">
               <img src={logo} alt="SpecialWash" className="sw-logo-img" />
             </div>
+            <div className="sw-brand-text d-none d-xl-flex flex-column">
+              <span className="sw-brand-title">Special Wash Studio</span>
+              <span className="sw-brand-subtitle">Internal Management System</span>
+            </div>
           </Link>
         </div>
 
-        {/* Toggler */}
-        <button
-          className="navbar-toggler sw-navbar-toggler"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#swNav"
-          aria-controls="swNav"
-          aria-expanded="false"
-          aria-label="Menú"
-        >
-          <span className="navbar-toggler-icon"></span>
-        </button>
+        {/* Acciones rápidas móviles */}
+        <div className="d-flex align-items-center ms-auto gap-2">
+          {token && (
+            <div className="sw-mobile-header-actions d-xl-none">
+              {canAccessCitas && renderMobileHeaderLink("/citas", "Abrir citas", "fa-calendar")}
+              {renderMobileHeaderLink("/fichar", "Abrir fichar", "fa-clock")}
+              <button
+                className="sw-theme-toggle sw-mobile-header-action"
+                onClick={toggleTheme}
+                title={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+                aria-label={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+                type="button"
+              >
+                <i className={`fas ${theme === "dark" ? "fa-sun" : "fa-moon"}`}></i>
+              </button>
+              <button
+                className="btn sw-btn-gold sw-mobile-header-action sw-mobile-header-action--logout"
+                onClick={handleLogout}
+                title="Cerrar sesión"
+                aria-label="Cerrar sesión"
+                type="button"
+              >
+                <i className="fas fa-sign-out-alt"></i>
+              </button>
+            </div>
+          )}
+        </div>
 
-        {/* Collapsable */}
-        <div className="collapse navbar-collapse" id="swNav">
+        {/* Navegación de escritorio */}
+        <div className="navbar-collapse d-none d-xl-flex" id="swNav">
           {/* Menú por rol — solo roles no-admin (admin usa el sidebar lateral) */}
           {token && !isAdmin && (
-            <ul className="navbar-nav me-auto mt-3 mt-lg-0 sw-nav-left">
+            <ul className="navbar-nav me-auto mt-3 mt-xl-0 sw-nav-left">
               {(() => {
                 const navItems = NAVIGATION_BY_ROLE[rol];
                 if (!navItems) return null;
 
-                // Roles operativos: items directos (sin section/dropdown)
-                return navItems.map((item, idx) => (
-                  <li key={idx} className="nav-item">
-                    <NavLink
-                      to={item.to}
-                      className={({ isActive }) =>
-                        `nav-link sw-navlink ${isActive ? "active" : ""}`
-                      }
-                      onClick={() => {
-                        const toggler = document.querySelector(".navbar-toggler");
-                        if (toggler && !window.matchMedia("(min-width: 992px)").matches) {
-                          toggler.click();
+                return navItems.map((item, idx) => {
+                  if (Array.isArray(item?.items) && item.items.length > 0) {
+                    const dropdownId = `sw-role-menu-${rol}-${idx}`;
+                    const hasActiveChild = item.items.some((entry) => isPathActive(entry.to));
+
+                    return (
+                      <li key={dropdownId} className="nav-item dropdown">
+                        <button
+                          type="button"
+                          className={`nav-link sw-navlink sw-nav-dropdown-toggle dropdown-toggle ${hasActiveChild ? "active" : ""}`}
+                          data-bs-toggle="dropdown"
+                          aria-expanded="false"
+                        >
+                          <span className="sw-nav-dropdown-title">{item.shortLabel || item.section || "Menú"}</span>
+                        </button>
+                        <ul className="dropdown-menu dropdown-menu-start sw-nav-dropdown-menu">
+                          <li><h6 className="dropdown-header">{item.section}</h6></li>
+                          {item.hint && (
+                            <li>
+                              <div className="sw-nav-dropdown-hint">{item.hint}</div>
+                            </li>
+                          )}
+                          {item.items.map((entry) => (
+                            <li key={entry.to}>
+                              <NavLink
+                                to={entry.to}
+                                className={({ isActive }) => `dropdown-item ${isActive ? "active" : ""}`}
+                                onClick={closeCollapsedMenu}
+                              >
+                                {entry.label}
+                              </NavLink>
+                            </li>
+                          ))}
+                        </ul>
+                      </li>
+                    );
+                  }
+
+                  return (
+                    <li key={idx} className="nav-item">
+                      <NavLink
+                        to={item.to}
+                        className={({ isActive }) =>
+                          `nav-link sw-navlink ${isActive ? "active" : ""}`
                         }
-                      }}
-                    >
-                      {item.label}
-                    </NavLink>
-                  </li>
-                ));
+                        onClick={() => {
+                          closeCollapsedMenu();
+                        }}
+                      >
+                        {item.label}
+                      </NavLink>
+                    </li>
+                  );
+                });
               })()}
             </ul>
           )}
 
           {/* Lado derecho */}
-          <ul className="navbar-nav ms-lg-auto align-items-center gap-1 gap-lg-2 mt-3 mt-lg-0 sw-nav-right">
+          <ul className="navbar-nav ms-xl-auto align-items-center gap-1 gap-xl-2 mt-3 mt-xl-0 sw-nav-right">
             {!token ? (
               <>
                 <li className="nav-item w-100">
@@ -300,7 +411,7 @@ const NavbarSW = () => {
                 )}
 
                 {/* Rol del usuario - Solo en desktop */}
-                <li className="nav-item d-none d-lg-flex align-items-center">
+                <li className="nav-item d-none d-xl-flex align-items-center">
                   <span className="sw-role-pill">
                     <i className="fas fa-user-circle me-1"></i>
                     {rol ? rol.charAt(0).toUpperCase() + rol.slice(1) : "—"}
@@ -308,8 +419,8 @@ const NavbarSW = () => {
                 </li>
 
                 {/* Citas */}
-                {(rol === "administrador" || rol === "encargado" || rol === "calidad" || rol === "detailing") && (
-                  <li className="nav-item">
+                {canAccessCitas && (
+                  <li className="nav-item d-none d-xl-block">
                     <NavLink
                       to="/citas"
                       className={({ isActive }) =>
@@ -317,21 +428,18 @@ const NavbarSW = () => {
                       }
                       title="Ver citas"
                       onClick={() => {
-                        const toggler = document.querySelector('.navbar-toggler');
-                        if (toggler && !window.matchMedia('(min-width: 992px)').matches) {
-                          toggler.click();
-                        }
+                        closeCollapsedMenu();
                       }}
                     >
-                      <i className="fas fa-calendar me-1 d-lg-none"></i>
-                      <span className="d-lg-none">Citas</span>
-                      <span className="d-none d-lg-inline">📅 Citas</span>
+                      <i className="fas fa-calendar me-1 d-xl-none"></i>
+                      <span className="d-xl-none">Citas</span>
+                      <span className="d-none d-xl-inline">📅 Citas</span>
                     </NavLink>
                   </li>
                 )}
 
                 {/* Fichar */}
-                <li className="nav-item">
+                <li className="nav-item d-none d-xl-block">
                   <NavLink
                     to="/fichar"
                     className={({ isActive }) =>
@@ -339,20 +447,17 @@ const NavbarSW = () => {
                     }
                     title="Fichar entrada/salida"
                     onClick={() => {
-                      const toggler = document.querySelector('.navbar-toggler');
-                      if (toggler && !window.matchMedia('(min-width: 992px)').matches) {
-                        toggler.click();
-                      }
+                      closeCollapsedMenu();
                     }}
                   >
-                    <i className="fas fa-clock me-1 d-lg-none"></i>
-                    <span className="d-lg-none">Fichar</span>
-                    <span className="d-none d-lg-inline">⏱️ Fichar</span>
+                    <i className="fas fa-clock me-1 d-xl-none"></i>
+                    <span className="d-xl-none">Fichar</span>
+                    <span className="d-none d-xl-inline">⏱️ Fichar</span>
                   </NavLink>
                 </li>
 
                 {/* Theme Toggle */}
-                <li className="nav-item">
+                <li className="nav-item d-none d-xl-block">
                   <button
                     className="sw-theme-toggle"
                     onClick={toggleTheme}
@@ -363,15 +468,15 @@ const NavbarSW = () => {
                 </li>
 
                 {/* Logout */}
-                <li className="nav-item">
+                <li className="nav-item d-none d-xl-block">
                   <button
                     className="btn sw-btn-gold"
                     onClick={handleLogout}
                     title="Cerrar sesión"
                   >
                     <i className="fas fa-sign-out-alt me-1"></i>
-                    <span className="d-lg-none">Salir</span>
-                    <span className="d-none d-lg-inline">Salir</span>
+                    <span className="d-xl-none">Salir</span>
+                    <span className="d-none d-xl-inline">Salir</span>
                   </button>
                 </li>
               </>
@@ -380,6 +485,27 @@ const NavbarSW = () => {
         </div>
       </div>
     </nav>
+
+      {showQuickShortcuts && (
+        <div className="sw-tablet-shortcuts d-xl-none" aria-label="Accesos rápidos">
+          <div className="container-fluid">
+            <div className="sw-tablet-shortcuts__label">Accesos rápidos</div>
+            <div className="sw-tablet-shortcuts__scroller">
+              {quickNavItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) => `sw-tablet-shortcut${isActive ? " sw-tablet-shortcut--active" : ""}`}
+                  onClick={closeCollapsedMenu}
+                >
+                  {item.label}
+                </NavLink>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

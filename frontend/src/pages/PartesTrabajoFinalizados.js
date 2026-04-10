@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { confirmar } from "../utils/confirmar";
 import {
   listarPartesTrabajo,
   listarCochesCatalogo,
@@ -292,8 +293,8 @@ export function AdminPartesTrabajoFinalizados() {
   };
 
   const onEliminarParte = async (parte) => {
-    const confirmado = window.confirm(
-      `Vas a eliminar el parte #${parte.id} (${cocheTextoPorId(parte.coche_id)}). Esta acción no se puede deshacer.\n\n¿Deseas continuar?`
+    const confirmado = await confirmar(
+      `Vas a eliminar el parte #${parte.id} (${cocheTextoPorId(parte.coche_id)}). Esta acción no se puede deshacer.`
     );
     if (!confirmado) return;
 

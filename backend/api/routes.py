@@ -14,6 +14,7 @@ import cloudinary.uploader
 from models import db, User, Producto, Proveedor, Entrada, Salida, Maquinaria, Cliente, Coche, Servicio, ServicioCliente, InspeccionRecepcion, GastoEmpresa, ParteTrabajo, Cita
 from models.base import now_madrid
 from utils.auth_utils import role_required
+from utils.helpers import parse_decimal as _parse_decimal
 
 api = Blueprint("api", __name__)
 
@@ -41,22 +42,6 @@ if _cloudinary_configured():
         api_secret=CLOUDINARY_API_SECRET,
         secure=True,
     )
-
-
-def _parse_decimal(value):
-    if value is None:
-        return None
-    candidate = value.strip().replace(" ", "")
-    if not candidate:
-        return None
-    if "," in candidate and "." in candidate:
-        candidate = candidate.replace(".", "").replace(",", ".")
-    else:
-        candidate = candidate.replace(",", ".")
-    try:
-        return round(float(candidate), 2)
-    except ValueError:
-        return None
 
 
 def _extract_maquinaria_ocr_fields(raw_text):
@@ -131,7 +116,7 @@ def maquinaria_create():
     data = request.get_json() or {}
     nombre = (data.get("nombre") or "").strip()
     if not nombre:
-        return jsonify({"error": "El nombre es obligatorio"}), 400
+        return jsonify({"msg": "El nombre es obligatorio"}), 400
     from datetime import date as dt_date
     m = Maquinaria(nombre=nombre)
     m.tipo = (data.get("tipo") or "").strip() or None
@@ -153,7 +138,11 @@ def maquinaria_create():
         except ValueError:
             pass
     db.session.add(m)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(m.to_dict()), 201
 
 
@@ -212,7 +201,11 @@ def maquinaria_update(mid):
         else:
             m.fecha_compra = None
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(m.to_dict()), 200
 
 
@@ -225,7 +218,7 @@ def maquinaria_delete(mid):
         db.session.commit()
     except Exception:
         db.session.rollback()
-        return jsonify({"error": "No se puede eliminar la maquinaria"}), 400
+        return jsonify({"msg": "No se puede eliminar la maquinaria"}), 400
     return jsonify({"msg": "Maquinaria eliminada"}), 200
 
 
@@ -275,7 +268,11 @@ def maquinaria_upload_factura(mid):
         facturas.append(factura)
 
         maquinaria.facturas_cloudinary = json.dumps(facturas)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            return jsonify({"msg": "Error al guardar en base de datos"}), 500
 
         return jsonify({
             "msg": "Factura subida correctamente",
@@ -311,7 +308,11 @@ def maquinaria_delete_factura(mid, factura_index):
 
         facturas.pop(factura_index)
         maquinaria.facturas_cloudinary = json.dumps(facturas)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            return jsonify({"msg": "Error al guardar en base de datos"}), 500
 
         return jsonify({
             "msg": "Factura eliminada correctamente",
@@ -363,7 +364,7 @@ def clientes_create():
     data = request.get_json() or {}
     nombre = (data.get("nombre") or "").strip()
     if not nombre:
-        return jsonify({"error": "El nombre es obligatorio"}), 400
+        return jsonify({"msg": "El nombre es obligatorio"}), 400
     c = Cliente(
         nombre=nombre,
         cif=(data.get("cif") or "").strip() or None,
@@ -373,7 +374,11 @@ def clientes_create():
         notas=(data.get("notas") or "").strip() or None,
     )
     db.session.add(c)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(c.to_dict()), 201
 
 
@@ -386,7 +391,7 @@ def clientes_update(cid):
     if "nombre" in data:
         nombre = (data.get("nombre") or "").strip()
         if not nombre:
-            return jsonify({"error": "El nombre es obligatorio"}), 400
+            return jsonify({"msg": "El nombre es obligatorio"}), 400
         c.nombre = nombre
     if "cif" in data:
         c.cif = (data.get("cif") or "").strip() or None
@@ -399,7 +404,11 @@ def clientes_update(cid):
     if "notas" in data:
         c.notas = (data.get("notas") or "").strip() or None
     
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(c.to_dict()), 200
 
 
@@ -431,10 +440,14 @@ def clientes_delete(cid):
             Coche.query.filter(Coche.id.in_(coche_ids)).delete(synchronize_session=False)
 
         db.session.delete(c)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            return jsonify({"msg": "Error al guardar en base de datos"}), 500
     except Exception as exc:
         db.session.rollback()
-        return jsonify({"error": f"No se puede eliminar el cliente: {str(exc)}"}), 400
+        return jsonify({"msg": f"No se puede eliminar el cliente: {str(exc)}"}), 400
     return jsonify({"msg": "Cliente eliminado"}), 200
 
 
@@ -452,7 +465,7 @@ def coches_list():
         try:
             query = query.filter(Coche.cliente_id == int(cliente_id))
         except ValueError:
-            return jsonify({"error": "cliente_id inválido"}), 400
+            return jsonify({"msg": "cliente_id inválido"}), 400
     if q:
         query = query.filter(
             (Coche.matricula.ilike(f"%{q}%")) |
@@ -470,13 +483,13 @@ def coches_create():
     # Verificar que la matrícula no exista
     matricula = data.get("matricula", "").strip().upper()
     if not matricula:
-        return jsonify({"error": "La matrícula es obligatoria"}), 400
+        return jsonify({"msg": "La matrícula es obligatoria"}), 400
     if Coche.query.filter_by(matricula=matricula).first():
-        return jsonify({"error": "Ya existe un coche con esa matrícula"}), 400
+        return jsonify({"msg": "Ya existe un coche con esa matrícula"}), 400
     cliente_id = data.get("cliente_id")
     cliente = Cliente.query.get(cliente_id) if cliente_id else None
     if not cliente:
-        return jsonify({"error": "Cliente no encontrado"}), 404
+        return jsonify({"msg": "Cliente no encontrado"}), 404
     
     c = Coche(
         matricula=matricula,
@@ -487,7 +500,11 @@ def coches_create():
         notas=(data.get("notas") or "").strip() or None,
     )
     db.session.add(c)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(c.to_dict()), 201
 
 
@@ -502,7 +519,7 @@ def coches_update(cid):
         nueva_matricula = data.get("matricula", "").strip().upper()
         if nueva_matricula != c.matricula:
             if Coche.query.filter_by(matricula=nueva_matricula).first():
-                return jsonify({"error": "Ya existe un coche con esa matrícula"}), 400
+                return jsonify({"msg": "Ya existe un coche con esa matrícula"}), 400
             c.matricula = nueva_matricula
     
     if "marca" in data:
@@ -514,12 +531,16 @@ def coches_update(cid):
     if "cliente_id" in data:
         cliente = Cliente.query.get(data.get("cliente_id"))
         if not cliente:
-            return jsonify({"error": "Cliente no encontrado"}), 404
+            return jsonify({"msg": "Cliente no encontrado"}), 404
         c.cliente_id = int(data.get("cliente_id"))
     if "notas" in data:
         c.notas = (data.get("notas") or "").strip() or None
     
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(c.to_dict()), 200
 
 
@@ -539,10 +560,14 @@ def coches_delete(cid):
         Cita.query.filter_by(coche_id=cid).delete(synchronize_session=False)
 
         db.session.delete(c)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            return jsonify({"msg": "Error al guardar en base de datos"}), 500
     except Exception as exc:
         db.session.rollback()
-        return jsonify({"error": f"No se puede eliminar el coche: {str(exc)}"}), 400
+        return jsonify({"msg": f"No se puede eliminar el coche: {str(exc)}"}), 400
     return jsonify({"msg": "Coche eliminado"}), 200
 
 
@@ -605,7 +630,11 @@ def servicios_create():
         usuario_id=usuario_id
     )
     db.session.add(s)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(s.to_dict()), 201
 
 
@@ -634,7 +663,11 @@ def servicios_update(sid):
         s.precio = precio
     s.observaciones = data.get("observaciones", s.observaciones)
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(s.to_dict()), 200
 
 
@@ -647,7 +680,7 @@ def servicios_delete(sid):
         db.session.commit()
     except Exception:
         db.session.rollback()
-        return jsonify({"error": "No se puede eliminar el servicio"}), 400
+        return jsonify({"msg": "No se puede eliminar el servicio"}), 400
     return jsonify({"msg": "Servicio eliminado"}), 200
 
 
@@ -693,7 +726,11 @@ def create_servicio_cliente(cliente_id):
     )
     
     db.session.add(servicio)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     
     return jsonify(servicio.to_dict()), 201
 
@@ -729,7 +766,11 @@ def update_servicio_cliente(cliente_id, servicio_id):
     if "activo" in data:
         servicio.activo = bool(data["activo"])
     
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(servicio.to_dict()), 200
 
 
@@ -743,7 +784,7 @@ def delete_servicio_cliente(cliente_id, servicio_id):
         db.session.commit()
     except Exception:
         db.session.rollback()
-        return jsonify({"error": "No se puede eliminar el servicio personalizado"}), 400
+        return jsonify({"msg": "No se puede eliminar el servicio personalizado"}), 400
     return jsonify({"msg": "Servicio eliminado"}), 200
 
 
@@ -835,7 +876,11 @@ def gastos_empresa_create():
     )
 
     db.session.add(gasto)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(gasto.to_dict()), 201
 
 
@@ -877,7 +922,11 @@ def gastos_empresa_update(gid):
     if "observaciones" in data:
         gasto.observaciones = (data.get("observaciones") or "").strip() or None
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify(gasto.to_dict()), 200
 
 
@@ -886,7 +935,11 @@ def gastos_empresa_update(gid):
 def gastos_empresa_delete(gid):
     gasto = GastoEmpresa.query.get_or_404(gid)
     db.session.delete(gasto)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
     return jsonify({"msg": "Gasto eliminado"}), 200
 
 

@@ -1,6 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Context } from "../store/appContext";
+import { toast } from "../utils/toast";
 
 const formatFecha = (value) => {
   if (!value) return "-";
@@ -362,7 +363,7 @@ const CochesPendientesEntrega = () => {
       setAiBySection({});
       setShowActaModal(true);
     } catch (err) {
-      alert(`No se pudo abrir el acta: ${err.message}`);
+      toast.error(`No se pudo abrir el acta: ${err.message}`);
     }
   };
 
@@ -418,7 +419,7 @@ const CochesPendientesEntrega = () => {
 
   const redactarSeccionConAI = async (section, index) => {
     if (!usarIA) {
-      alert("La IA esta desactivada para evitar gasto de creditos. Activa la opcion 'Usar IA (gasta creditos)' si la necesitas.");
+      toast.info("La IA está desactivada. Activa 'Usar IA (gasta créditos)' si la necesitas.");
       return;
     }
     if (!inspeccionActa) return;
@@ -443,7 +444,7 @@ const CochesPendientesEntrega = () => {
 
       const texto = (data?.texto || "").trim();
       if (!texto) {
-        alert("La AI no devolvio texto para esta seccion.");
+        toast.error("La IA no devolvió texto para esta sección.");
         return;
       }
 
@@ -453,7 +454,7 @@ const CochesPendientesEntrega = () => {
     } catch (err) {
       const aiErr = getFriendlyAiError(err);
       if (aiErr.isQuota) setUsarIA(false);
-      alert(aiErr.message);
+      toast.error(aiErr.message);
     } finally {
       setAiBySection((prev) => ({ ...prev, [section.id]: false }));
     }
@@ -461,7 +462,7 @@ const CochesPendientesEntrega = () => {
 
   const redactarObservacionesConAI = async () => {
     if (!usarIA) {
-      alert("La IA esta desactivada para evitar gasto de creditos. Activa la opcion 'Usar IA (gasta creditos)' si la necesitas.");
+      toast.info("La IA está desactivada. Activa 'Usar IA (gasta créditos)' si la necesitas.");
       return;
     }
     if (!inspeccionActa) return;
@@ -486,7 +487,7 @@ const CochesPendientesEntrega = () => {
 
       const texto = String(data?.texto || "").trim();
       if (!texto) {
-        alert("La AI no devolvio texto para las observaciones finales.");
+        toast.error("La IA no devolvió texto para las observaciones finales.");
         return;
       }
 
@@ -499,7 +500,7 @@ const CochesPendientesEntrega = () => {
     } catch (err) {
       const aiErr = getFriendlyAiError(err);
       if (aiErr.isQuota) setUsarIA(false);
-      alert(aiErr.message);
+      toast.error(aiErr.message);
     } finally {
       setAiObservacionesLoading(false);
     }
@@ -512,13 +513,13 @@ const CochesPendientesEntrega = () => {
 
     const hayContenido = sections.some((s) => String(s.content || "").trim());
     if (!hayContenido) {
-      alert("Debes rellenar al menos un punto del informe tecnico antes de guardar.");
+      toast.error("Debes rellenar al menos un punto del informe técnico antes de guardar.");
       return;
     }
 
     const texto = buildActaTexto(informeTecnico, observacionesActa);
     if (!texto.trim()) {
-      alert("Debes rellenar el contenido del acta antes de guardar.");
+      toast.error("Debes rellenar el contenido del acta antes de guardar.");
       return;
     }
 
@@ -529,10 +530,10 @@ const CochesPendientesEntrega = () => {
         entrega_observaciones: observacionesActa,
       });
       await cargarPendientes();
-      alert("Acta guardada correctamente.");
+      toast.success("Acta guardada correctamente.");
       cerrarPrepararActa();
     } catch (err) {
-      alert(`Error al guardar acta: ${err.message}`);
+      toast.error(`Error al guardar acta: ${err.message}`);
       setGuardandoActa(false);
     }
   };

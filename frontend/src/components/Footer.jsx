@@ -5,7 +5,7 @@ const Footer = () => {
     <footer className="sw-footer">
       <div className="container d-flex justify-content-between align-items-center">
         <div className="sw-footer-left">
-          <span className="sw-footer-brand">SPECIALWASH</span>
+          <span className="sw-footer-brand">SPECIAL WASH STUDIO</span>
           <span className="sw-footer-copy">
             Internal Management System </span>
         </div>
