@@ -92,7 +92,7 @@ export const NAVIGATION_BY_ROLE = {
         { label: "�🔍 Inspección de entrada", to: "/inspeccion-recepcion" },
         { label: "📝 Inspecciones guardadas", to: "/inspecciones-guardadas" },
         { label: "✅ Control final", to: "/repaso-entrega?tab=repaso" },
-        { label: "✍️ Entrega / firma", to: "/repaso-entrega?tab=firma" },
+        { label: "📝 Hoja intervención / firma", to: "/repaso-entrega?tab=firma" },
         { label: "✓ Coches entregados", to: "/entregados" },
       ],
     },

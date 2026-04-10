@@ -16,9 +16,9 @@ const SECTIONS = [
       { to: "/productividad-trabajadores", icon: "fas fa-chart-line",    label: "Productividad equipo" },
       { to: "/inspeccion-recepcion",       icon: "fas fa-search",        label: "Inspección entrada"   },
       { to: "/inspecciones-guardadas",     icon: "fas fa-folder-open",   label: "Inspecciones guardadas" },
-      { to: "/repaso-entrega?tab=repaso",  icon: "fas fa-edit",          label: "Control final"        },
-      { to: "/repaso-entrega?tab=firma",   icon: "fas fa-check-circle",  label: "Entrega / firma"      },
-      { to: "/entregados",                 icon: "fas fa-check-double",  label: "Coches entregados"    },
+      { to: "/repaso-entrega?tab=repaso",  icon: "fas fa-edit",            label: "Control final"             },
+      { to: "/repaso-entrega?tab=firma",   icon: "fas fa-file-signature",  label: "Hoja intervención / firma" },
+      { to: "/entregados",                 icon: "fas fa-check-double",    label: "Coches entregados"         },
     ],
   },
   {
