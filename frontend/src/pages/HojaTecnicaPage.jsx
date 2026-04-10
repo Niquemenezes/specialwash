@@ -313,7 +313,7 @@ export default function HojaTecnicaPage() {
 
   return (
     <div className="container-fluid mt-4">
-      <div className="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
           <button
             className="btn btn-sm btn-outline-secondary me-2"
@@ -321,26 +321,10 @@ export default function HojaTecnicaPage() {
           >
             ← Atrás
           </button>
-          <h2 className="d-inline">Hoja técnica de intervención</h2>
+          <h2 className="d-inline">Informe de Intervención Técnica</h2>
           <div className="text-muted small mt-2">
-            Déjala preparada con todos los campos y abre la firma solo cuando toque entregar el coche.
+            Completa la hoja, guárdala y, cuando quieras, pasa a firma y entrega.
           </div>
-        </div>
-        <div className="d-flex gap-2 flex-wrap">
-          <button
-            className="btn btn-outline-info"
-            onClick={generarConIA}
-            disabled={saving || usando_ia}
-          >
-            {usando_ia ? "Generando..." : "✨ Generar borrador con IA"}
-          </button>
-          <button
-            className="btn btn-outline-primary"
-            onClick={() => navigate(`/acta-entrega/${inspeccion_id}`)}
-            disabled={saving}
-          >
-            📝 Ver firma / entrega
-          </button>
         </div>
       </div>
 
@@ -396,12 +380,73 @@ export default function HojaTecnicaPage() {
 
       <div className="card">
         <div className="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <h6 className="mb-0">Preparación de la hoja de intervención</h6>
+          <h6 className="mb-0">Informe de Intervención Técnica</h6>
           <span className="badge text-bg-light">Puedes guardarla sin entregar</span>
         </div>
         <div className="card-body">
+          <div className="alert alert-light border mb-4">
+            <strong>Hoja clásica de preparación:</strong> primero rellena los trabajos y observaciones, y después, si quieres, completa los campos adicionales.
+          </div>
+
+          <div className="mb-4">
+            <label className="form-label">
+              <strong>Trabajos Realizados *</strong>
+            </label>
+            <textarea
+              className="form-control"
+              name="trabajos_realizados"
+              rows="5"
+              placeholder="Describe detalladamente los trabajos realizados al vehículo..."
+              value={form.trabajos_realizados}
+              onChange={handleChange}
+              disabled={saving}
+            />
+            <div className="d-flex gap-2 mt-2 flex-wrap">
+              <button
+                className="btn btn-sm btn-outline-info"
+                onClick={generarConIA}
+                disabled={saving || usando_ia}
+              >
+                {usando_ia ? "Generando..." : "✨ Generar con IA"}
+              </button>
+              <button
+                className="btn btn-sm btn-outline-primary"
+                onClick={() => navigate(`/acta-entrega/${inspeccion_id}`)}
+                disabled={saving}
+              >
+                📝 Ver firma / entrega
+              </button>
+            </div>
+          </div>
+
+          <hr />
+
+          <div className="mb-4">
+            <label className="form-label">
+              <strong>Observaciones Técnicas (Opcional)</strong>
+            </label>
+            <textarea
+              className="form-control"
+              name="entrega_observaciones"
+              rows="3"
+              placeholder="Cualquier observación adicional para el cliente..."
+              value={form.entrega_observaciones}
+              onChange={handleChange}
+              disabled={saving}
+            />
+          </div>
+
+          <hr />
+
+          <div className="mb-3">
+            <label className="form-label fw-semibold">Campos adicionales de la intervención</label>
+            <div className="text-muted small mb-2">
+              Estos apartados ayudan a dejar el informe más completo, como en la versión antigua.
+            </div>
+          </div>
+
           <div className="row g-3">
-            {FIELD_LAYOUT.map((field) => (
+            {FIELD_LAYOUT.filter((field) => field.key !== "trabajos_realizados").map((field) => (
               <div className={field.col} key={field.key}>
                 <label className="form-label fw-semibold">{field.label}</label>
                 <textarea
@@ -415,26 +460,15 @@ export default function HojaTecnicaPage() {
                 />
               </div>
             ))}
-
-            <div className="col-12">
-              <label className="form-label fw-semibold">Observaciones técnicas para la entrega</label>
-              <textarea
-                className="form-control"
-                name="entrega_observaciones"
-                rows="3"
-                placeholder="Detalles adicionales que deban aparecer en la entrega o que deba saber el cliente."
-                value={form.entrega_observaciones}
-                onChange={handleChange}
-                disabled={saving}
-              />
-            </div>
           </div>
 
           {servicios.length > 0 && (
             <>
               <hr />
               <div>
-                <label className="form-label fw-semibold">Servicios del catálogo vinculados</label>
+                <label className="form-label">
+                  <strong>Servicios del Catálogo</strong>
+                </label>
                 <ul className="list-group">
                   {servicios.map((s, i) => (
                     <li key={`${s?.nombre || "servicio"}-${i}`} className="list-group-item d-flex justify-content-between flex-wrap gap-2">
@@ -470,7 +504,7 @@ export default function HojaTecnicaPage() {
               onClick={() => guardarActa(false)}
               disabled={saving}
             >
-              {saving ? "Guardando..." : "💾 Guardar hoja"}
+              {saving ? "Guardando..." : "💾 Guardar hoja técnica"}
             </button>
           </div>
           <div className="col-12 col-md-4">
@@ -479,7 +513,7 @@ export default function HojaTecnicaPage() {
               onClick={() => guardarActa(true)}
               disabled={saving}
             >
-              {saving ? "Guardando..." : "Guardar y abrir firma →"}
+              {saving ? "Guardando..." : "Guardar y Entregar →"}
             </button>
           </div>
         </div>
