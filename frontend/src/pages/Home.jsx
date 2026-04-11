@@ -61,11 +61,15 @@ const MODULES = [
   {
     id: "partes-admin",
     title: () => "Partes de trabajo",
-    subtitle: () => "Asignación, seguimiento y análisis",
+    subtitle: () => "Estado del coche, productividad y control",
     accent: "#6366f1",
     to: () => "/partes-trabajo",
-    cta: "Ver partes activos",
-    links: () => [],
+    cta: "Abrir estado de coches",
+    links: () => [
+      { to: "/partes-trabajo", label: "Estado de coches", detail: "Ver en qué punto está cada vehículo del taller" },
+      { to: "/productividad-trabajadores", label: "Productividad equipo", detail: "Consultar tiempos, partes y rendimiento del equipo" },
+      { to: "/partes-trabajo-finalizados", label: "Trabajos finalizados", detail: "Revisar histórico y cierres recientes" },
+    ],
     roles: ["administrador"],
   },
   {

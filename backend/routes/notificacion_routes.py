@@ -9,7 +9,7 @@ notificaciones_bp = Blueprint("notificaciones", __name__)
 
 
 @notificaciones_bp.route("/notificaciones", methods=["GET"])
-@role_required("administrador", "encargado")
+@role_required("administrador", "calidad", "encargado")
 def listar_notificaciones():
     """Devuelve las últimas 50 notificaciones (no leídas primero)."""
     try:
@@ -26,7 +26,7 @@ def listar_notificaciones():
 
 
 @notificaciones_bp.route("/notificaciones/no-leidas", methods=["GET"])
-@role_required("administrador", "encargado")
+@role_required("administrador", "calidad", "encargado")
 def contar_no_leidas():
     """Devuelve solo el contador de notificaciones no leídas."""
     try:
@@ -37,7 +37,7 @@ def contar_no_leidas():
 
 
 @notificaciones_bp.route("/notificaciones/<int:nid>/leida", methods=["PATCH"])
-@role_required("administrador", "encargado")
+@role_required("administrador", "calidad", "encargado")
 def marcar_leida(nid):
     """Marca una notificación como leída."""
     n = Notificacion.query.get_or_404(nid)
@@ -51,7 +51,7 @@ def marcar_leida(nid):
 
 
 @notificaciones_bp.route("/notificaciones/marcar-todas", methods=["PATCH"])
-@role_required("administrador", "encargado")
+@role_required("administrador", "calidad", "encargado")
 def marcar_todas_leidas():
     """Marca todas las notificaciones como leídas."""
     Notificacion.query.filter_by(leida=False).update({"leida": True})

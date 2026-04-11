@@ -67,6 +67,7 @@ const CampanaNotificaciones = ({ token }) => {
     if (n.tipo === "hoja_intervencion") {
       return n.ref_id ? `/acta-entrega/${n.ref_id}` : "/vehiculos";
     }
+    if (n.tipo === "repaso") return "/repaso-entrega?tab=repaso";
     if (n.tipo === "parte_finalizado") return "/partes-trabajo-finalizados";
     if (n.tipo === "entrega") return "/entregados";
     if (n.tipo === "cita") return "/citas";
@@ -76,6 +77,7 @@ const CampanaNotificaciones = ({ token }) => {
   const getIconoNotificacion = (tipo) => {
     if (tipo === "inspeccion") return "🚗";
     if (tipo === "hoja_intervencion") return "📝";
+    if (tipo === "repaso") return "🔔";
     if (tipo === "parte_finalizado") return "🧰";
     if (tipo === "entrega") return "✅";
     if (tipo === "cita") return "📅";
@@ -405,8 +407,8 @@ const NavbarSW = () => {
               </>
             ) : (
               <>
-                {/* Campana: solo admin */}
-                {rol === "administrador" && (
+                {/* Campana: admin y calidad */}
+                {["administrador", "calidad"].includes(rol) && (
                   <CampanaNotificaciones token={token} />
                 )}
 
