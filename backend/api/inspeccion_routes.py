@@ -363,7 +363,7 @@ def _jwt_user_id():
 
 
 INSPECCION_ALLOWED_ROLES = {"administrador", "calidad"}
-INSPECCION_MANAGER_ROLES = {"administrador"}
+INSPECCION_MANAGER_ROLES = {"administrador", "calidad"}
 
 
 def _is_inspeccion_role(user):
@@ -1333,6 +1333,7 @@ def guardar_acta_entrega(inspeccion_id):
     try:
         inspeccion.trabajos_realizados = data.get("trabajos_realizados", "").strip()
         inspeccion.entrega_observaciones = data.get("entrega_observaciones", "").strip()
+        inspeccion.observaciones_tecnicas_adicionales = (data.get("observaciones_tecnicas_adicionales") or "").strip() or None
 
         db.session.commit()
         return jsonify(inspeccion.to_dict()), 200
@@ -1579,6 +1580,24 @@ def sugerir_acta_premium(inspeccion_id):
         borrador = (data.get("borrador") or "").strip()
         averias = (data.get("averias_notas") or inspeccion.averias_notas or "").strip()
 
+        # Servicios contratados: parse desde servicios_aplicados
+        servicios_raw = inspeccion.servicios_aplicados or "[]"
+        try:
+            servicios_list = json.loads(servicios_raw)
+        except Exception:
+            servicios_list = []
+        servicios_nombres = [s.get("nombre", "") for s in servicios_list if s.get("nombre")]
+
+        # Partes de trabajo finalizados con observaciones del técnico
+        partes_insp = ParteTrabajo.query.filter_by(inspeccion_id=inspeccion_id).all()
+        partes_info = []
+        for p in partes_insp:
+            obs = (getattr(p, "observaciones", "") or "").strip()
+            nombre_emp = (getattr(getattr(p, "empleado", None), "nombre", "") or "").strip()
+            tipo = (getattr(p, "tipo_tarea", "") or "").strip()
+            if obs or tipo:
+                partes_info.append(f"{tipo or 'trabajo'} ({nombre_emp or 'sin asignar'}): {obs or 'sin observaciones'}")
+
         result = openai_service.generate_acta_completa(
             cliente_nombre=inspeccion.cliente_nombre or "-",
             coche_descripcion=inspeccion.coche_descripcion or "-",
@@ -1586,6 +1605,8 @@ def sugerir_acta_premium(inspeccion_id):
             kilometros=inspeccion.kilometros or "-",
             averias=averias,
             borrador=borrador,
+            servicios_contratados=servicios_nombres,
+            partes_realizados=partes_info,
         )
         return jsonify(result), 200
 
