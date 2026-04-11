@@ -6,13 +6,14 @@ import { clearStoredSession, getStoredRol, getStoredToken } from "../utils/authS
 import { NAVIGATION_BY_ROLE } from "../config/rolePermissions.js";
 
 // ─── Campana de notificaciones ───────────────────────────────────────────────
-const CampanaNotificaciones = ({ token }) => {
+const CampanaNotificaciones = ({ token, compact = false }) => {
   const [count, setCount] = useState(0);
   const [lista, setLista] = useState([]);
   const [abierto, setAbierto] = useState(false);
   const [ocultarLeidas, setOcultarLeidas] = useState(false);
   const ref = useRef(null);
   const navigate = useNavigate();
+  const WrapperTag = compact ? "div" : "li";
 
   const cargar = useCallback(async () => {
     if (!token) return;
@@ -102,11 +103,13 @@ const CampanaNotificaciones = ({ token }) => {
   const listaVisible = ocultarLeidas ? lista.filter((n) => !n.leida) : lista;
 
   return (
-    <li className="nav-item position-relative" ref={ref}>
+    <WrapperTag className={compact ? "position-relative" : "nav-item position-relative"} ref={ref}>
       <button
-        className="btn p-0 sw-campana"
+        className={compact ? "btn p-0 sw-campana sw-mobile-header-action" : "btn p-0 sw-campana"}
         onClick={() => { setAbierto(o => !o); if (!abierto) cargar(); }}
         title="Notificaciones"
+        aria-label="Notificaciones"
+        type="button"
         style={{ background: "none", border: "none", color: "var(--sw-muted)", fontSize: "1.1rem", lineHeight: 1, position: "relative" }}
       >
         <i className="fas fa-bell"></i>
@@ -177,7 +180,7 @@ const CampanaNotificaciones = ({ token }) => {
           ))}
         </div>
       )}
-    </li>
+    </WrapperTag>
   );
 };
 
@@ -299,6 +302,9 @@ const NavbarSW = () => {
         <div className="d-flex align-items-center ms-auto gap-2">
           {token && (
             <div className="sw-mobile-header-actions d-xl-none">
+              {["administrador", "calidad"].includes(rol) && (
+                <CampanaNotificaciones token={token} compact />
+              )}
               {canAccessCitas && renderMobileHeaderLink("/citas", "Abrir citas", "fa-calendar")}
               {renderMobileHeaderLink("/fichar", "Abrir fichar", "fa-clock")}
               <button
