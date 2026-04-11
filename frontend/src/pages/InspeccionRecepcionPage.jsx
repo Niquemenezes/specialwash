@@ -893,7 +893,7 @@ const InspeccionRecepcionPage = () => {
 
                 <div className="col-12 col-md-6">
                   <label style={_lbl}>Nombre del cliente <span style={{ color: "#f87171" }}>*</span></label>
-                  <input type="text" className="form-control" name="cliente_nombre" value={formData.cliente_nombre} onChange={handleInputChange} placeholder="Ej: Monique / Taller Acme" list="clientes-existentes" autoComplete="off" required style={_inp} />
+                  <input type="text" className="form-control" name="cliente_nombre" value={formData.cliente_nombre} onChange={handleInputChange} placeholder="Ej: Juan Pérez / Empresa XYZ" list="clientes-existentes" autoComplete="off" required style={_inp} />
                   <datalist id="clientes-existentes">
                     {clientesDisponibles.map((c) => String(c?.nombre || "").trim()).filter((n, i, a) => n && a.indexOf(n) === i).sort((a, b) => a.localeCompare(b, "es")).map((n) => (<option key={n} value={n} />))}
                   </datalist>

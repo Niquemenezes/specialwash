@@ -116,6 +116,53 @@ def _sum_tiempo_servicios(servicios):
     return total
 
 
+def _crear_notificacion_repaso_si_corresponde(parte, nombre_empleado='Empleado'):
+    """Avisa cuando ya no quedan partes pendientes para el coche y pasa a repaso."""
+    coche_id = getattr(parte, 'coche_id', None)
+    if not coche_id:
+        return
+
+    partes_pendientes = (
+        ParteTrabajo.query.filter(
+            ParteTrabajo.coche_id == coche_id,
+            ParteTrabajo.id != parte.id,
+            ParteTrabajo.estado != EstadoParte.finalizado,
+        ).count()
+    )
+    if partes_pendientes > 0:
+        return
+
+    ref_id = parte.inspeccion_id or coche_id
+    existente = (
+        Notificacion.query.filter_by(tipo='repaso', ref_id=ref_id, leida=False)
+        .order_by(Notificacion.created_at.desc())
+        .first()
+    )
+    if existente:
+        return
+
+    coche = Coche.query.get(coche_id)
+    matricula = coche.matricula if coche else f'coche #{coche_id}'
+    cliente_nombre = (
+        ((coche.cliente.nombre or '').strip())
+        if coche and getattr(coche, 'cliente', None)
+        else ''
+    ) or 'Sin cliente'
+
+    notif = Notificacion(
+        tipo='repaso',
+        titulo=f'🔔 Vehículo listo para repasar: {matricula}',
+        cuerpo=(
+            f'Cliente: {cliente_nombre} · '
+            f'Todos los trabajos están terminados · '
+            f'Calidad ya puede repasarlo · '
+            f'Último cierre: {nombre_empleado}'
+        ),
+        ref_id=ref_id,
+    )
+    db.session.add(notif)
+
+
 def _serialize_parte(parte, include_sensitive=False):
     duracion_horas = parte.duracion_total()
     duracion_minutos = int(round(duracion_horas * 60))
@@ -622,6 +669,7 @@ def cambiar_estado_parte(parte_id):
                 ref_id=parte.id,
             )
             db.session.add(notif)
+            _crear_notificacion_repaso_si_corresponde(parte, nombre_empleado=nombre_empleado)
         except Exception:
             pass
     elif nuevo_estado == 'en_pausa':
