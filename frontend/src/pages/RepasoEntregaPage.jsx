@@ -55,7 +55,7 @@ export default function RepasoEntregaPage() {
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await actions.getMisInspecciones();
+      const data = await actions.getPendientesEntrega();
       setInspecciones(Array.isArray(data) ? data : []);
     } finally {
       setLoading(false);
