@@ -13,6 +13,16 @@ const ICONS = {
   search: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>),
 };
 
+const Field = ({ label, required, children }) => (
+  <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+    <label className="sw-plbl">
+      {label}
+      {required && <span style={{ color: "var(--sw-accent,#d4af37)", marginLeft: 2 }}>*</span>}
+    </label>
+    {children}
+  </div>
+);
+
 const CochesPage = () => {
   const { store, actions } = useContext(Context);
   const [showModal, setShowModal] = useState(false);
@@ -232,13 +242,6 @@ const CocheModal = ({ show, coche, clientes, onClose, onSaved }) => {
   };
 
   if (!show) return null;
-
-  const Field = ({ label, required, children }) => (
-    <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-      <label className="sw-plbl">{label}{required && <span style={{ color: "var(--sw-accent,#d4af37)", marginLeft: 2 }}>*</span>}</label>
-      {children}
-    </div>
-  );
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--sw-overlay-bg, rgba(0,0,0,0.5))", padding: "1rem" }}>

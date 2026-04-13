@@ -47,6 +47,16 @@ const Feedback = ({ msg, type, onClose }) => {
   );
 };
 
+const Field = ({ label, required, children }) => (
+  <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+    <label className="sw-plbl">
+      {label}
+      {required && <span style={{ color: "var(--sw-accent,#d4af37)", marginLeft: 2 }}>*</span>}
+    </label>
+    {children}
+  </div>
+);
+
 const RegistrarSalidaPage = () => {
   const { store, actions } = useContext(Context);
 
@@ -299,13 +309,6 @@ const RegistrarSalidaPage = () => {
   const cantidadSolicitada = Number(form.cantidad) || 0;
   const stockRestante = stockActual - cantidadSolicitada;
   const stockInsuficiente = cantidadSolicitada > 0 && cantidadSolicitada > stockActual;
-
-  const Field = ({ label, required, children }) => (
-    <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-      <label className="sw-plbl">{label}{required && <span style={{ color: "var(--sw-accent,#d4af37)", marginLeft: 2 }}>*</span>}</label>
-      {children}
-    </div>
-  );
 
   return (
     <div className="sw-ent-wrapper">
