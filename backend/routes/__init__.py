@@ -1,4 +1,5 @@
 from api.inspeccion_routes import inspeccion_bp
+from api.uniforme_routes import uniformes_bp
 from api.routes import api as core_api_bp
 from routes.almacen_routes import almacen_bp
 from routes.auth_routes import auth_bp
@@ -30,3 +31,4 @@ def register_routes(app):
     app.register_blueprint(horario_bp, url_prefix="/api")
     app.register_blueprint(dashboard_bp, url_prefix="")
     app.register_blueprint(export_bp, url_prefix="")
+    app.register_blueprint(uniformes_bp, url_prefix="/api/uniformes")
