@@ -12,7 +12,7 @@ uniformes_bp = Blueprint("uniformes", __name__)
 
 # ─── Empleados activos ────────────────────────────────────────────────────────
 
-ROLES_EMPLEADO = ("detailing", "calidad", "pintura", "tapicero")
+ROLES_EMPLEADO = ("detailing", "calidad", "pintura", "tapicero", "empleado")
 
 @uniformes_bp.route("/empleados", methods=["GET"])
 @role_required("administrador")
