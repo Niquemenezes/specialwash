@@ -944,9 +944,27 @@ export function AdminPartesTrabajo() {
                                 </span>
                               )}
                             </div>
-                            <div style={{ display: "flex", gap: "1rem", marginTop: "0.35rem", fontSize: "0.78rem", color: "var(--sw-muted)", flexWrap: "wrap" }}>
-                              <span>👤 {empleadosUnicos.length > 0 ? empleadosUnicos.join(", ") : <em>Sin asignar</em>}</span>
-                              <span>⏱ est. {formatMinutes(estimadoTotal)}</span>
+                            <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.4rem", fontSize: "0.78rem", flexWrap: "wrap", alignItems: "center" }}>
+                              {cp.map(p => {
+                                const enCurso = p.estado === "en_proceso";
+                                const enPausa = p.estado === "en_pausa";
+                                const tieneNombre = Boolean(p.empleado_nombre);
+                                const minReal = p.duracion_minutos;
+                                const tiempoLabel = (minReal != null && minReal > 0)
+                                  ? formatMinutes(minReal)
+                                  : (enCurso || enPausa) && p.fecha_inicio
+                                    ? formatMinutes(Math.round((Date.now() - new Date(p.fecha_inicio).getTime()) / 60000))
+                                    : null;
+                                const color = enCurso ? "#22c55e" : enPausa ? "#f59e0b" : "var(--sw-muted)";
+                                return (
+                                  <span key={p.id} style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", background: `${enCurso ? "rgba(34,197,94,0.08)" : enPausa ? "rgba(245,158,11,0.08)" : "rgba(148,163,184,0.08)"}`, border: `1px solid ${enCurso ? "rgba(34,197,94,0.25)" : enPausa ? "rgba(245,158,11,0.25)" : "rgba(148,163,184,0.2)"}`, borderRadius: "5px", padding: "0.1rem 0.45rem", color }}>
+                                    {enCurso ? "🔧" : enPausa ? "⏸" : "⏳"}
+                                    {tieneNombre ? p.empleado_nombre : "Sin asignar"}
+                                    {tiempoLabel && <strong style={{ color }}>· {tiempoLabel}</strong>}
+                                  </span>
+                                );
+                              })}
+                              <span style={{ color: "var(--sw-muted)" }}>est. {formatMinutes(estimadoTotal)}</span>
                             </div>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>

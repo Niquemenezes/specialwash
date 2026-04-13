@@ -8,6 +8,7 @@ DB_PATH = Path(__file__).resolve().parent / "instance" / "specialwash.db"
 
 COLUMNS = {
     "requiere_hoja_intervencion": "INTEGER NOT NULL DEFAULT 0",
+    "observaciones_tecnicas_adicionales": "TEXT",
 }
 
 

@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { formatMinutes, reporteEmpleados } from "../utils/parteTrabajoApi";
+import { obtenerDiario } from "../utils/horarioApi";
 
 const RANGE_OPTIONS = [
   { key: "hoy", label: "Hoy" },
@@ -115,6 +116,67 @@ function EstadoChip({ estado }) {
   );
 }
 
+function fmtHoraFichaje(isoStr) {
+  if (!isoStr) return null;
+  const d = new Date(isoStr);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+}
+
+function calcHorasTrabajadas(r) {
+  if (!r?.entrada || !r?.salida) return null;
+  let ms = new Date(r.salida) - new Date(r.entrada);
+  if (r.inicio_comida && r.fin_comida) {
+    const pausa = new Date(r.fin_comida) - new Date(r.inicio_comida);
+    if (pausa > 0) ms -= pausa;
+  } else if (Number(r.descanso_total_minutos || 0) > 0) {
+    ms -= Number(r.descanso_total_minutos) * 60000;
+  }
+  if (ms <= 0) return null;
+  const totalMin = Math.round(ms / 60000);
+  return formatMinutes(totalMin);
+}
+
+function FichajePanel({ fichaje }) {
+  if (!fichaje) {
+    return (
+      <div style={{ fontSize: "0.78rem", color: "var(--sw-muted)", fontStyle: "italic" }}>
+        Sin fichaje registrado para este día.
+      </div>
+    );
+  }
+  const slots = [
+    { label: "Entrada", value: fmtHoraFichaje(fichaje.entrada), color: "#22c55e" },
+    { label: "Inicio comida", value: fmtHoraFichaje(fichaje.inicio_comida), color: "#f59e0b" },
+    { label: "Fin comida", value: fmtHoraFichaje(fichaje.fin_comida), color: "#f59e0b" },
+    { label: "Salida", value: fmtHoraFichaje(fichaje.salida), color: "#ef4444" },
+  ];
+  const totalHoras = calcHorasTrabajadas(fichaje);
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center" }}>
+      {slots.map(({ label, value, color }) => (
+        <span
+          key={label}
+          style={{
+            display: "inline-flex", flexDirection: "column", alignItems: "center",
+            background: value ? `${color}12` : "var(--sw-surface-2)",
+            border: `1px solid ${value ? `${color}30` : "var(--sw-border)"}`,
+            borderRadius: "8px", padding: "0.3rem 0.6rem", minWidth: 72,
+          }}
+        >
+          <span style={{ fontSize: "0.62rem", color: "var(--sw-muted)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</span>
+          <span style={{ fontSize: "0.88rem", fontWeight: 700, color: value ? color : "var(--sw-muted)" }}>{value || "--:--"}</span>
+        </span>
+      ))}
+      {totalHoras && (
+        <span style={{ marginLeft: "auto", background: "rgba(212,175,55,0.10)", border: "1px solid rgba(212,175,55,0.25)", color: "var(--sw-accent)", borderRadius: "8px", padding: "0.3rem 0.8rem", fontWeight: 800, fontSize: "0.88rem" }}>
+          ⏱ {totalHoras} totales
+        </span>
+      )}
+    </div>
+  );
+}
+
 function deviationView(real, estimado) {
   const diff = Number(real || 0) - Number(estimado || 0);
   let color = "#22c55e";
@@ -134,6 +196,7 @@ export default function ProductividadTrabajadoresPage() {
   const [error, setError] = useState("");
   const [reporte, setReporte] = useState([]);
   const [printWorkerId, setPrintWorkerId] = useState("");
+  const [fichajes, setFichajes] = useState({}); // { empleado_id: registro_horario }
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -152,6 +215,18 @@ export default function ProductividadTrabajadoresPage() {
   useEffect(() => {
     void cargar();
   }, [cargar]);
+
+  // Cargar fichajes del día cuando el rango es un solo día
+  useEffect(() => {
+    if (fechaInicio !== fechaFin) { setFichajes({}); return; }
+    obtenerDiario({ fecha: fechaInicio })
+      .then((registros) => {
+        const map = {};
+        (registros || []).forEach((r) => { if (r.empleado_id) map[String(r.empleado_id)] = r; });
+        setFichajes(map);
+      })
+      .catch(() => setFichajes({}));
+  }, [fechaInicio, fechaFin]);
 
   useEffect(() => {
     const cleanupPrint = () => {
@@ -499,10 +574,16 @@ export default function ProductividadTrabajadoresPage() {
 
                   <div style={{ padding: "0.2rem 1rem 1rem", display: "flex", flexDirection: "column", gap: "0.9rem" }}>
                     <div style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", borderRadius: 12, padding: "0.8rem 0.9rem" }}>
-                      <div style={{ fontSize: "0.7rem", color: "var(--sw-muted)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>Resumen del día</div>
-                      <div style={{ marginTop: "0.25rem", color: "var(--sw-text)", fontSize: "0.92rem" }}>
+                      <div style={{ fontSize: "0.7rem", color: "var(--sw-muted)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, marginBottom: "0.6rem" }}>Resumen del día</div>
+                      <div style={{ marginBottom: "0.75rem", color: "var(--sw-text)", fontSize: "0.92rem" }}>
                         <strong>{emp.nombre}</strong> registró <strong>{emp.total_partes}</strong> trabajo(s): <strong>{emp.cochesCount}</strong> en coches y <strong>{emp.internasCount}</strong> internos, con un total de <strong>{formatMinutes(emp.total_minutos)}</strong>.
                       </div>
+                      {fechaInicio === fechaFin && (
+                        <>
+                          <div style={{ fontSize: "0.7rem", color: "var(--sw-muted)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, marginBottom: "0.4rem" }}>Fichajes del día</div>
+                          <FichajePanel fichaje={fichajes[String(emp.empleado_id)] || null} />
+                        </>
+                      )}
                     </div>
 
                     <div>
@@ -565,18 +646,30 @@ export default function ProductividadTrabajadoresPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {(emp.partesOrdenadas || []).map((p) => (
+                          {(emp.partesOrdenadas || []).map((p) => {
+                            const minReal = Number(p.duracion_minutos || 0);
+                            const minEst = Number(p.tiempo_estimado_minutos || 0);
+                            const diff = minReal - minEst;
+                            const diffColor = diff > 30 ? "#ef4444" : diff > 10 ? "#f59e0b" : "#22c55e";
+                            return (
                             <tr key={p.parte_id} style={{ borderBottom: "1px solid var(--sw-border)" }}>
                               <td style={{ padding: "0.6rem 0.7rem", color: "var(--sw-text)", fontWeight: 600 }}>{fmtActividad(p)}</td>
                               <td style={{ padding: "0.6rem 0.7rem", color: "var(--sw-muted)" }}>{fmtRegistro(p)}</td>
                               <td style={{ padding: "0.6rem 0.7rem" }}><EstadoChip estado={p.estado} /></td>
-                              <td style={{ padding: "0.6rem 0.7rem", color: "var(--sw-accent,#d4af37)", fontWeight: 700 }}>{formatMinutes(p.duracion_minutos)}</td>
+                              <td style={{ padding: "0.6rem 0.7rem", fontWeight: 700 }}>
+                                <span style={{ color: minReal > 0 ? (diff > 30 ? "#ef4444" : diff > 10 ? "#f59e0b" : "var(--sw-accent,#d4af37)") : "var(--sw-muted)" }}>
+                                  {formatMinutes(p.duracion_minutos)}
+                                </span>
+                              </td>
                               <td style={{ padding: "0.6rem 0.7rem", color: "var(--sw-muted)" }}>{formatMinutes(p.tiempo_estimado_minutos)}</td>
-                              <td style={{ padding: "0.6rem 0.7rem" }}>{deviationView(p.duracion_minutos, p.tiempo_estimado_minutos)}</td>
-                              <td style={{ padding: "0.6rem 0.7rem", color: "var(--sw-muted)", whiteSpace: "nowrap" }}>{fmtDate(p.fecha_inicio)}</td>
-                              <td style={{ padding: "0.6rem 0.7rem", color: "var(--sw-muted)", whiteSpace: "nowrap" }}>{fmtDate(p.fecha_fin)}</td>
+                              <td style={{ padding: "0.6rem 0.7rem", fontWeight: 700, color: diffColor }}>
+                                {minEst > 0 ? `${diff > 0 ? "+" : ""}${diff} min` : "—"}
+                              </td>
+                              <td style={{ padding: "0.6rem 0.7rem", color: "var(--sw-muted)", whiteSpace: "nowrap" }}>{fmtHour(p.fecha_inicio)}</td>
+                              <td style={{ padding: "0.6rem 0.7rem", color: "var(--sw-muted)", whiteSpace: "nowrap" }}>{fmtHour(p.fecha_fin)}</td>
                             </tr>
-                          ))}
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>

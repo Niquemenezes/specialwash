@@ -46,23 +46,48 @@ def _clip_text(value, max_chars):
     return f"{text[:max_chars].rstrip()}..."
 
 
-def build_user_prompt_acta(cliente_nombre, coche_descripcion, matricula, kilometros, averias, borrador):
+def build_user_prompt_acta(
+    cliente_nombre,
+    coche_descripcion,
+    matricula,
+    kilometros,
+    averias,
+    borrador,
+    servicios_contratados=None,
+    partes_realizados=None,
+):
     """Construye el prompt de usuario para generar acta completa."""
     averias_txt = _clip_text(averias or "Sin observaciones", 700)
-    borrador_txt = _clip_text(borrador or "No aportado", 1800)
+    borrador_txt = _clip_text(borrador or "No aportado", 1200)
+
+    servicios_txt = ""
+    if servicios_contratados:
+        servicios_txt = "\nServicios contratados: " + ", ".join(servicios_contratados[:10])
+
+    partes_txt = ""
+    if partes_realizados:
+        items = "\n  - ".join(partes_realizados[:6])
+        partes_txt = f"\nNotas de los técnicos:\n  - {items}"
+
     return (
         f"Cliente: {cliente_nombre}\n"
         f"Vehículo: {coche_descripcion}\n"
         f"Matrícula: {matricula}\n"
         f"Kilómetros: {kilometros or '-'}\n"
-        f"Observaciones recepción: {averias_txt}\n"
-        f"Borrador de trabajos: {borrador_txt}\n\n"
+        f"Observaciones de recepción: {averias_txt}"
+        f"{servicios_txt}"
+        f"{partes_txt}\n"
+        f"Borrador / trabajos del técnico: {borrador_txt}\n\n"
         "Instrucciones de salida:\n"
-        "- Máximo 180 palabras en total.\n"
+        "- Devuelve el texto del acta estructurado en estas secciones exactas (con este formato):\n"
+        "  Servicio solicitado / objetivo:\n  Estado inicial / diagnóstico:\n"
+        "  Trabajos realizados:\n  Productos y materiales utilizados:\n"
+        "  Resultado y comprobaciones finales:\n  Recomendaciones para el cliente:\n"
+        "- Máximo 220 palabras en total.\n"
         "- Solo hechos técnicos y resultados observables.\n"
         "- No uses tono comercial ni frases de venta.\n"
-        "- No inventes datos.\n"
-        "Devuelve solo el texto final del acta, listo para imprimir."
+        "- No inventes datos. Si falta info, deja el campo breve o en blanco.\n"
+        "Devuelve solo el texto estructurado, listo para imprimir."
     )
 
 
