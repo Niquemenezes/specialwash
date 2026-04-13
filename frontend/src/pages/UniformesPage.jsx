@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { confirmar } from "../utils/confirmar";
-import { showToast } from "../utils/toast";
+import { toast as showToast } from "../utils/toast";
 
 const PRENDAS = ["camiseta", "pantalon", "zapatilla", "chaqueta"];
 const PRENDAS_LABEL = {
