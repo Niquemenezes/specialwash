@@ -1,6 +1,7 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Context } from "../store/appContext";
+import { buildApiUrl } from "../utils/apiBase";
 import "../styles/inspeccion-responsive.css";
 
 const safeDate = (value) => {
@@ -11,15 +12,16 @@ const safeDate = (value) => {
 };
 
 const EMPTY_FORM = {
-  motivo_intervencion: "",
   diagnostico_inicial: "",
+  motivo_intervencion: "",
   trabajos_realizados: "",
   productos_aplicados: "",
   resultado_final: "",
+  observaciones_tecnicas_adicionales: "",
   recomendaciones: "",
-  entrega_observaciones: "",
 };
 
+// Labels que usa el parser de texto estructurado (compatibilidad con actas antiguas)
 const SECTION_LABELS = {
   motivo_intervencion: "Servicio solicitado / objetivo",
   diagnostico_inicial: "Estado inicial / diagnóstico",
@@ -32,6 +34,7 @@ const SECTION_LABELS = {
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const parseServicios = (value) => {
+  if (Array.isArray(value)) return value;
   try {
     const data = JSON.parse(value || "[]");
     return Array.isArray(data) ? data : [];
@@ -88,65 +91,37 @@ const hydrateForm = (insp) => {
   const structured = parseActaTexto(insp?.trabajos_realizados || "");
   const servicios = parseServicios(insp?.servicios_aplicados || "[]");
 
+  // Auto-rellenar motivo desde servicios contratados si está vacío
   if (!structured.motivo_intervencion && servicios.length) {
-    structured.motivo_intervencion = servicios.map((item) => item?.nombre).filter(Boolean).join(", ");
+    structured.motivo_intervencion = servicios
+      .map((item) => item?.nombre)
+      .filter(Boolean)
+      .join(", ");
   }
 
+  // Auto-rellenar diagnóstico inicial desde observaciones de recepción si está vacío
   if (!structured.diagnostico_inicial && insp?.averias_notas) {
     structured.diagnostico_inicial = String(insp.averias_notas || "").trim();
+  }
+
+  // Auto-rellenar trabajos realizados desde servicios contratados si está vacío
+  if (!structured.trabajos_realizados && servicios.length) {
+    structured.trabajos_realizados = servicios
+      .map((item) => {
+        const nombre = item?.nombre || "";
+        const tipo = item?.tipo_tarea ? ` (${item.tipo_tarea})` : "";
+        return nombre ? `- ${nombre}${tipo}` : null;
+      })
+      .filter(Boolean)
+      .join("\n");
   }
 
   return {
     ...EMPTY_FORM,
     ...structured,
-    entrega_observaciones: insp?.entrega_observaciones || "",
+    observaciones_tecnicas_adicionales: insp?.observaciones_tecnicas_adicionales || "",
   };
 };
-
-const FIELD_LAYOUT = [
-  {
-    key: "motivo_intervencion",
-    label: "Servicio solicitado / objetivo",
-    rows: 2,
-    col: "col-12 col-lg-6",
-    placeholder: "Ej.: corrección de pintura, limpieza integral, restauración interior...",
-  },
-  {
-    key: "diagnostico_inicial",
-    label: "Estado inicial / diagnóstico",
-    rows: 3,
-    col: "col-12 col-lg-6",
-    placeholder: "Describe el estado del vehículo al recibirlo o los defectos detectados.",
-  },
-  {
-    key: "trabajos_realizados",
-    label: "Trabajos realizados *",
-    rows: 5,
-    col: "col-12",
-    placeholder: "Detalla paso a paso el trabajo realizado en el vehículo.",
-  },
-  {
-    key: "productos_aplicados",
-    label: "Productos y materiales utilizados",
-    rows: 3,
-    col: "col-12 col-lg-6",
-    placeholder: "Ej.: pulimento, sellante, limpiador textil, protector cerámico...",
-  },
-  {
-    key: "resultado_final",
-    label: "Resultado y comprobaciones finales",
-    rows: 3,
-    col: "col-12 col-lg-6",
-    placeholder: "Indica cómo queda el vehículo tras la intervención y qué se comprobó.",
-  },
-  {
-    key: "recomendaciones",
-    label: "Recomendaciones para el cliente",
-    rows: 3,
-    col: "col-12",
-    placeholder: "Cuidados posteriores, plazos recomendados, mantenimiento o advertencias.",
-  },
-];
 
 export default function HojaTecnicaPage() {
   const { inspeccion_id } = useParams();
@@ -186,10 +161,7 @@ export default function HojaTecnicaPage() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const guardarActa = async (abrirFirma = false) => {
@@ -197,7 +169,7 @@ export default function HojaTecnicaPage() {
     if (!contenidoActa.trim()) {
       setFeedback({
         type: "error",
-        msg: "Debes completar al menos los trabajos realizados de la hoja técnica.",
+        msg: "Debes completar al menos los trabajos realizados.",
       });
       return;
     }
@@ -206,7 +178,7 @@ export default function HojaTecnicaPage() {
     setFeedback(null);
     try {
       const response = await fetch(
-        `${process.env.REACT_APP_BACKEND_URL || "http://localhost:5001/api"}/inspeccion-recepcion/${inspeccion_id}/acta`,
+        buildApiUrl(`/api/inspeccion-recepcion/${inspeccion_id}/acta`),
         {
           method: "POST",
           headers: {
@@ -215,33 +187,29 @@ export default function HojaTecnicaPage() {
           },
           body: JSON.stringify({
             trabajos_realizados: contenidoActa,
-            entrega_observaciones: form.entrega_observaciones,
+            entrega_observaciones: "",
+            observaciones_tecnicas_adicionales: form.observaciones_tecnicas_adicionales || "",
           }),
         }
       );
 
-      if (!response.ok) throw new Error("Error al guardar acta");
+      if (!response.ok) throw new Error("Error al guardar hoja técnica");
 
       setFeedback({
         type: "success",
         msg: abrirFirma
           ? "Hoja técnica guardada. Abriendo la firma de entrega..."
-          : "Hoja técnica guardada. Puedes dejarla preparada y volver cuando quieras.",
+          : "Hoja técnica guardada correctamente.",
       });
 
       if (abrirFirma) {
-        setTimeout(() => {
-          navigate(`/acta-entrega/${inspeccion_id}`);
-        }, 600);
+        setTimeout(() => navigate(`/acta-entrega/${inspeccion_id}`), 600);
       } else {
         await cargar();
       }
     } catch (err) {
       console.error("Error guardar acta", err);
-      setFeedback({
-        type: "error",
-        msg: "Error al guardar: " + err.message,
-      });
+      setFeedback({ type: "error", msg: "Error al guardar: " + err.message });
     } finally {
       setSaving(false);
     }
@@ -253,7 +221,7 @@ export default function HojaTecnicaPage() {
     try {
       const borradorActual = composeActaTexto(form) || form.trabajos_realizados;
       const response = await fetch(
-        `${process.env.REACT_APP_BACKEND_URL || "http://localhost:5001/api"}/inspeccion-recepcion/${inspeccion_id}/sugerir-acta`,
+        buildApiUrl(`/api/inspeccion-recepcion/${inspeccion_id}/sugerir-acta`),
         {
           method: "POST",
           headers: {
@@ -267,24 +235,25 @@ export default function HojaTecnicaPage() {
         }
       );
 
-      if (!response.ok) throw new Error("Error al generar con IA");
+      if (!response.ok) {
+        let errMsg = `HTTP ${response.status}`;
+        try { const d = await response.json(); errMsg += ": " + (d.msg || JSON.stringify(d)); } catch {}
+        throw new Error(errMsg);
+      }
 
       const data = await response.json();
+      const parsed = parseActaTexto(data.acta || borradorActual);
       setForm((prev) => ({
         ...prev,
-        ...parseActaTexto(data.acta || borradorActual),
+        ...parsed,
+        // Preservar el campo técnico adicional (la IA no lo gestiona)
+        observaciones_tecnicas_adicionales: prev.observaciones_tecnicas_adicionales,
       }));
 
-      setFeedback({
-        type: "success",
-        msg: "Borrador generado con IA",
-      });
+      setFeedback({ type: "success", msg: "Borrador generado con IA. Revisa y ajusta antes de guardar." });
     } catch (err) {
       console.error("Error IA", err);
-      setFeedback({
-        type: "error",
-        msg: "Error al generar con IA: " + err.message,
-      });
+      setFeedback({ type: "error", msg: "Error al generar con IA: " + err.message });
     } finally {
       setUsandoIa(false);
     }
@@ -312,7 +281,9 @@ export default function HojaTecnicaPage() {
   }
 
   return (
-    <div className="container-fluid mt-4">
+    <div className="container-fluid mt-4 pb-5">
+
+      {/* Cabecera */}
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
           <button
@@ -321,52 +292,84 @@ export default function HojaTecnicaPage() {
           >
             ← Atrás
           </button>
-          <h2 className="d-inline">Informe de Intervención Técnica</h2>
-          <div className="text-muted small mt-2">
-            Completa la hoja, guárdala y, cuando quieras, pasa a firma y entrega.
-          </div>
+          <span className="fw-bold fs-5">Hoja de Intervención Técnica</span>
         </div>
+        <button
+          className="btn btn-sm btn-outline-primary"
+          onClick={() => navigate(`/acta-entrega/${inspeccion_id}`)}
+        >
+          📝 Ir a firma / entrega
+        </button>
       </div>
 
+      {/* Tarjetas de datos del vehículo */}
       <div className="row g-3 mb-4">
-        <div className="col-12 col-md-6 col-xl-3">
+        <div className="col-12 col-sm-6 col-xl-3">
           <div className="card h-100">
             <div className="card-body">
-              <h6 className="card-title mb-1">Cliente</h6>
+              <div className="text-muted small mb-1">Cliente</div>
               <strong>{inspeccion.cliente_nombre || "-"}</strong>
               <div className="text-muted small">{inspeccion.cliente_telefono || "Sin teléfono"}</div>
             </div>
           </div>
         </div>
-        <div className="col-12 col-md-6 col-xl-3">
+        <div className="col-12 col-sm-6 col-xl-3">
           <div className="card h-100">
             <div className="card-body">
-              <h6 className="card-title mb-1">Vehículo</h6>
+              <div className="text-muted small mb-1">Vehículo</div>
               <strong>{inspeccion.matricula || "-"}</strong>
               <div className="text-muted small">{inspeccion.coche_descripcion || "-"}</div>
             </div>
           </div>
         </div>
-        <div className="col-12 col-md-6 col-xl-3">
+        <div className="col-12 col-sm-6 col-xl-3">
           <div className="card h-100">
             <div className="card-body">
-              <h6 className="card-title mb-1">Recepción</h6>
-              <div className="text-muted small">{safeDate(inspeccion.fecha_inspeccion)}</div>
+              <div className="text-muted small mb-1">Recepción</div>
+              <div className="small">{safeDate(inspeccion.fecha_inspeccion)}</div>
               <div className="text-muted small">{inspeccion.kilometros || "-"} km</div>
             </div>
           </div>
         </div>
-        <div className="col-12 col-md-6 col-xl-3">
+        <div className="col-12 col-sm-6 col-xl-3">
           <div className="card h-100 border-warning-subtle">
             <div className="card-body">
-              <h6 className="card-title mb-1">Observaciones de entrada</h6>
-              <div className="text-muted small" style={{ whiteSpace: "pre-wrap" }}>
-                {inspeccion.averias_notas || "Sin observaciones registradas en recepción."}
+              <div className="text-muted small mb-1">Observaciones de recepción</div>
+              <div className="small" style={{ whiteSpace: "pre-wrap" }}>
+                {inspeccion.averias_notas || "Sin observaciones en recepción."}
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Servicios contratados */}
+      {servicios.length > 0 && (
+        <div className="card mb-4 border-primary-subtle">
+          <div className="card-header bg-primary-subtle py-2">
+            <strong className="small">Servicios contratados por el cliente</strong>
+            <span className="text-muted small ms-2">(referencia para la hoja técnica)</span>
+          </div>
+          <div className="card-body py-2">
+            <div className="d-flex flex-wrap gap-2">
+              {servicios.map((s, i) => (
+                <span
+                  key={`${s?.nombre || "s"}-${i}`}
+                  className="badge text-bg-light border fw-normal fs-6 px-3 py-2"
+                >
+                  {s?.nombre || "Servicio"}
+                  {s?.tipo_tarea && (
+                    <span className="text-muted ms-1">· {s.tipo_tarea}</span>
+                  )}
+                  {Number(s?.precio) > 0 && (
+                    <span className="text-muted ms-1">· {Number(s.precio).toFixed(2)} €</span>
+                  )}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {feedback && (
         <div
@@ -374,121 +377,161 @@ export default function HojaTecnicaPage() {
           role="alert"
         >
           {feedback.msg}
-          <button type="button" className="btn-close" onClick={() => setFeedback(null)}></button>
+          <button type="button" className="btn-close" onClick={() => setFeedback(null)} />
         </div>
       )}
 
+      {/* Formulario principal */}
       <div className="card">
         <div className="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <h6 className="mb-0">Informe de Intervención Técnica</h6>
-          <span className="badge text-bg-light">Puedes guardarla sin entregar</span>
+          <strong>Informe de intervención</strong>
+          <button
+            className="btn btn-sm btn-outline-info"
+            onClick={generarConIA}
+            disabled={saving || usando_ia}
+          >
+            {usando_ia ? (
+              <><span className="spinner-border spinner-border-sm me-1" />Generando...</>
+            ) : (
+              "✨ Completar con IA"
+            )}
+          </button>
         </div>
+
         <div className="card-body">
-          <div className="alert alert-light border mb-4">
-            <strong>Hoja clásica de preparación:</strong> primero rellena los trabajos y observaciones, y después, si quieres, completa los campos adicionales.
+
+          {/* SECCIÓN 1: Estado inicial / diagnóstico */}
+          <div className="mb-4">
+            <label className="form-label fw-semibold">
+              Estado inicial del vehículo
+              <span className="text-muted fw-normal ms-2 small">
+                — se ha rellenado automáticamente con las observaciones de recepción
+              </span>
+            </label>
+            <textarea
+              className="form-control"
+              name="diagnostico_inicial"
+              rows={3}
+              placeholder="Estado del vehículo al recibirlo, defectos detectados en recepción..."
+              value={form.diagnostico_inicial}
+              onChange={handleChange}
+              disabled={saving}
+            />
           </div>
 
+          {/* SECCIÓN 2: Servicio solicitado */}
           <div className="mb-4">
-            <label className="form-label">
-              <strong>Trabajos Realizados *</strong>
+            <label className="form-label fw-semibold">
+              Servicio solicitado / objetivo
+              <span className="text-muted fw-normal ms-2 small">
+                — se ha rellenado desde los servicios contratados
+              </span>
+            </label>
+            <textarea
+              className="form-control"
+              name="motivo_intervencion"
+              rows={2}
+              placeholder="Servicio pactado con el cliente, objetivo de la intervención..."
+              value={form.motivo_intervencion}
+              onChange={handleChange}
+              disabled={saving}
+            />
+          </div>
+
+          <hr />
+
+          {/* SECCIÓN 3: Trabajos realizados — campo principal */}
+          <div className="mb-4">
+            <label className="form-label fw-semibold">
+              Trabajos realizados <span className="text-danger">*</span>
             </label>
             <textarea
               className="form-control"
               name="trabajos_realizados"
-              rows="5"
-              placeholder="Describe detalladamente los trabajos realizados al vehículo..."
+              rows={5}
+              placeholder="Detalla paso a paso el trabajo realizado en el vehículo. Este campo es obligatorio."
               value={form.trabajos_realizados}
               onChange={handleChange}
               disabled={saving}
             />
-            <div className="d-flex gap-2 mt-2 flex-wrap">
-              <button
-                className="btn btn-sm btn-outline-info"
-                onClick={generarConIA}
-                disabled={saving || usando_ia}
-              >
-                {usando_ia ? "Generando..." : "✨ Generar con IA"}
-              </button>
-              <button
-                className="btn btn-sm btn-outline-primary"
-                onClick={() => navigate(`/acta-entrega/${inspeccion_id}`)}
+          </div>
+
+          <div className="row g-3 mb-4">
+            <div className="col-12 col-lg-6">
+              <label className="form-label fw-semibold">Productos y materiales utilizados</label>
+              <textarea
+                className="form-control"
+                name="productos_aplicados"
+                rows={3}
+                placeholder="Pulimento, sellante, limpiador textil, protector cerámico..."
+                value={form.productos_aplicados}
+                onChange={handleChange}
                 disabled={saving}
-              >
-                📝 Ver firma / entrega
-              </button>
+              />
+            </div>
+            <div className="col-12 col-lg-6">
+              <label className="form-label fw-semibold">Resultado y comprobaciones finales</label>
+              <textarea
+                className="form-control"
+                name="resultado_final"
+                rows={3}
+                placeholder="Cómo queda el vehículo tras la intervención, qué se comprobó..."
+                value={form.resultado_final}
+                onChange={handleChange}
+                disabled={saving}
+              />
             </div>
           </div>
 
           <hr />
 
+          {/* SECCIÓN 4: Observaciones técnicas adicionales (no contratadas) */}
           <div className="mb-4">
-            <label className="form-label">
-              <strong>Observaciones Técnicas (Opcional)</strong>
-            </label>
+            <div className="d-flex align-items-center gap-2 mb-1 flex-wrap">
+              <label className="form-label fw-semibold mb-0">
+                Observaciones técnicas adicionales
+              </label>
+              <span className="badge text-bg-warning text-dark small fw-normal">
+                No contratadas por el cliente
+              </span>
+            </div>
+            <div className="text-muted small mb-2">
+              Aquí anota todo lo que hayas visto en el vehículo pero el cliente <strong>no ha contratado</strong>.
+              El cliente quedará informado y podrá considerarlo para una próxima visita.
+            </div>
             <textarea
               className="form-control"
-              name="entrega_observaciones"
-              rows="3"
-              placeholder="Cualquier observación adicional para el cliente..."
-              value={form.entrega_observaciones}
+              name="observaciones_tecnicas_adicionales"
+              rows={3}
+              placeholder="Ej: Se observa desgaste en los faros delanteros. Se detectan marcas en el espejo derecho. Pintura oxidada en el umbral trasero izquierdo..."
+              value={form.observaciones_tecnicas_adicionales}
               onChange={handleChange}
               disabled={saving}
             />
           </div>
 
-          <hr />
-
-          <div className="mb-3">
-            <label className="form-label fw-semibold">Campos adicionales de la intervención</label>
+          {/* SECCIÓN 5: Recomendaciones para el cliente */}
+          <div className="mb-2">
+            <label className="form-label fw-semibold">Recomendaciones para el cliente</label>
             <div className="text-muted small mb-2">
-              Estos apartados ayudan a dejar el informe más completo, como en la versión antigua.
+              Cuidados posteriores, plazos recomendados, mantenimiento preventivo o advertencias.
             </div>
+            <textarea
+              className="form-control"
+              name="recomendaciones"
+              rows={3}
+              placeholder="Ej: No lavar con agua a presión en las próximas 48h. Aplicar sellante cada 6 meses..."
+              value={form.recomendaciones}
+              onChange={handleChange}
+              disabled={saving}
+            />
           </div>
 
-          <div className="row g-3">
-            {FIELD_LAYOUT.filter((field) => field.key !== "trabajos_realizados").map((field) => (
-              <div className={field.col} key={field.key}>
-                <label className="form-label fw-semibold">{field.label}</label>
-                <textarea
-                  className="form-control"
-                  name={field.key}
-                  rows={field.rows}
-                  placeholder={field.placeholder}
-                  value={form[field.key]}
-                  onChange={handleChange}
-                  disabled={saving}
-                />
-              </div>
-            ))}
-          </div>
-
-          {servicios.length > 0 && (
-            <>
-              <hr />
-              <div>
-                <label className="form-label">
-                  <strong>Servicios del Catálogo</strong>
-                </label>
-                <ul className="list-group">
-                  {servicios.map((s, i) => (
-                    <li key={`${s?.nombre || "servicio"}-${i}`} className="list-group-item d-flex justify-content-between flex-wrap gap-2">
-                      <span>
-                        <strong>{s?.nombre || "Servicio"}</strong>
-                        {s?.tipo_tarea && <span className="badge bg-secondary ms-2">{s.tipo_tarea}</span>}
-                      </span>
-                      {Number(s?.precio) > 0 && (
-                        <span className="text-muted">€ {Number(s.precio).toFixed(2)}</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </>
-          )}
         </div>
       </div>
 
-      <div className="mt-4 pb-5">
+      {/* Botones de acción */}
+      <div className="mt-4 pb-4">
         <div className="row g-2">
           <div className="col-12 col-md-4">
             <button
@@ -513,11 +556,12 @@ export default function HojaTecnicaPage() {
               onClick={() => guardarActa(true)}
               disabled={saving}
             >
-              {saving ? "Guardando..." : "Guardar y Entregar →"}
+              {saving ? "Guardando..." : "Guardar y pasar a entrega →"}
             </button>
           </div>
         </div>
       </div>
+
     </div>
   );
 }

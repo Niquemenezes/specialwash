@@ -90,6 +90,8 @@ def _get_partes_por_coche(coche_ids):
             tipo_tarea = (getattr(parte, "tipo_tarea", "") or "").strip() or None
             if tipo_tarea and tipo_tarea not in bucket["roles_todos"]:
                 bucket["roles_todos"].append(tipo_tarea)
+            fecha_inicio_iso = parte.fecha_inicio.isoformat() if getattr(parte, "fecha_inicio", None) else None
+            duracion_min = getattr(parte, "duracion_minutos", None)
             bucket["partes_detalle"].append({
                 "id": int(parte.id),
                 "empleado_id": int(parte.empleado_id) if getattr(parte, "empleado_id", None) else None,
@@ -97,6 +99,8 @@ def _get_partes_por_coche(coche_ids):
                 "tipo_tarea": tipo_tarea,
                 "observaciones": (getattr(parte, "observaciones", "") or "").strip() or None,
                 "estado": st,
+                "fecha_inicio": fecha_inicio_iso,
+                "duracion_minutos": int(duracion_min) if duracion_min is not None else None,
             })
         elif st == "finalizado":
             # Partes finalizados: para mostrar qué trabajos se completaron en repaso

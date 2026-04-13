@@ -6,7 +6,8 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object("config.Config")
 
-    CORS(app)
+    origins = [o.strip() for o in app.config["CORS_ORIGINS"].split(",") if o.strip()]
+    CORS(app, origins=origins, supports_credentials=True)
 
     app.register_blueprint(api, url_prefix="/api")
 

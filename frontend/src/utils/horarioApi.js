@@ -21,6 +21,20 @@ export async function obtenerMensual({ anio, mes, empleado_id } = {}) {
   return apiFetch(`/api/horario/mensual?${params}`);
 }
 
+export async function obtenerDiario({ fecha, empleado_id } = {}) {
+  const params = new URLSearchParams();
+  if (fecha) params.set("fecha", fecha);
+  if (empleado_id) params.set("empleado_id", empleado_id);
+  // Reutiliza el endpoint mensual filtrando por un solo día
+  const anio = fecha ? fecha.slice(0, 4) : "";
+  const mes = fecha ? fecha.slice(5, 7) : "";
+  if (anio) params.set("anio", anio);
+  if (mes) params.set("mes", mes);
+  const todos = await apiFetch(`/api/horario/mensual?${params}`);
+  if (!fecha) return todos;
+  return (todos || []).filter((r) => r.fecha === fecha);
+}
+
 export async function obtenerEmpleadosActivos() {
   return apiFetch("/api/horario/empleados-activos");
 }

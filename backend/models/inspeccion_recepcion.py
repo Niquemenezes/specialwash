@@ -45,6 +45,7 @@ class InspeccionRecepcion(db.Model):
     conformidad_revision_entrega = db.Column(db.Boolean, default=False, nullable=False)
     trabajos_realizados = db.Column(db.Text)
     entrega_observaciones = db.Column(db.Text)
+    observaciones_tecnicas_adicionales = db.Column(db.Text)
 
     # Cobros
     cobro_estado = db.Column(db.String(30), default="pendiente", nullable=False)
@@ -110,6 +111,7 @@ class InspeccionRecepcion(db.Model):
             "conformidad_revision_entrega": self.conformidad_revision_entrega,
             "trabajos_realizados": self.trabajos_realizados,
             "entrega_observaciones": self.entrega_observaciones,
+            "observaciones_tecnicas_adicionales": self.observaciones_tecnicas_adicionales,
             "cobro_estado": self.cobro_estado,
             "cobro_importe_pagado": float(self.cobro_importe_pagado or 0),
             "cobro_fecha_ultimo_pago": iso(self.cobro_fecha_ultimo_pago),

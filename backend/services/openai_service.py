@@ -34,16 +34,33 @@ class OpenAIService:
         """Verifica si OpenAI está configurado."""
         return bool(self.api_key)
 
-    def generate_acta_completa(self, cliente_nombre, coche_descripcion, matricula, kilometros, averias, borrador):
+    def generate_acta_completa(
+        self,
+        cliente_nombre,
+        coche_descripcion,
+        matricula,
+        kilometros,
+        averias,
+        borrador,
+        servicios_contratados=None,
+        partes_realizados=None,
+    ):
         """Genera acta completa para una inspeccion."""
         if not self.is_configured():
             raise ValueError("OPENAI_API_KEY no está configurada")
 
         user_prompt = build_user_prompt_acta(
-            cliente_nombre, coche_descripcion, matricula, kilometros, averias, borrador
+            cliente_nombre,
+            coche_descripcion,
+            matricula,
+            kilometros,
+            averias,
+            borrador,
+            servicios_contratados=servicios_contratados,
+            partes_realizados=partes_realizados,
         )
-        # max_tokens: limita coste para acta completa
-        return self._call_openai(SYSTEM_PROMPT_REDACTOR, user_prompt, max_tokens=260)
+        # max_tokens aumentado para soportar acta estructurada por secciones
+        return self._call_openai(SYSTEM_PROMPT_REDACTOR, user_prompt, max_tokens=520)
 
     def generate_seccion(self, numero, titulo, contenido_actual, contexto_informe):
         """Genera una sección específica del acta."""
@@ -99,7 +116,7 @@ class OpenAIService:
             if not contenido:
                 raise ValueError("OpenAI retornó respuesta vacía")
             
-            return {"texto": contenido, "model": self.model}
+            return {"acta": contenido, "model": self.model}
         
         except HTTPError as e:
             try:
