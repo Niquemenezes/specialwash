@@ -72,6 +72,16 @@ const Feedback = ({ msg, type, onClose }) => {
   );
 };
 
+const Field = ({ label, required, children }) => (
+  <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+    <label className="sw-plbl">
+      {label}
+      {required && <span style={{ color: "var(--sw-accent,#d4af37)", marginLeft: 2 }}>*</span>}
+    </label>
+    {children}
+  </div>
+);
+
 export default function ResumenEntradas() {
 
   const { store, actions } = useContext(Context);
@@ -859,13 +869,6 @@ const EditarEntradaModal = ({ show, entrada, productos, proveedores, onClose, on
   };
 
   if (!show) return null;
-
-  const Field = ({ label, required, children }) => (
-    <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-      <label className="sw-plbl">{label}{required && <span style={{ color: "var(--sw-accent,#d4af37)", marginLeft: 2 }}>*</span>}</label>
-      {children}
-    </div>
-  );
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "var(--sw-overlay-bg-strong,rgba(0,0,0,0.7))", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "1rem" }}>
