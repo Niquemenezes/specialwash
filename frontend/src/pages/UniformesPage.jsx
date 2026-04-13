@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { confirmar } from "../utils/confirmar";
-import { toast as showToast } from "../utils/toast";
+import { toast } from "../utils/toast";
 
 const PRENDAS = ["camiseta", "pantalon", "zapatilla", "chaqueta"];
 const PRENDAS_LABEL = {
@@ -80,7 +80,7 @@ export default function UniformesPage() {
       const data = await apiFetch("/api/uniformes/empleados");
       setEmpleados(data);
     } catch (e) {
-      showToast(e.message, "error");
+      toast.error(e.message);
     }
   };
 
@@ -93,7 +93,7 @@ export default function UniformesPage() {
       const data = await apiFetch(`/api/uniformes/entregas?${params}`);
       setEntregas(data);
     } catch (e) {
-      showToast(e.message, "error");
+      toast.error(e.message);
     } finally {
       setLoading(false);
     }
@@ -108,7 +108,7 @@ export default function UniformesPage() {
       data.forEach((s) => { editInit[`${s.prenda}_${s.talla}`] = s.cantidad; });
       setStockEdit(editInit);
     } catch (e) {
-      showToast(e.message, "error");
+      toast.error(e.message);
     } finally {
       setLoading(false);
     }
@@ -120,7 +120,7 @@ export default function UniformesPage() {
       const data = await apiFetch("/api/uniformes/resumen");
       setResumen(data);
     } catch (e) {
-      showToast(e.message, "error");
+      toast.error(e.message);
     } finally {
       setLoading(false);
     }
@@ -150,7 +150,7 @@ export default function UniformesPage() {
         method: "POST",
         body: { ...form, cantidad: Number(form.cantidad) },
       });
-      showToast("Entrega registrada", "success");
+      toast.success("Entrega registrada");
       setForm(DEFAULT_FORM);
       cargarEntregas();
       if (tab === "stock") cargarStock();
@@ -166,11 +166,11 @@ export default function UniformesPage() {
     if (!ok) return;
     try {
       await apiFetch(`/api/uniformes/entregas/${id}`, { method: "DELETE" });
-      showToast("Entrega eliminada", "success");
+      toast.success("Entrega eliminada");
       cargarEntregas();
       if (tab === "stock") cargarStock();
     } catch (e) {
-      showToast(e.message, "error");
+      toast.error(e.message);
     }
   };
 
@@ -183,10 +183,10 @@ export default function UniformesPage() {
         method: "PUT",
         body: { prenda, talla, cantidad },
       });
-      showToast("Stock actualizado", "success");
+      toast.success("Stock actualizado");
       cargarStock();
     } catch (e) {
-      showToast(e.message, "error");
+      toast.error(e.message);
     } finally {
       setSavingStock((s) => ({ ...s, [key]: false }));
     }
