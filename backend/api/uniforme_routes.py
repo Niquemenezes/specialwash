@@ -125,6 +125,39 @@ def registrar_entrega():
     return jsonify(entrega.to_dict()), 201
 
 
+@uniformes_bp.route("/entregas/<int:entrega_id>", methods=["PATCH"])
+@role_required("administrador")
+def editar_entrega(entrega_id):
+    entrega = UniformeEmpleado.query.get_or_404(entrega_id)
+    data = request.get_json() or {}
+
+    nueva_talla = (data.get("talla") or entrega.talla).strip().upper()
+    nueva_cantidad = int(data.get("cantidad") or entrega.cantidad)
+    nuevas_obs = (data.get("observaciones") or "").strip() or None
+
+    if nueva_talla not in TALLAS:
+        return jsonify({"msg": "Talla no valida"}), 400
+    if nueva_cantidad < 1:
+        return jsonify({"msg": "Cantidad debe ser >= 1"}), 400
+
+    # Ajustar stock si cambia la cantidad
+    diferencia = nueva_cantidad - entrega.cantidad
+    if diferencia != 0:
+        stock = StockUniforme.query.filter_by(prenda=entrega.prenda, talla=nueva_talla).first()
+        if stock:
+            nuevo_stock = stock.cantidad - diferencia
+            if nuevo_stock < 0:
+                return jsonify({"msg": f"Stock insuficiente. Disponible: {stock.cantidad}"}), 400
+            stock.cantidad = nuevo_stock
+            stock.updated_at = now_madrid()
+
+    entrega.talla = nueva_talla
+    entrega.cantidad = nueva_cantidad
+    entrega.observaciones = nuevas_obs
+    db.session.commit()
+    return jsonify(entrega.to_dict())
+
+
 @uniformes_bp.route("/entregas/<int:entrega_id>", methods=["DELETE"])
 @role_required("administrador")
 def eliminar_entrega(entrega_id):
