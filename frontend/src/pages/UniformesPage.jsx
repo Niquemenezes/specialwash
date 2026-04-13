@@ -57,6 +57,12 @@ export default function UniformesPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
+  // Modal edicion
+  const [editando, setEditando] = useState(null); // entrega completa
+  const [editForm, setEditForm] = useState({});
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState("");
+
   // Filtros entregas
   const [filtroEmpleado, setFiltroEmpleado] = useState("");
   const [filtroPrenda, setFiltroPrenda] = useState("");
@@ -158,6 +164,31 @@ export default function UniformesPage() {
       setFormError(e.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAbrirEditar = (entrega) => {
+    setEditando(entrega);
+    setEditForm({ talla: entrega.talla, cantidad: entrega.cantidad, observaciones: entrega.observaciones || "" });
+    setEditError("");
+  };
+
+  const handleGuardarEdicion = async () => {
+    if (!editForm.talla) return setEditError("Selecciona una talla.");
+    if (!editForm.cantidad || editForm.cantidad < 1) return setEditError("Cantidad debe ser >= 1.");
+    setSavingEdit(true);
+    try {
+      await apiFetch(`/api/uniformes/entregas/${editando.id}`, {
+        method: "PATCH",
+        body: { talla: editForm.talla, cantidad: Number(editForm.cantidad), observaciones: editForm.observaciones },
+      });
+      toast.success("Entrega actualizada");
+      setEditando(null);
+      cargarEntregas();
+    } catch (e) {
+      setEditError(e.message);
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -351,7 +382,7 @@ export default function UniformesPage() {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--sw-border)" }}>
-                    {["Empleado", "Prenda", "Talla", "Cantidad", "Fecha entrega", "Observaciones", ""].map((h) => (
+                    {["Empleado", "Prenda", "Talla", "Cantidad", "Fecha entrega", "Observaciones", "Acciones"].map((h) => (
                       <th key={h} style={{ color: "var(--sw-text-muted)", fontWeight: 600, padding: "0.5rem 0.75rem", textAlign: "left", whiteSpace: "nowrap" }}>{h}</th>
                     ))}
                   </tr>
@@ -367,7 +398,11 @@ export default function UniformesPage() {
                       <td style={{ padding: "0.6rem 0.75rem", color: "var(--sw-text)", textAlign: "center" }}>{e.cantidad}</td>
                       <td style={{ padding: "0.6rem 0.75rem", color: "var(--sw-text-muted)" }}>{fmtDate(e.fecha_entrega)}</td>
                       <td style={{ padding: "0.6rem 0.75rem", color: "var(--sw-text-muted)", maxWidth: 200 }}>{e.observaciones || "—"}</td>
-                      <td style={{ padding: "0.6rem 0.75rem" }}>
+                      <td style={{ padding: "0.6rem 0.75rem", display: "flex", gap: "0.4rem" }}>
+                        <button
+                          style={{ background: "transparent", color: "var(--sw-accent)", border: "1px solid var(--sw-accent)", borderRadius: 6, padding: "0.3rem 0.65rem", cursor: "pointer", fontSize: "0.82rem", fontWeight: 600 }}
+                          onClick={() => handleAbrirEditar(e)}
+                        >Editar</button>
                         <button style={btnDanger} onClick={() => handleEliminarEntrega(e.id)}>Eliminar</button>
                       </td>
                     </tr>
@@ -489,6 +524,67 @@ export default function UniformesPage() {
               </div>
             ))
           )}
+        </div>
+      )}
+      {/* ─── MODAL EDITAR ─── */}
+      {editando && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.6)", padding: "1rem" }}>
+          <div style={{ background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderRadius: 16, padding: "1.5rem", width: "min(480px, 96vw)" }}>
+            <h3 style={{ color: "var(--sw-text)", fontWeight: 700, marginBottom: "1.25rem", fontSize: "1.05rem" }}>
+              Editar entrega — {editando.nombre_empleado}
+            </h3>
+            <div style={{ marginBottom: "0.85rem" }}>
+              <label style={labelStyle}>Prenda</label>
+              <div style={{ ...inputStyle, opacity: 0.6, cursor: "not-allowed" }}>
+                {PRENDAS_ICON[editando.prenda]} {PRENDAS_LABEL[editando.prenda]}
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.85rem", marginBottom: "0.85rem" }}>
+              <div>
+                <label style={labelStyle}>Talla *</label>
+                <select
+                  value={editForm.talla}
+                  onChange={(e) => setEditForm((f) => ({ ...f, talla: e.target.value }))}
+                  style={inputStyle}
+                >
+                  {tallasParaPrenda(editando.prenda).map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Cantidad *</label>
+                <input
+                  type="number" min={1} max={20}
+                  value={editForm.cantidad}
+                  onChange={(e) => setEditForm((f) => ({ ...f, cantidad: e.target.value }))}
+                  style={inputStyle}
+                />
+              </div>
+            </div>
+            <div style={{ marginBottom: "1rem" }}>
+              <label style={labelStyle}>Observaciones</label>
+              <input
+                type="text"
+                value={editForm.observaciones}
+                onChange={(e) => setEditForm((f) => ({ ...f, observaciones: e.target.value }))}
+                placeholder="Opcional..."
+                style={inputStyle}
+              />
+            </div>
+            {editError && <div style={{ color: "#ef4444", fontSize: "0.85rem", marginBottom: "0.75rem" }}>{editError}</div>}
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setEditando(null)}
+                style={{ background: "transparent", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: 8, padding: "0.55rem 1rem", fontWeight: 600, cursor: "pointer" }}
+              >Cancelar</button>
+              <button
+                onClick={handleGuardarEdicion}
+                disabled={savingEdit}
+                style={btnPrimary}
+              >{savingEdit ? "Guardando..." : "Guardar cambios"}</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
