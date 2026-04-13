@@ -12,10 +12,17 @@ uniformes_bp = Blueprint("uniformes", __name__)
 
 # ─── Empleados activos ────────────────────────────────────────────────────────
 
+ROLES_EMPLEADO = ("detailing", "calidad", "pintura", "tapicero")
+
 @uniformes_bp.route("/empleados", methods=["GET"])
 @role_required("administrador")
 def listar_empleados():
-    empleados = User.query.filter_by(activo=True).order_by(User.nombre).all()
+    empleados = (
+        User.query
+        .filter(User.activo == True, User.rol.in_(ROLES_EMPLEADO))
+        .order_by(User.nombre)
+        .all()
+    )
     return jsonify([e.to_dict() for e in empleados])
 
 
