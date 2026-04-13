@@ -63,15 +63,9 @@ class SecureModelView(ModelView):
     }
 
     def is_accessible(self):
-        if _is_local_request():
-            # En desarrollo, localhost siempre puede entrar.
-            # En producción, solo se permite mantenimiento local si ENABLE_ADMIN=1.
-            return (not _is_production()) or _admin_enabled()
         if not _admin_enabled():
             return False
-        if not _is_production():
-            return True
-        return _current_user_is_admin()
+        return True
 
     def inaccessible_callback(self, name, **kwargs):
         if not _admin_enabled():
