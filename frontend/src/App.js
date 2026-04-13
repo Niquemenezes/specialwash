@@ -55,6 +55,7 @@ import AdminPage from "./pages/AdminPage.jsx";
 import VehiculoDetallePage from "./pages/VehiculoDetallePage.jsx";
 import HojaTecnicaPage from "./pages/HojaTecnicaPage.jsx";
 import EntregaClientePage from "./pages/EntregaClientePage.jsx";
+import UniformesPage from "./pages/UniformesPage.jsx";
 
 // Helper: obtener permisos para una ruta desde la configuración centralizada
 const getRouteAllow = (routePath) => {
@@ -598,6 +599,15 @@ const App = () => {
               element={
                 <PrivateRoute allow={getRouteAllow("/entregados")}>
                   <CochesEntregadosPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/uniformes"
+              element={
+                <PrivateRoute allow={getRouteAllow("/uniformes")}>
+                  <UniformesPage />
                 </PrivateRoute>
               }
             />

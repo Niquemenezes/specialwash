@@ -76,6 +76,9 @@ export const ROUTE_PERMISSIONS = {
   // ═══ PEDIDOS ═══
   "/pedido-bajo-stock": [ROLES.ADMIN],
   "/pedido-bajo-stock/imprimir": [ROLES.ADMIN],
+
+  // ═══ UNIFORMES ═══
+  "/uniformes": [ROLES.ADMIN],
 };
 
 /**
@@ -115,6 +118,7 @@ export const NAVIGATION_BY_ROLE = {
         { label: "� Proveedores", to: "/proveedores" },
         { label: "🛠️ Maquinarias", to: "/maquinaria" },
         { label: "👤 Usuarios", to: "/usuarios" },
+        { label: "👔 Uniformes", to: "/uniformes" },
         { label: "�💶 Finanzas", to: "/administracion/finanzas" },
         { label: "💼 Cobros Concesionarios", to: "/administracion/cobros-profesionales" },
       ],
