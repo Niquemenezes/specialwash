@@ -1,18 +1,27 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
+from sqlalchemy import func
 
 from models import db
 from models.user import User
-from models.uniforme import UniformeEmpleado, StockUniforme, PRENDAS, TALLAS
+from models.uniforme import UniformeEmpleado, StockUniforme, PRENDAS
 from models.base import now_madrid
 from utils.auth_utils import role_required
 
 uniformes_bp = Blueprint("uniformes", __name__)
 
+ROLES_EMPLEADO = ("detailing", "calidad", "pintura", "tapicero", "empleado")
+
+
+def _parse_cantidad(valor, default=1, minimo=0):
+    """Convierte valor a int de forma segura. Retorna None si es invalido."""
+    try:
+        n = int(float(str(valor)))
+        return n if n >= minimo else None
+    except (TypeError, ValueError):
+        return None
+
 
 # ─── Empleados activos ────────────────────────────────────────────────────────
-
-ROLES_EMPLEADO = ("detailing", "calidad", "pintura", "tapicero", "empleado")
 
 @uniformes_bp.route("/empleados", methods=["GET"])
 @role_required("administrador")
@@ -23,7 +32,7 @@ def listar_empleados():
         .order_by(User.nombre)
         .all()
     )
-    return jsonify([e.to_dict() for e in empleados])
+    return jsonify([{"id": e.id, "nombre": e.nombre, "rol": e.rol} for e in empleados])
 
 
 # ─── Stock ────────────────────────────────────────────────────────────────────
@@ -38,25 +47,24 @@ def listar_stock():
 @uniformes_bp.route("/stock", methods=["PUT"])
 @role_required("administrador")
 def actualizar_stock():
-    """Actualiza o crea el stock de una prenda+talla."""
     data = request.get_json() or {}
     prenda = (data.get("prenda") or "").strip().lower()
     talla = (data.get("talla") or "").strip().upper()
-    cantidad = data.get("cantidad")
+    cantidad = _parse_cantidad(data.get("cantidad"), minimo=0)
 
     if prenda not in PRENDAS:
         return jsonify({"msg": f"Prenda no valida. Opciones: {', '.join(PRENDAS)}"}), 400
     if not talla:
         return jsonify({"msg": "Talla requerida"}), 400
-    if cantidad is None or int(cantidad) < 0:
-        return jsonify({"msg": "Cantidad debe ser >= 0"}), 400
+    if cantidad is None:
+        return jsonify({"msg": "Cantidad debe ser un numero >= 0"}), 400
 
     registro = StockUniforme.query.filter_by(prenda=prenda, talla=talla).first()
     if registro:
-        registro.cantidad = int(cantidad)
+        registro.cantidad = cantidad
         registro.updated_at = now_madrid()
     else:
-        registro = StockUniforme(prenda=prenda, talla=talla, cantidad=int(cantidad))
+        registro = StockUniforme(prenda=prenda, talla=talla, cantidad=cantidad)
         db.session.add(registro)
 
     db.session.commit()
@@ -88,7 +96,7 @@ def registrar_entrega():
     user_id = data.get("user_id")
     prenda = (data.get("prenda") or "").strip().lower()
     talla = (data.get("talla") or "").strip().upper()
-    cantidad = int(data.get("cantidad") or 1)
+    cantidad = _parse_cantidad(data.get("cantidad"), default=1, minimo=1)
     observaciones = (data.get("observaciones") or "").strip() or None
 
     if not user_id:
@@ -97,14 +105,13 @@ def registrar_entrega():
         return jsonify({"msg": f"Prenda no valida. Opciones: {', '.join(PRENDAS)}"}), 400
     if not talla:
         return jsonify({"msg": "Talla requerida"}), 400
-    if cantidad < 1:
-        return jsonify({"msg": "Cantidad debe ser >= 1"}), 400
+    if cantidad is None:
+        return jsonify({"msg": "Cantidad debe ser un numero >= 1"}), 400
 
     empleado = User.query.get(user_id)
     if not empleado:
         return jsonify({"msg": "Empleado no encontrado"}), 404
 
-    # Descontar del stock si hay registro
     stock = StockUniforme.query.filter_by(prenda=prenda, talla=talla).first()
     if stock:
         nuevo_stock = stock.cantidad - cantidad
@@ -132,24 +139,35 @@ def editar_entrega(entrega_id):
     data = request.get_json() or {}
 
     nueva_talla = (data.get("talla") or entrega.talla).strip().upper()
-    nueva_cantidad = int(data.get("cantidad") or entrega.cantidad)
+    nueva_cantidad = _parse_cantidad(data.get("cantidad") or entrega.cantidad, minimo=1)
     nuevas_obs = (data.get("observaciones") or "").strip() or None
 
     if not nueva_talla:
         return jsonify({"msg": "Talla requerida"}), 400
-    if nueva_cantidad < 1:
-        return jsonify({"msg": "Cantidad debe ser >= 1"}), 400
+    if nueva_cantidad is None:
+        return jsonify({"msg": "Cantidad debe ser un numero >= 1"}), 400
 
-    # Ajustar stock si cambia la cantidad
-    diferencia = nueva_cantidad - entrega.cantidad
-    if diferencia != 0:
-        stock = StockUniforme.query.filter_by(prenda=entrega.prenda, talla=nueva_talla).first()
-        if stock:
-            nuevo_stock = stock.cantidad - diferencia
-            if nuevo_stock < 0:
-                return jsonify({"msg": f"Stock insuficiente. Disponible: {stock.cantidad}"}), 400
-            stock.cantidad = nuevo_stock
-            stock.updated_at = now_madrid()
+    # Ajustar stock: devolver talla/cantidad anterior y descontar nueva
+    talla_cambio = nueva_talla != entrega.talla
+    cantidad_cambio = nueva_cantidad != entrega.cantidad
+
+    if talla_cambio or cantidad_cambio:
+        # Devolver stock de la entrega original
+        stock_anterior = StockUniforme.query.filter_by(prenda=entrega.prenda, talla=entrega.talla).first()
+        if stock_anterior:
+            stock_anterior.cantidad += entrega.cantidad
+            stock_anterior.updated_at = now_madrid()
+
+        # Descontar stock de la nueva talla/cantidad
+        stock_nuevo = StockUniforme.query.filter_by(prenda=entrega.prenda, talla=nueva_talla).first()
+        if stock_nuevo:
+            if stock_nuevo.cantidad < nueva_cantidad:
+                # Revertir devolucion anterior
+                if stock_anterior:
+                    stock_anterior.cantidad -= entrega.cantidad
+                return jsonify({"msg": f"Stock insuficiente para talla {nueva_talla}. Disponible: {stock_nuevo.cantidad}"}), 400
+            stock_nuevo.cantidad -= nueva_cantidad
+            stock_nuevo.updated_at = now_madrid()
 
     entrega.talla = nueva_talla
     entrega.cantidad = nueva_cantidad
@@ -163,7 +181,6 @@ def editar_entrega(entrega_id):
 def eliminar_entrega(entrega_id):
     entrega = UniformeEmpleado.query.get_or_404(entrega_id)
 
-    # Devolver al stock
     stock = StockUniforme.query.filter_by(prenda=entrega.prenda, talla=entrega.talla).first()
     if stock:
         stock.cantidad += entrega.cantidad
@@ -179,24 +196,22 @@ def eliminar_entrega(entrega_id):
 @uniformes_bp.route("/resumen", methods=["GET"])
 @role_required("administrador")
 def resumen_por_empleado():
-    """Devuelve cuantas prendas tiene cada empleado agrupadas."""
-    from sqlalchemy import func
-
     filas = (
         db.session.query(
             UniformeEmpleado.user_id,
+            User.nombre,
             UniformeEmpleado.prenda,
             UniformeEmpleado.talla,
             func.sum(UniformeEmpleado.cantidad).label("total"),
         )
-        .group_by(UniformeEmpleado.user_id, UniformeEmpleado.prenda, UniformeEmpleado.talla)
+        .join(User, User.id == UniformeEmpleado.user_id)
+        .group_by(UniformeEmpleado.user_id, User.nombre, UniformeEmpleado.prenda, UniformeEmpleado.talla)
         .all()
     )
 
-    empleados = {u.id: u.nombre for u in User.query.all()}
     resultado = {}
     for fila in filas:
-        nombre = empleados.get(fila.user_id, f"ID {fila.user_id}")
+        nombre = fila.nombre or f"ID {fila.user_id}"
         if nombre not in resultado:
             resultado[nombre] = {"nombre": nombre, "user_id": fila.user_id, "prendas": {}}
         resultado[nombre]["prendas"][f"{fila.prenda}_{fila.talla}"] = {
