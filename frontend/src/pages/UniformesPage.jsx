@@ -205,9 +205,9 @@ export default function UniformesPage() {
     }
   };
 
-  const handleGuardarStock = async (prenda, talla) => {
+  const handleGuardarStock = async (prenda, talla, cantidadOverride) => {
     const key = `${prenda}_${talla}`;
-    const cantidad = Number(stockEdit[key] ?? 0);
+    const cantidad = cantidadOverride !== undefined ? cantidadOverride : Number(stockEdit[key] ?? 0);
     setSavingStock((s) => ({ ...s, [key]: true }));
     try {
       await apiFetch("/api/uniformes/stock", {
@@ -427,64 +427,92 @@ export default function UniformesPage() {
       {tab === "stock" && (
         <div>
           <p style={{ color: "var(--sw-text-muted)", fontSize: "0.9rem", marginBottom: "1rem" }}>
-            Edita la cantidad disponible de cada prenda. Al registrar una entrega, el stock se descuenta automáticamente.
+            Gestiona el stock disponible por prenda y talla. Puedes escribir cualquier talla (S, M, 42, 3XL...).
           </p>
           {loading ? (
             <p style={{ color: "var(--sw-text-muted)", textAlign: "center", padding: "2rem" }}>Cargando...</p>
           ) : (
             PRENDAS.map((prenda) => {
-              const tallas = tallasParaPrenda(prenda);
+              const entradasPrenda = stock.filter((s) => s.prenda === prenda);
+              const sugerencias = tallasParaPrenda(prenda);
+              const nuevaTallaKey = `nueva_${prenda}`;
+              const nuevaCantKey = `nuevacant_${prenda}`;
               return (
                 <div key={prenda} style={{ ...cardStyle, marginBottom: "1.25rem" }}>
                   <h3 style={{ color: "var(--sw-text)", fontWeight: 700, marginBottom: "1rem", fontSize: "1rem" }}>
                     {PRENDAS_ICON[prenda]} {PRENDAS_LABEL[prenda]}
                   </h3>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
-                    {tallas.map((talla) => {
-                      const key = `${prenda}_${talla}`;
-                      const cantidadActual = stockMap[key] ?? 0;
-                      const editVal = stockEdit[key] ?? cantidadActual;
-                      const isSaving = savingStock[key];
-                      const sinStock = cantidadActual === 0;
-                      return (
-                        <div
-                          key={talla}
-                          style={{
+
+                  {/* Entradas existentes */}
+                  {entradasPrenda.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", marginBottom: "1rem" }}>
+                      {entradasPrenda.map((s) => {
+                        const key = `${s.prenda}_${s.talla}`;
+                        const editVal = stockEdit[key] ?? s.cantidad;
+                        const isSaving = savingStock[key];
+                        const sinStock = s.cantidad === 0;
+                        return (
+                          <div key={key} style={{
                             background: "var(--sw-surface-2)",
                             border: sinStock ? "1px solid rgba(239,68,68,0.3)" : "1px solid var(--sw-border)",
-                            borderRadius: 10,
-                            padding: "0.75rem",
-                            minWidth: 100,
-                            textAlign: "center",
-                          }}
-                        >
-                          <div style={{ color: "var(--sw-text-muted)", fontSize: "0.75rem", fontWeight: 600, marginBottom: 6 }}>
-                            Talla {talla}
+                            borderRadius: 10, padding: "0.75rem", minWidth: 110, textAlign: "center",
+                          }}>
+                            <div style={{ color: "var(--sw-text-muted)", fontSize: "0.75rem", fontWeight: 600, marginBottom: 6 }}>
+                              Talla {s.talla}
+                            </div>
+                            <input
+                              type="number" min={0} max={999}
+                              value={editVal}
+                              onChange={(e) => setStockEdit((st) => ({ ...st, [key]: e.target.value }))}
+                              style={{ ...inputStyle, textAlign: "center", fontWeight: 800, fontSize: "1.1rem", padding: "0.35rem", marginBottom: 8, color: sinStock ? "#ef4444" : "var(--sw-text)" }}
+                            />
+                            <button
+                              onClick={() => handleGuardarStock(prenda, s.talla)}
+                              disabled={isSaving}
+                              style={{ ...btnPrimary, padding: "0.3rem 0.65rem", fontSize: "0.78rem", width: "100%" }}
+                            >{isSaving ? "..." : "Guardar"}</button>
                           </div>
-                          <input
-                            type="number" min={0} max={999}
-                            value={editVal}
-                            onChange={(e) => setStockEdit((s) => ({ ...s, [key]: e.target.value }))}
-                            style={{
-                              ...inputStyle,
-                              textAlign: "center",
-                              fontWeight: 800,
-                              fontSize: "1.1rem",
-                              padding: "0.35rem",
-                              marginBottom: 8,
-                              color: sinStock ? "#ef4444" : "var(--sw-text)",
-                            }}
-                          />
-                          <button
-                            onClick={() => handleGuardarStock(prenda, talla)}
-                            disabled={isSaving}
-                            style={{ ...btnPrimary, padding: "0.3rem 0.65rem", fontSize: "0.78rem", width: "100%" }}
-                          >
-                            {isSaving ? "..." : "Guardar"}
-                          </button>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Añadir nueva talla */}
+                  <div style={{ display: "flex", gap: "0.6rem", alignItems: "flex-end", flexWrap: "wrap" }}>
+                    <div>
+                      <label style={labelStyle}>Nueva talla</label>
+                      <input
+                        list={`stock-tallas-${prenda}`}
+                        value={stockEdit[nuevaTallaKey] ?? ""}
+                        onChange={(e) => setStockEdit((s) => ({ ...s, [nuevaTallaKey]: e.target.value }))}
+                        placeholder="Ej: XL, 43..."
+                        style={{ ...inputStyle, width: 120 }}
+                        autoComplete="off"
+                      />
+                      <datalist id={`stock-tallas-${prenda}`}>
+                        {sugerencias.map((t) => <option key={t} value={t} />)}
+                      </datalist>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Cantidad</label>
+                      <input
+                        type="number" min={0} max={999}
+                        value={stockEdit[nuevaCantKey] ?? ""}
+                        onChange={(e) => setStockEdit((s) => ({ ...s, [nuevaCantKey]: e.target.value }))}
+                        placeholder="0"
+                        style={{ ...inputStyle, width: 90 }}
+                      />
+                    </div>
+                    <button
+                      onClick={() => {
+                        const talla = (stockEdit[nuevaTallaKey] || "").trim().toUpperCase();
+                        const cantidad = Number(stockEdit[nuevaCantKey] ?? 0);
+                        if (!talla) return toast.error("Escribe una talla");
+                        handleGuardarStock(prenda, talla, cantidad);
+                        setStockEdit((s) => ({ ...s, [nuevaTallaKey]: "", [nuevaCantKey]: "" }));
+                      }}
+                      style={{ ...btnPrimary, padding: "0.5rem 1rem" }}
+                    >+ Añadir</button>
                   </div>
                 </div>
               );
