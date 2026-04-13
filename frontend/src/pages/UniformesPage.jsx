@@ -29,8 +29,13 @@ const fmtDate = (raw) => {
   return d.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" });
 };
 
-const tallasParaPrenda = (prenda) =>
-  prenda === "zapatilla" ? TALLAS_SUGERIDAS_ZAPATO : TALLAS_SUGERIDAS_ROPA;
+const TALLAS_SUGERIDAS_PANTALON = ["36", "38", "40", "42", "44", "46", "48", "50", "52"];
+
+const tallasParaPrenda = (prenda) => {
+  if (prenda === "zapatilla") return TALLAS_SUGERIDAS_ZAPATO;
+  if (prenda === "pantalon") return TALLAS_SUGERIDAS_PANTALON;
+  return TALLAS_SUGERIDAS_ROPA;
+};
 
 const DEFAULT_FORM = { user_id: "", prenda: "camiseta", talla: "M", cantidad: 1, observaciones: "" };
 
