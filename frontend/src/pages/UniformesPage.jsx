@@ -16,8 +16,8 @@ const PRENDAS_ICON = {
   zapatilla: "👟",
   chaqueta: "🧥",
 };
-const TALLAS_ROPA = ["XS", "S", "M", "L", "XL", "XXL"];
-const TALLAS_ZAPATO = ["36", "37", "38", "39", "40", "41", "42", "43", "44", "45"];
+const TALLAS_SUGERIDAS_ROPA = ["XS", "S", "M", "L", "XL", "XXL"];
+const TALLAS_SUGERIDAS_ZAPATO = ["36", "37", "38", "39", "40", "41", "42", "43", "44", "45"];
 
 const TABS = ["entregas", "stock", "resumen"];
 const TAB_LABEL = { entregas: "Entregas", stock: "Stock", resumen: "Resumen por empleado" };
@@ -30,7 +30,7 @@ const fmtDate = (raw) => {
 };
 
 const tallasParaPrenda = (prenda) =>
-  prenda === "zapatilla" ? TALLAS_ZAPATO : TALLAS_ROPA;
+  prenda === "zapatilla" ? TALLAS_SUGERIDAS_ZAPATO : TALLAS_SUGERIDAS_ROPA;
 
 const DEFAULT_FORM = { user_id: "", prenda: "camiseta", talla: "M", cantidad: 1, observaciones: "" };
 
@@ -320,11 +320,20 @@ export default function UniformesPage() {
                 </div>
                 <div>
                   <label style={labelStyle}>Talla *</label>
-                  <select name="talla" value={form.talla} onChange={handleFormChange} style={inputStyle}>
+                  <input
+                    list={`tallas-${form.prenda}`}
+                    name="talla"
+                    value={form.talla}
+                    onChange={handleFormChange}
+                    placeholder="Ej: M, 42, 3XL..."
+                    style={inputStyle}
+                    autoComplete="off"
+                  />
+                  <datalist id={`tallas-${form.prenda}`}>
                     {tallasParaPrenda(form.prenda).map((t) => (
-                      <option key={t} value={t}>{t}</option>
+                      <option key={t} value={t} />
                     ))}
-                  </select>
+                  </datalist>
                 </div>
                 <div>
                   <label style={labelStyle}>Cantidad</label>
@@ -542,15 +551,19 @@ export default function UniformesPage() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.85rem", marginBottom: "0.85rem" }}>
               <div>
                 <label style={labelStyle}>Talla *</label>
-                <select
+                <input
+                  list={`tallas-edit-${editando.prenda}`}
                   value={editForm.talla}
                   onChange={(e) => setEditForm((f) => ({ ...f, talla: e.target.value }))}
+                  placeholder="Ej: M, 42, 3XL..."
                   style={inputStyle}
-                >
+                  autoComplete="off"
+                />
+                <datalist id={`tallas-edit-${editando.prenda}`}>
                   {tallasParaPrenda(editando.prenda).map((t) => (
-                    <option key={t} value={t}>{t}</option>
+                    <option key={t} value={t} />
                   ))}
-                </select>
+                </datalist>
               </div>
               <div>
                 <label style={labelStyle}>Cantidad *</label>

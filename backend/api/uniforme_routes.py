@@ -46,8 +46,8 @@ def actualizar_stock():
 
     if prenda not in PRENDAS:
         return jsonify({"msg": f"Prenda no valida. Opciones: {', '.join(PRENDAS)}"}), 400
-    if talla not in TALLAS:
-        return jsonify({"msg": f"Talla no valida."}), 400
+    if not talla:
+        return jsonify({"msg": "Talla requerida"}), 400
     if cantidad is None or int(cantidad) < 0:
         return jsonify({"msg": "Cantidad debe ser >= 0"}), 400
 
@@ -95,8 +95,8 @@ def registrar_entrega():
         return jsonify({"msg": "user_id requerido"}), 400
     if prenda not in PRENDAS:
         return jsonify({"msg": f"Prenda no valida. Opciones: {', '.join(PRENDAS)}"}), 400
-    if talla not in TALLAS:
-        return jsonify({"msg": "Talla no valida"}), 400
+    if not talla:
+        return jsonify({"msg": "Talla requerida"}), 400
     if cantidad < 1:
         return jsonify({"msg": "Cantidad debe ser >= 1"}), 400
 
@@ -135,8 +135,8 @@ def editar_entrega(entrega_id):
     nueva_cantidad = int(data.get("cantidad") or entrega.cantidad)
     nuevas_obs = (data.get("observaciones") or "").strip() or None
 
-    if nueva_talla not in TALLAS:
-        return jsonify({"msg": "Talla no valida"}), 400
+    if not nueva_talla:
+        return jsonify({"msg": "Talla requerida"}), 400
     if nueva_cantidad < 1:
         return jsonify({"msg": "Cantidad debe ser >= 1"}), 400
 
