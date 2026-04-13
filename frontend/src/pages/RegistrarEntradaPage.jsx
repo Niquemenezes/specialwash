@@ -82,6 +82,16 @@ const TotalesRow = ({ subtotal, descuento, totalSinIva, totalIva, ivaPct, totalC
   </div>
 );
 
+const Field = ({ label, required, children }) => (
+  <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+    <label className="sw-plbl">
+      {label}
+      {required && <span style={{ color: "var(--sw-accent,#d4af37)", marginLeft: 2 }}>*</span>}
+    </label>
+    {children}
+  </div>
+);
+
 /* ======================
    Componente principal
 ====================== */
@@ -234,14 +244,6 @@ const RegistrarEntradaPage = () => {
   /* ── Parsear ocrMsg ──────── */
   const ocrMsgType  = ocrMsg ? ocrMsg.split(":")[0] : null;
   const ocrMsgText  = ocrMsg ? ocrMsg.slice(ocrMsgType.length + 1) : "";
-
-  /* ─── Field ─── */
-  const Field = ({ label, required, children }) => (
-    <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-      <label className="sw-plbl">{label}{required && <span style={{ color: "var(--sw-accent,#d4af37)", marginLeft: 2 }}>*</span>}</label>
-      {children}
-    </div>
-  );
 
   return (
     <div className="sw-ent-wrapper">
@@ -607,13 +609,6 @@ const EditarEntradaModal = ({ show, entrada, productos, proveedores, onClose, on
   };
 
   if (!show) return null;
-
-  const Field = ({ label, required, children }) => (
-    <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-      <label className="sw-plbl">{label}{required && <span style={{ color: "var(--sw-accent,#d4af37)", marginLeft: 2 }}>*</span>}</label>
-      {children}
-    </div>
-  );
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "var(--sw-overlay-bg-strong,rgba(0,0,0,0.7))", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "1rem" }}>
