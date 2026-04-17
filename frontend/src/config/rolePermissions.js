@@ -11,6 +11,7 @@ export const ROLES = {
   DETAILING: "detailing",
   PINTURA: "pintura",
   TAPICERO: "tapicero",
+  SALIDA: "salida",
 };
 
 // Roles de empleados operativos
@@ -46,7 +47,7 @@ export const ROUTE_PERMISSIONS = {
   // ═══ INVENTARIO Y SALIDAS ═══
   "/productos": [ROLES.ADMIN],
   "/entradas": [ROLES.ADMIN],
-  "/salidas": [ROLES.ADMIN, ROLES.CALIDAD, ...EMPLOYEE_ROLES],
+  "/salidas": [ROLES.ADMIN, ROLES.CALIDAD, ...EMPLOYEE_ROLES, ROLES.SALIDA],
   "/resumen-entradas": [ROLES.ADMIN],
   "/historial-salidas": [ROLES.ADMIN],
   "/inventario": [ROLES.ADMIN, ROLES.CALIDAD, ...EMPLOYEE_ROLES],
@@ -139,6 +140,9 @@ export const NAVIGATION_BY_ROLE = {
     { label: "📋 Mis trabajos", to: "/mis-partes-trabajo" },
     { label: "⤒ Salida de productos", to: "/salidas" },
   ],
+  [ROLES.SALIDA]: [
+    { label: "⤒ Salida de productos", to: "/salidas" },
+  ],
 };
 
 /**
@@ -150,6 +154,7 @@ export const ROLE_DESCRIPTIONS = {
   [ROLES.DETAILING]: "Fichaje, salida de productos y partes de detailing",
   [ROLES.PINTURA]: "Fichaje, salida de productos y partes de pintura",
   [ROLES.TAPICERO]: "Fichaje, salida de productos y partes de tapicería",
+  [ROLES.SALIDA]: "Salida de productos: acceso directo a registrar salidas",
 };
 
 /**
