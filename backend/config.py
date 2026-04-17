@@ -29,8 +29,6 @@ class Config:
     SECRET_KEY = _require_env("SECRET_KEY", "dev_secret_key")
     JWT_SECRET_KEY = _require_env("JWT_SECRET_KEY", "jwt_secret_key")
 
-    # Duración del token JWT (8 horas)
-    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=8)
 
     # Base de datos
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))
