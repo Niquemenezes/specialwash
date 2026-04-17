@@ -9,7 +9,7 @@ import time
 from datetime import timedelta
 
 _TOKEN_EXPIRES = {
-    "admin": timedelta(hours=8),
+    "administrador": timedelta(hours=8),
     "calidad": timedelta(hours=8),
     "salida": timedelta(hours=8),
 }
