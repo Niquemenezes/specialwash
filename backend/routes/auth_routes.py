@@ -6,6 +6,13 @@ import secrets
 import string
 import os
 import time
+from datetime import timedelta
+
+_TOKEN_EXPIRES = {
+    "admin": timedelta(hours=8),
+    "calidad": timedelta(hours=8),
+    "salida": timedelta(hours=8),
+}
 
 from models import User, db
 from utils.auth_utils import ALLOWED_ROLES, normalize_role, role_required
@@ -147,9 +154,11 @@ def login_json():
         return jsonify({"msg": "Tu cuenta está desactivada. Contacta al administrador."}), 403
 
     _clear_login_failures(rate_key)
+    expires = _TOKEN_EXPIRES.get(user.rol, timedelta(minutes=10))
     token = create_access_token(
         identity=str(user.id),
         additional_claims={"rol": user.rol, "email": user.email},
+        expires_delta=expires,
     )
 
     return jsonify({"user": user.to_dict(), "token": token}), 200
