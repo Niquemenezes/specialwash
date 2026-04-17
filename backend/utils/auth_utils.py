@@ -23,6 +23,7 @@ ALLOWED_ROLES = {
     "calidad",
     "pintura",
     "tapicero",
+    "salida",
 }
 
 # Roles operativos del taller.

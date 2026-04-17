@@ -47,7 +47,7 @@ const MODULES = [
       { to: "/entradas", label: "Registrar entrada", detail: "Añadir stock recibido" },
       { to: "/historial-salidas", label: "Historial de salidas", detail: "Consumos registrados" },
     ] : [],
-    roles: ["administrador", "calidad", "detailing", "pintura", "tapicero"],
+    roles: ["administrador", "calidad", "detailing", "pintura", "tapicero", "salida"],
   },
   {
     id: "partes",
@@ -114,7 +114,7 @@ export default function Home() {
   const { store, actions } = useContext(Context);
   const token = getStoredToken();
   const rol = normalizeRol(store?.user?.rol) || normalizeRol(getStoredRol()) || "detailing";
-  const isOperationalEmployee = ["detailing", "pintura", "tapicero"].includes(rol);
+  const isOperationalEmployee = ["detailing", "pintura", "tapicero", "salida"].includes(rol);
 
   useEffect(() => {
     if (token && !store.user) {
