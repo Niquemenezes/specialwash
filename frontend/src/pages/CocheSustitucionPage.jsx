@@ -37,10 +37,14 @@ export default function CocheSustitucionPage() {
     firma_cliente: "",
     consentimiento_rgpd: false,
   });
-  const [carnetFile, setCarnetFile] = useState(null);
-  const [carnetPreview, setCarnetPreview] = useState(null);
+  const [carnetFrenteFile, setCarnetFrenteFile] = useState(null);
+  const [carnetFrentePreview, setCarnetFrentePreview] = useState(null);
+  const [carnetVersoFile, setCarnetVersoFile] = useState(null);
+  const [carnetVersoPreview, setCarnetVersoPreview] = useState(null);
   const [fotosFiles, setFotosFiles] = useState([]);
   const [fotosPreviews, setFotosPreviews] = useState([]);
+  const frenteRef = React.useRef();
+  const versoRef = React.useRef();
 
   const [formDev, setFormDev] = useState({
     km_devolucion: "",
@@ -63,11 +67,18 @@ export default function CocheSustitucionPage() {
 
   useEffect(() => { cargarLista(); }, []);
 
-  const handleCarnet = (e) => {
+  const handleCarnetFrente = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    setCarnetFile(file);
-    setCarnetPreview(URL.createObjectURL(file));
+    setCarnetFrenteFile(file);
+    setCarnetFrentePreview(URL.createObjectURL(file));
+  };
+
+  const handleCarnetVerso = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setCarnetVersoFile(file);
+    setCarnetVersoPreview(URL.createObjectURL(file));
   };
 
   const handleFotos = (e) => {
@@ -91,11 +102,14 @@ export default function CocheSustitucionPage() {
         },
       });
 
-      // 2. Subir foto carnet
-      if (carnetFile) {
-        const fd = new FormData();
-        fd.append("file", carnetFile);
-        await apiFetch(`/api/coche-sustitucion/${nuevo.id}/upload-carnet`, { method: "POST", body: fd });
+      // 2. Subir fotos carnet (frente y verso)
+      for (const [file, lado] of [[carnetFrenteFile, "frente"], [carnetVersoFile, "verso"]]) {
+        if (file) {
+          const fd = new FormData();
+          fd.append("file", file);
+          fd.append("lado", lado);
+          await apiFetch(`/api/coche-sustitucion/${nuevo.id}/upload-carnet`, { method: "POST", body: fd });
+        }
       }
 
       // 3. Subir fotos del coche
@@ -139,7 +153,9 @@ export default function CocheSustitucionPage() {
 
   const resetForm = () => {
     setForm({ cliente_nombre: "", cliente_dni: "", cliente_telefono: "", coche_cliente_matricula: "", matricula: "", marca: "", modelo: "", km_entrega: "", combustible_entrega: "lleno", estado_entrega: "", firma_cliente: "", consentimiento_rgpd: false });
-    setCarnetFile(null); setCarnetPreview(null); setFotosFiles([]); setFotosPreviews([]);
+    setCarnetFrenteFile(null); setCarnetFrentePreview(null);
+    setCarnetVersoFile(null); setCarnetVersoPreview(null);
+    setFotosFiles([]); setFotosPreviews([]);
   };
 
   // ─── VISTA IMPRIMIR ────────────────────────────────────────────────
@@ -178,9 +194,25 @@ export default function CocheSustitucionPage() {
                   <input className="form-control" placeholder="Ej: 1234ABC" value={form.coche_cliente_matricula} onChange={e => setForm(f => ({ ...f, coche_cliente_matricula: e.target.value.toUpperCase() }))} />
                 </div>
                 <div className="col-12">
-                  <label className="form-label">Foto del carnet de conducir</label>
-                  <input type="file" className="form-control" accept="image/*" capture="environment" onChange={handleCarnet} />
-                  {carnetPreview && <img src={carnetPreview} alt="Carnet" className="mt-2 rounded" style={{ maxHeight: 120, maxWidth: "100%", objectFit: "contain" }} />}
+                  <label className="form-label fw-semibold">Foto del carnet de conducir</label>
+                  <div className="d-flex gap-3 flex-wrap mt-1">
+                    <div className="text-center">
+                      <input ref={frenteRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleCarnetFrente} />
+                      <button type="button" className="btn btn-outline-primary d-flex flex-column align-items-center px-4 py-3" style={{ minWidth: 130 }} onClick={() => frenteRef.current.click()}>
+                        <i className="fas fa-camera fa-2x mb-1" />
+                        <span className="small">Frente</span>
+                      </button>
+                      {carnetFrentePreview && <img src={carnetFrentePreview} alt="Frente" className="mt-2 rounded border" style={{ height: 80, width: 130, objectFit: "cover" }} />}
+                    </div>
+                    <div className="text-center">
+                      <input ref={versoRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleCarnetVerso} />
+                      <button type="button" className="btn btn-outline-primary d-flex flex-column align-items-center px-4 py-3" style={{ minWidth: 130 }} onClick={() => versoRef.current.click()}>
+                        <i className="fas fa-camera fa-2x mb-1" />
+                        <span className="small">Verso</span>
+                      </button>
+                      {carnetVersoPreview && <img src={carnetVersoPreview} alt="Verso" className="mt-2 rounded border" style={{ height: 80, width: 130, objectFit: "cover" }} />}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -394,11 +426,20 @@ function ImprimirContrato({ item, onVolver }) {
               <Fila label="Vehículo en taller" value={item.coche_cliente_matricula || "-"} />
             </tbody>
           </table>
-          {item.carnet_foto && (
-            <div className="mt-2">
-              <strong>Foto carnet de conducir:</strong>
-              <br />
-              <img src={`/api/coche-sustitucion/media/${item.carnet_foto}`} alt="Carnet" style={{ maxHeight: 100, maxWidth: 200, objectFit: "contain", border: "1px solid #ccc", marginTop: 4 }} />
+          {(item.carnet_foto || item.carnet_foto_verso) && (
+            <div className="mt-2 d-flex gap-3 flex-wrap">
+              {item.carnet_foto && (
+                <div>
+                  <strong style={{ fontSize: 11 }}>Carnet — Frente</strong><br />
+                  <img src={`/api/coche-sustitucion/media/${item.carnet_foto}`} alt="Frente" style={{ maxHeight: 90, maxWidth: 150, objectFit: "contain", border: "1px solid #ccc", marginTop: 4 }} />
+                </div>
+              )}
+              {item.carnet_foto_verso && (
+                <div>
+                  <strong style={{ fontSize: 11 }}>Carnet — Verso</strong><br />
+                  <img src={`/api/coche-sustitucion/media/${item.carnet_foto_verso}`} alt="Verso" style={{ maxHeight: 90, maxWidth: 150, objectFit: "contain", border: "1px solid #ccc", marginTop: 4 }} />
+                </div>
+              )}
             </div>
           )}
         </Seccion>
