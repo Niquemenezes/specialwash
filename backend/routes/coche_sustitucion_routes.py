@@ -95,12 +95,16 @@ def upload_carnet(id):
     file = request.files.get("file")
     if not file:
         return jsonify({"msg": "No se recibió archivo"}), 400
+    lado = request.form.get("lado", "frente")
     path = _save_file(file, f"{id}/carnet")
     if not path:
         return jsonify({"msg": "Formato no admitido"}), 400
-    item.carnet_foto = path
+    if lado == "verso":
+        item.carnet_foto_verso = path
+    else:
+        item.carnet_foto = path
     db.session.commit()
-    return jsonify({"carnet_foto": path})
+    return jsonify({"carnet_foto": item.carnet_foto, "carnet_foto_verso": item.carnet_foto_verso})
 
 
 @coche_sust_bp.route("/coche-sustitucion/<int:id>/upload-foto", methods=["POST"])

@@ -11,7 +11,8 @@ class CocheSustitucion(db.Model):
     cliente_nombre = db.Column(db.String(200), nullable=False)
     cliente_dni = db.Column(db.String(20), nullable=False)
     cliente_telefono = db.Column(db.String(20))
-    carnet_foto = db.Column(db.String(500))  # ruta relativa al archivo subido
+    carnet_foto = db.Column(db.String(500))       # frente del carnet
+    carnet_foto_verso = db.Column(db.String(500)) # verso del carnet
 
     # Coche prestado
     matricula = db.Column(db.String(20), nullable=False)
@@ -53,6 +54,7 @@ class CocheSustitucion(db.Model):
             "cliente_dni": self.cliente_dni,
             "cliente_telefono": self.cliente_telefono,
             "carnet_foto": self.carnet_foto,
+            "carnet_foto_verso": self.carnet_foto_verso,
             "matricula": self.matricula,
             "marca": self.marca,
             "modelo": self.modelo,
