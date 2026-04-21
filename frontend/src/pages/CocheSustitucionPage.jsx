@@ -45,6 +45,7 @@ export default function CocheSustitucionPage() {
   const [fotosPreviews, setFotosPreviews] = useState([]);
   const frenteRef = React.useRef();
   const versoRef = React.useRef();
+  const fotoCocheRef = React.useRef();
 
   const [formDev, setFormDev] = useState({
     km_devolucion: "",
@@ -249,11 +250,25 @@ export default function CocheSustitucionPage() {
                   <textarea className="form-control" rows={3} value={form.estado_entrega} onChange={e => setForm(f => ({ ...f, estado_entrega: e.target.value }))} placeholder="Describa rasguños, golpes u otros daños previos..." />
                 </div>
                 <div className="col-12">
-                  <label className="form-label">Fotos del coche (estado actual)</label>
-                  <input type="file" className="form-control" accept="image/*" multiple onChange={handleFotos} />
+                  <label className="form-label fw-semibold">Fotos del coche (arañazos, golpes, etc.)</label>
+                  <div className="mt-1">
+                    <input ref={fotoCocheRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleFotos} />
+                    <button type="button" className="btn btn-outline-secondary d-flex align-items-center gap-2 px-3 py-2" onClick={() => fotoCocheRef.current.click()}>
+                      <i className="fas fa-camera" />
+                      <span>Hacer foto</span>
+                    </button>
+                  </div>
                   {fotosPreviews.length > 0 && (
                     <div className="d-flex flex-wrap gap-2 mt-2">
-                      {fotosPreviews.map((src, i) => <img key={i} src={src} alt="" className="rounded" style={{ height: 80, width: 80, objectFit: "cover" }} />)}
+                      {fotosPreviews.map((src, i) => (
+                        <div key={i} style={{ position: "relative" }}>
+                          <img src={src} alt="" className="rounded border" style={{ height: 90, width: 90, objectFit: "cover" }} />
+                          <button type="button" className="btn btn-danger btn-sm" style={{ position: "absolute", top: 2, right: 2, padding: "0 4px", lineHeight: 1.2, fontSize: 11 }}
+                            onClick={() => { setFotosPreviews(p => p.filter((_, j) => j !== i)); setFotosFiles(f => f.filter((_, j) => j !== i)); }}>
+                            ✕
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
