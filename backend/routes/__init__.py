@@ -13,6 +13,7 @@ from routes.servicio_catalogo_routes import servicio_catalogo_bp
 from routes.cita_routes import citas_bp
 from routes.notificacion_routes import notificaciones_bp
 from routes.horario_routes import horario_bp
+from routes.coche_sustitucion_routes import coche_sust_bp
 
 
 def register_routes(app):
@@ -32,3 +33,4 @@ def register_routes(app):
     app.register_blueprint(dashboard_bp, url_prefix="")
     app.register_blueprint(export_bp, url_prefix="")
     app.register_blueprint(uniformes_bp, url_prefix="/api/uniformes")
+    app.register_blueprint(coche_sust_bp, url_prefix="/api")

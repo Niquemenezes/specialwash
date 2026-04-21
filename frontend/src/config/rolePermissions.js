@@ -80,6 +80,9 @@ export const ROUTE_PERMISSIONS = {
 
   // ═══ UNIFORMES ═══
   "/uniformes": [ROLES.ADMIN],
+
+  // ═══ COCHE DE SUSTITUCIÓN ═══
+  "/coche-sustitucion": [ROLES.ADMIN, ROLES.CALIDAD],
 };
 
 /**
@@ -120,13 +123,16 @@ export const NAVIGATION_BY_ROLE = {
         { label: "🛠️ Maquinarias", to: "/maquinaria" },
         { label: "👤 Usuarios", to: "/usuarios" },
         { label: "👔 Uniformes", to: "/uniformes" },
+        { label: "🚙 Coches sustitución", to: "/coche-sustitucion" },
         { label: "�💶 Finanzas", to: "/administracion/finanzas" },
         { label: "💼 Cobros Concesionarios", to: "/administracion/cobros-profesionales" },
       ],
     },
   ],
 
-  [ROLES.CALIDAD]: [],
+  [ROLES.CALIDAD]: [
+    { label: "🚙 Coches sustitución", to: "/coche-sustitucion" },
+  ],
 
   [ROLES.DETAILING]: [
     { label: "📋 Mis trabajos", to: "/mis-partes-trabajo" },
