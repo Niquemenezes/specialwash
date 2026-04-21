@@ -19,3 +19,4 @@ from .cita import Cita, EstadoCita
 from .notificacion import Notificacion
 from .registro_horario import RegistroHorario
 from .uniforme import UniformeEmpleado, StockUniforme
+from .coche_sustitucion import CocheSustitucion
