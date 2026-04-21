@@ -217,6 +217,7 @@ const NavbarSW = () => {
         { label: "🚗 Seguimiento", to: "/partes-trabajo" },
         { label: "🔍 Inspección", to: "/inspeccion-recepcion" },
         { label: "✍️ Entrega", to: "/repaso-entrega?tab=firma" },
+        { label: "🚙 Coches sustitución", to: "/coche-sustitucion" },
       ];
     }
 
