@@ -1,6 +1,6 @@
 # SpecialWash — Sistema de Gestión de Taller
 
-Sistema web interno para talleres de detailing y reparación de vehículos. Gestiona el flujo completo desde la recepción del coche hasta la entrega al cliente, incluyendo inventario, partes de trabajo, inspecciones y facturación.
+Sistema web interno para talleres de detailing y reparación de vehículos. Gestiona el flujo completo desde la recepción del coche hasta la entrega al cliente, incluyendo inventario, partes de trabajo, inspecciones, coches de sustitución y facturación.
 
 **Producción:** [https://specialwash.studio](https://specialwash.studio)
 
@@ -12,13 +12,18 @@ Sistema web interno para talleres de detailing y reparación de vehículos. Gest
 |--------|-------------|
 | **Inspección de recepción** | Registro de estado del vehículo con fotos, vídeos y firma digital del cliente |
 | **Partes de trabajo** | Asignación de tareas por empleado con control de tiempos y pausas |
-| **Acta de entrega** | Documento de entrega firmado digitalmente por cliente y empleado |
+| **Repaso de calidad** | Control de calidad obligatorio antes de la entrega al cliente |
+| **Acta de entrega** | Documento de entrega firmado digitalmente; bloqueada si el repaso no está completado |
+| **Hoja de intervención** | Documento imprimible opcional por coche para clientes especiales (sin firma ni cobro) |
+| **Coches de sustitución** | Gestión de préstamos de vehículos con contrato RGPD, fotos de carnet y firma digital |
 | **Inventario** | Productos con stock mínimo, alertas, entradas/salidas y códigos de barras |
+| **Catálogo de servicios** | Servicios con precio base, tiempo estimado y rol responsable |
 | **Clientes y vehículos** | Historial de servicios por cliente y matrícula |
-| **Maquinaria** | Inventario de equipos con facturas almacenadas en Cloudinary |
 | **Citas** | Calendario de citas con estados y notificaciones |
+| **Control horario** | Fichaje de empleados con foto, registro de jornadas y horarios |
+| **Salidas de material** | Registro de material consumido por trabajo con rol dedicado |
 | **Finanzas** | Dashboard de ingresos, gastos y balance mensual |
-| **Usuarios y roles** | 8 roles diferenciados (administrador, detailing, pintura, tapicero, etc.) |
+| **Usuarios y roles** | 7 roles diferenciados con tokens JWT por duración según rol |
 | **Notificaciones** | Sistema de alertas internas en tiempo real |
 
 ---
@@ -28,21 +33,21 @@ Sistema web interno para talleres de detailing y reparación de vehículos. Gest
 **Backend**
 - Python 3.12 + Flask 3.0
 - SQLAlchemy 2.0 + SQLite
-- Gunicorn (producción)
-- JWT (autenticación), Flask-Admin (panel interno)
+- JWT con expiración por rol (flask-jwt-extended)
 - Cloudinary (almacenamiento de fotos y vídeos)
 - OpenAI gpt-4o-mini (redacción automática de actas)
 
 **Frontend**
-- React 19 + React Router 7
+- React 18 + React Router 6
 - Bootstrap 5.3 + tema oscuro/claro personalizado
-- FontAwesome 7
+- FontAwesome 6
+- SignaturePad (firmas digitales en tablet)
 
 **Servidor**
-- Ubuntu 24.04 en VPS IONOS
-- Nginx (proxy + archivos estáticos)
+- Ubuntu 24.04 en VPS IONOS (194.164.164.78)
+- Nginx (proxy inverso + archivos estáticos)
 - Let's Encrypt (HTTPS)
-- Systemd (gestión del proceso)
+- Python venv (`/root/specialwash/backend/venv`)
 
 ---
 
@@ -51,23 +56,39 @@ Sistema web interno para talleres de detailing y reparación de vehículos. Gest
 ```
 specialwash/
 ├── backend/
-│   ├── api/              # Blueprints API (inspecciones, rutas core)
-│   ├── models/           # Modelos SQLAlchemy (22 modelos)
-│   ├── routes/           # Blueprints por módulo
+│   ├── api/              # Blueprints API core (inspecciones, actas, entregas)
+│   ├── models/           # Modelos SQLAlchemy
+│   ├── routes/           # Blueprints por módulo (almacén, horario, citas, etc.)
 │   ├── services/         # Lógica de negocio (auth, OpenAI, WhatsApp)
-│   ├── utils/            # Decoradores y helpers
-│   ├── prompts/          # Prompts para generación de actas con IA
+│   ├── utils/            # Decoradores de roles y helpers
+│   ├── media/            # Archivos subidos (fotos carnet, coches sustitución)
 │   ├── app.py            # Punto de entrada
 │   └── config.py         # Configuración centralizada
 └── frontend/
     ├── src/
-    │   ├── pages/        # 30+ páginas React
-    │   ├── component/    # Navbar, Footer, modales, SignaturePad
+    │   ├── pages/        # 35+ páginas React
+    │   ├── components/   # Navbar, Sidebar, SignaturePad, modales
     │   ├── store/        # Context API + flux (estado global)
-    │   ├── utils/        # authSession, apiBase, barcode
-    │   └── styles/       # Tema premium dark/light
+    │   ├── utils/        # apiFetch, authSession, apiBase
+    │   └── styles/       # Tema premium dark/light + print CSS
     └── build/            # Build de producción
 ```
+
+---
+
+## Roles de usuario y tokens JWT
+
+| Rol | Acceso | Token |
+|-----|--------|-------|
+| `administrador` | Acceso completo, puede saltarse bloqueos de entrega | 8 horas |
+| `calidad` | Inspecciones, estado de coches, partes, coches sustitución | 8 horas |
+| `salida` | Registro de salidas de material | 30 días |
+| `detailing` | Flujo de entrega, partes propios, salida de productos | 10 minutos |
+| `pintura` | Partes propios, salida de productos | 10 minutos |
+| `tapicero` | Partes propios (flujo tapicería) | 10 minutos |
+| `empleado` | Salidas, partes propios, inspección | 10 minutos |
+
+> Los roles de empleado tienen token de 10 minutos porque comparten tablet — así cada uno hace login propio sin dejar la sesión abierta.
 
 ---
 
@@ -111,63 +132,83 @@ WHATSAPP_TOKEN=          # Opcional — para notificaciones WhatsApp
 
 ---
 
-## Deploy en producción
+## Deploy en producción (IONOS VPS)
 
-El servidor de producción es un VPS Ubuntu en IONOS (`YOUR_SERVER_IP`) con Nginx + Gunicorn + systemd.
+El deploy es manual via SCP. El backend corre en `/root/specialwash/backend/` y el frontend en `/var/www/specialwash/public_html/`.
+
+### 1. Compilar el frontend
 
 ```bash
-# 1. Compilar frontend
 cd frontend && npm run build
-
-# 2. Crear paquete de deploy
-tar --exclude='./backend/venv' --exclude='./backend/instance' \
-    --exclude='./backend/.env' --exclude='./frontend/node_modules' \
-    --exclude='./frontend/src' -czf deploy.tar.gz ./backend ./frontend/build ./deploy
-
-# 3. Subir al servidor
-scp deploy.tar.gz root@YOUR_SERVER_IP:/tmp/
-
-# 4. En el servidor
-ssh root@YOUR_SERVER_IP
-cd /var/www/specialwash/app
-tar --strip-components=1 -xzf /tmp/deploy.tar.gz
-source backend/venv/bin/activate
-pip install -r backend/requirements.txt -q
-cp -r frontend/build/* /var/www/specialwash-frontend/
-systemctl restart specialwash-backend && systemctl reload nginx
 ```
 
-Ver `deploy/` para scripts completos y configuración de Nginx/systemd.
+### 2. Subir archivos (desde PowerShell en Windows)
 
----
+```powershell
+# Backend (solo los archivos modificados)
+scp backend/api/inspeccion_routes.py root@194.164.164.78:/root/specialwash/backend/api/
+scp backend/routes/almacen_routes.py root@194.164.164.78:/root/specialwash/backend/routes/
 
-## Roles de usuario
+# Frontend completo
+scp -r frontend/build/* root@194.164.164.78:/var/www/specialwash/public_html/
+```
 
-| Rol | Acceso |
-|-----|--------|
-| `administrador` | Acceso completo |
-| `detailing` | Flujo de entrega, salidas, partes propios, salida de productos |
-| `calidad` | Inspecciones, estado de coches, partes, salida de productos |
-| `pintura` | Partes propios, salida de productos |
-| `tapicero` | Partes propios (flujo tapicería) |
-| `empleado` | Salidas, partes propios, inspección |
+### 3. En el servidor
+
+```bash
+ssh root@194.164.164.78
+
+# Arreglar permisos del frontend
+chmod -R 755 /var/www/specialwash/public_html
+chown -R www-data:www-data /var/www/specialwash/public_html
+
+# Reiniciar el backend
+cd /root/specialwash/backend
+pkill -f "app.py"
+sleep 1
+nohup venv/bin/python3 app.py >> /root/specialwash/logs/app.log 2>&1 &
+
+# Verificar que arrancó
+curl -s http://127.0.0.1:5000/api/auth/me
+```
 
 ---
 
 ## Comandos útiles en producción
 
 ```bash
-# Estado de los servicios
-systemctl status specialwash-backend
+# Ver logs del backend
+tail -f /root/specialwash/logs/app.log
+
+# Verificar que el backend responde
+curl -s http://127.0.0.1:5000/api/auth/me
+
+# Backup manual de la base de datos
+cp /root/specialwash/backend/instance/specialwash.db \
+   /root/specialwash/backend/instance/specialwash_$(date +%Y%m%d).db
+
+# Ver estado de nginx
 systemctl status nginx
+nginx -t && systemctl reload nginx
+```
 
-# Logs en tiempo real
-journalctl -u specialwash-backend -f
+---
 
-# Reiniciar tras actualización
-systemctl restart specialwash-backend && systemctl reload nginx
+## Flujo de trabajo principal
 
-# Backup manual de la BD
-cp /var/www/specialwash/data/specialwash.db \
-   /var/www/specialwash/backup/specialwash_$(date +%Y%m%d).db
+```
+1. Recepción del coche
+   └── Inspección de entrada (fotos, firma cliente, servicios)
+       └── Opcional: marcar "Requiere hoja de intervención"
+
+2. Trabajo en taller
+   └── Partes de trabajo por empleado (con tiempos y pausas)
+       └── Opcional: imprimir hoja de intervención (sin firma ni cobro)
+
+3. Repaso de calidad (obligatorio antes de entrega)
+
+4. Entrega al cliente
+   └── Trabajos realizados + firma cliente + cobro
+       └── Bloqueada si: repaso no completado o partes abiertos (salvo admin)
+
 ```
