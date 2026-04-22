@@ -676,9 +676,11 @@ const ActaEntregaView = () => {
           <button className="btn btn-outline-secondary" onClick={volver}>
             Volver
           </button>
-          <button className="btn btn-outline-secondary" onClick={() => window.print()}>
-            Imprimir
-          </button>
+          {inspeccion?.requiere_hoja_intervencion && !isEntregado && (
+            <button className="btn btn-outline-secondary" onClick={() => window.print()}>
+              🖨 Imprimir hoja de intervención
+            </button>
+          )}
           {!isEntregado && (
             <button className="btn btn-success" onClick={finalizarEntrega} disabled={guardando}>
               {guardando ? "Finalizando..." : "Finalizar entrega"}
