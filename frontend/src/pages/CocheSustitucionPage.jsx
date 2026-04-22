@@ -550,10 +550,13 @@ function ImprimirContrato({ item, onVolver }) {
       <style>{`
         @media print {
           .d-print-none { display: none !important; }
-          body { margin: 0; }
-          .contrato-print { max-width: 100% !important; }
+          nav, header, aside, .sidebar, [class*="sidebar"], [class*="navbar"], [class*="Sidebar"], [class*="Navbar"] { display: none !important; }
+          body { margin: 0 !important; background: white !important; color: black !important; }
+          body * { color: black !important; background: transparent !important; box-shadow: none !important; }
+          .contrato-print { max-width: 100% !important; background: white !important; }
+          .contrato-print img { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .contrato-seccion { page-break-inside: avoid; }
         }
-        .contrato-seccion { page-break-inside: avoid; }
       `}</style>
     </div>
   );
