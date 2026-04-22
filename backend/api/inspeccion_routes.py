@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, send_from_directory
-from flask_jwt_extended import jwt_required, get_jwt_identity, decode_token
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, decode_token
 from functools import wraps
 import cloudinary
 import cloudinary.uploader
@@ -1369,13 +1369,16 @@ def registrar_entrega(inspeccion_id):
     if not inspeccion:
         return jsonify({"msg": "Inspección no encontrada"}), 404
 
-    # Bloquear entrega si hay partes de trabajo abiertos
-    partes_abiertos = ParteTrabajo.query.filter(
-        ParteTrabajo.inspeccion_id == inspeccion_id,
-        ParteTrabajo.estado.in_([EstadoParte.pendiente, EstadoParte.en_proceso, EstadoParte.en_pausa])
-    ).count()
-    if partes_abiertos > 0:
-        return jsonify({"msg": f"No se puede entregar el vehículo: hay {partes_abiertos} parte(s) de trabajo sin finalizar."}), 400
+    # Bloquear entrega si hay partes de trabajo abiertos (solo para no-administradores)
+    claims = get_jwt()
+    rol_actual = claims.get("rol", "")
+    if rol_actual != "administrador":
+        partes_abiertos = ParteTrabajo.query.filter(
+            ParteTrabajo.inspeccion_id == inspeccion_id,
+            ParteTrabajo.estado.in_([EstadoParte.pendiente, EstadoParte.en_proceso, EstadoParte.en_pausa])
+        ).count()
+        if partes_abiertos > 0:
+            return jsonify({"msg": f"No se puede entregar el vehículo: hay {partes_abiertos} parte(s) de trabajo sin finalizar."}), 400
 
     data = request.get_json() or {}
     es_concesionario = bool(inspeccion.es_concesionario)
