@@ -17,6 +17,7 @@ const INITIAL_FORM_DATA = {
   matricula: "",
   kilometros: "",
   es_concesionario: false,
+  requiere_hoja_intervencion: false,
   firma_cliente_recepcion: "",
   consentimiento_datos_recepcion: false,
   averias_notas: "",
@@ -178,6 +179,7 @@ const InspeccionRecepcionPage = () => {
           matricula: inspeccion.matricula || "",
           kilometros: inspeccion.kilometros || "",
           es_concesionario: Boolean(inspeccion.es_concesionario),
+          requiere_hoja_intervencion: Boolean(inspeccion.requiere_hoja_intervencion),
           firma_cliente_recepcion: inspeccion.firma_cliente_recepcion || "",
           consentimiento_datos_recepcion: Boolean(inspeccion.consentimiento_datos_recepcion),
           averias_notas: inspeccion.averias_notas || "",
@@ -951,6 +953,15 @@ const InspeccionRecepcionPage = () => {
                     <input className="form-check-input" type="checkbox" id="es_concesionario" name="es_concesionario" checked={Boolean(formData.es_concesionario)} onChange={handleInputChange} style={{ flexShrink: 0 }} />
                     <label className="form-check-label" htmlFor="es_concesionario" style={{ color: "var(--sw-text)", fontSize: "0.88rem", cursor: "pointer" }}>
                       Coche de concesionario / profesional — no se solicita firma de cliente en recepción
+                    </label>
+                  </div>
+                </div>
+
+                <div className="col-12">
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.75rem 1rem", background: "color-mix(in srgb, #d4af37 8%, var(--sw-surface-2))", border: "1px solid color-mix(in srgb, #d4af37 30%, var(--sw-border))", borderRadius: "10px" }}>
+                    <input className="form-check-input" type="checkbox" id="requiere_hoja_intervencion" name="requiere_hoja_intervencion" checked={Boolean(formData.requiere_hoja_intervencion)} onChange={handleInputChange} style={{ flexShrink: 0 }} />
+                    <label className="form-check-label" htmlFor="requiere_hoja_intervencion" style={{ color: "var(--sw-text)", fontSize: "0.88rem", cursor: "pointer" }}>
+                      Requiere hoja de intervención — se generará un documento imprimible al finalizar el trabajo
                     </label>
                   </div>
                 </div>
