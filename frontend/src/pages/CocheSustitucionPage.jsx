@@ -409,173 +409,175 @@ export default function CocheSustitucionPage() {
 }
 
 // ─── CONTRATO IMPRIMIBLE ───────────────────────────────────────────────────────
-function ImprimirContrato({ item, onVolver }) {
+function generarHtmlContrato(item) {
   const esDev = !!item.fecha_devolucion;
+  const apiBase = window.location.origin;
+  const fila = (label, value) => `
+    <tr>
+      <td style="padding:4px 8px;font-weight:bold;width:35%;border-bottom:1px solid #eee;">${label}</td>
+      <td style="padding:4px 8px;border-bottom:1px solid #eee;">${value ?? "-"}</td>
+    </tr>`;
+  const seccion = (titulo, contenido) => `
+    <div style="margin-bottom:16px;page-break-inside:avoid;">
+      <div style="background:#f0f0f0;padding:4px 8px;font-weight:bold;font-size:12px;margin-bottom:6px;">${titulo}</div>
+      ${contenido}
+    </div>`;
+
+  const carnetFotos = (item.carnet_foto || item.carnet_foto_verso) ? `
+    <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;">
+      ${item.carnet_foto ? `<div><strong style="font-size:11px;">Carnet — Frente</strong><br/>
+        <img src="${apiBase}/api/coche-sustitucion/media/${item.carnet_foto}" style="max-height:90px;max-width:150px;object-fit:contain;border:1px solid #ccc;margin-top:4px;" /></div>` : ""}
+      ${item.carnet_foto_verso ? `<div><strong style="font-size:11px;">Carnet — Verso</strong><br/>
+        <img src="${apiBase}/api/coche-sustitucion/media/${item.carnet_foto_verso}" style="max-height:90px;max-width:150px;object-fit:contain;border:1px solid #ccc;margin-top:4px;" /></div>` : ""}
+    </div>` : "";
+
+  const fotosEntrega = item.fotos_entrega && item.fotos_entrega.length > 0 ? `
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
+      ${item.fotos_entrega.map(f => `<img src="${apiBase}/api/coche-sustitucion/media/${f}" style="height:80px;width:80px;object-fit:cover;border:1px solid #ccc;" />`).join("")}
+    </div>` : "";
+
+  const firmaEntrega = item.firma_cliente
+    ? `<img src="${item.firma_cliente}" style="width:100%;max-height:100px;object-fit:contain;border:1px solid #ccc;" />`
+    : `<div style="height:80px;border:1px solid #ccc;"></div>`;
+  const firmaDevolucion = item.firma_devolucion
+    ? `<img src="${item.firma_devolucion}" style="width:100%;max-height:100px;object-fit:contain;border:1px solid #ccc;" />`
+    : `<div style="height:80px;border:1px solid #ccc;"></div>`;
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Contrato Nº ${String(item.id).padStart(4,"0")} — ${item.cliente_nombre}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; font-size: 13px; color: #000; background: #fff; padding: 20px; }
+    @media print {
+      body { padding: 0; }
+      @page { size: A4; margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+  <div style="max-width:780px;margin:0 auto;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:12px;">
+      <div>
+        <div style="font-weight:bold;font-size:16px;">SpecialWash Studio</div>
+        <div style="font-size:12px;color:#555;">Calle Salvador Dalí, 22 · CP 29700</div>
+        <div style="font-size:12px;color:#555;">Tel: 645 811 313 · CIF: B21816566</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:11px;color:#777;">Nº Contrato</div>
+        <div style="font-weight:bold;font-size:15px;">${String(item.id).padStart(4,"0")}</div>
+        <div style="font-size:11px;color:#777;margin-top:4px;">Fecha entrega</div>
+        <div style="font-size:12px;">${fmtFecha(item.fecha_entrega)}</div>
+        ${esDev ? `<div style="font-size:11px;color:#777;margin-top:4px;">Fecha devolución</div><div style="font-size:12px;">${fmtFecha(item.fecha_devolucion)}</div>` : ""}
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-bottom:16px;">
+      <h2 style="font-size:14px;text-transform:uppercase;letter-spacing:0.05em;font-weight:bold;">Contrato de Cesión Temporal de Vehículo de Sustitución</h2>
+    </div>
+
+    ${seccion("DATOS DEL CLIENTE", `
+      <table style="width:100%;border-collapse:collapse;">
+        <tbody>
+          ${fila("Nombre", item.cliente_nombre)}
+          ${fila("DNI / NIE", item.cliente_dni)}
+          ${fila("Teléfono", item.cliente_telefono || "-")}
+          ${fila("Vehículo en taller", item.coche_cliente_matricula || "-")}
+        </tbody>
+      </table>
+      ${carnetFotos}
+    `)}
+
+    ${seccion("VEHÍCULO DE SUSTITUCIÓN", `
+      <table style="width:100%;border-collapse:collapse;">
+        <tbody>
+          ${fila("Matrícula", item.matricula)}
+          ${fila("Marca / Modelo", (item.marca || "-") + " " + (item.modelo || ""))}
+          ${fila("Kilómetros entrega", item.km_entrega ?? "-")}
+          ${fila("Combustible entrega", item.combustible_entrega || "-")}
+          ${fila("Estado / daños previos", item.estado_entrega || "Sin daños anotados")}
+        </tbody>
+      </table>
+      ${fotosEntrega}
+    `)}
+
+    ${esDev ? seccion("DEVOLUCIÓN", `
+      <table style="width:100%;border-collapse:collapse;">
+        <tbody>
+          ${fila("Kilómetros devolución", item.km_devolucion ?? "-")}
+          ${fila("Combustible devolución", item.combustible_devolucion || "-")}
+          ${fila("Observaciones", item.estado_devolucion || "-")}
+        </tbody>
+      </table>
+    `) : ""}
+
+    ${seccion("CONDICIONES DE USO", `
+      <ul style="padding-left:18px;line-height:1.8;">
+        <li>El conductor se responsabiliza del uso correcto del vehículo durante el préstamo.</li>
+        <li>Cualquier multa o infracción cometida durante el período de préstamo es responsabilidad exclusiva del conductor.</li>
+        <li>El vehículo debe devolverse en el mismo estado en que fue entregado.</li>
+        <li>El conductor deberá estar en posesión de permiso de conducir vigente.</li>
+        <li>Queda prohibido el uso del vehículo fuera del territorio nacional sin autorización expresa.</li>
+      </ul>
+    `)}
+
+    ${seccion("PROTECCIÓN DE DATOS (RGPD)", `
+      <p style="line-height:1.6;">Los datos personales y la fotografía del carnet de conducir se tratarán conforme al Reglamento (UE) 2016/679 (RGPD) con la única finalidad de identificar al conductor en caso de infracción de tráfico. Los datos se conservarán un mínimo de <strong>1 año</strong>. El responsable del tratamiento es el taller. Puede ejercer sus derechos de acceso, rectificación y supresión contactando directamente con nosotros.</p>
+      <p style="margin-top:8px;"><strong>Consentimiento RGPD:</strong> ${item.consentimiento_rgpd ? "✓ Aceptado por el cliente" : "Pendiente"}</p>
+    `)}
+
+    <div style="display:flex;gap:24px;margin-top:32px;">
+      <div style="flex:1;text-align:center;">
+        <p style="margin-bottom:4px;font-weight:bold;font-size:12px;">Firma del cliente (entrega)</p>
+        ${firmaEntrega}
+        <div style="border-top:1px solid #000;margin-top:8px;padding-top:4px;font-size:11px;">${item.cliente_nombre}</div>
+        <div style="font-size:10px;color:#666;">DNI/NIE: ${item.cliente_dni}</div>
+      </div>
+      ${esDev ? `
+      <div style="flex:1;text-align:center;">
+        <p style="margin-bottom:4px;font-weight:bold;font-size:12px;">Firma del cliente (devolución)</p>
+        ${firmaDevolucion}
+        <div style="border-top:1px solid #000;margin-top:8px;padding-top:4px;font-size:11px;">${item.cliente_nombre}</div>
+        <div style="font-size:10px;color:#666;">DNI/NIE: ${item.cliente_dni}</div>
+      </div>` : ""}
+      <div style="flex:1;text-align:center;">
+        <p style="margin-bottom:4px;font-weight:bold;font-size:12px;">Sello / Firma del taller</p>
+        <div style="height:80px;border:1px solid #ccc;"></div>
+        <div style="border-top:1px solid #000;margin-top:8px;padding-top:4px;font-size:11px;">SpecialWash Studio</div>
+        <div style="font-size:10px;color:#666;">CIF: B21816566</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+function ImprimirContrato({ item, onVolver }) {
+  const abrirImpresion = () => {
+    const html = generarHtmlContrato(item);
+    const win = window.open("", "_blank");
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 800);
+  };
 
   return (
-    <div>
-      <div className="d-print-none d-flex gap-2 p-3">
-        <button className="btn btn-primary" onClick={() => window.print()}>Imprimir / Guardar PDF</button>
+    <div className="container py-4" style={{ maxWidth: 720 }}>
+      <h4 className="fw-bold mb-1">Contrato generado</h4>
+      <p className="text-muted mb-4">{item.matricula} — {item.cliente_nombre}</p>
+      <div className="d-flex gap-2">
+        <button className="btn btn-primary" onClick={abrirImpresion}>
+          <i className="fas fa-print me-2" />Imprimir / Guardar PDF
+        </button>
         <button className="btn btn-outline-secondary" onClick={onVolver}>Volver al listado</button>
       </div>
-
-      <div className="contrato-print px-4 py-3" style={{ maxWidth: 800, margin: "0 auto", fontFamily: "Arial, sans-serif", fontSize: 13 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, borderBottom: "2px solid #000", paddingBottom: 12 }}>
-          <div>
-            <div style={{ fontWeight: "bold", fontSize: 16 }}>SpecialWash Studio</div>
-            <div style={{ fontSize: 12, color: "#555" }}>Calle Salvador Dalí, 22 · CP 29700</div>
-            <div style={{ fontSize: 12, color: "#555" }}>Tel: 645 811 313 · CIF: B21816566</div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 11, color: "#777" }}>Nº Contrato</div>
-            <div style={{ fontWeight: "bold", fontSize: 15 }}>{String(item.id).padStart(4, "0")}</div>
-            <div style={{ fontSize: 11, color: "#777", marginTop: 4 }}>Fecha entrega</div>
-            <div style={{ fontSize: 12 }}>{fmtFecha(item.fecha_entrega)}</div>
-            {esDev && <>
-              <div style={{ fontSize: 11, color: "#777", marginTop: 4 }}>Fecha devolución</div>
-              <div style={{ fontSize: 12 }}>{fmtFecha(item.fecha_devolucion)}</div>
-            </>}
-          </div>
-        </div>
-
-        <div className="text-center mb-3">
-          <h5 className="fw-bold mb-0" style={{ fontSize: 14, textTransform: "uppercase", letterSpacing: "0.05em" }}>Contrato de Cesión Temporal de Vehículo de Sustitución</h5>
-        </div>
-
-        <Seccion titulo="DATOS DEL CLIENTE">
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <tbody>
-              <Fila label="Nombre" value={item.cliente_nombre} />
-              <Fila label="DNI / NIE" value={item.cliente_dni} />
-              <Fila label="Teléfono" value={item.cliente_telefono || "-"} />
-              <Fila label="Vehículo en taller" value={item.coche_cliente_matricula || "-"} />
-            </tbody>
-          </table>
-          {(item.carnet_foto || item.carnet_foto_verso) && (
-            <div className="mt-2 d-flex gap-3 flex-wrap">
-              {item.carnet_foto && (
-                <div>
-                  <strong style={{ fontSize: 11 }}>Carnet — Frente</strong><br />
-                  <img src={`/api/coche-sustitucion/media/${item.carnet_foto}`} alt="Frente" style={{ maxHeight: 90, maxWidth: 150, objectFit: "contain", border: "1px solid #ccc", marginTop: 4 }} />
-                </div>
-              )}
-              {item.carnet_foto_verso && (
-                <div>
-                  <strong style={{ fontSize: 11 }}>Carnet — Verso</strong><br />
-                  <img src={`/api/coche-sustitucion/media/${item.carnet_foto_verso}`} alt="Verso" style={{ maxHeight: 90, maxWidth: 150, objectFit: "contain", border: "1px solid #ccc", marginTop: 4 }} />
-                </div>
-              )}
-            </div>
-          )}
-        </Seccion>
-
-        <Seccion titulo="VEHÍCULO DE SUSTITUCIÓN">
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <tbody>
-              <Fila label="Matrícula" value={item.matricula} />
-              <Fila label="Marca / Modelo" value={`${item.marca || "-"} ${item.modelo || ""}`.trim()} />
-              <Fila label="Kilómetros entrega" value={item.km_entrega ?? "-"} />
-              <Fila label="Combustible entrega" value={item.combustible_entrega || "-"} />
-              <Fila label="Estado / daños previos" value={item.estado_entrega || "Sin daños anotados"} />
-            </tbody>
-          </table>
-          {item.fotos_entrega && item.fotos_entrega.length > 0 && (
-            <div className="mt-2 d-flex flex-wrap gap-2">
-              {item.fotos_entrega.map((f, i) => (
-                <img key={i} src={`/api/coche-sustitucion/media/${f}`} alt="" style={{ height: 80, width: 80, objectFit: "cover", border: "1px solid #ccc" }} />
-              ))}
-            </div>
-          )}
-        </Seccion>
-
-        {esDev && (
-          <Seccion titulo="DEVOLUCIÓN">
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <tbody>
-                <Fila label="Kilómetros devolución" value={item.km_devolucion ?? "-"} />
-                <Fila label="Combustible devolución" value={item.combustible_devolucion || "-"} />
-                <Fila label="Observaciones" value={item.estado_devolucion || "-"} />
-              </tbody>
-            </table>
-          </Seccion>
-        )}
-
-        <Seccion titulo="CONDICIONES DE USO">
-          <ul style={{ paddingLeft: 18, margin: 0, lineHeight: 1.8 }}>
-            <li>El conductor se responsabiliza del uso correcto del vehículo durante el préstamo.</li>
-            <li>Cualquier multa o infracción cometida durante el período de préstamo es responsabilidad exclusiva del conductor.</li>
-            <li>El vehículo debe devolverse en el mismo estado en que fue entregado.</li>
-            <li>El conductor deberá estar en posesión de permiso de conducir vigente.</li>
-            <li>Queda prohibido el uso del vehículo fuera del territorio nacional sin autorización expresa.</li>
-          </ul>
-        </Seccion>
-
-        <Seccion titulo="PROTECCIÓN DE DATOS (RGPD)">
-          <p style={{ margin: 0, lineHeight: 1.6 }}>
-            Los datos personales y la fotografía del carnet de conducir se tratarán conforme al Reglamento (UE) 2016/679 (RGPD) con la única finalidad de identificar al conductor en caso de infracción de tráfico. Los datos se conservarán un mínimo de <strong>1 año</strong>. El responsable del tratamiento es el taller. Puede ejercer sus derechos de acceso, rectificación y supresión contactando directamente con nosotros.
-          </p>
-          <p style={{ marginTop: 8, marginBottom: 0 }}>
-            <strong>Consentimiento RGPD:</strong> {item.consentimiento_rgpd ? "✓ Aceptado por el cliente" : "Pendiente"}
-          </p>
-        </Seccion>
-
-        <div style={{ display: "flex", gap: 24, marginTop: 32 }}>
-          <div style={{ flex: 1, textAlign: "center" }}>
-            <p style={{ marginBottom: 4, fontWeight: "bold", fontSize: 12 }}>Firma del cliente (entrega)</p>
-            {item.firma_cliente
-              ? <img src={item.firma_cliente} alt="Firma" style={{ width: "100%", maxHeight: 100, objectFit: "contain", border: "1px solid #ccc" }} />
-              : <div style={{ height: 80, border: "1px solid #ccc" }} />}
-            <div style={{ borderTop: "1px solid #000", marginTop: 8, paddingTop: 4, fontSize: 11 }}>{item.cliente_nombre}</div>
-            <div style={{ fontSize: 10, color: "#666" }}>DNI/NIE: {item.cliente_dni}</div>
-          </div>
-          {esDev && (
-            <div style={{ flex: 1, textAlign: "center" }}>
-              <p style={{ marginBottom: 4, fontWeight: "bold", fontSize: 12 }}>Firma del cliente (devolución)</p>
-              {item.firma_devolucion
-                ? <img src={item.firma_devolucion} alt="Firma" style={{ width: "100%", maxHeight: 100, objectFit: "contain", border: "1px solid #ccc" }} />
-                : <div style={{ height: 80, border: "1px solid #ccc" }} />}
-              <div style={{ borderTop: "1px solid #000", marginTop: 8, paddingTop: 4, fontSize: 11 }}>{item.cliente_nombre}</div>
-              <div style={{ fontSize: 10, color: "#666" }}>DNI/NIE: {item.cliente_dni}</div>
-            </div>
-          )}
-          <div style={{ flex: 1, textAlign: "center" }}>
-            <p style={{ marginBottom: 4, fontWeight: "bold", fontSize: 12 }}>Sello / Firma del taller</p>
-            <div style={{ height: 80, border: "1px solid #ccc" }} />
-            <div style={{ borderTop: "1px solid #000", marginTop: 8, paddingTop: 4, fontSize: 11 }}>SpecialWash Studio</div>
-            <div style={{ fontSize: 10, color: "#666" }}>CIF: B21816566</div>
-          </div>
-        </div>
+      <div className="alert alert-info mt-3 small">
+        Se abrirá una ventana nueva con el contrato listo para imprimir o guardar como PDF.
       </div>
-
-      <style>{`
-        @media print {
-          .d-print-none { display: none !important; }
-          nav, header, aside, .sidebar, [class*="sidebar"], [class*="navbar"], [class*="Sidebar"], [class*="Navbar"] { display: none !important; }
-          body { margin: 0 !important; background: white !important; color: black !important; }
-          body * { color: black !important; background: transparent !important; box-shadow: none !important; }
-          .contrato-print { max-width: 100% !important; background: white !important; }
-          .contrato-print img { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .contrato-seccion { page-break-inside: avoid; }
-        }
-      `}</style>
     </div>
   );
 }
 
-function Seccion({ titulo, children }) {
-  return (
-    <div className="contrato-seccion" style={{ marginBottom: 16, pageBreakInside: "avoid" }}>
-      <div style={{ background: "#f0f0f0", padding: "4px 8px", fontWeight: "bold", fontSize: 12, marginBottom: 6 }}>{titulo}</div>
-      {children}
-    </div>
-  );
-}
-
-function Fila({ label, value }) {
-  return (
-    <tr>
-      <td style={{ padding: "3px 8px", fontWeight: "bold", width: "35%", borderBottom: "1px solid #eee" }}>{label}</td>
-      <td style={{ padding: "3px 8px", borderBottom: "1px solid #eee" }}>{value}</td>
-    </tr>
-  );
-}
