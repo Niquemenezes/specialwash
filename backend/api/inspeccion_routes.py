@@ -1380,6 +1380,10 @@ def registrar_entrega(inspeccion_id):
         if partes_abiertos > 0:
             return jsonify({"msg": f"No se puede entregar el vehículo: hay {partes_abiertos} parte(s) de trabajo sin finalizar."}), 400
 
+    # Bloquear entrega si el repaso no está completado
+    if not inspeccion.repaso_completado:
+        return jsonify({"msg": "No se puede entregar el vehículo: el repaso de calidad no está completado."}), 400
+
     data = request.get_json() or {}
     es_concesionario = bool(inspeccion.es_concesionario)
 
