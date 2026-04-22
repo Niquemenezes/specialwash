@@ -423,6 +423,7 @@ const ActaEntregaView = () => {
               padding: 0 !important;
             }
             .no-print { display: none !important; }
+            .no-print-firma { display: none !important; visibility: hidden !important; }
             .delivery-doc { border: 0 !important; box-shadow: none !important; margin: 0 !important; }
             .delivery-doc,
             .delivery-doc .single-header,
@@ -571,7 +572,9 @@ const ActaEntregaView = () => {
                 </div>
               </div>
             ) : (
-              <SignaturePad title="Firma cliente (entrega)" value={firmaCliente} onChange={setFirmaCliente} />
+              <div className="no-print">
+                <SignaturePad title="Firma cliente (entrega)" value={firmaCliente} onChange={setFirmaCliente} />
+              </div>
             )}
 
             {!isEntregado && (
