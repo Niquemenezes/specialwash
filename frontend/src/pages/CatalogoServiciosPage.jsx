@@ -127,9 +127,9 @@ export default function CatalogoServiciosPage() {
         rol_responsable: String(form.rol_responsable || "").trim() || null,
       };
       if (editandoId) {
-        await apiFetch(`/api/servicios_catalogo/${editandoId}`, { method: "PUT", body: JSON.stringify(payload) });
+        await apiFetch(`/api/servicios_catalogo/${editandoId}`, { method: "PUT", body: payload });
       } else {
-        await apiFetch("/api/servicios_catalogo", { method: "POST", body: JSON.stringify(payload) });
+        await apiFetch("/api/servicios_catalogo", { method: "POST", body: payload });
       }
       toast.success(editandoId ? "Servicio actualizado" : "Servicio creado");
       await cargar();
@@ -143,7 +143,7 @@ export default function CatalogoServiciosPage() {
 
   const toggleActivo = async (s) => {
     try {
-      await apiFetch(`/api/servicios_catalogo/${s.id}`, { method: "PUT", body: JSON.stringify({ activo: !s.activo }) });
+      await apiFetch(`/api/servicios_catalogo/${s.id}`, { method: "PUT", body: { activo: !s.activo } });
       await cargar();
     } catch (e) {
       setError(e.message || "Error al cambiar estado");
