@@ -128,9 +128,11 @@ export default function HistorialSalidas() {
       <style>{`
         @media print {
           .no-print { display: none !important; }
-          body { margin: 0; padding: 16px; }
+          [class*="sw-sidebar"], .sw-sidebar-overlay { display: none !important; }
+          body { margin: 0; padding: 16px; background: white !important; color: black !important; }
+          body * { color: black !important; background: transparent !important; box-shadow: none !important; }
           .table { font-size: 11px; }
-          .table th, .table td { padding: 6px; }
+          .table th, .table td { padding: 6px; border-color: #ccc !important; }
         }
       `}</style>
 
