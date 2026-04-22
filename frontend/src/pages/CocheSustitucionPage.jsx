@@ -420,17 +420,27 @@ function ImprimirContrato({ item, onVolver }) {
       </div>
 
       <div className="contrato-print px-4 py-3" style={{ maxWidth: 800, margin: "0 auto", fontFamily: "Arial, sans-serif", fontSize: 13 }}>
-        <div className="text-center mb-4">
-          <h5 className="fw-bold mb-1">CONTRATO DE CESIÓN TEMPORAL DE VEHÍCULO DE SUSTITUCIÓN</h5>
-          <p className="text-muted small mb-0">SpecialWash Studio</p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, borderBottom: "2px solid #000", paddingBottom: 12 }}>
+          <div>
+            <div style={{ fontWeight: "bold", fontSize: 16 }}>SpecialWash Studio</div>
+            <div style={{ fontSize: 12, color: "#555" }}>Calle Salvador Dalí, 22 · CP 29700</div>
+            <div style={{ fontSize: 12, color: "#555" }}>Tel: 645 811 313 · CIF: B21816566</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 11, color: "#777" }}>Nº Contrato</div>
+            <div style={{ fontWeight: "bold", fontSize: 15 }}>{String(item.id).padStart(4, "0")}</div>
+            <div style={{ fontSize: 11, color: "#777", marginTop: 4 }}>Fecha entrega</div>
+            <div style={{ fontSize: 12 }}>{fmtFecha(item.fecha_entrega)}</div>
+            {esDev && <>
+              <div style={{ fontSize: 11, color: "#777", marginTop: 4 }}>Fecha devolución</div>
+              <div style={{ fontSize: 12 }}>{fmtFecha(item.fecha_devolucion)}</div>
+            </>}
+          </div>
         </div>
 
-        <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 16 }}>
-          <tbody>
-            <Fila label="Fecha entrega" value={fmtFecha(item.fecha_entrega)} />
-            {esDev && <Fila label="Fecha devolución" value={fmtFecha(item.fecha_devolucion)} />}
-          </tbody>
-        </table>
+        <div className="text-center mb-3">
+          <h5 className="fw-bold mb-0" style={{ fontSize: 14, textTransform: "uppercase", letterSpacing: "0.05em" }}>Contrato de Cesión Temporal de Vehículo de Sustitución</h5>
+        </div>
 
         <Seccion titulo="DATOS DEL CLIENTE">
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -509,24 +519,30 @@ function ImprimirContrato({ item, onVolver }) {
           </p>
         </Seccion>
 
-        <div style={{ display: "flex", gap: 40, marginTop: 32 }}>
+        <div style={{ display: "flex", gap: 24, marginTop: 32 }}>
           <div style={{ flex: 1, textAlign: "center" }}>
-            <p style={{ marginBottom: 4, fontWeight: "bold" }}>Firma del cliente (entrega)</p>
+            <p style={{ marginBottom: 4, fontWeight: "bold", fontSize: 12 }}>Firma del cliente (entrega)</p>
             {item.firma_cliente
               ? <img src={item.firma_cliente} alt="Firma" style={{ width: "100%", maxHeight: 100, objectFit: "contain", border: "1px solid #ccc" }} />
               : <div style={{ height: 80, border: "1px solid #ccc" }} />}
+            <div style={{ borderTop: "1px solid #000", marginTop: 8, paddingTop: 4, fontSize: 11 }}>{item.cliente_nombre}</div>
+            <div style={{ fontSize: 10, color: "#666" }}>DNI/NIE: {item.cliente_dni}</div>
           </div>
           {esDev && (
             <div style={{ flex: 1, textAlign: "center" }}>
-              <p style={{ marginBottom: 4, fontWeight: "bold" }}>Firma del cliente (devolución)</p>
+              <p style={{ marginBottom: 4, fontWeight: "bold", fontSize: 12 }}>Firma del cliente (devolución)</p>
               {item.firma_devolucion
                 ? <img src={item.firma_devolucion} alt="Firma" style={{ width: "100%", maxHeight: 100, objectFit: "contain", border: "1px solid #ccc" }} />
                 : <div style={{ height: 80, border: "1px solid #ccc" }} />}
+              <div style={{ borderTop: "1px solid #000", marginTop: 8, paddingTop: 4, fontSize: 11 }}>{item.cliente_nombre}</div>
+              <div style={{ fontSize: 10, color: "#666" }}>DNI/NIE: {item.cliente_dni}</div>
             </div>
           )}
           <div style={{ flex: 1, textAlign: "center" }}>
-            <p style={{ marginBottom: 4, fontWeight: "bold" }}>Sello / Firma del taller</p>
+            <p style={{ marginBottom: 4, fontWeight: "bold", fontSize: 12 }}>Sello / Firma del taller</p>
             <div style={{ height: 80, border: "1px solid #ccc" }} />
+            <div style={{ borderTop: "1px solid #000", marginTop: 8, paddingTop: 4, fontSize: 11 }}>SpecialWash Studio</div>
+            <div style={{ fontSize: 10, color: "#666" }}>CIF: B21816566</div>
           </div>
         </div>
       </div>
@@ -537,6 +553,7 @@ function ImprimirContrato({ item, onVolver }) {
           body { margin: 0; }
           .contrato-print { max-width: 100% !important; }
         }
+        .contrato-seccion { page-break-inside: avoid; }
       `}</style>
     </div>
   );
@@ -544,7 +561,7 @@ function ImprimirContrato({ item, onVolver }) {
 
 function Seccion({ titulo, children }) {
   return (
-    <div style={{ marginBottom: 16 }}>
+    <div className="contrato-seccion" style={{ marginBottom: 16, pageBreakInside: "avoid" }}>
       <div style={{ background: "#f0f0f0", padding: "4px 8px", fontWeight: "bold", fontSize: 12, marginBottom: 6 }}>{titulo}</div>
       {children}
     </div>
