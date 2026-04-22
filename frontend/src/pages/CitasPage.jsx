@@ -280,9 +280,9 @@ export default function CitasPage() {
         notas: form.notas.trim() || null,
       };
       if (editandoId) {
-        await apiFetch(`/api/citas/${editandoId}`, { method: "PUT", body: JSON.stringify(payload) });
+        await apiFetch(`/api/citas/${editandoId}`, { method: "PUT", body: payload });
       } else {
-        await apiFetch("/api/citas", { method: "POST", body: JSON.stringify(payload) });
+        await apiFetch("/api/citas", { method: "POST", body: payload });
       }
       await cargarClientes();
       await cargarCitas();
