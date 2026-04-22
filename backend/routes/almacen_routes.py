@@ -563,7 +563,7 @@ def resumen_mensual():
 
     return jsonify(
         [
-            {"producto": r.producto, "mes": r.mes, "gasto": round(r.gasto, 2)}
+            {"producto": r.producto, "mes": r.mes, "gasto": round(r.gasto or 0, 2)}
             for r in data
         ]
     )
