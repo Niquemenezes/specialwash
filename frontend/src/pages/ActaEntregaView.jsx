@@ -575,7 +575,7 @@ const ActaEntregaView = () => {
             )}
 
             {!isEntregado && (
-              <div className="border rounded p-3 mt-3" style={{ background: "#fffdf8", borderColor: "#ddd3c2" }}>
+              <div className="border rounded p-3 mt-3 no-print" style={{ background: "#fffdf8", borderColor: "#ddd3c2" }}>
                 <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-2">
                   <div>
                     <div className="fw-bold">Cobro en entrega</div>
