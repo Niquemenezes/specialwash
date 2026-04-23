@@ -106,6 +106,7 @@ const ActaEntregaView = () => {
   const [guardando, setGuardando] = useState(false);
 
   const [firmaCliente, setFirmaCliente] = useState("");
+  const [trabajosEditados, setTrabajosEditados] = useState("");
   const [nombreFirmante, setNombreFirmante] = useState("");
   const [consentimiento, setConsentimiento] = useState(false);
   const [conformidad, setConformidad] = useState(false);
@@ -139,6 +140,7 @@ const ActaEntregaView = () => {
         setInspeccion(data);
         const parsedObs = splitObservaciones(data?.entrega_observaciones || "");
         setFirmaCliente(data?.firma_cliente_entrega || "");
+        setTrabajosEditados(data?.trabajos_realizados || "");
         setNombreFirmante(parsedObs.firmante || data?.cliente_nombre || "");
         setConsentimiento(Boolean(data?.consentimiento_datos_entrega));
         setConformidad(Boolean(data?.conformidad_revision_entrega));
@@ -222,8 +224,8 @@ const ActaEntregaView = () => {
     try {
       const updated = await actions.registrarEntregaInspeccion(inspeccion.id, {
         trabajos_realizados: esConcesionario
-          ? String(inspeccion.trabajos_realizados || "").trim()
-          : inspeccion.trabajos_realizados,
+          ? String(trabajosEditados || "").trim()
+          : trabajosEditados,
         entrega_observaciones: mergeObservacionesConFirmante(
           observacionesLimpias === "-" ? "" : observacionesLimpias,
           nombreFirmante
@@ -511,6 +513,19 @@ const ActaEntregaView = () => {
         </div>
 
         <div className="line" />
+
+        {!isEntregado && !esConcesionario && (
+          <div className="mb-3 no-print">
+            <label className="form-label fw-bold">Trabajos realizados *</label>
+            <textarea
+              className="form-control"
+              rows={4}
+              placeholder="Describe los trabajos realizados en el vehículo..."
+              value={trabajosEditados}
+              onChange={(e) => setTrabajosEditados(e.target.value)}
+            />
+          </div>
+        )}
 
         <div className="mb-3">
           <label className="form-label fw-bold">Nombre de la persona que firma la entrega</label>
