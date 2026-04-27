@@ -16,6 +16,7 @@ backend/media/
 # Node/React
 node_modules/
 build/
+frontend/build-smoke*/
 .env.local
 .env.development.local
 .env.test.local

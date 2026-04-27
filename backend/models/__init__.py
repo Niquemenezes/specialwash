@@ -14,6 +14,7 @@ from .inspeccion_recepcion import InspeccionRecepcion
 from .gasto_empresa import GastoEmpresa
 from .acta_entrega import ActaEntrega
 from .parte_trabajo import ParteTrabajo, EstadoParte
+from .parte_trabajo_colaborador import ParteTrabajoColaborador
 from .servicio_catalogo import ServicioCatalogo
 from .cita import Cita, EstadoCita
 from .notificacion import Notificacion

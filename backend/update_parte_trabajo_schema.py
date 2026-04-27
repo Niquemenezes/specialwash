@@ -10,6 +10,7 @@ COLUMNS = {
     "tiempo_estimado_minutos": "INTEGER NOT NULL DEFAULT 0",
     "lote_uid": "TEXT",
     "tipo_tarea": "TEXT",
+    "fase": "TEXT",
     "pausas": "TEXT",
     "inspeccion_id": "INTEGER",
     "servicio_catalogo_id": "INTEGER",

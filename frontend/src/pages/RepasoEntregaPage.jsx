@@ -3,9 +3,11 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Context } from "../store/appContext";
 import FirmaEntregaPage from "./FirmaEntregaPage";
 import "../styles/inspeccion-responsive.css";
+import { buildChecklistState, buildRepasoChecklistItems } from "../utils/repasoChecklist";
 
 const TIPO_COLORES = {
   detailing: "#6366f1",
+  preparacion: "#38bdf8",
   pintura:   "#f87171",
   tapicero:  "#fbbf24",
   calidad:   "#22d3ee",
@@ -13,13 +15,10 @@ const TIPO_COLORES = {
 };
 
 const buildChecklistItems = (selected) => {
-  const partes = selected?.estado_coche?.partes_finalizados_detalle || [];
-  return partes.map((p) => ({
-    key: `parte_${p.id}`,
-    label: `${p.tipo_tarea ? p.tipo_tarea.charAt(0).toUpperCase() + p.tipo_tarea.slice(1) : "Trabajo"} — ${p.empleado_nombre || "Sin asignar"}`,
-    tipo: p.tipo_tarea,
-    observaciones: p.observaciones,
-  }));
+  return buildRepasoChecklistItems({
+    servicios: selected?.servicios_aplicados || [],
+    partesFinalizadas: selected?.estado_coche?.partes_finalizados_detalle || [],
+  });
 };
 
 const isProfesional = (item) => {
@@ -70,7 +69,10 @@ export default function RepasoEntregaPage() {
       .filter((i) => {
         if (i.entregado) return false;
         const estado = i.estado_coche?.estado;
-        return estado === "en_repaso" || estado === "listo_entrega" || i.repaso_completado;
+        const partesFinalizadas = Array.isArray(i.estado_coche?.partes_finalizados_detalle)
+          ? i.estado_coche.partes_finalizados_detalle.length
+          : 0;
+        return estado === "en_repaso" || estado === "listo_entrega" || i.repaso_completado || partesFinalizadas > 0;
       })
       .filter((i) => {
         if (!term) return true;
@@ -106,10 +108,7 @@ export default function RepasoEntregaPage() {
     }
     const saved = selected.repaso_checklist && typeof selected.repaso_checklist === "object"
       ? selected.repaso_checklist : {};
-    // Inicializar con false para cada parte, luego sobreescribir con lo guardado
-    const base = {};
-    buildChecklistItems(selected).forEach((it) => { base[it.key] = false; });
-    setChecklistDraft({ ...base, ...saved });
+    setChecklistDraft(buildChecklistState(buildChecklistItems(selected), saved));
     setNotasDraft(selected.repaso_notas || "");
     setHojaIntervencionDraft(Boolean(selected.requiere_hoja_intervencion));
   }, [selected]);
@@ -141,7 +140,7 @@ export default function RepasoEntregaPage() {
     setSaving(true);
     try {
       await actions.guardarRepasoInspeccion(selected.id, {
-        checklist: checklistDraft,
+        checklist: buildChecklistState(checklistItems, checklistDraft),
         notas: notasDraft,
         marcar_listo: marcarListo,
         requiere_hoja_intervencion: hojaIntervencionDraft,
@@ -344,10 +343,10 @@ export default function RepasoEntregaPage() {
                           )}
                         </div>
 
-                        {/* Checklist por roles que han trabajado */}
+                        {/* Checklist solo con trabajos contratados/realizados */}
                         {checklistItems.length === 0 ? (
                           <div className="text-muted py-3 text-center">
-                            Sin partes de trabajo finalizados registrados para este coche.
+                            No hay trabajos contratados o finalizados registrados para este coche.
                           </div>
                         ) : (
                           <div className="row g-2 mb-3">

@@ -47,6 +47,31 @@ const parseActa = (texto = "") => {
   return { contenido, observaciones, firmante };
 };
 
+const parseServicios = (value) => {
+  if (Array.isArray(value)) return value;
+  try {
+    const data = JSON.parse(value || "[]");
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+};
+
+const buildServiciosContratadosTexto = (servicios = []) => {
+  const lineas = servicios
+    .map((item) => String(item?.nombre || item?.servicio_nombre || "").trim())
+    .filter(Boolean)
+    .map((nombre) => `- ${nombre}`);
+
+  if (!lineas.length) return "";
+  return `Conforme a la orden de trabajo registrada y a la contratacion validada, el alcance tecnico de la intervencion prevista para este vehiculo comprende los siguientes conceptos de actuacion:\n\n${lineas.join("\n")}`.trim();
+};
+
+const buildFallbackTrabajos = (data) => {
+  const servicios = parseServicios(data?.servicios_aplicados);
+  return buildServiciosContratadosTexto(servicios);
+};
+
 const normalizeTechnicalContent = (contenido = "") => {
   const original = String(contenido || "").trim();
   if (!original) return "";
@@ -116,7 +141,12 @@ const ActaEntregaDocumento = () => {
     };
   }, [actions, id]);
 
-  const acta = useMemo(() => parseActa(inspeccion?.trabajos_realizados || ""), [inspeccion?.trabajos_realizados]);
+  const actaFuente = useMemo(() => {
+    const stored = String(inspeccion?.trabajos_realizados || "").trim();
+    if (stored) return stored;
+    return buildFallbackTrabajos(inspeccion);
+  }, [inspeccion]);
+  const acta = useMemo(() => parseActa(actaFuente), [actaFuente]);
   const contenidoTecnico = useMemo(() => normalizeTechnicalContent(acta.contenido), [acta.contenido]);
     const volver = () => {
       if (window.history.length > 1) {

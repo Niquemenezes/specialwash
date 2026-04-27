@@ -2,34 +2,14 @@ import React, { useCallback, useContext, useEffect, useMemo, useState } from "re
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Context } from "../store/appContext";
 import { listarPartesTrabajo } from "../utils/parteTrabajoApi";
+import { buildChecklistState, buildRepasoChecklistItems } from "../utils/repasoChecklist";
 import "../styles/inspeccion-responsive.css";
-
-// ==================== CONSTANTES ====================
-
-const CHECKLIST_ITEMS = [
-  { key: "lavado_exterior", label: "Detallado exterior e interior" },
-  { key: "aspirado_interior", label: "Aspirado y limpieza interior" },
-  { key: "cristales", label: "Cristales limpios sin marcas" },
-  { key: "llantas", label: "Llantas y neumáticos revisados" },
-  { key: "luces", label: "Luces y señales funcionando" },
-  { key: "testigo_tablero", label: "Sin testigos de fallo en tablero" },
-  { key: "documentacion", label: "Documentación y llaves listas" },
-  { key: "revision_trabajos", label: "Trabajos solicitados verificados" },
-];
 
 const safeDate = (value) => {
   if (!value) return "-";
   const dt = new Date(value);
   if (Number.isNaN(dt.getTime())) return "-";
   return dt.toLocaleString("es-ES");
-};
-
-const defaultChecklistState = () => {
-  const items = {};
-  CHECKLIST_ITEMS.forEach((it) => {
-    items[it.key] = false;
-  });
-  return { items, notas: "" };
 };
 
 const estadoColor = (estado) => {
@@ -46,7 +26,7 @@ const estadoColor = (estado) => {
 
 export default function VehiculoDetallePage() {
   const { inspeccion_id } = useParams();
-  const { actions, store } = useContext(Context);
+  const { actions } = useContext(Context);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "partes";
@@ -57,15 +37,24 @@ export default function VehiculoDetallePage() {
     setSearchParams(next, { replace: true });
   };
 
+  const irAEditarServicios = () => {
+    navigate(`/inspeccion-recepcion?editId=${inspeccion_id}&action=servicios`);
+  };
+
   // STATE
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [inspeccion, setInspeccion] = useState(null);
   const [partes, setPartes] = useState([]);
-  const [checklistDraft, setChecklistDraft] = useState(defaultChecklistState().items);
+  const [checklistDraft, setChecklistDraft] = useState({});
   const [notasDraft, setNotasDraft] = useState("");
   const [hojaIntervencionDraft, setHojaIntervencionDraft] = useState(false);
+
+  const checklistItems = useMemo(() => buildRepasoChecklistItems({
+    servicios: inspeccion?.servicios_aplicados || [],
+    partesFinalizadas: partes.filter((parte) => parte?.estado === "finalizado"),
+  }), [inspeccion, partes]);
 
   // LOAD INSPECCION & PARTES
   const cargar = useCallback(async () => {
@@ -81,18 +70,7 @@ export default function VehiculoDetallePage() {
         setPartes(Array.isArray(data) ? data : []);
       }
 
-      // Pre-cargar checklist si ya existe
-      if (insp?.repaso_checklist) {
-        try {
-          const checklist = JSON.parse(insp.repaso_checklist);
-          setChecklistDraft(checklist);
-        } catch (e) {
-          console.warn("Error al parsear checklist", e);
-        }
-      }
-      if (insp?.repaso_notas) {
-        setNotasDraft(insp.repaso_notas);
-      }
+      setNotasDraft(insp?.repaso_notas || "");
       setHojaIntervencionDraft(Boolean(insp?.requiere_hoja_intervencion));
     } catch (err) {
       console.error("Error cargando inspección", err);
@@ -105,6 +83,13 @@ export default function VehiculoDetallePage() {
   useEffect(() => {
     cargar();
   }, [cargar]);
+
+  useEffect(() => {
+    const saved = inspeccion?.repaso_checklist && typeof inspeccion.repaso_checklist === "object"
+      ? inspeccion.repaso_checklist
+      : {};
+    setChecklistDraft(buildChecklistState(checklistItems, saved));
+  }, [inspeccion, checklistItems]);
 
   // LÓGICA PARA VALIDAR SI PUEDE AVANZAR
   const todosPartesFinalizados = useMemo(() => {
@@ -121,7 +106,7 @@ export default function VehiculoDetallePage() {
     setFeedback(null);
     try {
       await actions.guardarRepasoInspeccion(inspeccion_id, {
-        checklist: checklistDraft,
+        checklist: buildChecklistState(checklistItems, checklistDraft),
         notas: notasDraft,
         marcar_listo: marcarListo,
         requiere_hoja_intervencion: hojaIntervencionDraft,
@@ -190,8 +175,13 @@ export default function VehiculoDetallePage() {
             {inspeccion.matricula || "Coche"} · {inspeccion.cliente_nombre}
           </h2>
         </div>
-        <div className="text-muted">
-          <small>ID: {inspeccion.id}</small>
+        <div className="d-flex align-items-center gap-2">
+          <button className="btn btn-sm btn-outline-primary" onClick={irAEditarServicios}>
+            + Anadir servicios
+          </button>
+          <div className="text-muted">
+            <small>ID: {inspeccion.id}</small>
+          </div>
         </div>
       </div>
 
@@ -218,6 +208,9 @@ export default function VehiculoDetallePage() {
               <p className="text-muted mb-0">
                 {inspeccion.matricula} · {inspeccion.kilometros} km
               </p>
+              <button className="btn btn-link btn-sm px-0 mt-2" onClick={irAEditarServicios}>
+                Anadir o quitar servicios de esta inspeccion
+              </button>
             </div>
           </div>
         </div>
@@ -345,23 +338,32 @@ export default function VehiculoDetallePage() {
                 </div>
               ) : (
                 <>
-                  <h6>Verificaciones:</h6>
+                  <h6>Trabajos contratados para revisar:</h6>
                   <div className="mb-4">
-                    {CHECKLIST_ITEMS.map((item) => (
-                      <div className="form-check mb-2" key={item.key}>
-                        <input
-                          className="form-check-input"
-                          type="checkbox"
-                          id={item.key}
-                          checked={checklistDraft[item.key] || false}
-                          onChange={() => handleChecklistChange(item.key)}
-                          disabled={!todosPartesFinalizados || saving}
-                        />
-                        <label className="form-check-label" htmlFor={item.key}>
-                          {item.label}
-                        </label>
+                    {checklistItems.length === 0 ? (
+                      <div className="text-muted">
+                        No hay trabajos contratados o finalizados cargados para este vehículo.
                       </div>
-                    ))}
+                    ) : (
+                      checklistItems.map((item) => (
+                        <div className="form-check mb-2" key={item.key}>
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id={item.key}
+                            checked={checklistDraft[item.key] || false}
+                            onChange={() => handleChecklistChange(item.key)}
+                            disabled={!todosPartesFinalizados || saving}
+                          />
+                          <label className="form-check-label" htmlFor={item.key}>
+                            {item.label}
+                            {item.observaciones ? (
+                              <span className="d-block text-muted small">{item.observaciones}</span>
+                            ) : null}
+                          </label>
+                        </div>
+                      ))
+                    )}
                   </div>
 
                   <hr />

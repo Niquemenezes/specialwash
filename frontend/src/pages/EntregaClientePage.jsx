@@ -4,13 +4,6 @@ import { Context } from "../store/appContext";
 import SignaturePad from "../components/SignaturePad";
 import "../styles/inspeccion-responsive.css";
 
-const safeDate = (value) => {
-  if (!value) return "-";
-  const dt = new Date(value);
-  if (Number.isNaN(dt.getTime())) return "-";
-  return dt.toLocaleString("es-ES");
-};
-
 export default function EntregaClientePage() {
   const { inspeccion_id } = useParams();
   const { actions } = useContext(Context);

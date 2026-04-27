@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { formatMinutes, reporteEmpleados } from "../utils/parteTrabajoApi";
+import { formatMinutes, reporteEmpleados, reporteCoches } from "../utils/parteTrabajoApi";
 import { obtenerDiario } from "../utils/horarioApi";
 
 const RANGE_OPTIONS = [
@@ -185,6 +185,63 @@ function deviationView(real, estimado) {
   return <span style={{ color, fontWeight: 700 }}>{`${diff > 0 ? "+" : ""}${diff} min`}</span>;
 }
 
+const fmtEuros = (value) =>
+  Number(value || 0).toLocaleString("es-ES", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const FASE_LABELS = { preparacion: "Preparación", pintura: "Pintura" };
+const fmtFase = (f) => FASE_LABELS[f] || f;
+
+function CocheCostCard({ coche, tarifa }) {
+  const tarifaNum = Number(tarifa) || 0;
+  const horasPersona = Number(coche.horas_persona || 0);
+  const horasReloj = Number(coche.horas_reloj || 0);
+  const costePersona = horasPersona * tarifaNum;
+  const costeReloj = horasReloj * tarifaNum;
+  const desc = [coche.marca, coche.modelo].filter(Boolean).join(" ");
+  const fases = Array.isArray(coche.fases) ? coche.fases : [];
+
+  return (
+    <div style={{ background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderRadius: 14, padding: "1rem 1.15rem", display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "0.5rem" }}>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: "1rem", color: "var(--sw-text)" }}>{coche.matricula || "Sin matrícula"}</div>
+          {desc && <div style={{ fontSize: "0.82rem", color: "var(--sw-muted)" }}>{desc}</div>}
+          {coche.cliente_nombre && <div style={{ fontSize: "0.78rem", color: "var(--sw-muted)" }}>{coche.cliente_nombre}</div>}
+        </div>
+        <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+          {fases.map((f) => (
+            <span key={f} style={{ fontSize: "0.7rem", fontWeight: 700, padding: "0.15rem 0.5rem", borderRadius: 999, background: f === "pintura" ? "rgba(251,113,133,0.12)" : "rgba(56,189,248,0.12)", color: f === "pintura" ? "#fb7185" : "#38bdf8", border: `1px solid ${f === "pintura" ? "rgba(251,113,133,0.3)" : "rgba(56,189,248,0.3)"}` }}>
+              {fmtFase(f)}
+            </span>
+          ))}
+          <span style={{ fontSize: "0.7rem", fontWeight: 700, padding: "0.15rem 0.5rem", borderRadius: 999, background: "rgba(148,163,184,0.08)", color: "var(--sw-muted)", border: "1px solid var(--sw-border)" }}>
+            {coche.num_trabajadores} operario{coche.num_trabajadores !== 1 ? "s" : ""}
+          </span>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
+        <div style={{ background: "var(--sw-surface-2,rgba(255,255,255,0.03))", border: "1px solid var(--sw-border)", borderRadius: 10, padding: "0.7rem 0.85rem" }}>
+          <div style={{ fontSize: "0.68rem", color: "var(--sw-muted)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, marginBottom: "0.3rem" }}>Horas-persona</div>
+          <div style={{ fontSize: "1.05rem", fontWeight: 800, color: "#38bdf8" }}>{formatMinutes(coche.minutos_persona)}</div>
+          <div style={{ fontSize: "0.72rem", color: "var(--sw-muted)", marginTop: "0.15rem" }}>Suma de tiempo de cada operario</div>
+          {tarifaNum > 0 && (
+            <div style={{ marginTop: "0.4rem", fontSize: "0.92rem", fontWeight: 800, color: "#4ade80" }}>{fmtEuros(costePersona)}</div>
+          )}
+        </div>
+        <div style={{ background: "var(--sw-surface-2,rgba(255,255,255,0.03))", border: "1px solid var(--sw-border)", borderRadius: 10, padding: "0.7rem 0.85rem" }}>
+          <div style={{ fontSize: "0.68rem", color: "var(--sw-muted)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, marginBottom: "0.3rem" }}>Horas de taller</div>
+          <div style={{ fontSize: "1.05rem", fontWeight: 800, color: "#f59e0b" }}>{formatMinutes(coche.minutos_reloj)}</div>
+          <div style={{ fontSize: "0.72rem", color: "var(--sw-muted)", marginTop: "0.15rem" }}>Tiempo real en el taller</div>
+          {tarifaNum > 0 && (
+            <div style={{ marginTop: "0.4rem", fontSize: "0.92rem", fontWeight: 800, color: "#4ade80" }}>{fmtEuros(costeReloj)}</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ProductividadTrabajadoresPage() {
   const initialRange = useMemo(() => getRangeDates("hoy"), []);
   const [preset, setPreset] = useState("hoy");
@@ -197,6 +254,10 @@ export default function ProductividadTrabajadoresPage() {
   const [reporte, setReporte] = useState([]);
   const [printWorkerId, setPrintWorkerId] = useState("");
   const [fichajes, setFichajes] = useState({}); // { empleado_id: registro_horario }
+  const [vista, setVista] = useState("trabajadores"); // "trabajadores" | "coches"
+  const [tarifa, setTarifa] = useState(() => localStorage.getItem("sw_tarifa_hora") || "");
+  const [reporteCoches_, setReporteCoches] = useState([]);
+  const [loadingCoches, setLoadingCoches] = useState(false);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -212,9 +273,28 @@ export default function ProductividadTrabajadoresPage() {
     }
   }, [fechaInicio, fechaFin]);
 
+  const cargarCoches = useCallback(async () => {
+    setLoadingCoches(true);
+    try {
+      const data = await reporteCoches({ fecha_inicio: fechaInicio, fecha_fin: fechaFin });
+      setReporteCoches(Array.isArray(data) ? data : []);
+    } catch {
+      setReporteCoches([]);
+    } finally {
+      setLoadingCoches(false);
+    }
+  }, [fechaInicio, fechaFin]);
+
+  useEffect(() => { void cargar(); }, [cargar]);
+
   useEffect(() => {
-    void cargar();
-  }, [cargar]);
+    if (vista === "coches") void cargarCoches();
+  }, [vista, cargarCoches]);
+
+  // Guardar tarifa en localStorage cuando cambia
+  useEffect(() => {
+    localStorage.setItem("sw_tarifa_hora", tarifa);
+  }, [tarifa]);
 
   // Cargar fichajes del día cuando el rango es un solo día
   useEffect(() => {
@@ -464,7 +544,7 @@ export default function ProductividadTrabajadoresPage() {
               </button>
               <button
                 type="button"
-                onClick={() => void cargar()}
+                onClick={() => { void cargar(); if (vista === "coches") void cargarCoches(); }}
                 style={{
                   padding: "0.5rem 1rem",
                   borderRadius: "10px",
@@ -475,31 +555,113 @@ export default function ProductividadTrabajadoresPage() {
                   cursor: "pointer",
                 }}
               >
-                {loading ? "Actualizando…" : "Actualizar"}
+                {loading || loadingCoches ? "Actualizando..." : "Actualizar"}
               </button>
             </div>
 
             <div style={{ marginTop: "0.75rem", fontSize: "0.82rem", color: "var(--sw-muted)" }}>
-              💡 Usa <strong style={{ color: "var(--sw-text)" }}>Hoy + trabajador</strong> para responder rápido: “¿qué hizo Fulanito hoy?”
+              💡 Usa <strong style={{ color: "var(--sw-text)" }}>Hoy + trabajador</strong> para responder rapido: "que hizo Fulanito hoy?"
             </div>
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "0.85rem", marginBottom: "1rem" }}>
+        {/* Tab switcher */}
+        <div style={{ display: "flex", gap: "0.4rem", marginBottom: "1rem" }}>
           {[
-            { label: "Trabajadores", value: empleados.length, color: "var(--sw-accent,#d4af37)" },
-            { label: "Activos ahora", value: stats.activos, color: "#22c55e" },
-            { label: "Partes", value: stats.totalPartes, color: "#38bdf8" },
-            { label: "Tiempo en coches", value: formatMinutes(stats.tiempoCoches), color: "#38bdf8" },
-            { label: "Tiempo interno", value: formatMinutes(stats.tiempoInterno), color: "#f59e0b" },
-            { label: "Top del período", value: stats.top, color: "var(--sw-text)" },
-          ].map((item) => (
-            <div key={item.label} style={{ background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderRadius: 14, padding: "0.95rem 1.05rem" }}>
-              <div style={{ fontSize: "0.7rem", color: "var(--sw-muted)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>{item.label}</div>
-              <div style={{ fontSize: "1.1rem", fontWeight: 800, color: item.color, marginTop: "0.2rem" }}>{item.value}</div>
-            </div>
-          ))}
+            { key: "trabajadores", label: "Por trabajador" },
+            { key: "coches", label: "Por vehiculo / Coste" },
+          ].map(({ key, label }) => {
+            const active = vista === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setVista(key)}
+                style={{
+                  padding: "0.45rem 1.1rem",
+                  borderRadius: "999px",
+                  border: active ? "1px solid rgba(212,175,55,0.5)" : "1px solid var(--sw-border)",
+                  background: active ? "rgba(212,175,55,0.12)" : "var(--sw-surface)",
+                  color: active ? "var(--sw-accent,#d4af37)" : "var(--sw-muted)",
+                  fontWeight: 700,
+                  fontSize: "0.88rem",
+                  cursor: "pointer",
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
+
+        {vista === "trabajadores" && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "0.85rem", marginBottom: "1rem" }}>
+            {[
+              { label: "Trabajadores", value: empleados.length, color: "var(--sw-accent,#d4af37)" },
+              { label: "Activos ahora", value: stats.activos, color: "#22c55e" },
+              { label: "Partes", value: stats.totalPartes, color: "#38bdf8" },
+              { label: "Tiempo en coches", value: formatMinutes(stats.tiempoCoches), color: "#38bdf8" },
+              { label: "Tiempo interno", value: formatMinutes(stats.tiempoInterno), color: "#f59e0b" },
+              { label: "Top del periodo", value: stats.top, color: "var(--sw-text)" },
+            ].map((item) => (
+              <div key={item.label} style={{ background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderRadius: 14, padding: "0.95rem 1.05rem" }}>
+                <div style={{ fontSize: "0.7rem", color: "var(--sw-muted)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>{item.label}</div>
+                <div style={{ fontSize: "1.1rem", fontWeight: 800, color: item.color, marginTop: "0.2rem" }}>{item.value}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {vista === "coches" && (
+          <div style={{ display: "contents" }}>
+            <div style={{ background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderRadius: 14, padding: "1rem 1.15rem", marginBottom: "1rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "0.72rem", color: "var(--sw-muted)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, marginBottom: "0.3rem" }}>Tarifa por hora (EUR/h)</div>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    placeholder="Ej: 35"
+                    value={tarifa}
+                    onChange={(e) => setTarifa(e.target.value)}
+                    className="form-control sw-pinput"
+                    style={{ maxWidth: 180 }}
+                  />
+                </div>
+                <div style={{ fontSize: "0.8rem", color: "var(--sw-muted)", maxWidth: 420 }}>
+                  <strong style={{ color: "var(--sw-text)" }}>Horas-persona</strong>: suma del tiempo real de todos los operarios que han tocado el coche.<br />
+                  <strong style={{ color: "var(--sw-text)" }}>Horas de taller</strong>: tiempo de reloj desde que entro hasta que salio de cada fase.
+                </div>
+                {reporteCoches_.length > 0 && Number(tarifa) > 0 && (
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: "0.7rem", color: "var(--sw-muted)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700 }}>Coste total periodo</div>
+                    <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "#4ade80" }}>
+                      {fmtEuros(reporteCoches_.reduce((s, c) => s + c.horas_persona * Number(tarifa), 0))}
+                    </div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--sw-muted)" }}>
+                      {reporteCoches_.reduce((s, c) => s + c.minutos_persona, 0)} min · {reporteCoches_.length} vehiculos
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {loadingCoches ? (
+              <div style={{ textAlign: "center", padding: "3rem 0", color: "var(--sw-muted)" }}>Cargando coches...</div>
+            ) : reporteCoches_.length === 0 ? (
+              <div style={{ background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderRadius: 14, padding: "2rem", textAlign: "center", color: "var(--sw-muted)" }}>
+                No hay vehiculos con trabajo registrado en este periodo.
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "0.85rem" }}>
+                {reporteCoches_.map((coche) => (
+                  <CocheCostCard key={coche.coche_id} coche={coche} tarifa={tarifa} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {error && (
           <div style={{ marginBottom: "1rem", padding: "0.85rem 1rem", borderRadius: 10, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#fca5a5" }}>
@@ -507,11 +669,11 @@ export default function ProductividadTrabajadoresPage() {
           </div>
         )}
 
-        {loading ? (
-          <div style={{ textAlign: "center", padding: "3rem 0", color: "var(--sw-muted)" }}>Cargando productividad…</div>
+        {vista === "trabajadores" && (loading ? (
+          <div style={{ textAlign: "center", padding: "3rem 0", color: "var(--sw-muted)" }}>Cargando productividad...</div>
         ) : empleados.length === 0 ? (
           <div style={{ background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderRadius: 14, padding: "2rem", textAlign: "center", color: "var(--sw-muted)" }}>
-            No hay actividad registrada para el período seleccionado.
+            No hay actividad registrada para el periodo seleccionado.
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}>
@@ -678,7 +840,7 @@ export default function ProductividadTrabajadoresPage() {
               );
             })}
           </div>
-        )}
+        ))}
       </div>
     </div>
   );

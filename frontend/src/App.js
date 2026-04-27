@@ -1,9 +1,8 @@
 // src/App.jsx
-import React, { useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import React, { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useMatch } from "react-router-dom";
 import injectContext from "./store/appContext.js";
-import { touchSessionActivity, getStoredRol, isEmployeeRole } from "./utils/authSession";
-import { obtenerHoy } from "./utils/horarioApi";
+import { touchSessionActivity, getStoredRol, isEmployeeRole, getDefaultRouteForRole } from "./utils/authSession";
 import { ROUTE_PERMISSIONS } from "./config/rolePermissions.js";
 
 import NavbarSW from "./components/NavbarSW.jsx";
@@ -35,7 +34,6 @@ import ActaEntregaDocumento from "./pages/ActaEntregaDocumento.jsx";
 import CochesEntregadosPage from "./pages/CochesEntregadosPage.jsx";
 import InspeccionesGuardadasPage from "./pages/InspeccionesGuardadasPage.jsx";
 import { EmpleadoPartesTrabajo } from "./pages/PartesTrabajo";
-import AdminPartesTrabajoListado from "./pages/AdminPartesTrabajoListado";
 import AdminPartesTrabajoAcompanamiento from "./pages/AdminPartesTrabajoAcompanamiento";
 import ProductividadTrabajadoresPage from "./pages/ProductividadTrabajadoresPage.jsx";
 import { AdminPartesTrabajoFinalizados } from "./pages/PartesTrabajoFinalizados";
@@ -70,11 +68,32 @@ const isLogged = () => Boolean(localStorage.getItem("token"));
 const getStoredUserId = () => localStorage.getItem("userId") || "";
 
 const RedirectIfLogged = ({ children }) =>
-  isLogged() ? <Navigate to="/" replace /> : children;
+  isLogged() ? <Navigate to={getDefaultRouteForRole(getStoredRol())} replace /> : children;
 
-const App = () => {
-  const [recordatorio, setRecordatorio] = useState("");
-  const [mostrarModalRecordatorio, setMostrarModalRecordatorio] = useState(false);
+const HomeRoute = () => {
+  const rol = getStoredRol();
+  if (isEmployeeRole(rol)) {
+    return <Navigate to="/mis-partes-trabajo" replace />;
+  }
+  return <Home />;
+};
+
+const useCocheSustitucionRouteMatch = () => {
+  const matchCocheSustitucionBase = useMatch("/coche-sustitucion");
+  const matchCocheSustitucionSlash = useMatch("/coche-sustitucion/");
+  const matchCochesSustitucionBase = useMatch("/coches-sustitucion");
+  const matchCochesSustitucionSlash = useMatch("/coches-sustitucion/");
+
+  return (
+    matchCocheSustitucionBase ||
+    matchCocheSustitucionSlash ||
+    matchCochesSustitucionBase ||
+    matchCochesSustitucionSlash
+  );
+};
+
+const AppContent = () => {
+  const matchCocheSustitucion = useCocheSustitucionRouteMatch();
 
   useEffect(() => {
     let lastTouch = 0;
@@ -95,150 +114,21 @@ const App = () => {
     };
   }, []);
 
-  useEffect(() => {
-    let cancelado = false;
-
-    const getRecordatorioPendiente = (registro) => {
-      if (!registro || !registro.entrada) return "Recuerda fichar tu entrada.";
-      if (registro?.descanso_activo) return "Recuerda fichar el fin de descanso.";
-      if (!registro.salida) return "Recuerda fichar tu salida al finalizar.";
-      return "";
-    };
-
-    const lanzarRecordatorioDiario = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        if (!cancelado) {
-          setRecordatorio("");
-          setMostrarModalRecordatorio(false);
-        }
-        return;
-      }
-
-      const rol = getStoredRol();
-      if (!isEmployeeRole(rol)) {
-        if (!cancelado) {
-          setRecordatorio("");
-          setMostrarModalRecordatorio(false);
-        }
-        return;
-      }
-
-      try {
-        const registro = await obtenerHoy();
-        if (cancelado) return;
-
-        const msg = getRecordatorioPendiente(registro);
-        setRecordatorio(msg);
-        setMostrarModalRecordatorio(Boolean(msg));
-      } catch {
-        // Silencioso para no romper carga inicial por fallo de red.
-      }
-    };
-
-    const onLoginSuccess = () => {
-      void lanzarRecordatorioDiario();
-    };
-
-    window.addEventListener("sw:login-success", onLoginSuccess);
-
-    void lanzarRecordatorioDiario();
-    return () => {
-      cancelado = true;
-      window.removeEventListener("sw:login-success", onLoginSuccess);
-    };
-  }, []);
-
   return (
-    <BrowserRouter>
+    <>
       <div className="sw-app">
         <NavbarSW />
-
-        {recordatorio && mostrarModalRecordatorio && (
-          <div
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="sw-recordatorio-title"
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 1200,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "1rem",
-              background: "rgba(3, 7, 18, 0.68)",
-              backdropFilter: "blur(2px)",
-            }}
-          >
-            <div
-              style={{
-                width: "min(560px, 96vw)",
-                borderRadius: "18px",
-                border: "1px solid rgba(239,68,68,0.28)",
-                background: "linear-gradient(180deg, rgba(24,10,10,0.98), rgba(15,23,42,0.98))",
-                boxShadow: "0 24px 90px rgba(0,0,0,0.45)",
-                overflow: "hidden",
-              }}
-            >
-              <div style={{ padding: "1rem 1.15rem", borderBottom: "1px solid rgba(239,68,68,0.18)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
-                <div style={{ color: "#fca5a5", fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", fontSize: "0.76rem" }}>
-                  Aviso importante
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setMostrarModalRecordatorio(false)}
-                  aria-label="Cerrar aviso"
-                  style={{ background: "none", border: "none", color: "#fca5a5", fontSize: "1.2rem", cursor: "pointer", lineHeight: 1 }}
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div style={{ padding: "1.35rem 1.15rem 1.2rem" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", marginBottom: "0.85rem" }}>
-                  <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(239,68,68,0.14)", border: "1px solid rgba(239,68,68,0.28)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem" }}>
-                    ⏰
-                  </div>
-                  <div>
-                    <div id="sw-recordatorio-title" style={{ color: "#fff", fontSize: "1.25rem", fontWeight: 800 }}>
-                      Te has olvidado de fichar
-                    </div>
-                    <div style={{ color: "#cbd5e1", fontSize: "0.94rem", marginTop: "0.2rem" }}>
-                      {recordatorio}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.18)", color: "#e5e7eb", borderRadius: "12px", padding: "0.9rem 1rem", fontSize: "0.92rem", lineHeight: 1.5 }}>
-                  Este aviso aparecerá al iniciar sesión si tienes un fichaje pendiente. Puedes cerrarlo y seguir trabajando, pero conviene registrarlo cuanto antes.
-                </div>
-
-                <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", flexWrap: "wrap", marginTop: "1rem" }}>
-                  <button
-                    type="button"
-                    onClick={() => setMostrarModalRecordatorio(false)}
-                    style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.14)", color: "#e5e7eb", borderRadius: "10px", padding: "0.7rem 1rem", fontWeight: 700, cursor: "pointer" }}
-                  >
-                    Cerrar aviso
-                  </button>
-                  <a
-                    href="/fichar"
-                    style={{ background: "#ef4444", color: "#fff", borderRadius: "10px", padding: "0.72rem 1rem", fontWeight: 800, textDecoration: "none" }}
-                  >
-                    Ir a fichar ahora
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         <div className="sw-layout">
           <SidebarSW />
           <main className="sw-main">
+            {matchCocheSustitucion ? (
+              <PrivateRoute allow={getRouteAllow("/coche-sustitucion")}>
+                <CocheSustitucionPage />
+              </PrivateRoute>
+            ) : (
             <Routes>
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<HomeRoute />} />
 
             <Route
               path="/login"
@@ -614,15 +504,6 @@ const App = () => {
             />
 
             <Route
-              path="/coche-sustitucion"
-              element={
-                <PrivateRoute allow={getRouteAllow("/coche-sustitucion")}>
-                  <CocheSustitucionPage />
-                </PrivateRoute>
-              }
-            />
-
-            <Route
               path="*"
               element={
                 <h1 className="container mt-5 text-center">
@@ -631,6 +512,7 @@ const App = () => {
               }
             />
           </Routes>
+            )}
           </main>
         </div>
 
@@ -638,8 +520,14 @@ const App = () => {
       </div>
       <ModalConfirmar />
       <ToastSW />
-    </BrowserRouter>
+    </>
   );
 };
+
+const App = () => (
+  <BrowserRouter>
+    <AppContent />
+  </BrowserRouter>
+);
 
 export default injectContext(App);

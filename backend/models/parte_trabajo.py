@@ -81,7 +81,9 @@ class ParteTrabajo(db.Model):
     tiempo_estimado_minutos = db.Column(db.Integer, nullable=False, default=0)
     lote_uid = db.Column(db.String(36), nullable=True, index=True)
     tipo_tarea = db.Column(db.String(30), nullable=True)  # pintura | detailing | tapiceria | otro
+    fase = db.Column(db.String(20), nullable=True)  # preparacion | pintura
     es_tarea_interna = db.Column(db.Boolean, nullable=False, default=False)
+    prioridad = db.Column(db.Integer, nullable=False, default=0, server_default='0')  # 0=normal 1=urgente 2=muy_urgente
 
     coche = db.relationship("Coche")
     inspeccion = db.relationship("InspeccionRecepcion")

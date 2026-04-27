@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useContext } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import logo from "../img/logo-specialwash-icon-black.png";
 import { buildApiUrl } from "../utils/apiBase";
-import { clearStoredSession, getStoredRol, getStoredToken } from "../utils/authSession";
+import { clearStoredSession, getDefaultRouteForRole, getStoredRol, getStoredToken } from "../utils/authSession";
 import { NAVIGATION_BY_ROLE } from "../config/rolePermissions.js";
+import { Context } from "../store/appContext";
 
 // ─── Campana de notificaciones ───────────────────────────────────────────────
 const CampanaNotificaciones = ({ token, compact = false }) => {
@@ -186,11 +187,20 @@ const CampanaNotificaciones = ({ token, compact = false }) => {
 
 // ─── Navbar principal ─────────────────────────────────────────────────────────
 const NavbarSW = () => {
+  const { store, actions } = useContext(Context);
   const navigate = useNavigate();
   const location = useLocation();
   const token = getStoredToken();
   const rol = getStoredRol();
   const isAdmin = rol === "administrador";
+  const nombreUsuario = String(store?.user?.nombre || "").trim();
+  const homeTarget = token ? getDefaultRouteForRole(rol) : "/";
+
+  useEffect(() => {
+    if (token && !store?.user) {
+      actions.me?.().catch?.(() => {});
+    }
+  }, [token, store?.user, actions]);
 
   const isPathActive = (path = "") => {
     if (!path) return false;
@@ -286,7 +296,7 @@ const NavbarSW = () => {
           {/* Brand */}
           <Link
             className="navbar-brand d-flex align-items-center sw-brand"
-            to="/"
+            to={homeTarget}
             title="Ir a inicio"
           >
             <div className="sw-logo-wrap">
@@ -303,6 +313,20 @@ const NavbarSW = () => {
         <div className="d-flex align-items-center ms-auto gap-2">
           {token && (
             <div className="sw-mobile-header-actions d-xl-none">
+              <span
+                className="sw-role-pill"
+                style={{
+                  maxWidth: "170px",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+                title={nombreUsuario ? `${nombreUsuario} · ${rol}` : rol}
+              >
+                <i className="fas fa-user-circle me-1"></i>
+                {nombreUsuario ? `${nombreUsuario} · ` : ""}
+                {rol ? rol.charAt(0).toUpperCase() + rol.slice(1) : "—"}
+              </span>
               {["administrador", "calidad"].includes(rol) && (
                 <CampanaNotificaciones token={token} compact />
               )}
@@ -423,6 +447,7 @@ const NavbarSW = () => {
                 <li className="nav-item d-none d-xl-flex align-items-center">
                   <span className="sw-role-pill">
                     <i className="fas fa-user-circle me-1"></i>
+                    {nombreUsuario ? `${nombreUsuario} · ` : ""}
                     {rol ? rol.charAt(0).toUpperCase() + rol.slice(1) : "—"}
                   </span>
                 </li>

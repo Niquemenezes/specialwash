@@ -11,6 +11,28 @@ import {
 } from "../utils/parteTrabajoApi";
 import CrearParteTrabajo from "../components/CrearParteTrabajo";
 
+const PRIORIDAD_CONFIG = {
+  0: { label: "Normal",       color: "#9ca3af", bg: "rgba(156,163,175,0.1)",  border: "rgba(156,163,175,0.25)", icon: "—" },
+  1: { label: "Urgente",      color: "#f59e0b", bg: "rgba(245,158,11,0.12)",  border: "rgba(245,158,11,0.35)",  icon: "⚡" },
+  2: { label: "Muy urgente",  color: "#ef4444", bg: "rgba(239,68,68,0.12)",   border: "rgba(239,68,68,0.35)",   icon: "🔴" },
+};
+
+function PrioridadBadge({ prioridad }) {
+  const cfg = PRIORIDAD_CONFIG[prioridad] || PRIORIDAD_CONFIG[0];
+  if (prioridad === 0) return null;
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: "0.3rem",
+      padding: "0.15rem 0.55rem", borderRadius: "999px",
+      fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.04em",
+      background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color,
+      whiteSpace: "nowrap",
+    }}>
+      {cfg.icon} {cfg.label}
+    </span>
+  );
+}
+
 function EstadoBadge({ estado }) {
   const config = {
     pendiente:  { label: "Pendiente",  color: "#9ca3af", bg: "rgba(156,163,175,0.12)", border: "rgba(156,163,175,0.28)" },
@@ -208,6 +230,20 @@ export default function AdminPartesTrabajoListado() {
   };
 
   const [editandoAreaId, setEditandoAreaId] = useState(null);
+  const [cambiandoPrioridadId, setCambiandoPrioridadId] = useState(null);
+
+  const onCambiarPrioridad = async (parteId, prioridadActual) => {
+    const siguiente = (prioridadActual + 1) % 3;
+    setCambiandoPrioridadId(parteId);
+    try {
+      await editarParteTrabajo(parteId, { prioridad: siguiente });
+      await cargarPartes();
+    } catch (e) {
+      setError(e?.message || "No se pudo cambiar la prioridad.");
+    } finally {
+      setCambiandoPrioridadId(null);
+    }
+  };
 
   const onCambiarArea = async (parteId, nuevoTipo) => {
     setError("");
@@ -399,8 +435,9 @@ export default function AdminPartesTrabajoListado() {
                           <div style={{ padding: "0.5rem 0" }}>
                             {cp.map(p => (
                               <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.5rem 1.1rem", borderBottom: "1px solid rgba(255,255,255,0.03)", gap: "0.75rem" }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flex: 1, minWidth: 0 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flex: 1, minWidth: 0, flexWrap: "wrap" }}>
                                   <span style={{ fontSize: "0.7rem", color: "var(--sw-muted)", fontFamily: "monospace", flexShrink: 0 }}>#{p.id}</span>
+                                  <PrioridadBadge prioridad={p.prioridad || 0} />
                                   <span style={{ fontSize: "0.87rem", color: "var(--sw-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                     {p.observaciones || getTipoTareaLabel(p.tipo_tarea)}
                                   </span>
@@ -428,6 +465,20 @@ export default function AdminPartesTrabajoListado() {
                                       {getTipoTareaLabel(p.tipo_tarea)} ✎
                                     </button>
                                   )}
+                                  <button
+                                    onClick={() => onCambiarPrioridad(p.id, p.prioridad || 0)}
+                                    disabled={cambiandoPrioridadId === p.id}
+                                    title="Cambiar prioridad (clic para rotar)"
+                                    style={{
+                                      fontSize: "0.68rem", padding: "0.15rem 0.45rem", borderRadius: "5px", fontWeight: 700, cursor: "pointer", flexShrink: 0,
+                                      border: `1px solid ${PRIORIDAD_CONFIG[p.prioridad || 0].border}`,
+                                      background: PRIORIDAD_CONFIG[p.prioridad || 0].bg,
+                                      color: PRIORIDAD_CONFIG[p.prioridad || 0].color,
+                                      opacity: cambiandoPrioridadId === p.id ? 0.5 : 1,
+                                    }}
+                                  >
+                                    {PRIORIDAD_CONFIG[p.prioridad || 0].icon} Prioridad
+                                  </button>
                                 </div>
                               </div>
                             ))}

@@ -45,6 +45,7 @@ const SECTIONS = [
       { to: "/maquinaria",                          icon: "fas fa-tools",          label: "Maquinarias"            },
       { to: "/catalogo-servicios",                  icon: "fas fa-clipboard-list", label: "Catálogo de servicios" },
       { to: "/usuarios",                            icon: "fas fa-user-cog",       label: "Usuarios"               },
+      { to: "/horarios",                            icon: "fas fa-clock",          label: "Horarios"               },
       { to: "/uniformes",                           icon: "fas fa-tshirt",         label: "Uniformes"              },
       { to: "/coche-sustitucion",                   icon: "fas fa-car",            label: "Coches sustitución"     },
       { to: "/administracion/finanzas",             icon: "fas fa-euro-sign",      label: "Finanzas"               },

@@ -43,6 +43,47 @@ const parseServicios = (value) => {
   }
 };
 
+const hasStructuredActaSections = (texto = "") => {
+  const raw = String(texto || "").trim();
+  if (!raw) return false;
+  return Object.values(SECTION_LABELS).some((label) =>
+    new RegExp(`(^|\\n)${escapeRegex(label)}\\s*:`, "i").test(raw)
+  );
+};
+
+const formatTipoLabel = (tipo) => {
+  const value = String(tipo || "").trim().toLowerCase();
+  if (value === "detailing") return "Detailing";
+  if (value === "pintura") return "Pintura";
+  if (value === "tapicero") return "Tapiceria";
+  if (value === "calidad") return "Calidad";
+  if (value === "otro") return "General";
+  return "";
+};
+
+const buildServiciosContratadosTexto = (servicios = []) =>
+  servicios
+    .map((item) => {
+      const nombre = String(item?.nombre || "").trim();
+      const tipo = formatTipoLabel(item?.tipo_tarea);
+      if (!nombre) return null;
+      return tipo ? `- ${nombre} · Area: ${tipo}` : `- ${nombre}`;
+    })
+    .filter(Boolean)
+    .join("\n");
+
+const buildMotivoIntervencionTexto = (servicios = []) => {
+  const nombres = servicios
+    .map((item) => String(item?.nombre || "").trim())
+    .filter(Boolean);
+
+  if (!nombres.length) return "";
+  if (nombres.length === 1) {
+    return `Se emite la presente hoja de intervencion tecnica con el fin de documentar la actuacion prevista sobre el vehiculo, correspondiente al servicio contratado: ${nombres[0]}.`;
+  }
+  return `Se emite la presente hoja de intervencion tecnica con el fin de documentar la actuacion prevista sobre el vehiculo, correspondiente a los siguientes servicios contratados: ${nombres.join(", ")}.`;
+};
+
 const composeActaTexto = (form) => {
   const bloques = [
     [SECTION_LABELS.motivo_intervencion, form.motivo_intervencion],
@@ -88,15 +129,16 @@ const parseActaTexto = (texto = "") => {
 };
 
 const hydrateForm = (insp) => {
-  const structured = parseActaTexto(insp?.trabajos_realizados || "");
+  const rawActa = String(insp?.trabajos_realizados || "").trim();
+  const structured = hasStructuredActaSections(rawActa)
+    ? parseActaTexto(rawActa)
+    : { ...EMPTY_FORM };
   const servicios = parseServicios(insp?.servicios_aplicados || "[]");
+  const serviciosContratados = buildServiciosContratadosTexto(servicios);
 
   // Auto-rellenar motivo desde servicios contratados si está vacío
   if (!structured.motivo_intervencion && servicios.length) {
-    structured.motivo_intervencion = servicios
-      .map((item) => item?.nombre)
-      .filter(Boolean)
-      .join(", ");
+    structured.motivo_intervencion = buildMotivoIntervencionTexto(servicios);
   }
 
   // Auto-rellenar diagnóstico inicial desde observaciones de recepción si está vacío
@@ -104,16 +146,11 @@ const hydrateForm = (insp) => {
     structured.diagnostico_inicial = String(insp.averias_notas || "").trim();
   }
 
-  // Auto-rellenar trabajos realizados desde servicios contratados si está vacío
-  if (!structured.trabajos_realizados && servicios.length) {
-    structured.trabajos_realizados = servicios
-      .map((item) => {
-        const nombre = item?.nombre || "";
-        const tipo = item?.tipo_tarea ? ` (${item.tipo_tarea})` : "";
-        return nombre ? `- ${nombre}${tipo}` : null;
-      })
-      .filter(Boolean)
-      .join("\n");
+  // Para la hoja técnica base, solo proponemos los servicios contratados.
+  // Si ya existe una hoja técnica estructurada guardada, la respetamos.
+  if (!structured.trabajos_realizados && serviciosContratados) {
+    structured.trabajos_realizados =
+      `Conforme a la orden de trabajo registrada y a la contratacion validada, el alcance tecnico de la intervencion prevista para este vehiculo comprende los siguientes conceptos de actuacion:\n\n${serviciosContratados}`;
   }
 
   return {

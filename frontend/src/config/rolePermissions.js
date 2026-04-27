@@ -122,6 +122,7 @@ export const NAVIGATION_BY_ROLE = {
         { label: "� Proveedores", to: "/proveedores" },
         { label: "🛠️ Maquinarias", to: "/maquinaria" },
         { label: "👤 Usuarios", to: "/usuarios" },
+        { label: "⏱️ Horarios", to: "/horarios" },
         { label: "👔 Uniformes", to: "/uniformes" },
         { label: "🚙 Coches sustitución", to: "/coche-sustitucion" },
         { label: "�💶 Finanzas", to: "/administracion/finanzas" },
@@ -136,15 +137,12 @@ export const NAVIGATION_BY_ROLE = {
 
   [ROLES.DETAILING]: [
     { label: "📋 Mis trabajos", to: "/mis-partes-trabajo" },
-    { label: "⤒ Salida de productos", to: "/salidas" },
   ],
   [ROLES.PINTURA]: [
     { label: "📋 Mis trabajos", to: "/mis-partes-trabajo" },
-    { label: "⤒ Salida de productos", to: "/salidas" },
   ],
   [ROLES.TAPICERO]: [
     { label: "📋 Mis trabajos", to: "/mis-partes-trabajo" },
-    { label: "⤒ Salida de productos", to: "/salidas" },
   ],
   [ROLES.SALIDA]: [
     { label: "⤒ Salida de productos", to: "/salidas" },
@@ -156,10 +154,10 @@ export const NAVIGATION_BY_ROLE = {
  */
 export const ROLE_DESCRIPTIONS = {
   [ROLES.ADMIN]: "Acceso completo: administración, control de flujos, finanzas y usuarios",
-  [ROLES.CALIDAD]: "Inspección, repaso, entrega, citas, salidas y cobro de particulares",
-  [ROLES.DETAILING]: "Fichaje, salida de productos y partes de detailing",
-  [ROLES.PINTURA]: "Fichaje, salida de productos y partes de pintura",
-  [ROLES.TAPICERO]: "Fichaje, salida de productos y partes de tapicería",
+  [ROLES.CALIDAD]: "Inspección, repaso, entrega, citas y cobro de particulares",
+  [ROLES.DETAILING]: "Fichaje y partes de detailing",
+  [ROLES.PINTURA]: "Fichaje y partes de pintura",
+  [ROLES.TAPICERO]: "Fichaje y partes de tapicería",
   [ROLES.SALIDA]: "Salida de productos: acceso directo a registrar salidas",
 };
 

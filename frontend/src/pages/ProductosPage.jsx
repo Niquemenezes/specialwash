@@ -51,7 +51,7 @@ export default function ProductosPage() {
     return () => { active = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const productos = store.productos || [];
+  const productos = useMemo(() => store.productos || [], [store.productos]);
 
   const productosFiltrados = useMemo(() => {
     const term = filtro.trim().toLowerCase();

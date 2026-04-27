@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { obtenerMensual, obtenerEmpleadosActivos, obtenerSelfieBlobUrl, editarRegistro } from "../utils/horarioApi";
+import { obtenerMensual, obtenerEmpleadosActivos, obtenerSelfieBlobUrl, editarRegistro, eliminarRegistro } from "../utils/horarioApi";
 
 const MESES = [
   "Enero","Febrero","Marzo","Abril","Mayo","Junio",
   "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre",
 ];
 
-const TIPOS_FOTO = ["entrada", "inicio_comida", "fin_comida", "salida"];
+const TIPOS_FOTO = ["entrada", "salida"];
 
 function formatHora(isoStr) {
   if (!isoStr) return "--:--";
@@ -16,16 +16,15 @@ function formatHora(isoStr) {
 
 function calcularHoras(r) {
   if (!r.entrada || !r.salida) return null;
-  const entrada = new Date(r.entrada);
-  const salida = new Date(r.salida);
-  let totalMs = salida - entrada;
-
-  if (r.inicio_comida && r.fin_comida) {
+  let totalMs = new Date(r.salida) - new Date(r.entrada);
+  const descansoMin = Number(r.descanso_total_minutos || 0);
+  if (descansoMin > 0) {
+    totalMs -= descansoMin * 60000;
+  } else if (r.inicio_comida && r.fin_comida) {
     const ic = new Date(r.inicio_comida);
     const fc = new Date(r.fin_comida);
     if (fc > ic) totalMs -= (fc - ic);
   }
-
   if (totalMs < 0) return null;
   const totalMin = Math.round(totalMs / 60000);
   const h = Math.floor(totalMin / 60);
@@ -33,14 +32,25 @@ function calcularHoras(r) {
   return `${h}h ${m.toString().padStart(2, "0")}m`;
 }
 
+function formatPausas(r) {
+  const pausas = Array.isArray(r?.pausas) ? r.pausas : [];
+  if (pausas.length === 0) {
+    if (r.inicio_comida) {
+      return r.fin_comida
+        ? `${formatHora(r.inicio_comida)} – ${formatHora(r.fin_comida)}`
+        : `${formatHora(r.inicio_comida)} (activo)`;
+    }
+    return "—";
+  }
+  return pausas.map(([ini, fin]) =>
+    fin ? `${formatHora(ini)} – ${formatHora(fin)}` : `${formatHora(ini)} …`
+  ).join(" / ");
+}
+
 function formatFecha(isoStr) {
   if (!isoStr) return "";
   const [y, m, d] = isoStr.split("-");
   return `${d}/${m}/${y}`;
-}
-
-function diasEnMes(anio, mes) {
-  return new Date(anio, mes, 0).getDate();
 }
 
 export default function HorariosAdminPage() {
@@ -143,10 +153,21 @@ export default function HorariosAdminPage() {
     }
   };
 
-  const cerrarPreviewFoto = () => {
+  const eliminarRegistroAdmin = async (r) => {
+    if (!window.confirm(`¿Eliminar el registro de ${r.empleado_nombre} del ${formatFecha(r.fecha)}? Esta acción no se puede deshacer.`)) return;
+    setError("");
+    try {
+      await eliminarRegistro(r.id);
+      setRegistros(prev => prev.filter(reg => reg.id !== r.id));
+    } catch (e) {
+      setError(e.message || "Error al eliminar el registro.");
+    }
+  };
+
+  const cerrarPreviewFoto = useCallback(() => {
     if (fotoPreview.url) URL.revokeObjectURL(fotoPreview.url);
     setFotoPreview({ abierta: false, url: "", titulo: "" });
-  };
+  }, [fotoPreview.url]);
 
   useEffect(() => {
     if (!fotoPreview.abierta) return undefined;
@@ -159,7 +180,7 @@ export default function HorariosAdminPage() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [fotoPreview.abierta, fotoPreview.url]);
+  }, [fotoPreview.abierta, cerrarPreviewFoto]);
 
   // Group by empleado_nombre for display
   const empleadoNombre = empleados.find(e => String(e.id) === String(empleadoId))?.nombre || "";
@@ -363,8 +384,7 @@ export default function HorariosAdminPage() {
                   <th>Fecha</th>
                   <th>Empleado</th>
                   <th>Entrada</th>
-                  <th>Inicio comida</th>
-                  <th>Fin comida</th>
+                  <th>Descansos</th>
                   <th>Salida</th>
                   <th>Horas trabajadas</th>
                   <th className="no-print">Fotos</th>
@@ -380,8 +400,7 @@ export default function HorariosAdminPage() {
                       <td className="text-nowrap">{formatFecha(r.fecha)}</td>
                       <td>{r.empleado_nombre}</td>
                       <td className="text-nowrap">{formatHora(r.entrada)}</td>
-                      <td className="text-nowrap">{formatHora(r.inicio_comida)}</td>
-                      <td className="text-nowrap">{formatHora(r.fin_comida)}</td>
+                      <td className="text-nowrap" style={{ fontSize: "0.82rem" }}>{formatPausas(r)}</td>
                       <td className="text-nowrap">{formatHora(r.salida)}</td>
                       <td className="fw-semibold text-nowrap">
                         {horas || <span className="text-muted">—</span>}
@@ -405,13 +424,21 @@ export default function HorariosAdminPage() {
                           })}
                         </div>
                       </td>
-                      <td className="no-print text-nowrap" style={{ minWidth: 120 }}>
+                      <td className="no-print text-nowrap" style={{ minWidth: 150 }}>
                         <button
                           type="button"
-                          className={`btn btn-sm ${incompleto ? "btn-editar-pendiente" : "btn-primary"}`}
+                          className={`btn btn-sm me-1 ${incompleto ? "btn-editar-pendiente" : "btn-primary"}`}
                           onClick={() => abrirEdicion(r)}
                         >
-                          Editar
+                          ✏️ Editar
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => eliminarRegistroAdmin(r)}
+                          title="Eliminar registro"
+                        >
+                          🗑️
                         </button>
                       </td>
                     </tr>

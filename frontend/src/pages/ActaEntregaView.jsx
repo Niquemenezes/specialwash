@@ -58,6 +58,36 @@ const parseActa = (texto = "") => {
   return { contenido, observaciones };
 };
 
+const parseServicios = (value) => {
+  if (Array.isArray(value)) return value;
+  try {
+    const data = JSON.parse(value || "[]");
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+};
+
+const buildServiciosContratadosTexto = (servicios = []) => {
+  const lineas = servicios
+    .map((item) => String(item?.nombre || item?.servicio_nombre || "").trim())
+    .filter(Boolean)
+    .map((nombre) => `- ${nombre}`);
+
+  if (!lineas.length) return "";
+  return `Conforme a la orden de trabajo registrada y a la contratacion validada, el alcance tecnico de la intervencion prevista para este vehiculo comprende los siguientes conceptos de actuacion:\n\n${lineas.join("\n")}`.trim();
+};
+
+const hasStructuredActaSections = (texto = "") =>
+  /(servicio solicitado \/ objetivo|estado inicial \/ diagnóstico|trabajos realizados|productos y materiales utilizados|resultado y comprobaciones finales|recomendaciones)\s*:/i.test(
+    String(texto || "")
+  );
+
+const buildFallbackTrabajos = (data) => {
+  const servicios = parseServicios(data?.servicios_aplicados);
+  return buildServiciosContratadosTexto(servicios);
+};
+
 const normalizeTechnicalContent = (contenido = "") => {
   const original = String(contenido || "").trim();
   if (!original) return "";
@@ -140,7 +170,15 @@ const ActaEntregaView = () => {
         setInspeccion(data);
         const parsedObs = splitObservaciones(data?.entrega_observaciones || "");
         setFirmaCliente(data?.firma_cliente_entrega || "");
-        setTrabajosEditados(data?.trabajos_realizados || "");
+        const trabajosPrevios = String(data?.trabajos_realizados || "").trim();
+        const fallbackTrabajos = buildFallbackTrabajos(data);
+        if (trabajosPrevios && hasStructuredActaSections(trabajosPrevios)) {
+          setTrabajosEditados(trabajosPrevios);
+        } else if (fallbackTrabajos) {
+          setTrabajosEditados(fallbackTrabajos);
+        } else if (trabajosPrevios) {
+          setTrabajosEditados(trabajosPrevios);
+        }
         setNombreFirmante(parsedObs.firmante || data?.cliente_nombre || "");
         setConsentimiento(Boolean(data?.consentimiento_datos_entrega));
         setConformidad(Boolean(data?.conformidad_revision_entrega));
@@ -166,7 +204,12 @@ const ActaEntregaView = () => {
     };
   }, [actions, id]);
 
-  const acta = useMemo(() => parseActa(inspeccion?.trabajos_realizados || ""), [inspeccion?.trabajos_realizados]);
+  const actaFuente = useMemo(() => {
+    const stored = String(inspeccion?.trabajos_realizados || "").trim();
+    if (stored) return stored;
+    return buildFallbackTrabajos(inspeccion);
+  }, [inspeccion]);
+  const acta = useMemo(() => parseActa(actaFuente), [actaFuente]);
   const observacionesLimpias = useMemo(() => {
     const parsed = splitObservaciones(inspeccion?.entrega_observaciones || "");
     return parsed.observaciones || acta.observaciones || "-";
