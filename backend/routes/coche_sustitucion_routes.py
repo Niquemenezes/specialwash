@@ -141,6 +141,41 @@ def registrar_devolucion(id):
     return jsonify(item.to_dict())
 
 
+@coche_sust_bp.route("/coche-sustitucion/<int:id>", methods=["PUT"])
+@role_required("administrador", "calidad")
+def editar(id):
+    item = CocheSustitucion.query.get_or_404(id)
+    data = request.get_json() or {}
+    if "cliente_nombre" in data:
+        v = (data["cliente_nombre"] or "").strip()
+        if v:
+            item.cliente_nombre = v
+    if "cliente_dni" in data:
+        v = (data["cliente_dni"] or "").strip()
+        if v:
+            item.cliente_dni = v
+    if "cliente_telefono" in data:
+        item.cliente_telefono = (data["cliente_telefono"] or "").strip() or None
+    if "coche_cliente_matricula" in data:
+        item.coche_cliente_matricula = (data["coche_cliente_matricula"] or "").strip().upper() or None
+    if "matricula" in data:
+        v = (data["matricula"] or "").strip().upper()
+        if v:
+            item.matricula = v
+    if "marca" in data:
+        item.marca = (data["marca"] or "").strip() or None
+    if "modelo" in data:
+        item.modelo = (data["modelo"] or "").strip() or None
+    if "km_entrega" in data:
+        item.km_entrega = data["km_entrega"] or None
+    if "combustible_entrega" in data:
+        item.combustible_entrega = data["combustible_entrega"] or None
+    if "estado_entrega" in data:
+        item.estado_entrega = (data["estado_entrega"] or "").strip() or None
+    db.session.commit()
+    return jsonify(item.to_dict())
+
+
 @coche_sust_bp.route("/coche-sustitucion/<int:id>", methods=["DELETE"])
 @role_required("administrador")
 def eliminar(id):

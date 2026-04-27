@@ -23,6 +23,12 @@ export const isEmployeeRole = (rol) => {
   return value === "detailing" || value === "pintura" || value === "tapicero";
 };
 
+export const getDefaultRouteForRole = (rol) => {
+  const value = normalizeRol(rol);
+  if (isEmployeeRole(value)) return "/mis-partes-trabajo";
+  return "/";
+};
+
 export const roleMatches = (currentRol, allowedRol) => {
   const current = normalizeRol(currentRol);
   const allowed = normalizeRol(allowedRol);

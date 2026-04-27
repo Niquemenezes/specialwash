@@ -1,6 +1,7 @@
 import React, { useContext, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Context } from "../store/appContext";
+import { getDefaultRouteForRole, getStoredRol } from "../utils/authSession";
 
 export default function Login() {
   const { actions } = useContext(Context);
@@ -27,8 +28,7 @@ export default function Login() {
       // Disparar aviso de fichaje pendiente al iniciar sesión si aplica
       window.dispatchEvent(new Event("sw:login-success"));
 
-      // Todos aterrizan en su panel principal; empleados verán sus dos tarjetas operativas
-      navigate("/", { replace: true });
+      navigate(getDefaultRouteForRole(getStoredRol()), { replace: true });
     } catch (error) {
       setErr("Error de conexión. Inténtelo de nuevo.");
     } finally {

@@ -5,7 +5,8 @@ from models import ServicioCatalogo, User, db
 from utils.auth_utils import _dev_auth_bypass_enabled, normalize_role, role_required
 
 servicio_catalogo_bp = Blueprint("servicio_catalogo_routes", __name__)
-SERVICIO_SCOPED_ROLES = {"detailing", "pintura", "tapicero", "calidad", "otro"}
+SERVICIO_SCOPED_ROLES = {"detailing", "pintura", "tapicero", "otro"}
+SERVICIO_MANAGER_ROLES = {"administrador", "encargado", "calidad"}
 
 
 def _current_role():
@@ -71,7 +72,7 @@ def listar_servicios_catalogo():
     scoped_role = ""
     if current_role in SERVICIO_SCOPED_ROLES:
         scoped_role = current_role
-    elif current_role in {"administrador", "encargado", "calidad"} and requested_role in SERVICIO_SCOPED_ROLES:
+    elif current_role in SERVICIO_MANAGER_ROLES and requested_role in SERVICIO_SCOPED_ROLES:
         scoped_role = requested_role
 
     if scoped_role:

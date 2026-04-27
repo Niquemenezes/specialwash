@@ -46,6 +46,21 @@ export async function editarRegistro(id, horas) {
   });
 }
 
+export async function eliminarRegistro(id) {
+  return apiFetch(`/api/horario/${id}`, { method: "DELETE" });
+}
+
+export async function crearRegistroAdmin({ empleado_id, fecha, entrada, inicio_comida, fin_comida, salida }) {
+  return apiFetch("/api/horario/admin/crear", {
+    method: "POST",
+    body: { empleado_id, fecha, entrada, inicio_comida, fin_comida, salida },
+  });
+}
+
+export async function obtenerHoyTodos() {
+  return apiFetch("/api/horario/hoy-todos");
+}
+
 export async function obtenerSelfieBlobUrl({ empleado_id, tipo, fecha }) {
   const token = getStoredToken();
   const res = await fetch(

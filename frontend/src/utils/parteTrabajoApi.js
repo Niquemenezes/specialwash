@@ -26,24 +26,24 @@ export function formatMinutes(value) {
 }
 
 // Crear parte de trabajo
-export async function crearParteTrabajo({ coche_id, empleado_id, observaciones, tiempo_estimado_minutos, tipo_tarea, servicios = [] }) {
+export async function crearParteTrabajo({ coche_id, empleado_id, observaciones, tiempo_estimado_minutos, tipo_tarea, fase, servicios = [] }) {
   return apiFetch("/api/parte_trabajo", {
     method: "POST",
-    body: { coche_id, empleado_id, observaciones, tiempo_estimado_minutos, tipo_tarea, servicios },
+    body: { coche_id, empleado_id, observaciones, tiempo_estimado_minutos, tipo_tarea, fase, servicios },
   });
 }
 
-export async function crearParteInterno({ observaciones, tiempo_estimado_minutos = 0, tipo_tarea }) {
+export async function crearParteInterno({ observaciones, tiempo_estimado_minutos = 0, tipo_tarea, fase }) {
   return apiFetch("/api/parte_trabajo/interno", {
     method: "POST",
-    body: { observaciones, tiempo_estimado_minutos, tipo_tarea },
+    body: { observaciones, tiempo_estimado_minutos, tipo_tarea, fase },
   });
 }
 
-export async function sumarmeACoche({ coche_id, observaciones = "", tiempo_estimado_minutos = 0, tipo_tarea }) {
+export async function sumarmeACoche({ coche_id, observaciones = "", tiempo_estimado_minutos = 0, tipo_tarea, fase }) {
   return apiFetch(`/api/parte_trabajo/coche/${coche_id}/sumarme`, {
     method: "POST",
-    body: { observaciones, tiempo_estimado_minutos, tipo_tarea },
+    body: { observaciones, tiempo_estimado_minutos, tipo_tarea, fase },
   });
 }
 
@@ -59,10 +59,10 @@ export async function listarPartesTrabajo({ estado, empleado_id, coche_id, tipo_
 }
 
 // Cambiar estado de parte de trabajo
-export async function cambiarEstadoParte(parte_id, estado) {
+export async function cambiarEstadoParte(parte_id, estado, extra = {}) {
   return apiFetch(`/api/parte_trabajo/${parte_id}/estado`, {
     method: "PUT",
-    body: { estado },
+    body: { estado, ...extra },
   });
 }
 
@@ -168,6 +168,14 @@ export async function reporteEmpleados({ fecha_inicio, fecha_fin } = {}) {
   return apiFetch(`/api/parte_trabajo/reporte_empleados${query}`);
 }
 
+export async function reporteCoches({ fecha_inicio, fecha_fin } = {}) {
+  const params = [];
+  if (fecha_inicio) params.push(`fecha_inicio=${fecha_inicio}`);
+  if (fecha_fin) params.push(`fecha_fin=${fecha_fin}`);
+  const query = params.length ? `?${params.join("&")}` : "";
+  return apiFetch(`/api/parte_trabajo/reporte_coches${query}`);
+}
+
 // === NUEVAS FUNCIONES PARA FLUJO REDISEÑADO ===
 
 // Obtener SOLO los partes del empleado actual (sin mezclar con otros)
@@ -177,6 +185,13 @@ export async function obtenerPartesPorEmpleadoYEstado(empleado_id, estado = null
   if (estado) params.push(`estado=${estado}`);
   const query = params.length ? `?${params.join("&")}` : "";
   return apiFetch(`/api/parte_trabajo/empleado${query}`);
+}
+
+export async function setCocheUrgente(coche_id, urgente) {
+  return apiFetch(`/api/parte_trabajo/coche/${coche_id}/urgente`, {
+    method: "PUT",
+    body: { urgente },
+  });
 }
 
 // Obtener coches en progreso (para timeline admin)

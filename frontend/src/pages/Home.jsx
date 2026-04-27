@@ -47,7 +47,7 @@ const MODULES = [
       { to: "/entradas", label: "Registrar entrada", detail: "Añadir stock recibido" },
       { to: "/historial-salidas", label: "Historial de salidas", detail: "Consumos registrados" },
     ] : [],
-    roles: ["administrador", "calidad", "detailing", "pintura", "tapicero", "salida"],
+    roles: ["administrador", "salida"],
   },
   {
     id: "partes",

@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Context } from "../store/appContext";
 import { toast } from "../utils/toast";
 
@@ -293,7 +293,6 @@ const getFriendlyAiError = (error) => {
 
 const CochesPendientesEntrega = () => {
   const { actions } = useContext(Context);
-  const navigate = useNavigate();
   const [inspecciones, setInspecciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showActaModal, setShowActaModal] = useState(false);
@@ -536,14 +535,6 @@ const CochesPendientesEntrega = () => {
       toast.error(`Error al guardar acta: ${err.message}`);
       setGuardandoActa(false);
     }
-  };
-
-  const volver = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-      return;
-    }
-    navigate("/", { replace: true });
   };
 
   /* ── SVG icons ── */

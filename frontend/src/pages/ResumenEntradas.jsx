@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Context } from "../store/appContext";
 import GoldSelect from "../components/GoldSelect.jsx";
 import { confirmar } from "../utils/confirmar";
@@ -109,67 +109,7 @@ export default function ResumenEntradas() {
 
 
 
-  useEffect(() => {
-
-    actions.getProveedores();
-
-    actions.getProductos();
-
-
-
-    const load = async () => {
-
-      setLoading(true);
-
-      try {
-
-        await actions.getEntradas();
-
-      } finally {
-
-        setLoading(false);
-
-      }
-
-    };
-
-
-
-    load();
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-
-  }, []);
-
-
-
-  // Auto-filtrar cuando cambien los valores (con debounce para búsqueda)
-
-  useEffect(() => {
-
-    const timeoutId = setTimeout(() => {
-
-      if (desde || hasta || proveedorId || productoId || q.trim()) {
-
-        aplicar();
-
-      }
-
-    }, q.trim() ? 500 : 0); // 500ms debounce para búsqueda de texto
-
-
-
-    return () => clearTimeout(timeoutId);
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-
-  }, [desde, hasta, proveedorId, productoId, q]);
-
-
-
-  // Aplicar filtros
-
-  const aplicar = async () => {
+  const aplicar = useCallback(async () => {
 
     setLoading(true);
 
@@ -195,7 +135,55 @@ export default function ResumenEntradas() {
 
     }
 
-  };
+  }, [actions, desde, hasta, proveedorId, productoId, q]);
+
+
+
+  useEffect(() => {
+
+    actions.getProveedores();
+
+    actions.getProductos();
+
+    const load = async () => {
+
+      setLoading(true);
+
+      try {
+
+        await actions.getEntradas();
+
+      } finally {
+
+        setLoading(false);
+
+      }
+
+    };
+
+    load();
+
+  }, [actions]);
+
+
+
+  // Auto-filtrar cuando cambien los valores (con debounce para búsqueda)
+
+  useEffect(() => {
+
+    const timeoutId = setTimeout(() => {
+
+      if (desde || hasta || proveedorId || productoId || q.trim()) {
+
+        aplicar();
+
+      }
+
+    }, q.trim() ? 500 : 0); // 500ms debounce para búsqueda de texto
+
+    return () => clearTimeout(timeoutId);
+
+  }, [desde, hasta, proveedorId, productoId, q, aplicar]);
 
 
 

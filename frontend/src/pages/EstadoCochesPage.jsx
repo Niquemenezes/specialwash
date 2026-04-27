@@ -2,7 +2,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useState } from "re
 import { Link } from "react-router-dom";
 import { Context } from "../store/appContext";
 import { normalizeRol } from "../utils/authSession";
-import { editarParteTrabajo } from "../utils/parteTrabajoApi";
+import { editarParteTrabajo, setCocheUrgente } from "../utils/parteTrabajoApi";
 
 const ESTADOS = [
   { key: "todos", label: "Todos" },
@@ -31,15 +31,6 @@ const fmtFecha = (value) => {
   return d.toLocaleString("es-ES");
 };
 
-const formatMinutes = (minutes) => {
-  const total = Number.isFinite(Number(minutes)) ? Math.max(0, Number(minutes)) : 0;
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-  if (h === 0) return `${m} min`;
-  if (m === 0) return `${h} h`;
-  return `${h} h ${m} min`;
-};
-
 const ROL_LABEL = {
   detailing: "Detailing",
   pintura: "Pintura",
@@ -58,9 +49,34 @@ const STATUS_ROL_META = {
 };
 
 const fmtRol = (rol) => ROL_LABEL[String(rol || "").toLowerCase()] || "General";
+const FASE_LABEL = {
+  preparacion: "Preparación",
+  pintura: "Pintura",
+  montaje: "Montaje",
+  limpieza: "Limpieza",
+};
+const GENERIC_OBSERVACIONES = new Set([
+  "apoyo en trabajo del coche",
+  "entrar en la cabina",
+  "entrar cabina",
+  "volver a cabina",
+  "cabina",
+  "lista para iniciar",
+  "lista para pintura",
+  "listo para pintura",
+]);
+const normalizeText = (value) => String(value || "").replace(/\s+/g, " ").trim();
+const getFaseLabel = (fase) => FASE_LABEL[String(fase || "").trim().toLowerCase()] || "Pendiente";
+const sanitizeTrabajo = (value) => {
+  const text = normalizeText(value);
+  if (!text) return "";
+  const lower = text.toLowerCase();
+  if (GENERIC_OBSERVACIONES.has(lower)) return "";
+  return text;
+};
 const fmtTrabajoNombre = (parte) => {
-  const obs = String(parte?.observaciones || "").trim();
-  if (obs && obs.toLowerCase() !== "apoyo en trabajo del coche") return obs;
+  const obs = sanitizeTrabajo(parte?.observaciones);
+  if (obs) return obs;
   return fmtRol(parte?.tipo_tarea);
 };
 const dedupeStrings = (values = []) => [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
@@ -76,6 +92,50 @@ const getStatusLabelForRole = (statusKey, waitingOnRoles = []) => {
     return `Esperando ${formatNaturalList(waitingOnRoles.map((rol) => String(rol || "").toLowerCase()))}`;
   }
   return STATUS_ROL_META[statusKey]?.label || "Esperando";
+};
+const getTrabajoList = (serviciosRol = [], partes = []) =>
+  dedupeStrings([
+    ...serviciosRol.map((servicio) => sanitizeTrabajo(servicio?.nombre)),
+    ...partes.map((parte) => fmtTrabajoNombre(parte)),
+  ]);
+const pickParteActual = (partes = []) => {
+  const prioridadEstado = { en_proceso: 0, en_pausa: 1, pendiente: 2, finalizado: 3 };
+  return [...partes]
+    .sort((a, b) => {
+      const estadoA = prioridadEstado[String(a?.estado || "").toLowerCase()] ?? 99;
+      const estadoB = prioridadEstado[String(b?.estado || "").toLowerCase()] ?? 99;
+      if (estadoA !== estadoB) return estadoA - estadoB;
+      return (Number(b?.id) || 0) - (Number(a?.id) || 0);
+    })[0] || null;
+};
+const getFaseResumenRol = (rol, partesRol = [], partesFinalizadasRol = []) => {
+  const rolNorm = normalizeRol(rol);
+  if (rolNorm !== "pintura") {
+    if (partesRol.length > 0) return fmtRol(rolNorm);
+    if (partesFinalizadasRol.length > 0) return "Finalizado";
+    return fmtRol(rolNorm);
+  }
+  const parteActual = pickParteActual(partesRol);
+  if (parteActual) return getFaseLabel(parteActual?.fase);
+  if (partesFinalizadasRol.length > 0) return "Finalizado";
+  return "Pendiente";
+};
+const getResumenRol = (rol, serviciosRol = [], partesRol = [], partesFinalizadasRol = []) => {
+  const trabajosContratados = dedupeStrings(
+    serviciosRol.map((servicio) => sanitizeTrabajo(servicio?.nombre))
+  );
+  if (trabajosContratados.length > 0) {
+    return trabajosContratados.join(" · ");
+  }
+  const trabajosPartes = getTrabajoList([], partesRol);
+  if (trabajosPartes.length > 0) {
+    return trabajosPartes.join(" · ");
+  }
+  const trabajosFinalizados = getTrabajoList([], partesFinalizadasRol);
+  if (trabajosFinalizados.length > 0) {
+    return trabajosFinalizados.join(" · ");
+  }
+  return "Sin trabajo";
 };
 const mapEstadoCocheToParteEstado = (estadoKey) => {
   if (estadoKey === "en_proceso") return "en_proceso";
@@ -187,11 +247,7 @@ const buildEstadosPorRol = (row) => {
       const empleadosActivos = dedupeStrings(partesRol.map((parte) => parte?.empleado_nombre));
       const empleadosFinalizados = dedupeStrings(partesFinalizadasRol.map((parte) => parte?.empleado_nombre));
       const empleados = statusKey === "finalizado" ? empleadosFinalizados : empleadosActivos;
-      const empleadosLabel = statusKey === "finalizado"
-        ? "Hecho por"
-        : ["en_proceso", "en_pausa"].includes(statusKey)
-          ? "Trabajando"
-          : "Asignado a";
+      const empleadosLabel = "Equipo";
 
       return {
         rol,
@@ -200,11 +256,8 @@ const buildEstadosPorRol = (row) => {
         statusLabel: getStatusLabelForRole(statusKey, rolesQueBloquean),
         themeKey: STATUS_ROL_META[statusKey]?.themeKey || "esperando_parte",
         prioridad: STATUS_ROL_META[statusKey]?.priority ?? 99,
-        trabajos: dedupeStrings([
-          ...serviciosRol.map((servicio) => servicio?.nombre),
-          ...partesRol.map((parte) => fmtTrabajoNombre(parte)),
-          ...partesFinalizadasRol.map((parte) => fmtTrabajoNombre(parte)),
-        ]),
+        resumen: getResumenRol(rol, serviciosRol, partesRol, partesFinalizadasRol),
+        faseResumen: getFaseResumenRol(rol, partesRol, partesFinalizadasRol),
         empleados,
         empleadosLabel,
       };
@@ -358,6 +411,7 @@ export default function EstadoCochesPage() {
   const [filtroEstado, setFiltroEstado] = useState("todos");
   const [q, setQ] = useState("");
   const [editandoRow, setEditandoRow] = useState(null);
+  const [urgentePending, setUrgentePending] = useState({});
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -370,6 +424,16 @@ export default function EstadoCochesPage() {
       setLoading(false);
     }
   }, [actions]);
+
+  const toggleUrgente = useCallback(async (cocheId, currentUrgente) => {
+    setUrgentePending(prev => ({ ...prev, [cocheId]: true }));
+    try {
+      await setCocheUrgente(cocheId, !currentUrgente);
+      await cargar();
+    } finally {
+      setUrgentePending(prev => ({ ...prev, [cocheId]: false }));
+    }
+  }, [cargar]);
 
   useEffect(() => {
     void cargar();
@@ -559,10 +623,6 @@ export default function EstadoCochesPage() {
           }}>
             {filtradas.map((r) => {
               const estado = r?.estado_coche || null;
-              const empleadosActivos = Array.isArray(estado?.partes_activas_empleados)
-                ? estado.partes_activas_empleados : [];
-              const partesActivasIds = Array.isArray(estado?.partes_activas_ids)
-                ? estado.partes_activas_ids : [];
               const partesActivasDetalle = getPartesActivasDetalle(r);
               const rolesTodos = Array.isArray(estado?.partes_roles_todos)
                 ? estado.partes_roles_todos : [];
@@ -578,26 +638,6 @@ export default function EstadoCochesPage() {
                 : [...new Set(partesActivasDetalle.map((p) => normalizeRol(p?.tipo_tarea)).filter(Boolean))];
               const rolesAsignadosFinal = rolesAsignados.length > 0 ? rolesAsignados : rolesDesdeServicios;
               const estadosPorRol = buildEstadosPorRol(r);
-              let trabajosPorEmpleado = partesActivasDetalle.reduce((acc, p) => {
-                const empleado = String(p?.empleado_nombre || estado?.parte_empleado_nombre || "Pendiente de asignar").trim() || "Pendiente de asignar";
-                const trabajo = fmtTrabajoNombre(p);
-                const actual = acc.find((item) => item.empleado === empleado);
-                if (actual) {
-                  if (trabajo && !actual.trabajos.includes(trabajo)) actual.trabajos.push(trabajo);
-                } else {
-                  acc.push({ empleado, trabajos: trabajo ? [trabajo] : [] });
-                }
-                return acc;
-              }, []);
-              if (trabajosPorEmpleado.length === 0) {
-                const trabajoFallback = String(estado?.parte_obs || "").trim() || (rolesAsignadosFinal.length > 0 ? rolesAsignadosFinal.map((rol) => fmtRol(rol)).join(" · ") : "");
-                if (trabajoFallback) {
-                  trabajosPorEmpleado = [{
-                    empleado: empleadosActivos.length > 0 ? empleadosActivos.join(", ") : (estado?.parte_empleado_nombre || "Pendiente de asignar"),
-                    trabajos: [trabajoFallback],
-                  }];
-                }
-              }
               const estadoLabel = estado?.label || "Sin estado";
               const estadoConConteo = estadoLabel;
               const estadoKey = estado?.estado || "sin_estado";
@@ -623,7 +663,7 @@ export default function EstadoCochesPage() {
                     borderBottom: "1px solid rgba(255,255,255,0.05)",
                     display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.65rem",
                   }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.55rem", minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.55rem", minWidth: 0, flex: 1 }}>
                       <span style={{
                         fontFamily: "monospace", fontWeight: 800, fontSize: "0.95rem",
                         color: "var(--sw-accent)", letterSpacing: "0.08em",
@@ -634,6 +674,15 @@ export default function EstadoCochesPage() {
                       }}>
                         {r?.matricula || "-"}
                       </span>
+                      {r?.urgente && (
+                        <span style={{
+                          background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.45)",
+                          color: "#f87171", borderRadius: "5px", padding: "0.05rem 0.45rem",
+                          fontSize: "0.7rem", fontWeight: 800, letterSpacing: "0.06em", flexShrink: 0,
+                        }}>
+                          ⚡ URGENTE
+                        </span>
+                      )}
                       <span style={{ fontSize: "0.82rem", color: "var(--sw-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {r?.coche_descripcion || "-"}
                       </span>
@@ -662,32 +711,22 @@ export default function EstadoCochesPage() {
                                 <strong style={{ fontSize: "0.82rem", color: "var(--sw-text)" }}>{item.rolLabel}</strong>
                                 <EstadoBadge estadoKey={item.themeKey} label={item.statusLabel} />
                               </div>
+                              {item.faseResumen && (
+                                <div style={{ marginTop: "0.28rem", fontSize: "0.78rem", color: "var(--sw-text)", fontWeight: 700 }}>
+                                  {item.faseResumen}
+                                </div>
+                              )}
                               <div style={{ marginTop: "0.28rem", fontSize: "0.8rem", color: "var(--sw-muted)" }}>
-                                {item.trabajos.join(" · ") || "Trabajo asignado"}
+                                {item.resumen || "Trabajo asignado"}
                               </div>
                               {item.empleados.length > 0 && (
                                 <div style={{ marginTop: "0.2rem", fontSize: "0.74rem", color: "var(--sw-text)" }}>
-                                  <strong>{item.empleadosLabel || "Trabajando"}:</strong> {item.empleados.join(", ")}
+                                  <strong>{item.empleadosLabel || "Equipo"}:</strong> {item.empleados.join(", ")}
                                 </div>
                               )}
                             </div>
                             );
                           })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Trabajos por empleado */}
-                    {trabajosPorEmpleado.length > 0 && (
-                      <div style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start" }}>
-                        <span style={{ fontSize: "0.7rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--sw-muted)", minWidth: "4.2rem", paddingTop: "0.08rem" }}>Equipo</span>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", flex: 1 }}>
-                          {trabajosPorEmpleado.map((item) => (
-                            <div key={`${r.id}-${item.empleado}`} style={{ fontSize: "0.84rem", color: "var(--sw-text)" }}>
-                              <strong>{item.empleado}:</strong>{" "}
-                              <span style={{ color: "var(--sw-muted)" }}>{item.trabajos.join(" · ") || "Trabajo asignado"}</span>
-                            </div>
-                          ))}
                         </div>
                       </div>
                     )}
@@ -720,16 +759,32 @@ export default function EstadoCochesPage() {
                     <span style={{ fontSize: "0.7rem", color: "var(--sw-muted)" }}>
                       🕐 {fmtFecha(r?.fecha_inspeccion)}
                     </span>
-                    <button
-                      onClick={() => setEditandoRow(r)}
-                      style={{
-                        background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.25)",
-                        color: "var(--sw-accent)", borderRadius: "6px", padding: "0.2rem 0.65rem",
-                        fontSize: "0.7rem", fontWeight: 700, cursor: "pointer", flexShrink: 0,
-                      }}
-                    >
-                      ✎ Editar
-                    </button>
+                    <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0 }}>
+                      <button
+                        disabled={!!urgentePending[r?.coche_id]}
+                        onClick={() => toggleUrgente(r?.coche_id, r?.urgente)}
+                        style={{
+                          background: r?.urgente ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.04)",
+                          border: r?.urgente ? "1px solid rgba(239,68,68,0.45)" : "1px solid rgba(255,255,255,0.1)",
+                          color: r?.urgente ? "#f87171" : "var(--sw-muted)",
+                          borderRadius: "6px", padding: "0.2rem 0.6rem",
+                          fontSize: "0.7rem", fontWeight: 700, cursor: "pointer",
+                        }}
+                        title={r?.urgente ? "Quitar urgencia" : "Marcar como urgente"}
+                      >
+                        {urgentePending[r?.coche_id] ? "…" : r?.urgente ? "⚡ Urgente" : "⚡ Urgente"}
+                      </button>
+                      <button
+                        onClick={() => setEditandoRow(r)}
+                        style={{
+                          background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.25)",
+                          color: "var(--sw-accent)", borderRadius: "6px", padding: "0.2rem 0.65rem",
+                          fontSize: "0.7rem", fontWeight: 700, cursor: "pointer",
+                        }}
+                      >
+                        ✎ Editar
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

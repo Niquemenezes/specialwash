@@ -8,6 +8,7 @@ import os
 import uuid
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 from urllib import request as urlrequest
 from urllib.error import HTTPError, URLError
 import unicodedata
@@ -46,6 +47,106 @@ def _parte_recency_key(parte):
     return (ref.timestamp(), int(parte.id or 0))
 
 
+def _parte_es_de_inspeccion_actual(parte, inspeccion):
+    if not parte or not inspeccion:
+        return False
+    if getattr(parte, "inspeccion_id", None) != getattr(inspeccion, "id", None):
+        return False
+    if getattr(parte, "coche_id", None) != getattr(inspeccion, "coche_id", None):
+        return False
+
+    fecha_ref = getattr(inspeccion, "fecha_inspeccion", None) or getattr(inspeccion, "created_at", None)
+    if fecha_ref is None:
+        return True
+
+    fecha_parte = getattr(parte, "fecha_fin", None) or getattr(parte, "fecha_inicio", None)
+    if fecha_parte is None:
+        return True
+    return fecha_parte >= fecha_ref
+
+
+def _filter_partes_info_por_inspeccion(partes_info, inspeccion):
+    if not isinstance(partes_info, dict):
+        return {
+            "parte": None,
+            "partes_activas_count": 0,
+            "partes_activas_ids": [],
+            "partes_activas_empleados": [],
+            "partes_activas_detalle": [],
+            "partes_roles_todos": [],
+            "partes_finalizados_detalle": [],
+        }
+
+    inspeccion_id = getattr(inspeccion, "id", None)
+    fecha_ref = getattr(inspeccion, "fecha_inspeccion", None) or getattr(inspeccion, "created_at", None)
+
+    def _parse_dt(value):
+        if not value:
+            return None
+        if isinstance(value, datetime):
+            return value
+        try:
+            return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        except Exception:
+            return None
+
+    def _parte_match(parte):
+        if not parte or parte.get("inspeccion_id") != inspeccion_id:
+            return False
+        if fecha_ref is None:
+            return True
+        fecha_inicio = _parse_dt(parte.get("fecha_inicio"))
+        fecha_fin = _parse_dt(parte.get("fecha_fin"))
+        fecha_parte = fecha_fin or fecha_inicio
+        if fecha_parte is None:
+            return True
+        return fecha_parte >= fecha_ref
+
+    activas = [
+        parte for parte in (partes_info.get("partes_activas_detalle") or [])
+        if _parte_match(parte)
+    ]
+    finalizadas = [
+        parte for parte in (partes_info.get("partes_finalizados_detalle") or [])
+        if _parte_match(parte)
+    ]
+
+    parte_principal = partes_info.get("parte")
+    if getattr(parte_principal, "inspeccion_id", None) != inspeccion_id:
+        parte_principal = None
+    elif fecha_ref is not None:
+        fecha_principal = getattr(parte_principal, "fecha_fin", None) or getattr(parte_principal, "fecha_inicio", None)
+        if fecha_principal is not None and fecha_principal < fecha_ref:
+            parte_principal = None
+
+    if parte_principal is None:
+        partes_candidatas = []
+        for parte in activas + finalizadas:
+            estado = str(parte.get("estado") or "finalizado")
+            prioridad = _PRIORIDAD_ESTADO_PARTE.get(estado, 99)
+            fecha_ref_parte = _parse_dt(parte.get("fecha_fin")) or _parse_dt(parte.get("fecha_inicio"))
+            timestamp = fecha_ref_parte.timestamp() if fecha_ref_parte else 0.0
+            partes_candidatas.append((prioridad, timestamp, int(parte.get("id") or 0), parte))
+
+        if partes_candidatas:
+            partes_candidatas.sort(key=lambda item: (item[0], -item[1], -item[2]))
+            parte_principal = SimpleNamespace(**partes_candidatas[0][3])
+
+    return {
+        "parte": parte_principal,
+        "partes_activas_count": len(activas),
+        "partes_activas_ids": [int(parte["id"]) for parte in activas if parte.get("id") is not None],
+        "partes_activas_empleados": list(dict.fromkeys(
+            [parte.get("empleado_nombre") for parte in activas if parte.get("empleado_nombre")]
+        )),
+        "partes_activas_detalle": activas,
+        "partes_roles_todos": list(dict.fromkeys(
+            [parte.get("tipo_tarea") for parte in activas if parte.get("tipo_tarea")]
+        )),
+        "partes_finalizados_detalle": finalizadas,
+    }
+
+
 def _get_partes_por_coche(coche_ids):
     """Retorna dict coche_id con parte principal y resumen de partes activos.
     También indexa por inspeccion_id para inspecciones con parte propio."""
@@ -62,14 +163,24 @@ def _get_partes_por_coche(coche_ids):
         prioridad = _PRIORIDAD_ESTADO_PARTE.get(st, 99)
         recency = _parte_recency_key(parte)
 
+        # Los partes fantasma (auto-creados, pendiente sin empleado/fecha/fase) tienen
+        # prioridad menor que cualquier parte real, incluidos los finalizados.
+        _es_fantasma = (
+            st == "pendiente"
+            and not parte.empleado_id
+            and not parte.fecha_inicio
+            and not parte.fase
+        )
+        prioridad_efectiva = 10 if _es_fantasma else prioridad
+
         # Índice por inspeccion_id (para inspecciones que tienen parte propio)
         if iid is not None:
             if iid not in por_inspeccion:
-                por_inspeccion[iid] = (prioridad, recency, parte)
+                por_inspeccion[iid] = (prioridad_efectiva, recency, parte)
             else:
                 cur_p, cur_r, _ = por_inspeccion[iid]
-                if prioridad < cur_p or (prioridad == cur_p and recency > cur_r):
-                    por_inspeccion[iid] = (prioridad, recency, parte)
+                if prioridad_efectiva < cur_p or (prioridad_efectiva == cur_p and recency > cur_r):
+                    por_inspeccion[iid] = (prioridad_efectiva, recency, parte)
 
         # Partes activos del coche (sin finalizados) para mostrar carga real.
         if st in {"pendiente", "en_proceso", "en_pausa"}:
@@ -94,12 +205,16 @@ def _get_partes_por_coche(coche_ids):
             duracion_min = getattr(parte, "duracion_minutos", None)
             bucket["partes_detalle"].append({
                 "id": int(parte.id),
+                "inspeccion_id": int(parte.inspeccion_id) if getattr(parte, "inspeccion_id", None) else None,
                 "empleado_id": int(parte.empleado_id) if getattr(parte, "empleado_id", None) else None,
                 "empleado_nombre": empleado_nombre or None,
                 "tipo_tarea": tipo_tarea,
+                "fase": (getattr(parte, "fase", "") or "").strip() or None,
                 "observaciones": (getattr(parte, "observaciones", "") or "").strip() or None,
                 "estado": st,
+                "prioridad": int(getattr(parte, "prioridad", 0) or 0),
                 "fecha_inicio": fecha_inicio_iso,
+                "fecha_fin": parte.fecha_fin.isoformat() if getattr(parte, "fecha_fin", None) else None,
                 "duracion_minutos": int(duracion_min) if duracion_min is not None else None,
             })
         elif st == "finalizado":
@@ -119,21 +234,51 @@ def _get_partes_por_coche(coche_ids):
             fecha_fin = parte.fecha_fin.isoformat() if getattr(parte, "fecha_fin", None) else None
             fin_bucket["partes_finalizados"].append({
                 "id": int(parte.id),
+                "inspeccion_id": int(parte.inspeccion_id) if getattr(parte, "inspeccion_id", None) else None,
                 "empleado_id": int(parte.empleado_id) if getattr(parte, "empleado_id", None) else None,
                 "empleado_nombre": empleado_nombre_fin or None,
                 "tipo_tarea": tipo_tarea_fin,
+                "fase": (getattr(parte, "fase", "") or "").strip() or None,
                 "observaciones": (getattr(parte, "observaciones", "") or "").strip() or None,
+                "fecha_inicio": parte.fecha_inicio.isoformat() if getattr(parte, "fecha_inicio", None) else None,
                 "fecha_fin": fecha_fin,
             })
 
         if cid not in por_coche:
-            por_coche[cid] = (prioridad, recency, parte)
+            por_coche[cid] = (prioridad_efectiva, recency, parte)
         else:
             current_prioridad, current_recency, _ = por_coche[cid]
-            if prioridad < current_prioridad:
-                por_coche[cid] = (prioridad, recency, parte)
-            elif prioridad == current_prioridad and recency > current_recency:
-                por_coche[cid] = (prioridad, recency, parte)
+            if prioridad_efectiva < current_prioridad:
+                por_coche[cid] = (prioridad_efectiva, recency, parte)
+            elif prioridad_efectiva == current_prioridad and recency > current_recency:
+                por_coche[cid] = (prioridad_efectiva, recency, parte)
+
+    # Post-proceso: eliminar partes "fantasma" — pendiente sin empleado ni fecha_inicio
+    # cuando ya hay partes finalizados del mismo tipo_tarea para ese coche.
+    # Esto ocurre con partes base de pintura (uno por servicio contratado) que nunca
+    # se asignaron individualmente porque el flujo arrancó por el primer parte.
+    for bucket in resumen_activos.values():
+        tipos_finalizados = {
+            p.get("tipo_tarea")
+            for p in bucket.get("partes_finalizados", [])
+            if p.get("tipo_tarea")
+        }
+        if not tipos_finalizados:
+            continue
+        partes_filtrados = [
+            p for p in bucket.get("partes_detalle", [])
+            if not (
+                p.get("estado") == "pendiente"
+                and not p.get("empleado_id")
+                and not p.get("fecha_inicio")
+                and p.get("tipo_tarea") in tipos_finalizados
+                and not p.get("fase")  # solo partes base sin fase explícita
+            )
+        ]
+        if len(partes_filtrados) != len(bucket.get("partes_detalle", [])):
+            ids_restantes = {p["id"] for p in partes_filtrados}
+            bucket["partes_detalle"] = partes_filtrados
+            bucket["partes_ids"] = [pid for pid in bucket["partes_ids"] if pid in ids_restantes]
 
     out = {}
     all_coche_ids = set(coche_ids)
@@ -166,7 +311,14 @@ def _get_partes_por_coche(coche_ids):
     return out
 
 
-def _compute_estado_coche(inspeccion, parte, partes_activas_count=0, partes_activas_ids=None, partes_activas_empleados=None):
+def _compute_estado_coche(
+    inspeccion,
+    parte,
+    partes_activas_count=0,
+    partes_activas_ids=None,
+    partes_activas_empleados=None,
+    partes_finalizados_count=0,
+):
     """Calcula el estado visual actual del coche en el proceso de taller."""
     partes_activas_ids = partes_activas_ids or []
     partes_activas_empleados = partes_activas_empleados or []
@@ -202,6 +354,20 @@ def _compute_estado_coche(inspeccion, parte, partes_activas_count=0, partes_acti
         }
 
     if parte is None:
+        if int(partes_finalizados_count or 0) > 0:
+            return {
+                "estado": "en_repaso",
+                "label": "🧽 En repaso",
+                "color": "#0d6efd",
+                "parte_id": None,
+                "parte_obs": None,
+                "parte_empleado_id": None,
+                "parte_empleado_nombre": None,
+                "parte_tipo_tarea": None,
+                "partes_activas_count": int(partes_activas_count or 0),
+                "partes_activas_ids": partes_activas_ids,
+                "partes_activas_empleados": partes_activas_empleados,
+            }
         return {
             "estado": "esperando_parte",
             "label": "⏳ Esperando parte de trabajo",
@@ -252,6 +418,27 @@ def _compute_estado_coche(inspeccion, parte, partes_activas_count=0, partes_acti
             "partes_activas_empleados": partes_activas_empleados,
         }
     if st == "pendiente":
+        # Parte fantasma: creado automáticamente, sin empleado ni fecha de inicio ni fase explícita.
+        # Si ya hay partes finalizados de este coche, ignorar el fantasma y mostrar en_repaso.
+        es_fantasma = (
+            not getattr(parte, "empleado_id", None)
+            and not getattr(parte, "fecha_inicio", None)
+            and not getattr(parte, "fase", None)
+        )
+        if es_fantasma and int(partes_finalizados_count or 0) > 0:
+            return {
+                "estado": "en_repaso",
+                "label": "🧽 En repaso",
+                "color": "#0d6efd",
+                "parte_id": None,
+                "parte_obs": None,
+                "parte_empleado_id": None,
+                "parte_empleado_nombre": None,
+                "parte_tipo_tarea": None,
+                "partes_activas_count": int(partes_activas_count or 0),
+                "partes_activas_ids": partes_activas_ids,
+                "partes_activas_empleados": partes_activas_empleados,
+            }
         return {
             "estado": "parte_pendiente",
             "label": "📋 Parte asignado",
@@ -318,19 +505,24 @@ def _serialize_inspeccion_con_estado(inspeccion, partes_por_coche):
     else:
         partes_info = partes_info_coche
 
-    parte = partes_info.get("parte") if isinstance(partes_info, dict) else None
+    partes_info_filtradas = _filter_partes_info_por_inspeccion(partes_info, inspeccion)
+
+    parte = partes_info_filtradas.get("parte")
     data["estado_coche"] = _compute_estado_coche(
         inspeccion,
         parte,
-        partes_activas_count=partes_info.get("partes_activas_count", 0) if isinstance(partes_info, dict) else 0,
-        partes_activas_ids=partes_info.get("partes_activas_ids", []) if isinstance(partes_info, dict) else [],
-        partes_activas_empleados=partes_info.get("partes_activas_empleados", []) if isinstance(partes_info, dict) else [],
+        partes_activas_count=partes_info_filtradas.get("partes_activas_count", 0),
+        partes_activas_ids=partes_info_filtradas.get("partes_activas_ids", []),
+        partes_activas_empleados=partes_info_filtradas.get("partes_activas_empleados", []),
+        partes_finalizados_count=len(partes_info_filtradas.get("partes_finalizados_detalle", [])),
     )
     if isinstance(data.get("estado_coche"), dict):
-        data["estado_coche"]["partes_activas_detalle"] = partes_info.get("partes_activas_detalle", []) if isinstance(partes_info, dict) else []
-        data["estado_coche"]["partes_roles_todos"] = partes_info.get("partes_roles_todos", []) if isinstance(partes_info, dict) else []
-        data["estado_coche"]["partes_finalizados_detalle"] = partes_info.get("partes_finalizados_detalle", []) if isinstance(partes_info, dict) else []
+        data["estado_coche"]["partes_activas_detalle"] = partes_info_filtradas.get("partes_activas_detalle", [])
+        data["estado_coche"]["partes_roles_todos"] = partes_info_filtradas.get("partes_roles_todos", [])
+        data["estado_coche"]["partes_finalizados_detalle"] = partes_info_filtradas.get("partes_finalizados_detalle", [])
     data["cobro"] = _build_cobro_info(inspeccion)
+    partes_activas_detalle = data.get("estado_coche", {}).get("partes_activas_detalle", []) if isinstance(data.get("estado_coche"), dict) else []
+    data["urgente"] = any(int(p.get("prioridad", 0) or 0) > 0 for p in partes_activas_detalle)
     return data
 
 
@@ -392,6 +584,8 @@ def _auto_crear_partes_desde_inspeccion(inspeccion):
     """
     try:
         from uuid import uuid4
+        if not inspeccion.coche_id:
+            return  # Inspección sin coche vinculado, no se pueden crear partes
         servicios = json.loads(inspeccion.servicios_aplicados or "[]")
         if not isinstance(servicios, list) or not servicios:
             return
@@ -445,18 +639,22 @@ def _auto_crear_partes_desde_inspeccion(inspeccion):
             if not nombre or not tipo_tarea:
                 continue  # Sin nombre o sin rol no podemos generar el parte
 
-            # Evitar duplicados: si ya existe un parte para esta inspección + servicio
-            if servicio_catalogo_id:
-                existe = ParteTrabajo.query.filter_by(
-                    inspeccion_id=inspeccion.id,
-                    servicio_catalogo_id=servicio_catalogo_id,
-                ).first()
-            else:
-                existe = ParteTrabajo.query.filter_by(
-                    inspeccion_id=inspeccion.id,
-                    observaciones=nombre,
-                ).first()
+            # Evitar duplicados solo dentro de la inspección/coche actual.
+            with db.session.no_autoflush:
+                if servicio_catalogo_id:
+                    candidatos = ParteTrabajo.query.filter_by(
+                        inspeccion_id=inspeccion.id,
+                        coche_id=inspeccion.coche_id,
+                        servicio_catalogo_id=servicio_catalogo_id,
+                    ).all()
+                else:
+                    candidatos = ParteTrabajo.query.filter_by(
+                        inspeccion_id=inspeccion.id,
+                        coche_id=inspeccion.coche_id,
+                        observaciones=nombre,
+                    ).all()
 
+            existe = next((parte for parte in candidatos if _parte_es_de_inspeccion_actual(parte, inspeccion)), None)
             if existe:
                 continue
 
@@ -571,6 +769,46 @@ def _safe_servicios_aplicados(inspeccion):
         return raw if isinstance(raw, list) else []
     except Exception:
         return []
+
+
+def _build_trabajos_realizados_desde_partes(inspeccion):
+    if not inspeccion or not inspeccion.coche_id:
+        return ""
+
+    partes = (
+        ParteTrabajo.query
+        .filter(
+            ParteTrabajo.coche_id == inspeccion.coche_id,
+            ParteTrabajo.estado == EstadoParte.finalizado,
+        )
+        .order_by(ParteTrabajo.fecha_fin.asc(), ParteTrabajo.id.asc())
+        .all()
+    )
+
+    lineas = []
+    seen = set()
+
+    for parte in partes:
+        detalle = (getattr(parte, "observaciones", "") or "").strip()
+        if not detalle:
+            continue
+
+        fase = (getattr(parte, "fase", "") or "").strip().lower()
+        if fase == "preparacion":
+            prefijo = "Preparación"
+        elif fase == "pintura":
+            prefijo = "Pintura"
+        else:
+            tipo = normalize_role(getattr(parte, "tipo_tarea", "") or "") or ""
+            prefijo = (tipo[:1].upper() + tipo[1:]) if tipo else "Trabajo"
+
+        clave = (prefijo.lower(), detalle.lower())
+        if clave in seen:
+            continue
+        seen.add(clave)
+        lineas.append(f"{prefijo}: {detalle}")
+
+    return "\n".join(lineas).strip()
 
 
 def _importe_total_inspeccion(inspeccion):
@@ -1122,8 +1360,9 @@ def actualizar_inspeccion(inspeccion_id):
     if not _is_inspeccion_role(user):
         return jsonify({"msg": "No tienes permiso para esta acción"}), 403
     
-    # Validar permisos
-    if user.rol != "administrador" and inspeccion.usuario_id != user_id:
+    # Validar permisos: admin y calidad pueden actualizar cualquier inspección
+    # para reflejar cambios posteriores solicitados por el cliente.
+    if normalize_role(getattr(user, "rol", "")) not in {"administrador", "calidad"} and inspeccion.usuario_id != user_id:
         return jsonify({"msg": "No tienes permiso para actualizar esta inspección"}), 403
     
     data = request.get_json()
@@ -1387,7 +1626,19 @@ def registrar_entrega(inspeccion_id):
     data = request.get_json() or {}
     es_concesionario = bool(inspeccion.es_concesionario)
 
-    if not es_concesionario and not data.get("trabajos_realizados"):
+    # Determinar trabajos_realizados: del request, luego del registro previo,
+    # luego de los partes realmente finalizados y, por último, de servicios contratados.
+    _tr = (data.get("trabajos_realizados") or "").strip()
+    if not _tr:
+        _tr = (inspeccion.trabajos_realizados or "").strip()
+    if not _tr:
+        _tr = _build_trabajos_realizados_desde_partes(inspeccion)
+    if not _tr:
+        _svcs = _safe_servicios_aplicados(inspeccion)
+        _tr = "\n".join(s["nombre"] for s in _svcs if s.get("nombre"))
+    trabajos_realizados_final = _tr
+
+    if not es_concesionario and not trabajos_realizados_final:
         return jsonify({"msg": "Campo requerido: trabajos_realizados"}), 400
 
     if not es_concesionario and not (data.get("firma_cliente_entrega") or "").strip():
@@ -1402,10 +1653,7 @@ def registrar_entrega(inspeccion_id):
     cobro_registrado_en_entrega = False
 
     try:
-        trabajos_realizados = data.get("trabajos_realizados")
-        if trabajos_realizados is None:
-            trabajos_realizados = inspeccion.trabajos_realizados or ""
-        inspeccion.trabajos_realizados = str(trabajos_realizados).strip()
+        inspeccion.trabajos_realizados = trabajos_realizados_final
         inspeccion.entrega_observaciones = data.get("entrega_observaciones", "").strip()
         inspeccion.firma_cliente_entrega = None if es_concesionario else data.get("firma_cliente_entrega")
         # Firma de empleado no se usa en entrega.

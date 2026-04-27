@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { confirmar } from "../utils/confirmar";
 import {
   listarPartesTrabajo,
@@ -41,11 +41,74 @@ function EstadoBadge({ estado }) {
   );
 }
 
-function formatDate(value) {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleString();
+const FASE_CONFIG = {
+  preparacion: { label: "Preparación", color: "#38bdf8", bg: "rgba(56,189,248,0.12)", border: "rgba(56,189,248,0.3)", accent: "#38bdf8", soft: "rgba(56,189,248,0.08)", background: "linear-gradient(135deg, rgba(56,189,248,0.08), rgba(255,255,255,0.01) 42%)" },
+  pintura: { label: "Pintura", color: "#fb7185", bg: "rgba(251,113,133,0.12)", border: "rgba(251,113,133,0.3)", accent: "#fb7185", soft: "rgba(251,113,133,0.08)", background: "linear-gradient(135deg, rgba(251,113,133,0.08), rgba(255,255,255,0.01) 42%)" },
+  montaje: { label: "Montaje", color: "#f59e0b", bg: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.3)", accent: "#f59e0b", soft: "rgba(245,158,11,0.08)", background: "linear-gradient(135deg, rgba(245,158,11,0.08), rgba(255,255,255,0.01) 42%)" },
+  limpieza: { label: "Limpieza", color: "#4ade80", bg: "rgba(74,222,128,0.12)", border: "rgba(74,222,128,0.28)", accent: "#4ade80", soft: "rgba(74,222,128,0.08)", background: "linear-gradient(135deg, rgba(74,222,128,0.08), rgba(255,255,255,0.01) 42%)" },
+};
+
+const FASE_ORDER = ["preparacion", "pintura", "montaje", "limpieza"];
+
+function normalizeFaseValue(value, fallback = "preparacion") {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "preparación" || normalized === "prep") return "preparacion";
+  if (normalized === "pintar") return "pintura";
+  if (normalized === "montar") return "montaje";
+  if (normalized === "limpiar") return "limpieza";
+  return FASE_CONFIG[normalized] ? normalized : fallback;
+}
+
+function FaseBadge({ fase, esTareaInterna = false }) {
+  if (esTareaInterna) return null;
+  const normalized = normalizeFaseValue(fase);
+  const { label, color, bg, border } = FASE_CONFIG[normalized] || FASE_CONFIG.preparacion;
+  return (
+    <span style={{
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "0.35rem",
+      padding: "0.2rem 0.65rem",
+      borderRadius: "999px",
+      fontSize: "0.72rem",
+      fontWeight: 700,
+      letterSpacing: "0.04em",
+      background: bg,
+      border: `1px solid ${border}`,
+      color,
+      whiteSpace: "nowrap",
+    }}>
+      <span style={{ width: 5, height: 5, borderRadius: "50%", background: color, flexShrink: 0 }} />
+      {label}
+    </span>
+  );
+}
+
+function getDominantFase(partes = [], esTareaInterna = false) {
+  if (esTareaInterna) return null;
+  return partes.reduce((current, parte) => {
+    const fase = normalizeFaseValue(parte?.fase);
+    if (!current) return fase;
+    return FASE_ORDER.indexOf(fase) > FASE_ORDER.indexOf(current) ? fase : current;
+  }, null) || "preparacion";
+}
+
+function getFaseVisual(fase, esTareaInterna = false) {
+  if (esTareaInterna) {
+    return {
+      accent: "rgba(212,175,55,0.4)",
+      border: "rgba(255,255,255,0.07)",
+      background: "var(--sw-surface)",
+      soft: "rgba(212,175,55,0.08)",
+    };
+  }
+  const config = FASE_CONFIG[normalizeFaseValue(fase)] || FASE_CONFIG.preparacion;
+  return {
+    accent: config.accent,
+    border: config.border,
+    background: config.background,
+    soft: config.soft,
+  };
 }
 
 function formatShortDate(value) {
@@ -78,15 +141,6 @@ function parseHoursToMinutes(hoursValue) {
   return Math.round(hours * 60);
 }
 
-function deviationBadge(desviacionMinutos) {
-  if (!Number.isFinite(Number(desviacionMinutos))) return <span className="text-muted">-</span>;
-  const value = Number(desviacionMinutos);
-  let cls = "bg-success";
-  if (value > 30) cls = "bg-danger";
-  else if (value > 10) cls = "bg-warning text-dark";
-  return <span className={`badge ${cls}`}>{`${value > 0 ? "+" : ""}${value} min`}</span>;
-}
-
 const TIPO_TAREA_OPTIONS = [
   { value: "pintura", label: "Pintor / Pintura" },
   { value: "detailing", label: "Detailing / Lavado" },
@@ -97,6 +151,63 @@ const TIPO_TAREA_OPTIONS = [
 function getTipoTareaLabel(tipoTarea) {
   const normalized = tipoTarea === "tapiceria" ? "tapicero" : tipoTarea;
   return TIPO_TAREA_OPTIONS.find((item) => item.value === normalized)?.label || "Sin área";
+}
+
+function usaFlujoPintura(parte) {
+  return String(parte?.tipo_tarea || "").trim().toLowerCase() === "pintura";
+}
+
+function getLineasTrabajoPintura(partes = []) {
+  const seen = new Set();
+  const lines = [];
+  for (const parte of partes) {
+    const raw = String(parte?.observaciones || "").trim();
+    const chunks = raw
+      ? raw.split("|").map((item) => item.trim()).filter(Boolean)
+      : [getTipoTareaLabel(parte?.tipo_tarea)];
+    for (const chunk of chunks) {
+      const key = chunk.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      lines.push(chunk);
+    }
+  }
+  return lines;
+}
+
+function getColaboradoresPintura(partes = []) {
+  const priority = {
+    en_proceso: 0,
+    en_pausa: 1,
+    pendiente: 2,
+    finalizado: 3,
+  };
+  const byEmployee = new Map();
+  for (const parte of partes) {
+    const colaboradores = Array.isArray(parte?.colaboradores) ? parte.colaboradores : [];
+    for (const colaborador of colaboradores) {
+      const empleadoId = Number(colaborador?.empleado_id);
+      if (!Number.isFinite(empleadoId)) continue;
+      const existing = byEmployee.get(empleadoId);
+      if (!existing) {
+        byEmployee.set(empleadoId, colaborador);
+        continue;
+      }
+      const currentPriority = priority[String(colaborador?.estado || "")] ?? 99;
+      const existingPriority = priority[String(existing?.estado || "")] ?? 99;
+      const currentId = Number(colaborador?.id || 0);
+      const existingId = Number(existing?.id || 0);
+      if (currentPriority < existingPriority || (currentPriority === existingPriority && currentId > existingId)) {
+        byEmployee.set(empleadoId, colaborador);
+      }
+    }
+  }
+  return Array.from(byEmployee.values()).sort((a, b) => {
+    const pa = priority[String(a?.estado || "")] ?? 99;
+    const pb = priority[String(b?.estado || "")] ?? 99;
+    if (pa !== pb) return pa - pb;
+    return String(a?.empleado_nombre || "").localeCompare(String(b?.empleado_nombre || ""), "es");
+  });
 }
 
 export function AdminPartesTrabajo() {
@@ -112,8 +223,11 @@ export function AdminPartesTrabajo() {
   const [empleadosDisponibles, setEmpleadosDisponibles] = useState([]);
   const [loadingRecursos, setLoadingRecursos] = useState(true);
   const [editandoId, setEditandoId] = useState(null);
+  const [editParteActual, setEditParteActual] = useState(null);
   const [editEmpleadoId, setEditEmpleadoId] = useState("");
   const [editServicioId, setEditServicioId] = useState("");
+  const [editNuevoServicioId, setEditNuevoServicioId] = useState("");
+  const [editServiciosNuevos, setEditServiciosNuevos] = useState([]);
   const [editLoading, setEditLoading] = useState(false);
   const [serviciosCatalogo, setServiciosCatalogo] = useState([]);
   const [nuevoServicioId, setNuevoServicioId] = useState("");
@@ -137,14 +251,6 @@ export function AdminPartesTrabajo() {
     .filter(Boolean);
   const hayServiciosSinTiempo = nombresServiciosSinTiempo.length > 0;
 
-  const empleadoNombrePorId = useCallback(
-    (id) => {
-      const emp = empleadosDisponibles.find((u) => Number(u.id) === Number(id));
-      return emp ? emp.nombre : `ID ${id}`;
-    },
-    [empleadosDisponibles]
-  );
-
   const cocheTextoPorId = useCallback(
     (id) => {
       const coche = [...cochesDisponibles, ...cochesCatalogo].find(
@@ -160,6 +266,23 @@ export function AdminPartesTrabajo() {
     (s) => !String(s.tipo_tarea || "").trim()
   );
   const hayServiciosSinTipo = serviciosSinTipo.length > 0;
+
+  const cochesActivosPorFase = partes.reduce((acc, parte) => {
+    if (parte?.es_tarea_interna) return acc;
+    const cocheId = Number(parte?.coche_id);
+    if (!Number.isFinite(cocheId)) return acc;
+    const fase = String(parte?.fase || "preparacion").trim().toLowerCase();
+    const faseActual = fase === "pintura" ? "pintura" : "preparacion";
+    const previo = acc[cocheId];
+    if (!previo || faseActual === "pintura") {
+      acc[cocheId] = faseActual;
+    }
+    return acc;
+  }, {});
+
+  const totalCochesActivos = Object.keys(cochesActivosPorFase).length;
+  const cochesEnPreparacion = Object.values(cochesActivosPorFase).filter((fase) => fase === "preparacion").length;
+  const cochesEnPintura = Object.values(cochesActivosPorFase).filter((fase) => fase === "pintura").length;
 
   const groupByDate = (partesArray) => {
     const grupos = {};
@@ -435,45 +558,12 @@ export function AdminPartesTrabajo() {
     }
   };
 
-  const onQuitarPausa = async (id) => {
+  const onFinalizarGrupo = async (grupoPartes) => {
     setError("");
     try {
-      await quitarPausa(id);
-      await cargarPartes();
-    } catch (e) {
-      setError(e?.message || "No se pudo quitar la pausa.");
-    }
-  };
-
-  const onFinalizar = async (id) => {
-    setError("");
-    try {
-      await cambiarEstadoParte(id, "finalizado");
-      await cargarPartes();
-    } catch (e) {
-      setError(e?.message || "No se pudo finalizar el parte.");
-    }
-  };
-
-  const onEliminarParte = async (parte) => {
-    const confirmado = await confirmar(
-      `Vas a eliminar el parte #${parte.id} (${parte.matricula || `coche ${parte.coche_id}`}). Esta acción no se puede deshacer.`
-    );
-    if (!confirmado) return;
-
-    setError("");
-    try {
-      await eliminarParteTrabajo(parte.id);
-      await cargarPartes();
-    } catch (e) {
-      setError(e?.message || "No se pudo eliminar el parte.");
-    }
-  };
-
-  const onFinalizarGrupo = async (ids) => {
-    setError("");
-    try {
-      for (const id of ids) await cambiarEstadoParte(id, "finalizado");
+      for (const parte of grupoPartes) {
+        await cambiarEstadoParte(parte.id, "finalizado");
+      }
       await cargarPartes();
     } catch (e) {
       setError(e?.message || "No se pudo finalizar el grupo.");
@@ -507,18 +597,61 @@ export function AdminPartesTrabajo() {
 
   const onAbrirEditar = (parte) => {
     setEditandoId(parte.id);
+    setEditParteActual(parte);
     setEditEmpleadoId(parte.empleado_id || "");
     const observacionActual = String(parte.observaciones || "").trim().toLowerCase();
     const servicioActual = serviciosCatalogo.find(
       (s) => String(s.nombre || "").trim().toLowerCase() === observacionActual
     );
     setEditServicioId(servicioActual ? String(servicioActual.id) : "");
+    setEditNuevoServicioId("");
+    setEditServiciosNuevos([]);
   };
 
   const onCancelarEditar = () => {
     setEditandoId(null);
+    setEditParteActual(null);
     setEditEmpleadoId("");
     setEditServicioId("");
+    setEditNuevoServicioId("");
+    setEditServiciosNuevos([]);
+  };
+
+  const onAgregarServicioNuevoEdicion = () => {
+    if (!editNuevoServicioId) {
+      setError("Selecciona un trabajo nuevo para añadir.");
+      return;
+    }
+
+    const servicioElegido = serviciosCatalogo.find((s) => Number(s.id) === Number(editNuevoServicioId));
+    if (!servicioElegido) {
+      setError("Servicio no válido.");
+      return;
+    }
+
+    const nombre = String(servicioElegido.nombre || "").trim();
+    if (!nombre) {
+      setError("Servicio no válido.");
+      return;
+    }
+
+    setEditServiciosNuevos((prev) => [
+      ...prev,
+      {
+        key: `edit-extra-${servicioElegido.id}-${Date.now()}`,
+        id: servicioElegido.id,
+        nombre,
+        precio: Number(servicioElegido.precio_base || 0),
+        tiempo_estimado_minutos: Number.parseInt(servicioElegido.tiempo_estimado_minutos || 0, 10) || 0,
+        tipo_tarea: normalizeRol(servicioElegido.rol_responsable || "") || "",
+      },
+    ]);
+    setEditNuevoServicioId("");
+    setError("");
+  };
+
+  const onQuitarServicioNuevoEdicion = (key) => {
+    setEditServiciosNuevos((prev) => prev.filter((item) => item.key !== key));
   };
 
   const onGuardarEdicion = async () => {
@@ -547,6 +680,22 @@ export function AdminPartesTrabajo() {
         observaciones: trabajo,
         tiempo_estimado_minutos: Number.parseInt(servicioElegido?.tiempo_estimado_minutos || 0, 10) || 0,
       });
+
+      if (editParteActual && editServiciosNuevos.length > 0) {
+        await crearParteTrabajo({
+          coche_id: Number(editParteActual.coche_id),
+          inspeccion_id: editParteActual.inspeccion_id ?? null,
+          servicios: editServiciosNuevos.map((s) => ({
+            nombre: s.nombre,
+            tiempo_estimado_minutos: s.tiempo_estimado_minutos,
+            servicio_catalogo_id: s.id,
+            precio: s.precio,
+            origen: "extra-edicion",
+            tipo_tarea: s.tipo_tarea || null,
+          })),
+        });
+      }
+
       await cargarPartes();
       onCancelarEditar();
     } catch (e) {
@@ -589,7 +738,7 @@ export function AdminPartesTrabajo() {
         <div className="row g-3 mb-4" style={{ animation: "sw-fade-up 0.45s ease 0.05s both" }}>
           {[
             { icon: "📋", label: "Partes activos", value: partes.length, color: "var(--sw-accent)" },
-            { icon: "🚗", label: "Coches disponibles", value: cochesDisponibles.length, color: "#6366f1" },
+            { icon: "🚗", label: "Coches activos", value: totalCochesActivos, color: "#6366f1" },
             { icon: "👷", label: "Empleados", value: empleadosDisponibles.length, color: "#22c55e" },
           ].map((stat) => (
             <div key={stat.label} className="col-md-4">
@@ -601,6 +750,36 @@ export function AdminPartesTrabajo() {
               </div>
             </div>
           ))}
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: "0.9rem",
+            marginBottom: "1.5rem",
+            animation: "sw-fade-up 0.45s ease 0.08s both",
+          }}
+        >
+          <div style={{ background: "linear-gradient(135deg, rgba(56,189,248,0.14), rgba(14,165,233,0.05))", border: "1px solid rgba(56,189,248,0.22)", borderRadius: "16px", padding: "1rem 1.15rem" }}>
+            <p style={{ margin: 0, fontSize: "0.76rem", color: "#7dd3fc", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+              Preparación
+            </p>
+            <div style={{ marginTop: "0.45rem", display: "flex", alignItems: "baseline", gap: "0.6rem", flexWrap: "wrap" }}>
+              <strong style={{ fontSize: "2rem", lineHeight: 1, color: "#e0f2fe" }}>{cochesEnPreparacion}</strong>
+              <span style={{ color: "var(--sw-muted)", fontSize: "0.84rem" }}>coche(s) en fase de preparación</span>
+            </div>
+          </div>
+
+          <div style={{ background: "linear-gradient(135deg, rgba(251,113,133,0.14), rgba(244,63,94,0.05))", border: "1px solid rgba(251,113,133,0.22)", borderRadius: "16px", padding: "1rem 1.15rem" }}>
+            <p style={{ margin: 0, fontSize: "0.76rem", color: "#fda4af", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+              Pintura
+            </p>
+            <div style={{ marginTop: "0.45rem", display: "flex", alignItems: "baseline", gap: "0.6rem", flexWrap: "wrap" }}>
+              <strong style={{ fontSize: "2rem", lineHeight: 1, color: "#ffe4e6" }}>{cochesEnPintura}</strong>
+              <span style={{ color: "var(--sw-muted)", fontSize: "0.84rem" }}>coche(s) en fase de pintura</span>
+            </div>
+          </div>
         </div>
 
         {error && (
@@ -904,12 +1083,13 @@ export function AdminPartesTrabajo() {
                       : cp.some(p => p.estado === "en_pausa") ? "en_pausa"
                       : "pendiente";
                     const ids = cp.map(p => p.id);
+                    const hayPreparacion = cp.some(
+                      (p) => !p.es_tarea_interna && usaFlujoPintura(p) && String(p.fase || "preparacion").toLowerCase() === "preparacion"
+                    );
                     const parteRef = cp.find(p => p.fecha_inicio) || cp[0];
-                    const empleadosUnicos = [...new Map(
-                      cp.filter(p => p.empleado_id).map(p => [p.empleado_id, empleadoNombrePorId(p.empleado_id)])
-                    ).values()];
                     const estimadoTotal = cp.reduce((sum, p) => sum + (p.tiempo_estimado_minutos || 0), 0);
-                    const accentColor = estadoGlobal === "en_proceso" ? "#22c55e" : estadoGlobal === "en_pausa" ? "#f59e0b" : "rgba(212,175,55,0.4)";
+                    const faseDominante = getDominantFase(cp, false);
+                    const faseVisual = getFaseVisual(faseDominante, false);
 
                     // Datos del coche directamente desde el parte (el API ya los devuelve)
                     const refParte = cp[0] || {};
@@ -918,7 +1098,7 @@ export function AdminPartesTrabajo() {
                     const clienteNombre = refParte.cliente_nombre;
 
                     return (
-                      <div key={coche_id} style={{ background: "var(--sw-surface)", border: `1px solid rgba(255,255,255,0.07)`, borderLeft: `3px solid ${accentColor}`, borderRadius: "14px", overflow: "hidden" }}>
+                      <div key={coche_id} style={{ background: faseVisual.background, border: `1px solid ${faseVisual.border}`, borderLeft: `4px solid ${faseVisual.accent}`, borderRadius: "14px", overflow: "hidden", boxShadow: `inset 0 1px 0 ${faseVisual.soft}` }}>
                         {/* Cabecera */}
                         <div style={{ padding: "0.85rem 1.1rem", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", flexWrap: "wrap" }}>
                           <div>
@@ -943,6 +1123,7 @@ export function AdminPartesTrabajo() {
                                   · {clienteNombre}
                                 </span>
                               )}
+                              <FaseBadge fase={faseDominante} />
                             </div>
                             <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.4rem", fontSize: "0.78rem", flexWrap: "wrap", alignItems: "center" }}>
                               {cp.map(p => {
@@ -981,6 +1162,7 @@ export function AdminPartesTrabajo() {
                                 <span style={{ fontSize: "0.87rem", color: "var(--sw-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                   {p.observaciones || getTipoTareaLabel(p.tipo_tarea)}
                                 </span>
+                                <FaseBadge fase={p.fase} esTareaInterna={p.es_tarea_interna} />
                               </div>
                               <button
                                 onClick={() => onAbrirEditar(p)}
@@ -1008,10 +1190,10 @@ export function AdminPartesTrabajo() {
                             🗑 Borrar
                           </button>
                           <button
-                            onClick={() => onFinalizarGrupo(ids)}
+                            onClick={() => onFinalizarGrupo(cp)}
                             style={{ background: "linear-gradient(135deg,#16a34a,#15803d)", border: "none", color: "var(--sw-text)", borderRadius: "8px", padding: "0.35rem 1rem", fontSize: "0.82rem", fontWeight: 700, cursor: "pointer" }}
                           >
-                            ✦ Finalizar
+                            {hayPreparacion ? "⇢ Pasar a pintura" : "✦ Finalizar"}
                           </button>
                         </div>
                       </div>
@@ -1116,7 +1298,7 @@ export function AdminPartesTrabajo() {
       {/* MODAL EDITAR */}
       {editandoId && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", backdropFilter: "blur(4px)" }}>
-          <div style={{ background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderTop: "3px solid #d4af37", borderRadius: "18px", width: "100%", maxWidth: "480px", boxShadow: "0 24px 64px rgba(0,0,0,0.7)", animation: "sw-fade-up 0.25s ease both" }}>
+          <div style={{ background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderTop: "3px solid #d4af37", borderRadius: "18px", width: "100%", maxWidth: "640px", boxShadow: "0 24px 64px rgba(0,0,0,0.7)", animation: "sw-fade-up 0.25s ease both" }}>
             <div style={{ padding: "1.1rem 1.25rem", borderBottom: "1px solid var(--sw-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h5 style={{ fontWeight: 700, color: "var(--sw-text)", margin: 0, fontSize: "0.95rem" }}>
                 <span style={{ color: "var(--sw-accent)", marginRight: "0.5rem" }}>✏️</span>
@@ -1146,6 +1328,74 @@ export function AdminPartesTrabajo() {
                 </select>
                 {serviciosCatalogo.length === 0 && (
                   <p style={{ color: "var(--sw-muted)", fontSize: "0.75rem", marginTop: "0.4rem", marginBottom: 0 }}>No hay servicios en el catálogo.</p>
+                )}
+              </div>
+
+              <div style={{ paddingTop: "0.35rem", borderTop: "1px solid var(--sw-border)" }}>
+                <label style={{ color: "var(--sw-muted)", fontSize: "0.76rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: "0.5rem" }}>
+                  Añadir trabajos nuevos
+                </label>
+                <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+                  <select
+                    className="form-select"
+                    value={editNuevoServicioId}
+                    onChange={(e) => setEditNuevoServicioId(e.target.value)}
+                    disabled={editLoading}
+                    style={{ flex: "1 1 260px", background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "10px" }}
+                  >
+                    <option value="">Selecciona trabajo a añadir…</option>
+                    {serviciosCatalogo.map((s) => (
+                      <option key={`extra-${s.id}`} value={s.id}>
+                        {s.nombre} {s.precio_base != null ? `(${Number(s.precio_base).toFixed(2)}€)` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={onAgregarServicioNuevoEdicion}
+                    disabled={editLoading}
+                    style={{ background: "rgba(212,175,55,0.12)", border: "1px solid rgba(212,175,55,0.32)", color: "var(--sw-accent)", borderRadius: "10px", padding: "0.55rem 0.9rem", fontWeight: 700, cursor: "pointer" }}
+                  >
+                    + Añadir
+                  </button>
+                </div>
+
+                {editServiciosNuevos.length > 0 && (
+                  <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.45rem" }}>
+                    {editServiciosNuevos.map((s) => (
+                      <div
+                        key={s.key}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: "0.75rem",
+                          padding: "0.55rem 0.7rem",
+                          borderRadius: "10px",
+                          background: "rgba(255,255,255,0.03)",
+                          border: "1px solid var(--sw-border)",
+                        }}
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ color: "var(--sw-text)", fontWeight: 600, fontSize: "0.88rem" }}>{s.nombre}</div>
+                          <div style={{ color: "var(--sw-muted)", fontSize: "0.75rem" }}>
+                            {formatMinutes(s.tiempo_estimado_minutos)} · {getTipoTareaLabel(s.tipo_tarea)}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => onQuitarServicioNuevoEdicion(s.key)}
+                          disabled={editLoading}
+                          style={{ background: "transparent", border: "1px solid rgba(239,68,68,0.28)", color: "#f87171", borderRadius: "8px", padding: "0.35rem 0.7rem", fontWeight: 700, cursor: "pointer" }}
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    ))}
+                    <div style={{ color: "var(--sw-muted)", fontSize: "0.76rem" }}>
+                      Estos trabajos se crearán como partes nuevos pendientes para este mismo coche.
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -1271,8 +1521,6 @@ function OtrosDeptosBanner({ otrosDeptos }) {
   if (!otrosDeptos || !otrosDeptos.length) return null;
 
   const enProceso = otrosDeptos.filter(d => d.estado === "en_proceso");
-  const enPausa   = otrosDeptos.filter(d => d.estado === "en_pausa");
-
   return (
     <div style={{
       margin: "0.5rem 0 0.2rem",
@@ -1308,35 +1556,172 @@ function OtrosDeptosBanner({ otrosDeptos }) {
   );
 }
 
-function CocheGrupoCard({ grupo, empleadoId, onAccionParte, onSumarmeCoche, cargando, otrosDeptos = [] }) {
+function CocheGrupoCard({ grupo, empleadoId, onAccionParte, onAccionGrupo, onSumarmeCoche, onSolicitarFinalizacion, onSolicitarInicioFase, cargando, otrosDeptos = [] }) {
   const { matricula, marca, modelo, cliente_nombre, partes } = grupo;
+  const [serviciosInspeccion, setServiciosInspeccion] = useState([]);
+  useEffect(() => {
+    const cocheId = partes[0]?.coche_id;
+    if (!cocheId || grupo.es_tarea_interna) return;
+    let active = true;
+    obtenerUltimaInspeccionPorCoche(cocheId).then(inspeccion => {
+      if (!active) return;
+      const srvs = (inspeccion?.servicios_aplicados || [])
+        .filter(s => String(s?.tipo_tarea || "").trim().toLowerCase() === "pintura")
+        .map(s => String(s?.nombre || "").trim())
+        .filter(Boolean);
+      setServiciosInspeccion(srvs);
+    }).catch(() => {});
+    return () => { active = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [partes[0]?.coche_id, grupo.es_tarea_interna]);
   const descCoche = [marca, modelo].filter(Boolean).join(" ");
   const vehicleTitle = descCoche || (!grupo.es_tarea_interna ? "Vehículo sin modelo" : "Tarea interna");
   const plateLabel = matricula || `#${partes[0].coche_id}`;
 
-  // Estado global del grupo: en_proceso > en_pausa > pendiente
+  // Estado global del grupo: en_proceso > en_pausa > pendiente > finalizado
   const estadoGlobal = partes.some(p => p.estado === "en_proceso") ? "en_proceso"
     : partes.some(p => p.estado === "en_pausa") ? "en_pausa"
+    : partes.every(p => p.estado === "finalizado") ? "finalizado"
     : "pendiente";
+  const esUrgente = partes.some(p => Number(p.prioridad || 0) > 0);
 
   const yoId = Number(empleadoId);
-  const hayOtroTrabajando = partes.some(
+  const esTareaInterna = Boolean(grupo.es_tarea_interna);
+  const partesPinturaConFaseExplicita = !esTareaInterna
+    ? partes.filter((p) => usaFlujoPintura(p) && String(p?.fase || "").trim())
+    : [];
+  const partesVisiblesPintura = partesPinturaConFaseExplicita.length > 0 ? partesPinturaConFaseExplicita : partes;
+  const faseDominante = getDominantFase(partesVisiblesPintura, esTareaInterna);
+  const faseVisual = getFaseVisual(faseDominante, esTareaInterna);
+  const esBloquePintura = !esTareaInterna && partes.length > 0 && partes.every((p) => usaFlujoPintura(p));
+  const hayOtroTrabajando = !esBloquePintura && partes.some(
     (p) => (p.estado === "en_proceso" || p.estado === "en_pausa") && Number(p.empleado_id) !== yoId
   );
-  const esTareaInterna = Boolean(grupo.es_tarea_interna);
+  const partesOrdenadasPorRecencia = [...partesVisiblesPintura].sort((a, b) => Number(b?.id || 0) - Number(a?.id || 0));
+  const parteActualPintura = esBloquePintura
+    ? partesOrdenadasPorRecencia.find((p) => p.estado === "en_proceso")
+      || partesOrdenadasPorRecencia.find((p) => p.estado === "en_pausa")
+      || partesOrdenadasPorRecencia.find((p) => p.estado === "pendiente")
+      || partesOrdenadasPorRecencia[0]
+    : null;
+  const faseActualPintura = esBloquePintura
+    ? normalizeFaseValue(
+        parteActualPintura?.fase
+          || faseDominante,
+        "preparacion"
+      )
+    : null;
+  const partesFaseActual = esBloquePintura
+    ? partesVisiblesPintura.filter((p) => normalizeFaseValue(p?.fase, faseActualPintura) === faseActualPintura)
+    : partes;
+  const piezasPendientesPintura = getLineasTrabajoPintura(
+    partesFaseActual.filter((p) => p.estado !== "finalizado")
+  );
+  const colaboradoresPintura = getColaboradoresPintura(partesFaseActual);
+  const partePinturaPrincipal = esBloquePintura
+    ? partesFaseActual.find((p) => Array.isArray(p?.colaboradores) && p.colaboradores.length > 0) || partesFaseActual[0] || partes[0]
+    : null;
+  const miPartePintura = esBloquePintura
+    ? partesFaseActual.find((p) =>
+        (Array.isArray(p?.colaboradores) && p.colaboradores.some((c) => Number(c?.empleado_id) === yoId && c?.estado !== "finalizado"))
+        || Number(p?.empleado_id) === yoId
+      ) || partePinturaPrincipal
+    : null;
+  const faseActualConfig = esBloquePintura ? (FASE_CONFIG[faseActualPintura] || FASE_CONFIG.preparacion) : null;
+  const miColaboracionPintura = colaboradoresPintura.find((c) => Number(c?.empleado_id) === yoId) || null;
+  const miEstadoPintura = miColaboracionPintura?.estado
+    || (
+      Number(miPartePintura?.empleado_id) === yoId
+      && ["en_proceso", "en_pausa", "finalizado"].includes(String(miPartePintura?.estado || ""))
+        ? miPartePintura.estado
+        : null
+    );
+  const otrosColaboradoresPintura = colaboradoresPintura.filter((c) => Number(c?.empleado_id) !== yoId);
+  const otrosActivosPintura = otrosColaboradoresPintura.filter((c) => c.estado !== "finalizado");
+  // Fallback: si el modelo de colaboración no tiene entradas pero el parte tiene empleado asignado,
+  // mostrar ese empleado como "trabajando" para que los demás sepan quién está en el coche.
+  const trabajadoresVisibles = colaboradoresPintura.length > 0
+    ? colaboradoresPintura
+    : partesFaseActual
+        .filter((p) => p.empleado_id && (p.estado === "en_proceso" || p.estado === "en_pausa"))
+        .map((p) => ({
+          id: `emp-${p.empleado_id}`,
+          empleado_id: p.empleado_id,
+          empleado_nombre: p.empleado_nombre || "Sin nombre",
+          estado: p.estado,
+        }))
+        .filter((v, i, arr) => arr.findIndex((x) => x.empleado_id === v.empleado_id) === i);
+
+  // Servicios contratados: sacados de servicios_aplicados de la inspección
+  const serviciosContratados = useMemo(
+    () => (esBloquePintura ? serviciosInspeccion : []),
+    [esBloquePintura, serviciosInspeccion]
+  );
+
+  // Estado de cada servicio contratado según si aparece en partes de fase finalizados/activos
+  const allFasePartes = esBloquePintura
+    ? partes.filter(p => usaFlujoPintura(p) && String(p?.fase || "").trim())
+    : [];
+  const completedObs = new Set(
+    getLineasTrabajoPintura(allFasePartes.filter(p => p.estado === "finalizado")).map(l => l.toLowerCase())
+  );
+  const activeObs = new Set(
+    getLineasTrabajoPintura(allFasePartes.filter(p => p.estado === "en_proceso" || p.estado === "en_pausa")).map(l => l.toLowerCase())
+  );
+  const servicioEstado = {};
+  for (const srv of serviciosContratados) {
+    const k = srv.toLowerCase();
+    if (completedObs.has(k)) servicioEstado[srv] = "finalizado";
+    else if (activeObs.has(k)) servicioEstado[srv] = "en_proceso";
+    else servicioEstado[srv] = "pendiente";
+  }
+
+  // Estado de cada fase para el pipeline visual
+  const estadoPorFase = FASE_ORDER.reduce((acc, fase) => {
+    const fp = allFasePartes.filter(p => normalizeFaseValue(p?.fase) === fase);
+    if (fp.length === 0) acc[fase] = null;
+    else if (fp.every(p => p.estado === "finalizado")) acc[fase] = "finalizado";
+    else if (fp.some(p => p.estado === "en_proceso" || p.estado === "en_pausa")) acc[fase] = "en_proceso";
+    else acc[fase] = "pendiente";
+    return acc;
+  }, {});
 
   // Para el cronómetro usamos el primer parte que tenga fecha_inicio
-  const parteRef = partes.find(p => p.fecha_inicio) || { ...partes[0], estado: estadoGlobal };
+  const parteRef = partesFaseActual.find(p => p.fecha_inicio) || partes.find(p => p.fecha_inicio) || { ...partes[0], estado: estadoGlobal };
 
   return (
     <div className={
       `sw-parte-card` +
       (estadoGlobal === "en_proceso" ? " sw-parte-card--active" : "") +
       (estadoGlobal === "en_pausa" ? " sw-parte-card--paused" : "")
-    }>
+    } style={{
+      borderLeft: estadoGlobal === "finalizado"
+        ? "4px solid #22c55e"
+        : `4px solid ${faseVisual.accent}`,
+      background: estadoGlobal === "finalizado"
+        ? "rgba(34,197,94,0.05)"
+        : faseVisual.background,
+      boxShadow: estadoGlobal === "finalizado"
+        ? "inset 0 1px 0 rgba(34,197,94,0.15)"
+        : `inset 0 1px 0 ${faseVisual.soft}`,
+      opacity: estadoGlobal === "finalizado" ? 0.85 : 1,
+    }}>
       <div className="sw-parte-card__header">
         <div className="sw-parte-card__vehicle-block">
-          <div className="sw-parte-card__vehicle-name">{vehicleTitle}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.55rem", flexWrap: "wrap" }}>
+            <div className="sw-parte-card__vehicle-name">{vehicleTitle}</div>
+            <FaseBadge fase={faseDominante} esTareaInterna={esTareaInterna} />
+            {esUrgente && (
+              <span style={{
+                background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.5)",
+                color: "#f87171", borderRadius: "6px", padding: "0.1rem 0.5rem",
+                fontSize: "0.72rem", fontWeight: 800, letterSpacing: "0.05em",
+                animation: "pulse-urgente 2s infinite",
+              }}>
+                ⚡ URGENTE
+              </span>
+            )}
+          </div>
           <div className="sw-parte-card__vehicle-meta">
             <span className="sw-parte-card__chip sw-parte-card__chip--plate">🚘 {plateLabel}</span>
             {cliente_nombre && <span className="sw-parte-card__chip">👤 {cliente_nombre}</span>}
@@ -1363,7 +1748,229 @@ function CocheGrupoCard({ grupo, empleadoId, onAccionParte, onSumarmeCoche, carg
 
       {/* Lista de servicios con acción individual por parte */}
       <div style={{ marginTop: "0.5rem", display: "flex", flexDirection: "column", gap: "0.45rem" }}>
+        {esBloquePintura && (
+          <div
+            style={{
+              border: "1px solid var(--sw-border)",
+              borderRadius: "10px",
+              padding: "0.75rem",
+              background: faseActualConfig?.soft || "rgba(255,255,255,0.03)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.7rem",
+            }}
+            >
+              {/* Pipeline de fases */}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", flexWrap: "wrap" }}>
+                {FASE_ORDER.map((fase, idx) => {
+                  const cfg = FASE_CONFIG[fase];
+                  const st = estadoPorFase[fase];
+                  const isCurrent = fase === faseActualPintura;
+                  const isFuture = st === null && FASE_ORDER.indexOf(fase) > FASE_ORDER.indexOf(faseActualPintura);
+                  const isDone = st === "finalizado";
+                  const isActive = st === "en_proceso" || (isCurrent && st !== "finalizado");
+                  const color = isDone ? "#4ade80" : isActive ? cfg.color : isFuture ? "rgba(148,163,184,0.35)" : "var(--sw-muted)";
+                  const bg = isDone ? "rgba(74,222,128,0.1)" : isActive ? cfg.soft : "rgba(148,163,184,0.05)";
+                  const border = isDone ? "rgba(74,222,128,0.25)" : isActive ? cfg.border : "rgba(148,163,184,0.12)";
+                  return (
+                    <React.Fragment key={fase}>
+                      <span style={{
+                        display: "inline-flex", alignItems: "center", gap: "0.35rem",
+                        padding: "0.22rem 0.6rem", borderRadius: "999px",
+                        fontSize: "0.72rem", fontWeight: 700,
+                        background: bg, border: `1px solid ${border}`, color,
+                        whiteSpace: "nowrap",
+                        opacity: isFuture ? 0.45 : 1,
+                      }}>
+                        {isDone ? "✓" : isActive ? "▶" : "·"} {cfg.label}
+                      </span>
+                      {idx < FASE_ORDER.length - 1 && (
+                        <span style={{ color: "rgba(148,163,184,0.3)", fontSize: "0.7rem" }}>›</span>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+                <EstadoBadge estado={estadoGlobal} />
+              </div>
+
+              {/* Trabajos contratados con estado */}
+              {serviciosContratados.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                  <div style={{ fontSize: "0.75rem", fontWeight: 800, color: "var(--sw-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                    Trabajos contratados
+                  </div>
+                  {serviciosContratados.map((srv, idx) => {
+                    const st = servicioEstado[srv];
+                    const isDone = st === "finalizado";
+                    const isActive = st === "en_proceso";
+                    const icon = isDone ? "✓" : isActive ? "▶" : "·";
+                    const color = isDone ? "#4ade80" : isActive ? "#f59e0b" : "var(--sw-muted)";
+                    const bg = isDone ? "rgba(74,222,128,0.07)" : isActive ? "rgba(245,158,11,0.09)" : "rgba(255,255,255,0.025)";
+                    const bdr = isDone ? "rgba(74,222,128,0.18)" : isActive ? "rgba(245,158,11,0.28)" : "rgba(255,255,255,0.05)";
+                    return (
+                      <div key={`srv-${idx}`} style={{
+                        display: "flex", alignItems: "center", gap: "0.5rem",
+                        padding: "0.38rem 0.55rem", borderRadius: "8px",
+                        background: bg, border: `1px solid ${bdr}`, fontSize: "0.84rem",
+                      }}>
+                        <span style={{ color, fontWeight: 800, fontSize: "0.8rem", flexShrink: 0 }}>{icon}</span>
+                        <span style={{ color: isDone ? "#86efac" : isActive ? "#fde68a" : "var(--sw-text)", lineHeight: 1.3 }}>{srv}</span>
+                        {isDone && <span style={{ marginLeft: "auto", fontSize: "0.7rem", color: "#4ade80", fontWeight: 700 }}>Hecho</span>}
+                        {isActive && <span style={{ marginLeft: "auto", fontSize: "0.7rem", color: "#f59e0b", fontWeight: 700 }}>En curso</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Si no hay servicios contratados, mostrar las piezas pendientes clásicas */}
+              {serviciosContratados.length === 0 && piezasPendientesPintura.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--sw-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Pendiente ahora
+                </div>
+                {piezasPendientesPintura.map((linea, index) => (
+                  <div
+                    key={`pending-${linea}-${index}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "0.55rem",
+                    padding: "0.45rem 0.55rem",
+                    borderRadius: "8px",
+                    background: "rgba(255,255,255,0.025)",
+                    border: "1px solid rgba(255,255,255,0.05)",
+                    color: "var(--sw-text)",
+                    fontSize: "0.86rem",
+                  }}
+                >
+                  <span style={{ color: "#fda4af", fontWeight: 700, lineHeight: 1.3 }}>•</span>
+                  <span style={{ lineHeight: 1.35 }}>{linea}</span>
+                </div>
+              ))}
+            </div>
+              )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+              <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--sw-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                Equipo en esta fase
+              </div>
+              {trabajadoresVisibles.length === 0 ? (
+                <div style={{ fontSize: "0.82rem", color: "var(--sw-muted)" }}>
+                  Nadie ha iniciado esta fase todavía.
+                </div>
+              ) : (
+                trabajadoresVisibles.map((colab) => (
+                  <div
+                    key={`${colab.id}-${colab.empleado_id}`}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "0.75rem",
+                      padding: "0.45rem 0.55rem",
+                      borderRadius: "8px",
+                      background: Number(colab.empleado_id) === yoId ? "rgba(212,175,55,0.09)" : "rgba(255,255,255,0.025)",
+                      border: Number(colab.empleado_id) === yoId ? "1px solid rgba(212,175,55,0.28)" : "1px solid rgba(255,255,255,0.05)",
+                    }}
+                  >
+                    <div style={{ fontSize: "0.84rem", color: "var(--sw-text)" }}>
+                      <strong>{colab.empleado_nombre || "Sin nombre"}</strong>
+                      {Number(colab.empleado_id) === yoId && (
+                        <span style={{ color: "var(--sw-accent)", fontWeight: 700 }}> · Tú</span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div style={{ display: "flex", gap: "0.55rem", flexWrap: "wrap" }}>
+              {(!miEstadoPintura || miEstadoPintura === "finalizado") && partePinturaPrincipal && (
+                <button
+                  className="sw-parte-btn sw-parte-btn--start"
+                  disabled={cargando}
+                  style={{ flex: "1 1 180px", justifyContent: "center" }}
+                  onClick={() => {
+                    if (trabajadoresVisibles.length === 0 && partePinturaPrincipal) {
+                      onSolicitarInicioFase({
+                        modo: "iniciar",
+                        parteId: partePinturaPrincipal.id,
+                        faseActual: faseActualPintura,
+                        cocheLabel: vehicleTitle,
+                        observaciones: "",
+                        serviciosContratados,
+                      });
+                      return;
+                    }
+                    onSumarmeCoche(grupo, faseActualPintura, vehicleTitle, serviciosContratados);
+                  }}
+                >
+                  ▶ {trabajadoresVisibles.length === 0 ? `Iniciar ${faseActualConfig?.label?.toLowerCase() || "fase"}` : `Sumarme a ${faseActualConfig?.label?.toLowerCase() || "la fase"}`}
+                </button>
+              )}
+              {miEstadoPintura === "en_proceso" && partePinturaPrincipal && (
+                <>
+                  <button
+                    className="sw-parte-btn sw-parte-btn--pause"
+                    disabled={cargando}
+                    style={{ flex: "1 1 160px", justifyContent: "center" }}
+                    onClick={() => onAccionParte(miPartePintura?.id || partePinturaPrincipal.id, "en_pausa")}
+                  >
+                    ⏸ Pausar mi parte
+                  </button>
+                  <button
+                    className="sw-parte-btn sw-parte-btn--finish"
+                    disabled={cargando}
+                    style={{ flex: "1 1 180px", justifyContent: "center" }}
+                    onClick={() => {
+                      if (otrosActivosPintura.length === 0) {
+                        onSolicitarFinalizacion(miPartePintura?.id || partePinturaPrincipal.id, faseActualPintura, vehicleTitle);
+                        return;
+                      }
+                      onAccionParte(miPartePintura?.id || partePinturaPrincipal.id, "finalizado");
+                    }}
+                  >
+                    ✓ Finalizar mi parte
+                  </button>
+                </>
+              )}
+              {miEstadoPintura === "en_pausa" && partePinturaPrincipal && (
+                <>
+                  <button
+                    className="sw-parte-btn sw-parte-btn--resume"
+                    disabled={cargando}
+                    style={{ flex: "1 1 160px", justifyContent: "center" }}
+                    onClick={() => onAccionParte(miPartePintura?.id || partePinturaPrincipal.id, "quitar_pausa")}
+                  >
+                    ▶ Reanudar mi parte
+                  </button>
+                  <button
+                    className="sw-parte-btn sw-parte-btn--finish"
+                    disabled={cargando}
+                    style={{ flex: "1 1 180px", justifyContent: "center" }}
+                    onClick={() => {
+                      if (otrosActivosPintura.length === 0) {
+                        onSolicitarFinalizacion(miPartePintura?.id || partePinturaPrincipal.id, faseActualPintura, vehicleTitle);
+                        return;
+                      }
+                      onAccionParte(miPartePintura?.id || partePinturaPrincipal.id, "finalizado");
+                    }}
+                  >
+                    ✓ Finalizar mi parte
+                  </button>
+                </>
+              )}
+              {miEstadoPintura === "finalizado" && otrosActivosPintura.length > 0 && (
+                <div style={{ fontSize: "0.82rem", color: "var(--sw-muted)" }}>
+                  Tu parte está terminada.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         {partes.map((p) => {
+          if (esBloquePintura) return null;
           const esMio = Number(p.empleado_id) === yoId;
           return (
             <div
@@ -1375,13 +1982,38 @@ function CocheGrupoCard({ grupo, empleadoId, onAccionParte, onSumarmeCoche, carg
                 background: "rgba(255,255,255,0.02)",
               }}
             >
-              <div className="d-flex justify-content-between align-items-center gap-2 flex-wrap">
-                <div style={{ fontSize: "0.85rem" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
+                <div style={{ fontSize: "0.85rem", minWidth: 0 }}>
                   <strong>#{p.id}</strong> · {getTipoTareaLabel(p.tipo_tarea)}
                   {p.observaciones ? ` — ${p.observaciones}` : ""}
-                  {(p.estado === "en_proceso" || p.estado === "en_pausa") && p.empleado_nombre && (
-                    <span style={{ color: "var(--sw-muted)" }}> · {p.empleado_nombre}</span>
-                  )}
+                  {(p.estado === "en_proceso" || p.estado === "en_pausa") && (() => {
+                    const colabs = Array.isArray(p.colaboradores) && p.colaboradores.length > 0
+                      ? p.colaboradores.filter(c => c.estado !== "finalizado")
+                      : p.empleado_nombre
+                        ? [{ empleado_nombre: p.empleado_nombre, estado: p.estado }]
+                        : [];
+                    if (!colabs.length) return null;
+                    return (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginTop: "0.3rem" }}>
+                        {colabs.map((c, i) => (
+                          <span
+                            key={i}
+                            style={{
+                              background: c.estado === "en_pausa" ? "rgba(234,179,8,0.15)" : "rgba(34,197,94,0.15)",
+                              color: c.estado === "en_pausa" ? "#ca8a04" : "#16a34a",
+                              border: `1px solid ${c.estado === "en_pausa" ? "rgba(234,179,8,0.4)" : "rgba(34,197,94,0.4)"}`,
+                              borderRadius: "12px",
+                              padding: "0.1rem 0.55rem",
+                              fontSize: "0.78rem",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {c.estado === "en_pausa" ? "⏸ " : "▶ "}{c.empleado_nombre || "Sin nombre"}
+                          </span>
+                        ))}
+                      </div>
+                    );
+                  })()}
                   {!esTareaInterna && (
                     <div className="sw-parte-card__service-meta">
                       <span>🚗 {vehicleTitle}</span>
@@ -1396,12 +2028,29 @@ function CocheGrupoCard({ grupo, empleadoId, onAccionParte, onSumarmeCoche, carg
                     </div>
                   )}
                 </div>
-                <div className="d-flex align-items-center gap-2">
+                <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", flexWrap: "wrap" }}>
+                  <FaseBadge fase={p.fase} esTareaInterna={esTareaInterna} />
                   <EstadoBadge estado={p.estado} />
+                </div>
+                <div style={{ display: "flex", gap: "0.55rem", flexWrap: "wrap" }}>
+                  {p.estado === "finalizado" && (
+                    <span style={{
+                      background: "rgba(34,197,94,0.12)",
+                      border: "1px solid rgba(34,197,94,0.35)",
+                      color: "#4ade80",
+                      borderRadius: "8px",
+                      padding: "0.25rem 0.75rem",
+                      fontSize: "0.8rem",
+                      fontWeight: 700,
+                    }}>
+                      ✓ Completado
+                    </span>
+                  )}
                   {p.estado === "pendiente" && (
                     <button
                       className="sw-parte-btn sw-parte-btn--start"
                       disabled={cargando}
+                      style={{ flex: "1 1 160px", justifyContent: "center" }}
                       onClick={() => {
                         if (otrosDeptos.length) {
                           const nombres = otrosDeptos.map(d => {
@@ -1422,17 +2071,34 @@ function CocheGrupoCard({ grupo, empleadoId, onAccionParte, onSumarmeCoche, carg
                       <button
                         className="sw-parte-btn sw-parte-btn--pause"
                         disabled={cargando}
+                        style={{ flex: "1 1 140px", justifyContent: "center" }}
                         onClick={() => onAccionParte(p.id, "en_pausa")}
                       >
                         ⏸ Pausar
                       </button>
-                      <button
-                        className="sw-parte-btn sw-parte-btn--finish"
-                        disabled={cargando}
-                        onClick={() => onAccionParte(p.id, "finalizado")}
-                      >
-                        ✓ Finalizar
-                      </button>
+                      {esTareaInterna || !usaFlujoPintura(p) ? (
+                        <button
+                          className="sw-parte-btn sw-parte-btn--finish"
+                          disabled={cargando}
+                          style={{ flex: "1 1 160px", justifyContent: "center" }}
+                          onClick={() => onAccionParte(p.id, "finalizado")}
+                        >
+                          ✓ Finalizar
+                        </button>
+                      ) : (
+                        <button
+                          className="sw-parte-btn sw-parte-btn--finish"
+                          disabled={cargando}
+                          style={{ flex: "1 1 180px", justifyContent: "center" }}
+                          onClick={() => onSolicitarFinalizacion(
+                            p.id,
+                            p.fase,
+                            p.matricula || p.vehiculo || `coche ${p.coche_id || ""}`.trim()
+                          )}
+                        >
+                          ✓ Finalizar fase
+                        </button>
+                      )}
                     </>
                   )}
                   {p.estado === "en_pausa" && esMio && (
@@ -1440,17 +2106,34 @@ function CocheGrupoCard({ grupo, empleadoId, onAccionParte, onSumarmeCoche, carg
                       <button
                         className="sw-parte-btn sw-parte-btn--resume"
                         disabled={cargando}
+                        style={{ flex: "1 1 140px", justifyContent: "center" }}
                         onClick={() => onAccionParte(p.id, "quitar_pausa")}
                       >
                         ▶ Reanudar
                       </button>
-                      <button
-                        className="sw-parte-btn sw-parte-btn--finish"
-                        disabled={cargando}
-                        onClick={() => onAccionParte(p.id, "finalizado")}
-                      >
-                        ✓ Finalizar
-                      </button>
+                      {esTareaInterna || !usaFlujoPintura(p) ? (
+                        <button
+                          className="sw-parte-btn sw-parte-btn--finish"
+                          disabled={cargando}
+                          style={{ flex: "1 1 160px", justifyContent: "center" }}
+                          onClick={() => onAccionParte(p.id, "finalizado")}
+                        >
+                          ✓ Finalizar
+                        </button>
+                      ) : (
+                        <button
+                          className="sw-parte-btn sw-parte-btn--finish"
+                          disabled={cargando}
+                          style={{ flex: "1 1 180px", justifyContent: "center" }}
+                          onClick={() => onSolicitarFinalizacion(
+                            p.id,
+                            p.fase,
+                            p.matricula || p.vehiculo || `coche ${p.coche_id || ""}`.trim()
+                          )}
+                        >
+                          ✓ Finalizar fase
+                        </button>
+                      )}
                     </>
                   )}
                 </div>
@@ -1478,6 +2161,12 @@ const ROL_TO_TIPO = {
   empleado: "detailing",
 };
 
+const NEXT_PHASE_OPTIONS = [
+  { value: "preparacion", label: "Preparación" },
+  { value: "pintura", label: "Pintura" },
+  { value: "montaje", label: "Montaje" },
+];
+
 export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, panelSubtitle }) {
   const [partes, setPartes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1487,6 +2176,26 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
   const [tareaInternaLoading, setTareaInternaLoading] = useState(false);
 
   const [otrosDeptosPorCoche, setOtrosDeptosPorCoche] = useState({});
+  const [inicioFaseModal, setInicioFaseModal] = useState({
+    abierta: false,
+    modo: "iniciar",
+    parteId: null,
+    cocheId: null,
+    faseActual: "preparacion",
+    cocheLabel: "",
+    observaciones: "",
+    serviciosContratados: [],
+    serviciosChecked: [],
+  });
+  const [finalizacionModal, setFinalizacionModal] = useState({
+    abierta: false,
+    parteId: null,
+    faseActual: "pintura",
+    cocheLabel: "",
+    listo: true,
+    siguienteFase: "montaje",
+    observaciones: "",
+  });
 
   const cargarPartes = useCallback(async () => {
     setLoading(true);
@@ -1547,7 +2256,7 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
   useEffect(() => { cargarPartes(); }, [cargarPartes]);
 
   // Actúa sobre un parte individual para permitir colaboración en el mismo coche.
-  const onAccionParte = useCallback(async (parteId, accion) => {
+  const onAccionParte = useCallback(async (parteId, accion, extra = {}) => {
     setError("");
     setAccionCargando(true);
     try {
@@ -1557,11 +2266,189 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
       } else if (accion === "quitar_pausa") {
         await quitarPausa(parteId);
       } else {
-        await cambiarEstadoParte(parteId, accion);
+        await cambiarEstadoParte(parteId, accion, extra);
       }
       await cargarPartes();
     } catch (e) {
       setError(e?.message || "No se pudo realizar la acción.");
+    } finally {
+      setAccionCargando(false);
+    }
+  }, [cargarPartes]);
+
+  const cerrarInicioFaseModal = useCallback(() => {
+    setError("");
+    setInicioFaseModal({
+      abierta: false,
+      modo: "iniciar",
+      parteId: null,
+      cocheId: null,
+      faseActual: "preparacion",
+      cocheLabel: "",
+      observaciones: "",
+      serviciosContratados: [],
+      serviciosChecked: [],
+    });
+  }, []);
+
+  const abrirInicioFaseModal = useCallback(({
+    modo = "iniciar",
+    parteId = null,
+    cocheId = null,
+    faseActual = "preparacion",
+    cocheLabel = "",
+    observaciones = "",
+    serviciosContratados = [],
+  } = {}) => {
+    setError("");
+    const srvList = Array.isArray(serviciosContratados) ? serviciosContratados.filter(Boolean) : [];
+    setInicioFaseModal({
+      abierta: true,
+      modo,
+      parteId,
+      cocheId,
+      faseActual: normalizeFaseValue(faseActual, "preparacion"),
+      cocheLabel,
+      observaciones: String(observaciones || "").trim(),
+      serviciosContratados: srvList,
+      serviciosChecked: srvList.map(() => true),
+    });
+  }, []);
+
+  const guardarInicioFaseModal = useCallback(async () => {
+    const serviciosSeleccionados = (inicioFaseModal.serviciosContratados || [])
+      .filter((_, i) => inicioFaseModal.serviciosChecked[i]);
+    const notaLibre = String(inicioFaseModal.observaciones || "").trim();
+    const partes = [...serviciosSeleccionados, ...(notaLibre ? [notaLibre] : [])];
+    const observaciones = partes.join(" | ");
+    setError("");
+    setAccionCargando(true);
+    try {
+      if (inicioFaseModal.modo === "sumarme") {
+        const cocheId = Number(inicioFaseModal.cocheId);
+        if (!Number.isFinite(cocheId)) {
+          throw new Error("No se pudo identificar el coche.");
+        }
+        const rolNormalizado = normalizeRol(userRol);
+        const tipo = ROL_TO_TIPO[rolNormalizado] || rolNormalizado || "otro";
+        await sumarmeACoche({
+          coche_id: cocheId,
+          observaciones,
+          tiempo_estimado_minutos: 0,
+          tipo_tarea: tipo,
+          fase: inicioFaseModal.faseActual,
+        });
+      } else {
+        if (!inicioFaseModal.parteId) {
+          throw new Error("No se pudo identificar el parte.");
+        }
+        await cambiarEstadoParte(inicioFaseModal.parteId, "en_proceso", {
+          observaciones,
+        });
+      }
+      cerrarInicioFaseModal();
+      await cargarPartes();
+    } catch (e) {
+      setError(e?.message || "No se pudo iniciar la fase.");
+    } finally {
+      setAccionCargando(false);
+    }
+  }, [cargarPartes, cerrarInicioFaseModal, inicioFaseModal, userRol]);
+
+  const cerrarFinalizacionModal = useCallback(() => {
+    setError("");
+    setFinalizacionModal({
+      abierta: false,
+      parteId: null,
+      faseActual: "pintura",
+      cocheLabel: "",
+      listo: true,
+      siguienteFase: "pintura",
+      observaciones: "",
+    });
+  }, []);
+
+  const abrirFinalizacionModal = useCallback((parteId, faseActual = "pintura", cocheLabel = "") => {
+    const faseNormalizada = normalizeFaseValue(faseActual, "pintura");
+    setError("");
+    setFinalizacionModal({
+      abierta: true,
+      parteId,
+      faseActual: faseNormalizada,
+      cocheLabel,
+      listo: true,
+      siguienteFase: faseNormalizada === "preparacion" ? "pintura" : "montaje",
+      observaciones: "",
+    });
+  }, []);
+
+  const guardarFinalizacionModal = useCallback(async () => {
+    if (!finalizacionModal.parteId) {
+      cerrarFinalizacionModal();
+      return;
+    }
+
+    if (!finalizacionModal.listo) {
+      const siguienteFase = normalizeFaseValue(finalizacionModal.siguienteFase, "");
+      if (!siguienteFase || !NEXT_PHASE_OPTIONS.some((item) => item.value === siguienteFase)) {
+        setError("Debes elegir la siguiente fase.");
+        return;
+      }
+      if (!String(finalizacionModal.observaciones || "").trim()) {
+        setError("Debes indicar qué falta por hacer antes de guardar.");
+        return;
+      }
+    }
+
+    setError("");
+    setAccionCargando(true);
+    try {
+      if (finalizacionModal.listo) {
+        await cambiarEstadoParte(finalizacionModal.parteId, "finalizado");
+      } else {
+        await cambiarEstadoParte(finalizacionModal.parteId, "finalizar_y_siguiente", {
+          siguiente_fase: finalizacionModal.siguienteFase,
+          siguiente_observaciones: String(finalizacionModal.observaciones || "").trim(),
+        });
+      }
+      cerrarFinalizacionModal();
+      await cargarPartes();
+    } catch (e) {
+      setError(e?.message || "No se pudo guardar la siguiente fase.");
+    } finally {
+      setAccionCargando(false);
+    }
+  }, [cargarPartes, cerrarFinalizacionModal, finalizacionModal]);
+
+  const onAccionGrupo = useCallback(async (grupoPartes, accion) => {
+    setError("");
+    setAccionCargando(true);
+    try {
+      const ordenadas = Array.isArray(grupoPartes) ? [...grupoPartes] : [];
+      for (const parte of ordenadas) {
+        if (!parte?.id) continue;
+        if (accion === "tomar_e_iniciar") {
+          if (parte.estado === "pendiente") {
+            await tomarParteTrabajo(parte.id);
+            await cambiarEstadoParte(parte.id, "en_proceso");
+          }
+        } else if (accion === "quitar_pausa") {
+          if (parte.estado === "en_pausa") {
+            await quitarPausa(parte.id);
+          }
+        } else if (accion === "en_pausa") {
+          if (parte.estado === "en_proceso") {
+            await cambiarEstadoParte(parte.id, "en_pausa");
+          }
+        } else if (accion === "finalizado") {
+          if (parte.estado === "en_proceso" || parte.estado === "en_pausa") {
+            await cambiarEstadoParte(parte.id, "finalizado");
+          }
+        }
+      }
+      await cargarPartes();
+    } catch (e) {
+      setError(e?.message || "No se pudo realizar la acción del grupo.");
     } finally {
       setAccionCargando(false);
     }
@@ -1592,36 +2479,21 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
     }
   }, [cargarPartes, tareaInternaTexto, userRol]);
 
-  const onSumarmeCoche = useCallback(async (grupo) => {
+  const onSumarmeCoche = useCallback(async (grupo, faseActual = "preparacion", cocheLabel = "", serviciosContratados = []) => {
     const cocheId = Number(grupo?.partes?.[0]?.coche_id);
     if (!Number.isFinite(cocheId)) {
       setError("No se pudo identificar el coche para crear tu parte.");
       return;
     }
-
-    const rolNormalizado = normalizeRol(userRol);
-    const tipoNormalizado = ROL_TO_TIPO[rolNormalizado] || rolNormalizado || "otro";
-    const sugerida = `Apoyo en ${getTipoTareaLabel(tipoNormalizado)}`;
-    const observaciones = window.prompt("Describe brevemente el trabajo que vas a realizar en este coche:", sugerida);
-    if (observaciones === null) return;
-
-    setError("");
-    setAccionCargando(true);
-    try {
-      const tipo = tipoNormalizado;
-      await sumarmeACoche({
-        coche_id: cocheId,
-        observaciones: String(observaciones || "").trim(),
-        tiempo_estimado_minutos: 0,
-        tipo_tarea: tipo,
-      });
-      await cargarPartes();
-    } catch (e) {
-      setError(e?.message || "No se pudo crear tu parte en ese coche.");
-    } finally {
-      setAccionCargando(false);
-    }
-  }, [cargarPartes, userRol]);
+    abrirInicioFaseModal({
+      modo: "sumarme",
+      cocheId,
+      faseActual,
+      cocheLabel,
+      observaciones: "",
+      serviciosContratados,
+    });
+  }, [abrirInicioFaseModal]);
 
   // Agrupar partes por coche: una tarjeta por coche con todos sus servicios
   const cochesGrupos = Object.values(
@@ -1642,7 +2514,11 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
       acc[key].partes.push(p);
       return acc;
     }, {})
-  );
+  ).sort((a, b) => {
+    const aUrgente = a.partes.some(p => Number(p.prioridad || 0) > 0) ? 0 : 1;
+    const bUrgente = b.partes.some(p => Number(p.prioridad || 0) > 0) ? 0 : 1;
+    return aUrgente - bUrgente;
+  });
 
   return (
     <div className="sw-flujo-shell">
@@ -1699,7 +2575,10 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
                 grupo={grupo}
                 empleadoId={empleadoId}
                 onAccionParte={onAccionParte}
+                onAccionGrupo={onAccionGrupo}
                 onSumarmeCoche={onSumarmeCoche}
+                onSolicitarFinalizacion={abrirFinalizacionModal}
+                onSolicitarInicioFase={abrirInicioFaseModal}
                 cargando={accionCargando}
                 otrosDeptos={otrosDeptosPorCoche[grupo.partes[0]?.coche_id] || []}
               />
@@ -1707,6 +2586,329 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
           </div>
         </div>
       )}
+
+      {inicioFaseModal.abierta && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(5,8,15,0.72)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "center",
+            padding: "1rem",
+            paddingTop: "5vh",
+            zIndex: 1200,
+            overflowY: "auto",
+          }}
+          onClick={cerrarInicioFaseModal}
+        >
+          <div
+            style={{
+              width: "min(520px, 100%)",
+              background: "linear-gradient(180deg, rgba(18,24,38,0.98), rgba(10,14,24,0.98))",
+              border: "1px solid rgba(56,189,248,0.22)",
+              borderRadius: "18px",
+              boxShadow: "0 24px 80px rgba(0,0,0,0.45)",
+              color: "var(--sw-text)",
+              overflow: "hidden",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ padding: "1.15rem 1.2rem", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+              <div style={{ fontSize: "0.8rem", color: "#38bdf8", fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "0.35rem" }}>
+                {inicioFaseModal.modo === "sumarme" ? "Sumarme a la fase" : "Iniciar fase"}
+              </div>
+              <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
+                {inicioFaseModal.cocheLabel || "Describe el trabajo de esta fase"}
+              </div>
+              <div style={{ color: "var(--sw-muted)", fontSize: "0.85rem", marginTop: "0.3rem" }}>
+                {inicioFaseModal.serviciosContratados.length > 0
+                  ? "Marca los trabajos que vas a hacer ahora. Añade notas si necesitas."
+                  : "Escribe qué vais a hacer ahora (opcional)."}
+              </div>
+            </div>
+
+            <div style={{ padding: "1.15rem 1.2rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+              {error && (
+                <div style={{
+                  background: "rgba(239,68,68,0.12)",
+                  border: "1px solid rgba(239,68,68,0.3)",
+                  color: "#fecaca",
+                  borderRadius: "12px",
+                  padding: "0.75rem 0.9rem",
+                  fontSize: "0.85rem",
+                }}>
+                  {error}
+                </div>
+              )}
+
+              {inicioFaseModal.serviciosContratados.length > 0 && (
+                <div>
+                  <label style={{ display: "block", marginBottom: "0.55rem", fontSize: "0.78rem", fontWeight: 800, color: "var(--sw-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                    Trabajos contratados
+                  </label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
+                    {inicioFaseModal.serviciosContratados.map((srv, idx) => {
+                      const checked = inicioFaseModal.serviciosChecked[idx];
+                      return (
+                        <label
+                          key={idx}
+                          style={{
+                            display: "flex", alignItems: "center", gap: "0.65rem",
+                            cursor: "pointer",
+                            padding: "0.55rem 0.75rem",
+                            borderRadius: "10px",
+                            background: checked ? "rgba(56,189,248,0.08)" : "rgba(255,255,255,0.03)",
+                            border: `1px solid ${checked ? "rgba(56,189,248,0.3)" : "rgba(255,255,255,0.08)"}`,
+                            transition: "background 0.15s, border-color 0.15s",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => setInicioFaseModal(prev => {
+                              const next = [...prev.serviciosChecked];
+                              next[idx] = !next[idx];
+                              return { ...prev, serviciosChecked: next };
+                            })}
+                            style={{ width: 16, height: 16, accentColor: "#38bdf8", flexShrink: 0, cursor: "pointer" }}
+                          />
+                          <span style={{ fontSize: "0.88rem", color: checked ? "var(--sw-text)" : "var(--sw-muted)", fontWeight: checked ? 600 : 400, lineHeight: 1.3 }}>
+                            {srv}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label style={{ display: "block", marginBottom: "0.45rem", fontSize: "0.78rem", fontWeight: 800, color: "var(--sw-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                  {inicioFaseModal.serviciosContratados.length > 0 ? "Notas adicionales (opcional)" : "Trabajo de esta fase (opcional)"}
+                </label>
+                <textarea
+                  className="form-control"
+                  rows={2}
+                  autoFocus={inicioFaseModal.serviciosContratados.length === 0}
+                  placeholder="Ej: preparar aleta y techo, desmontar llantas..."
+                  value={inicioFaseModal.observaciones}
+                  onChange={(e) => {
+                    setError("");
+                    setInicioFaseModal((prev) => ({ ...prev, observaciones: e.target.value }));
+                  }}
+                  style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "12px", resize: "vertical" }}
+                />
+              </div>
+            </div>
+
+            <div style={{ padding: "1rem 1.2rem", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "flex-end", gap: "0.7rem", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={cerrarInicioFaseModal}
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  color: "var(--sw-muted)",
+                  borderRadius: "10px",
+                  padding: "0.6rem 1rem",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={accionCargando}
+                onClick={guardarInicioFaseModal}
+                style={{
+                  background: "linear-gradient(135deg,#67e8f9,#38bdf8)",
+                  border: "none",
+                  color: "#071018",
+                  borderRadius: "10px",
+                  padding: "0.6rem 1.1rem",
+                  fontWeight: 800,
+                  cursor: accionCargando ? "wait" : "pointer",
+                  opacity: accionCargando ? 0.72 : 1,
+                }}
+              >
+                {accionCargando ? "Guardando..." : inicioFaseModal.modo === "sumarme" ? "Guardar y sumarme" : "Guardar e iniciar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {finalizacionModal.abierta && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(5,8,15,0.72)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1rem",
+            zIndex: 1200,
+          }}
+          onClick={cerrarFinalizacionModal}
+        >
+          <div
+            style={{
+              width: "min(520px, 100%)",
+              background: "linear-gradient(180deg, rgba(18,24,38,0.98), rgba(10,14,24,0.98))",
+              border: "1px solid rgba(212,175,55,0.22)",
+              borderRadius: "18px",
+              boxShadow: "0 24px 80px rgba(0,0,0,0.45)",
+              color: "var(--sw-text)",
+              overflow: "hidden",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ padding: "1.15rem 1.2rem", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+              <div style={{ fontSize: "0.8rem", color: "var(--sw-accent)", fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "0.35rem" }}>
+                Finalizar fase
+              </div>
+              <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
+                {finalizacionModal.cocheLabel || "Confirmar salida de esta fase"}
+              </div>
+              <div style={{ color: "var(--sw-muted)", fontSize: "0.9rem", marginTop: "0.3rem" }}>
+                Indica si el coche ya puede salir o si debe abrirse otra fase pendiente.
+              </div>
+            </div>
+
+            <div style={{ padding: "1.15rem 1.2rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+              {error && (
+                <div style={{
+                  background: "rgba(239,68,68,0.12)",
+                  border: "1px solid rgba(239,68,68,0.3)",
+                  color: "#fecaca",
+                  borderRadius: "12px",
+                  padding: "0.75rem 0.9rem",
+                  fontSize: "0.85rem",
+                }}>
+                  {error}
+                </div>
+              )}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.75rem" }}>
+                <button
+                  type="button"
+                  onClick={() => setFinalizacionModal((prev) => ({ ...prev, listo: true }))}
+                  style={{
+                    textAlign: "left",
+                    padding: "0.9rem 1rem",
+                    borderRadius: "14px",
+                    border: finalizacionModal.listo ? "1px solid rgba(74,222,128,0.45)" : "1px solid rgba(255,255,255,0.08)",
+                    background: finalizacionModal.listo ? "rgba(74,222,128,0.12)" : "rgba(255,255,255,0.03)",
+                    color: finalizacionModal.listo ? "#86efac" : "var(--sw-text)",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  ✓ Coche listo
+                  <div style={{ fontSize: "0.82rem", fontWeight: 500, color: "var(--sw-muted)", marginTop: "0.25rem" }}>
+                    Se cierra esta fase y el coche sale del rol actual.
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFinalizacionModal((prev) => ({ ...prev, listo: false }))}
+                  style={{
+                    textAlign: "left",
+                    padding: "0.9rem 1rem",
+                    borderRadius: "14px",
+                    border: !finalizacionModal.listo ? "1px solid rgba(251,191,36,0.45)" : "1px solid rgba(255,255,255,0.08)",
+                    background: !finalizacionModal.listo ? "rgba(251,191,36,0.12)" : "rgba(255,255,255,0.03)",
+                    color: !finalizacionModal.listo ? "#fcd34d" : "var(--sw-text)",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  ↺ Queda trabajo
+                  <div style={{ fontSize: "0.82rem", fontWeight: 500, color: "var(--sw-muted)", marginTop: "0.25rem" }}>
+                    Se crea la siguiente fase con lo que falta por hacer.
+                  </div>
+                </button>
+              </div>
+
+              {!finalizacionModal.listo && (
+                <>
+                  <div>
+                    <label style={{ display: "block", marginBottom: "0.45rem", fontSize: "0.78rem", fontWeight: 800, color: "var(--sw-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                      Siguiente fase
+                    </label>
+                    <select
+                      className="form-select"
+                      value={finalizacionModal.siguienteFase}
+                      onChange={(e) => setFinalizacionModal((prev) => ({ ...prev, siguienteFase: e.target.value }))}
+                      style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "12px" }}
+                    >
+                      {NEXT_PHASE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", marginBottom: "0.45rem", fontSize: "0.78rem", fontWeight: 800, color: "var(--sw-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                      Qué falta por hacer
+                    </label>
+                    <textarea
+                      className="form-control"
+                      rows={3}
+                      placeholder="Ej: desmontar llantas, preparar y volver a cabina"
+                      value={finalizacionModal.observaciones}
+                      onChange={(e) => setFinalizacionModal((prev) => ({ ...prev, observaciones: e.target.value }))}
+                      style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-text)", borderRadius: "12px", resize: "vertical" }}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div style={{ padding: "1rem 1.2rem", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "flex-end", gap: "0.7rem", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={cerrarFinalizacionModal}
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  color: "var(--sw-muted)",
+                  borderRadius: "10px",
+                  padding: "0.6rem 1rem",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={accionCargando}
+                onClick={guardarFinalizacionModal}
+                style={{
+                  background: "linear-gradient(135deg,#f5e19a,#d4af37)",
+                  border: "none",
+                  color: "#0a0b0e",
+                  borderRadius: "10px",
+                  padding: "0.6rem 1.1rem",
+                  fontWeight: 800,
+                  cursor: accionCargando ? "not-allowed" : "pointer",
+                  opacity: accionCargando ? 0.7 : 1,
+                }}
+              >
+                {accionCargando ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

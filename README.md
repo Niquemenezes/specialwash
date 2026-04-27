@@ -1,94 +1,223 @@
-# SpecialWash — Sistema de Gestión de Taller
+# SpecialWash — Plataforma de gestión operativa para taller
 
-Sistema web interno para talleres de detailing y reparación de vehículos. Gestiona el flujo completo desde la recepción del coche hasta la entrega al cliente, incluyendo inventario, partes de trabajo, inspecciones, coches de sustitución y facturación.
+SpecialWash es una aplicación web interna orientada a talleres de detailing, pintura, tapicería y reacondicionamiento de vehículos. Centraliza la operativa diaria desde la recepción del coche hasta su entrega final, incluyendo planificación, partes de trabajo, control de calidad, inventario, cobros, control horario, uniformes y utilidades administrativas.
 
 **Producción:** [https://specialwash.studio](https://specialwash.studio)
 
 ---
 
-## Funcionalidades
+## Resumen ejecutivo
+
+La plataforma cubre un flujo real de taller con varios perfiles de usuario y procesos encadenados:
+
+1. Recepción del vehículo con inspección, firma y evidencias.
+2. Asignación y ejecución de partes por área o empleado.
+3. Seguimiento del estado del coche en tiempo real.
+4. Repaso de calidad previo a entrega.
+5. Entrega, firma final, acta y cobro según tipo de cliente.
+6. Gestión transversal de inventario, personal, uniformes, citas, gastos y reporting.
+
+Su objetivo es reducir trabajo manual, mejorar la trazabilidad por coche y evitar cierres incompletos antes de llegar al cliente final.
+
+---
+
+## Funcionalidades principales
+
+### Operativa de taller
 
 | Módulo | Descripción |
 |--------|-------------|
-| **Inspección de recepción** | Registro de estado del vehículo con fotos, vídeos y firma digital del cliente |
-| **Partes de trabajo** | Asignación de tareas por empleado con control de tiempos y pausas |
-| **Repaso de calidad** | Control de calidad obligatorio antes de la entrega al cliente |
-| **Acta de entrega** | Documento de entrega firmado digitalmente; bloqueada si el repaso no está completado |
-| **Hoja de intervención** | Documento imprimible opcional por coche para clientes especiales (sin firma ni cobro) |
-| **Coches de sustitución** | Gestión de préstamos de vehículos con contrato RGPD, fotos de carnet y firma digital |
-| **Inventario** | Productos con stock mínimo, alertas, entradas/salidas y códigos de barras |
-| **Catálogo de servicios** | Servicios con precio base, tiempo estimado y rol responsable |
-| **Clientes y vehículos** | Historial de servicios por cliente y matrícula |
-| **Citas** | Calendario de citas con estados y notificaciones |
-| **Control horario** | Fichaje de empleados con foto, registro de jornadas y horarios |
-| **Salidas de material** | Registro de material consumido por trabajo con rol dedicado |
-| **Finanzas** | Dashboard de ingresos, gastos y balance mensual |
-| **Usuarios y roles** | 7 roles diferenciados con tokens JWT por duración según rol |
-| **Notificaciones** | Sistema de alertas internas en tiempo real |
+| **Inspección de recepción** | Alta del vehículo con cliente, matrícula, kilometraje, servicios solicitados, fotos, vídeos y firma digital. |
+| **Servicios aplicados** | Registro estructurado de servicios contratados, con precio, tiempo estimado y rol responsable. |
+| **Partes de trabajo** | Creación y seguimiento de partes por empleado o por coche, con estados, pausas, tiempos y observaciones. |
+| **Flujo por áreas** | Soporte operativo para `detailing`, `pintura`, `tapicero`, `calidad` y trabajo general. |
+| **Estado de coches** | Vista de acompañamiento en tiempo real para saber qué coche está pendiente, en proceso, en pausa, en repaso o listo para entrega. |
+| **Repaso de calidad** | Checklist previo a entrega centrado en trabajos contratados/realizados, con notas y validación final. |
+| **Entrega al cliente** | Registro de trabajos realizados, firma de entrega, observaciones y validaciones de cierre. |
+| **Acta de entrega** | Documento final ligado a la inspección, con trazabilidad del cierre y snapshot operativo. |
+| **Hoja de intervención** | Documento técnico/imprimible opcional para casos que requieren informe o intervención formal. |
+| **Coches entregados** | Histórico de vehículos cerrados y entregados. |
+
+### Cobros y tipologías de cliente
+
+| Módulo | Descripción |
+|--------|-------------|
+| **Cobro de particulares** | Flujo de cierre económico para clientes particulares. |
+| **Cobros profesionales / concesionarios** | Gestión diferenciada para clientes profesionales, pagos pendientes y registro posterior. |
+| **Bloqueos operativos** | La entrega se bloquea si el repaso no está completado o si quedan partes abiertos, salvo permisos de administración. |
+
+### Inventario y materiales
+
+| Módulo | Descripción |
+|--------|-------------|
+| **Productos** | Catálogo interno con stock actual, stock mínimo y soporte para códigos de barras. |
+| **Entradas de almacén** | Registro de entradas por producto y proveedor. |
+| **Salidas de material** | Control de salidas y consumos por operario o proceso. |
+| **Inventario operativo** | Vista consolidada de stock y movimientos. |
+| **Pedido por bajo stock** | Listado imprimible de necesidades de compra. |
+
+### Gestión comercial y administrativa
+
+| Módulo | Descripción |
+|--------|-------------|
+| **Clientes** | Gestión de clientes, historial y relación con inspecciones/vehículos. |
+| **Vehículos / coches** | Gestión del parque de vehículos y trazabilidad por matrícula. |
+| **Resumen de clientes** | Consulta agregada del histórico de actividad. |
+| **Catálogo de servicios** | Servicios configurables con precio base, tiempo estimado y área responsable. |
+| **Citas** | Agenda de citas y planificación operativa. |
+| **Proveedores** | Gestión de proveedores para entradas y compras. |
+| **Maquinaria** | Módulo de apoyo para activos y recursos del taller. |
+| **Gastos de empresa** | Registro y consulta de gastos. |
+| **Dashboard / finanzas** | Panel de control con ingresos, gastos, balance y seguimiento administrativo. |
+
+### Personal y control interno
+
+| Módulo | Descripción |
+|--------|-------------|
+| **Fichaje** | Registro horario adaptado a operarios y personal interno. |
+| **Horarios** | Gestión administrativa de jornadas y control horario. |
+| **Uniformes** | Control de stock de prendas, entregas a empleados, edición y resumen por trabajador. |
+| **Productividad** | Vista de productividad y rendimiento del equipo. |
+| **Notificaciones internas** | Alertas del sistema para eventos operativos relevantes. |
+
+### Movilidad y soporte documental
+
+| Módulo | Descripción |
+|--------|-------------|
+| **Firmas digitales** | Firma en recepción, coche de sustitución y entrega. |
+| **Evidencias multimedia** | Subida de fotos y vídeos para documentar el estado del vehículo. |
+| **Coche de sustitución** | Gestión de préstamo con contrato, RGPD, fotos de documentación y firma. |
+| **Documentos imprimibles** | Soporte de impresión para actas, hoja técnica y pedidos. |
+
+---
+
+## Flujo operativo principal
+
+```text
+1. Recepción
+   └── Inspección de entrada
+       ├── Datos cliente/vehículo
+       ├── Fotos y vídeos
+       ├── Firma digital
+       └── Servicios contratados
+
+2. Ejecución en taller
+   └── Partes de trabajo
+       ├── Asignación por rol o empleado
+       ├── Inicio / pausa / reanudación / finalización
+       └── Seguimiento del estado del coche
+
+3. Repaso de calidad
+   └── Validación final de trabajos contratados o realizados
+
+4. Entrega
+   └── Firma final + acta + observaciones + cobro
+
+5. Post-entrega / reporting
+   └── Histórico, cobros profesionales, gastos, dashboard
+```
+
+---
+
+## Roles y permisos
+
+La plataforma utiliza permisos por rol en frontend y backend para acotar accesos por proceso.
+
+| Rol | Alcance principal | Token |
+|-----|-------------------|-------|
+| `administrador` | Acceso global a operativa, administración, finanzas, usuarios y configuraciones | 8 horas |
+| `calidad` | Inspección, repaso, entrega, citas, estado de coches y coche de sustitución | 8 horas |
+| `salida` | Registro de salidas de material | 30 días |
+| `detailing` | Partes propios, fichaje y operativa asociada | 10 minutos |
+| `pintura` | Partes propios, fichaje y operativa de pintura | 10 minutos |
+| `tapicero` | Partes propios, fichaje y operativa de tapicería | 10 minutos |
+| `empleado` | Soporte operativo adicional según flujo | 10 minutos |
+
+> Los tokens cortos para roles operativos reducen el riesgo de dejar sesiones abiertas en dispositivos compartidos del taller.
 
 ---
 
 ## Stack tecnológico
 
-**Backend**
-- Python 3.12 + Flask 3.0
-- SQLAlchemy 2.0 + SQLite
-- JWT con expiración por rol (flask-jwt-extended)
-- Cloudinary (almacenamiento de fotos y vídeos)
-- OpenAI gpt-4o-mini (redacción automática de actas)
+### Backend
 
-**Frontend**
-- React 18 + React Router 6
-- Bootstrap 5.3 + tema oscuro/claro personalizado
-- FontAwesome 6
-- SignaturePad (firmas digitales en tablet)
+- Python 3.12
+- Flask 3
+- SQLAlchemy 2
+- SQLite
+- JWT (`flask-jwt-extended`)
+- Cloudinary para evidencias multimedia
+- Integración OpenAI para apoyo en redacción documental
 
-**Servidor**
-- Ubuntu 24.04 en VPS IONOS (194.164.164.78)
-- Nginx (proxy inverso + archivos estáticos)
-- Let's Encrypt (HTTPS)
-- Python venv (`/root/specialwash/backend/venv`)
+### Frontend
+
+- React
+- React Router
+- Bootstrap 5
+- Font Awesome
+- SignaturePad para firmas digitales
+- Tema visual dark/light personalizado
+
+### Infraestructura
+
+- VPS Linux en IONOS
+- Nginx como proxy y servidor estático
+- HTTPS con Let's Encrypt
+- Entorno virtual Python para backend
 
 ---
 
 ## Estructura del proyecto
 
-```
+```text
 specialwash/
 ├── backend/
-│   ├── api/              # Blueprints API core (inspecciones, actas, entregas)
-│   ├── models/           # Modelos SQLAlchemy
-│   ├── routes/           # Blueprints por módulo (almacén, horario, citas, etc.)
-│   ├── services/         # Lógica de negocio (auth, OpenAI, WhatsApp)
-│   ├── utils/            # Decoradores de roles y helpers
-│   ├── media/            # Archivos subidos (fotos carnet, coches sustitución)
-│   ├── app.py            # Punto de entrada
-│   └── config.py         # Configuración centralizada
-└── frontend/
-    ├── src/
-    │   ├── pages/        # 35+ páginas React
-    │   ├── components/   # Navbar, Sidebar, SignaturePad, modales
-    │   ├── store/        # Context API + flux (estado global)
-    │   ├── utils/        # apiFetch, authSession, apiBase
-    │   └── styles/       # Tema premium dark/light + print CSS
-    └── build/            # Build de producción
+│   ├── api/                  # Endpoints principales de negocio
+│   ├── models/               # Modelos SQLAlchemy
+│   ├── routes/               # Blueprints por dominio funcional
+│   ├── services/             # Integraciones y lógica de apoyo
+│   ├── utils/                # Helpers, auth, validaciones
+│   ├── prompts/              # Soporte IA / prompts
+│   ├── app.py                # Bootstrap principal
+│   └── config.py             # Configuración
+├── frontend/
+│   ├── src/
+│   │   ├── pages/            # Pantallas principales
+│   │   ├── components/       # Componentes reutilizables
+│   │   ├── config/           # Roles y permisos
+│   │   ├── store/            # Estado global / acciones
+│   │   ├── utils/            # API, auth y helpers
+│   │   └── styles/           # Tema y estilos globales
+│   ├── public/
+│   └── build/                # Build de producción
+└── README.md
 ```
 
 ---
 
-## Roles de usuario y tokens JWT
+## Módulos representativos en el código
 
-| Rol | Acceso | Token |
-|-----|--------|-------|
-| `administrador` | Acceso completo, puede saltarse bloqueos de entrega | 8 horas |
-| `calidad` | Inspecciones, estado de coches, partes, coches sustitución | 8 horas |
-| `salida` | Registro de salidas de material | 30 días |
-| `detailing` | Flujo de entrega, partes propios, salida de productos | 10 minutos |
-| `pintura` | Partes propios, salida de productos | 10 minutos |
-| `tapicero` | Partes propios (flujo tapicería) | 10 minutos |
-| `empleado` | Salidas, partes propios, inspección | 10 minutos |
+### Frontend
 
-> Los roles de empleado tienen token de 10 minutos porque comparten tablet — así cada uno hace login propio sin dejar la sesión abierta.
+- `frontend/src/pages/InspeccionRecepcionPage.jsx`
+- `frontend/src/pages/RepasoEntregaPage.jsx`
+- `frontend/src/pages/FirmaEntregaPage.jsx`
+- `frontend/src/pages/VehiculoDetallePage.jsx`
+- `frontend/src/pages/UniformesPage.jsx`
+- `frontend/src/pages/FicharPage.jsx`
+- `frontend/src/pages/HorariosAdminPage.jsx`
+- `frontend/src/pages/CocheSustitucionPage.jsx`
+- `frontend/src/pages/InventarioPage.jsx`
+- `frontend/src/pages/DashboardPage.jsx`
+- `frontend/src/pages/ProfesionalesPage.jsx`
+
+### Backend
+
+- `backend/api/inspeccion_routes.py`
+- `backend/api/uniforme_routes.py`
+- `backend/routes/horario_routes.py`
+- `backend/routes/parte_trabajo_routes.py`
+- `backend/routes/servicio_catalogo_routes.py`
 
 ---
 
@@ -98,14 +227,16 @@ specialwash/
 
 ```bash
 cd backend
-python3 -m venv venv
-source venv/bin/activate          # Windows: venv\Scripts\activate
+python -m venv venv
+venv\Scripts\activate           # Windows
+# source venv/bin/activate      # Linux/macOS
 pip install -r requirements.txt
-cp .env.example .env              # Rellenar variables
 python app.py
 ```
 
-El backend arranca en `http://localhost:5000`.
+Backend en:
+
+`http://localhost:5000`
 
 ### Frontend
 
@@ -115,9 +246,11 @@ npm install
 npm start
 ```
 
-El frontend arranca en `http://localhost:3000`.
+Frontend en:
 
-### Variables de entorno (backend/.env)
+`http://localhost:3000`
+
+### Variables de entorno del backend
 
 ```env
 FLASK_ENV=development
@@ -125,90 +258,74 @@ SECRET_KEY=dev_secret_key
 JWT_SECRET_KEY=jwt_secret_key
 DATABASE_URL=sqlite:///instance/specialwash.db
 FRONTEND_URLS=http://localhost:3000
-OPENAI_API_KEY=          # Opcional — para redacción de actas con IA
-CLOUDINARY_URL=          # Opcional — para subida de fotos/vídeos
-WHATSAPP_TOKEN=          # Opcional — para notificaciones WhatsApp
+OPENAI_API_KEY=
+CLOUDINARY_URL=
+WHATSAPP_TOKEN=
 ```
+
+Notas:
+
+- `OPENAI_API_KEY` es opcional y se usa para ayudas de redacción.
+- `CLOUDINARY_URL` es opcional para subida de fotos y vídeos.
+- `FRONTEND_URLS` define orígenes permitidos.
 
 ---
 
-## Deploy en producción (IONOS VPS)
+## Despliegue en producción
 
-El deploy es manual via SCP. El backend corre en `/root/specialwash/backend/` y el frontend en `/var/www/specialwash/public_html/`.
+El despliegue actual es manual vía SCP. El backend corre en `/root/specialwash/backend/` y el frontend en `/var/www/specialwash/public_html/`.
 
-### 1. Compilar el frontend
+### 1. Compilar frontend
 
 ```bash
-cd frontend && npm run build
+cd frontend
+npm run build
 ```
 
-### 2. Subir archivos (desde PowerShell en Windows)
+### 2. Subir archivos
 
 ```powershell
-# Backend (solo los archivos modificados)
-scp backend/api/inspeccion_routes.py root@194.164.164.78:/root/specialwash/backend/api/
-scp backend/routes/almacen_routes.py root@194.164.164.78:/root/specialwash/backend/routes/
-
-# Frontend completo
 scp -r frontend/build/* root@194.164.164.78:/var/www/specialwash/public_html/
+scp backend/api/inspeccion_routes.py root@194.164.164.78:/root/specialwash/backend/api/
 ```
 
-### 3. En el servidor
+### 3. Reiniciar backend en servidor
 
 ```bash
 ssh root@194.164.164.78
-
-# Arreglar permisos del frontend
-chmod -R 755 /var/www/specialwash/public_html
-chown -R www-data:www-data /var/www/specialwash/public_html
-
-# Reiniciar el backend
 cd /root/specialwash/backend
 pkill -f "app.py"
-sleep 1
 nohup venv/bin/python3 app.py >> /root/specialwash/logs/app.log 2>&1 &
-
-# Verificar que arrancó
-curl -s http://127.0.0.1:5000/api/auth/me
 ```
 
----
-
-## Comandos útiles en producción
+### Comandos útiles
 
 ```bash
-# Ver logs del backend
 tail -f /root/specialwash/logs/app.log
-
-# Verificar que el backend responde
 curl -s http://127.0.0.1:5000/api/auth/me
-
-# Backup manual de la base de datos
-cp /root/specialwash/backend/instance/specialwash.db \
-   /root/specialwash/backend/instance/specialwash_$(date +%Y%m%d).db
-
-# Ver estado de nginx
-systemctl status nginx
 nginx -t && systemctl reload nginx
 ```
 
 ---
 
-## Flujo de trabajo principal
+## Consideraciones operativas
 
-```
-1. Recepción del coche
-   └── Inspección de entrada (fotos, firma cliente, servicios)
-       └── Opcional: marcar "Requiere hoja de intervención"
+- La plataforma prioriza la trazabilidad por coche e inspección.
+- La entrega final está protegida por validaciones de proceso.
+- Los módulos de personal e inventario conviven con la operativa de taller en una única aplicación.
+- El sistema está pensado para uso en escritorio y tablet dentro del entorno del taller.
 
-2. Trabajo en taller
-   └── Partes de trabajo por empleado (con tiempos y pausas)
-       └── Opcional: imprimir hoja de intervención (sin firma ni cobro)
+---
 
-3. Repaso de calidad (obligatorio antes de entrega)
+## Estado actual del proyecto
 
-4. Entrega al cliente
-   └── Trabajos realizados + firma cliente + cobro
-       └── Bloqueada si: repaso no completado o partes abiertos (salvo admin)
+SpecialWash no es un CRM genérico: está modelado alrededor de una operativa física real de recepción, ejecución, repaso y entrega de vehículos.
 
-```
+Su alcance actual combina:
+
+- flujo de taller,
+- control administrativo,
+- documentación firmada,
+- seguimiento interno de personal,
+- control de recursos y materiales,
+- soporte a clientes particulares y profesionales.

@@ -343,6 +343,103 @@ def editar_registro(registro_id):
     return jsonify({"msg": "Registro actualizado", "registro": registro.to_dict()}), 200
 
 
+# ─── DELETE /api/horario/<id> ────────────────────────────────────────────────
+@horario_bp.route("/horario/<int:registro_id>", methods=["DELETE"])
+@role_required("administrador")
+def eliminar_registro(registro_id):
+    _ensure_registro_horario_schema()
+    registro = RegistroHorario.query.get(registro_id)
+    if not registro:
+        return jsonify({"msg": "Registro no encontrado"}), 404
+    try:
+        db.session.delete(registro)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al eliminar"}), 500
+    return jsonify({"msg": "Registro eliminado"}), 200
+
+
+# ─── POST /api/horario/admin/crear ───────────────────────────────────────────
+@horario_bp.route("/horario/admin/crear", methods=["POST"])
+@role_required("administrador")
+def admin_crear_registro():
+    """Crea o actualiza el registro de hoy para cualquier empleado."""
+    _ensure_registro_horario_schema()
+    from zoneinfo import ZoneInfo
+    from datetime import datetime
+
+    data = request.get_json() or {}
+    empleado_id = data.get("empleado_id")
+    fecha_str = data.get("fecha")
+    if not empleado_id:
+        return jsonify({"msg": "empleado_id requerido"}), 400
+
+    TZ = ZoneInfo("Europe/Madrid")
+    try:
+        fecha = date.fromisoformat(fecha_str) if fecha_str else now_madrid().date()
+    except ValueError:
+        return jsonify({"msg": "Formato de fecha inválido. Usa YYYY-MM-DD"}), 400
+
+    registro = _get_o_crear_registro(int(empleado_id), fecha)
+
+    for campo in ("entrada", "inicio_comida", "fin_comida", "salida"):
+        if campo in data:
+            valor = data[campo]
+            if valor is None or valor == "":
+                setattr(registro, campo, None)
+            else:
+                try:
+                    hora_str = str(valor).strip()
+                    if len(hora_str) == 5:
+                        hora_str += ":00"
+                    dt = datetime.combine(fecha, datetime.strptime(hora_str, "%H:%M:%S").time(), tzinfo=TZ)
+                    setattr(registro, campo, dt)
+                except (ValueError, TypeError):
+                    return jsonify({"msg": f"Formato de hora inválido para '{campo}'. Usa HH:MM"}), 400
+
+    if any(campo in data for campo in ("inicio_comida", "fin_comida")):
+        if registro.inicio_comida:
+            registro.pausas = json.dumps([[registro.inicio_comida.isoformat(), registro.fin_comida.isoformat() if registro.fin_comida else None]])
+        else:
+            registro.pausas = None
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar en base de datos"}), 500
+    return jsonify({"msg": "Registro guardado", "registro": registro.to_dict()}), 200
+
+
+# ─── GET /api/horario/hoy-todos ──────────────────────────────────────────────
+@horario_bp.route("/horario/hoy-todos", methods=["GET"])
+@role_required("administrador")
+def horario_hoy_todos():
+    """Devuelve los registros de HOY para todos los empleados activos."""
+    _ensure_registro_horario_schema()
+    hoy = now_madrid().date()
+    registros = (
+        RegistroHorario.query
+        .filter_by(fecha=hoy)
+        .order_by(RegistroHorario.empleado_id)
+        .all()
+    )
+    empleados = User.query.filter_by(activo=True).order_by(User.nombre).all()
+    registros_por_empleado = {r.empleado_id: r for r in registros}
+    result = []
+    for emp in empleados:
+        r = registros_por_empleado.get(emp.id)
+        if r:
+            d = r.to_dict()
+        else:
+            d = {"id": None, "empleado_id": emp.id, "fecha": hoy.isoformat(),
+                 "entrada": None, "inicio_comida": None, "fin_comida": None, "salida": None}
+        d["empleado_nombre"] = emp.nombre
+        result.append(d)
+    return jsonify(result), 200
+
+
 # ─── GET /api/horario/empleados-activos ──────────────────────────────────────
 @horario_bp.route("/horario/empleados-activos", methods=["GET"])
 @role_required("administrador", "encargado")

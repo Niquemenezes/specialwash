@@ -181,6 +181,11 @@ const InspeccionesGuardadasPage = () => {
     navigate(`/inspeccion-recepcion?editId=${id}`);
   };
 
+  const irAEditarServicios = (id) => {
+    setDetalle(null);
+    navigate(`/inspeccion-recepcion?editId=${id}&action=servicios`);
+  };
+
   const abrirFichaCompleta = (id) => {
     setDetalle(null);
     navigate(`/vehiculo-detalle/${id}`);
@@ -498,6 +503,19 @@ const InspeccionesGuardadasPage = () => {
                                 </a>
                               )}
                               <button
+                                onClick={() => irAEditarServicios(insp.id)}
+                                title="Añadir servicios"
+                                style={{
+                                  background: "color-mix(in srgb,#22c55e 12%,transparent)",
+                                  border: "1px solid color-mix(in srgb,#22c55e 30%,transparent)",
+                                  color: "#22c55e", borderRadius: 8,
+                                  padding: "0.35rem 0.65rem", cursor: "pointer", display: "flex", alignItems: "center",
+                                  fontWeight: 700, fontSize: "0.72rem",
+                                }}
+                              >
+                                + Servicios
+                              </button>
+                              <button
                                 onClick={() => irAEditar(insp.id)}
                                 title="Editar"
                                 style={{
@@ -750,6 +768,17 @@ const InspeccionesGuardadasPage = () => {
                       }}
                     >
                       Abrir ficha completa
+                    </button>
+                    <button
+                      onClick={() => irAEditarServicios(detalle.id)}
+                      style={{
+                        background: "color-mix(in srgb,#22c55e 14%,transparent)",
+                        border: "1px solid color-mix(in srgb,#22c55e 32%,transparent)",
+                        color: "#22c55e", borderRadius: 10, padding: "0.6rem 1.2rem",
+                        fontWeight: 700, fontSize: "0.85rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.4rem",
+                      }}
+                    >
+                      + Anadir servicios
                     </button>
                     <button
                       onClick={() => irAEditar(detalle.id)}

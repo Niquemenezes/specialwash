@@ -28,6 +28,7 @@ ensure_inspeccion_schema = _optional_bootstrap("update_inspeccion_schema", "ensu
 ensure_servicio_catalogo_schema = _optional_bootstrap("update_servicio_catalogo_schema", "ensure_servicio_catalogo_schema")
 ensure_maquinaria_schema = _optional_bootstrap("update_maquinaria_schema", "ensure_maquinaria_schema")
 ensure_parte_trabajo_schema = _optional_bootstrap("update_parte_trabajo_schema", "ensure_parte_trabajo_schema")
+ensure_parte_trabajo_colaborador_schema = _optional_bootstrap("update_parte_trabajo_colaborador_schema", "ensure_parte_trabajo_colaborador_schema")
 
 
 load_dotenv()
@@ -101,6 +102,7 @@ def create_app():
           ensure_servicio_catalogo_schema,
           ensure_maquinaria_schema,
           ensure_parte_trabajo_schema,
+          ensure_parte_trabajo_colaborador_schema,
         ]:
           if callable(bootstrap_fn):
             bootstrap_fn()

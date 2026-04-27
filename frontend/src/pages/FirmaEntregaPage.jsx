@@ -1,6 +1,8 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Context } from "../store/appContext";
+import { confirmar } from "../utils/confirmar";
+import { normalizeRol, getStoredRol } from "../utils/authSession";
 import "../styles/inspeccion-responsive.css";
 
 const formatFecha = (value) => {
@@ -22,6 +24,9 @@ const FirmaEntregaPage = () => {
   const navigate = useNavigate();
   const [inspecciones, setInspecciones] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoadingId, setActionLoadingId] = useState(null);
+  const rol = normalizeRol(getStoredRol() || "");
+  const isAdmin = rol === "administrador";
 
   const cargarPendientes = useCallback(async () => {
     setLoading(true);
@@ -49,6 +54,26 @@ const FirmaEntregaPage = () => {
     }
     navigate("/", { replace: true });
   };
+
+  const editarInspeccion = (id) => {
+    navigate(`/inspeccion-recepcion?editId=${id}`);
+  };
+
+  const eliminarInspeccion = useCallback(async (item) => {
+    const ok = await confirmar(
+      `¿Eliminar la hoja / firma del coche ${item?.matricula || "sin matrícula"}? Esta acción borrará la inspección asociada.`,
+      { titulo: "Eliminar inspección", labelConfirmar: "Eliminar", danger: true }
+    );
+    if (!ok) return;
+
+    setActionLoadingId(item.id);
+    try {
+      await actions.eliminarInspeccion(item.id);
+      await cargarPendientes();
+    } finally {
+      setActionLoadingId(null);
+    }
+  }, [actions, cargarPendientes]);
 
   return (
     <div className="container py-4" style={{ maxWidth: "1000px" }}>
@@ -96,21 +121,44 @@ const FirmaEntregaPage = () => {
                       <div className="text-muted small">{formatFecha(item.fecha_inspeccion)}</div>
                     </div>
                     <div>
-                      {actaLista ? (
-                        <Link
-                          className="btn btn-success sw-firma-btn"
-                          to={`/acta-entrega/${item.id}`}
-                        >
-                          {esConcesionario ? "💼 Cerrar entrega" : "📝 Abrir hoja / firmar"}
-                        </Link>
-                      ) : (
-                        <Link
-                          className="btn btn-outline-warning sw-firma-btn"
-                          to={`/hoja-tecnica/${item.id}`}
-                        >
-                          🛠️ Preparar hoja pendiente
-                        </Link>
-                      )}
+                      <div className="d-flex gap-2 flex-wrap justify-content-end">
+                        {actaLista ? (
+                          <Link
+                            className="btn btn-success sw-firma-btn"
+                            to={`/acta-entrega/${item.id}`}
+                          >
+                            {esConcesionario ? "💼 Cerrar entrega" : "📝 Abrir hoja / firmar"}
+                          </Link>
+                        ) : (
+                          <Link
+                            className="btn btn-outline-warning sw-firma-btn"
+                            to={`/hoja-tecnica/${item.id}`}
+                          >
+                            🛠️ Preparar hoja pendiente
+                          </Link>
+                        )}
+
+                        {isAdmin && (
+                          <>
+                            <button
+                              type="button"
+                              className="btn btn-outline-secondary sw-firma-btn"
+                              onClick={() => editarInspeccion(item.id)}
+                              disabled={actionLoadingId === item.id}
+                            >
+                              ✏️ Editar
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-outline-danger sw-firma-btn"
+                              onClick={() => eliminarInspeccion(item)}
+                              disabled={actionLoadingId === item.id}
+                            >
+                              {actionLoadingId === item.id ? "Eliminando..." : "🗑️ Eliminar"}
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
