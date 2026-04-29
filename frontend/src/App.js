@@ -1,8 +1,8 @@
 // src/App.jsx
 import React, { useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useMatch } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useMatch } from "react-router-dom";
 import injectContext from "./store/appContext.js";
-import { touchSessionActivity, getStoredRol, isEmployeeRole, getDefaultRouteForRole } from "./utils/authSession";
+import { touchSessionActivity, getStoredRol, isEmployeeRole, getDefaultRouteForRole, normalizeRol } from "./utils/authSession";
 import { ROUTE_PERMISSIONS } from "./config/rolePermissions.js";
 
 import NavbarSW from "./components/NavbarSW.jsx";
@@ -55,6 +55,7 @@ import HojaTecnicaPage from "./pages/HojaTecnicaPage.jsx";
 import EntregaClientePage from "./pages/EntregaClientePage.jsx";
 import UniformesPage from "./pages/UniformesPage.jsx";
 import CocheSustitucionPage from "./pages/CocheSustitucionPage.jsx";
+import EstadoCochesPage from "./pages/EstadoCochesPage.jsx";
 
 // Helper: obtener permisos para una ruta desde la configuración centralizada
 const getRouteAllow = (routePath) => {
@@ -66,6 +67,43 @@ const isLogged = () => Boolean(localStorage.getItem("token"));
 
 // Usa sessionStorage primero (sesión de pestaña), igual que token y rol
 const getStoredUserId = () => localStorage.getItem("userId") || "";
+
+const ADMIN_ROLE_QUEUE_META = {
+  detailing: {
+    role: "detailing",
+    title: "Vista detailing",
+    subtitle: "Supervisión administrativa de la cola de detailing.",
+  },
+  pintura: {
+    role: "pintura",
+    title: "Vista pintura",
+    subtitle: "Supervisión administrativa de la cola de pintura.",
+  },
+  tapicero: {
+    role: "tapicero",
+    title: "Vista tapicería",
+    subtitle: "Supervisión administrativa de la cola de tapicería.",
+  },
+};
+
+const AdminRoleQueuePreview = () => {
+  const location = useLocation();
+  const roleParam = normalizeRol(new URLSearchParams(location.search).get("rol"));
+  const config = ADMIN_ROLE_QUEUE_META[roleParam];
+
+  if (!config) {
+    return <Navigate to="/partes-trabajo" replace />;
+  }
+
+  return (
+    <EmpleadoPartesTrabajo
+      empleadoId={getStoredUserId()}
+      userRol={config.role}
+      panelTitle={config.title}
+      panelSubtitle={config.subtitle}
+    />
+  );
+};
 
 const RedirectIfLogged = ({ children }) =>
   isLogged() ? <Navigate to={getDefaultRouteForRole(getStoredRol())} replace /> : children;
@@ -257,6 +295,15 @@ const AppContent = () => {
             />
 
             <Route
+              path="/estado-coches"
+              element={
+                <PrivateRoute allow={getRouteAllow("/estado-coches")}>
+                  <EstadoCochesPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
               path="/mis-partes-trabajo"
               element={
                 <PrivateRoute allow={getRouteAllow("/mis-partes-trabajo")}>
@@ -264,6 +311,15 @@ const AppContent = () => {
                     empleadoId={getStoredUserId()}
                     userRol={getStoredRol()}
                   />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/vista-partes-rol"
+              element={
+                <PrivateRoute allow={getRouteAllow("/vista-partes-rol")}>
+                  <AdminRoleQueuePreview />
                 </PrivateRoute>
               }
             />

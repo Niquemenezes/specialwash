@@ -1723,8 +1723,16 @@ function CocheGrupoCard({ grupo, empleadoId, onAccionParte, onAccionGrupo, onSum
             )}
           </div>
           <div className="sw-parte-card__vehicle-meta">
-            <span className="sw-parte-card__chip sw-parte-card__chip--plate">🚘 {plateLabel}</span>
-            {cliente_nombre && <span className="sw-parte-card__chip">👤 {cliente_nombre}</span>}
+            <span className="sw-parte-card__chip sw-parte-card__chip--plate">
+              <span aria-hidden="true">🚘</span>
+              <span className="sw-parte-card__matricula">{plateLabel}</span>
+            </span>
+            {cliente_nombre && (
+              <span className="sw-parte-card__chip">
+                <span aria-hidden="true">👤</span>
+                <span className="sw-parte-card__cliente">{cliente_nombre}</span>
+              </span>
+            )}
           </div>
           {hayOtroTrabajando && (
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.4rem", flexWrap: "wrap" }}>
@@ -2747,7 +2755,7 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(5,8,15,0.72)",
+            background: "var(--sw-overlay-bg)",
             backdropFilter: "blur(4px)",
             display: "flex",
             alignItems: "center",
@@ -2760,8 +2768,8 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
           <div
             style={{
               width: "min(520px, 100%)",
-              background: "linear-gradient(180deg, rgba(18,24,38,0.98), rgba(10,14,24,0.98))",
-              border: "1px solid rgba(212,175,55,0.22)",
+              background: "var(--sw-surface)",
+              border: "1px solid var(--sw-border)",
               borderRadius: "18px",
               boxShadow: "0 24px 80px rgba(0,0,0,0.45)",
               color: "var(--sw-text)",
@@ -2769,7 +2777,7 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ padding: "1.15rem 1.2rem", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+            <div style={{ padding: "1.15rem 1.2rem", borderBottom: "1px solid var(--sw-border)", background: "var(--sw-surface-2)" }}>
               <div style={{ fontSize: "0.8rem", color: "var(--sw-accent)", fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "0.35rem" }}>
                 Finalizar fase
               </div>
@@ -2802,15 +2810,19 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
                     textAlign: "left",
                     padding: "0.9rem 1rem",
                     borderRadius: "14px",
-                    border: finalizacionModal.listo ? "1px solid rgba(74,222,128,0.45)" : "1px solid rgba(255,255,255,0.08)",
-                    background: finalizacionModal.listo ? "rgba(74,222,128,0.12)" : "rgba(255,255,255,0.03)",
-                    color: finalizacionModal.listo ? "#86efac" : "var(--sw-text)",
+                    border: finalizacionModal.listo
+                      ? "1px solid color-mix(in srgb, var(--sw-success) 45%, var(--sw-border))"
+                      : "1px solid var(--sw-border)",
+                    background: finalizacionModal.listo
+                      ? "color-mix(in srgb, var(--sw-success) 12%, var(--sw-surface))"
+                      : "var(--sw-surface-2)",
+                    color: "var(--sw-text)",
                     fontWeight: 700,
                     cursor: "pointer",
                   }}
                 >
                   ✓ Coche listo
-                  <div style={{ fontSize: "0.82rem", fontWeight: 500, color: "var(--sw-muted)", marginTop: "0.25rem" }}>
+                  <div style={{ fontSize: "0.82rem", fontWeight: 500, color: finalizacionModal.listo ? "var(--sw-success)" : "var(--sw-muted)", marginTop: "0.25rem" }}>
                     Se cierra esta fase y el coche sale del rol actual.
                   </div>
                 </button>
@@ -2822,15 +2834,19 @@ export function EmpleadoPartesTrabajo({ empleadoId, userRol = "", panelTitle, pa
                     textAlign: "left",
                     padding: "0.9rem 1rem",
                     borderRadius: "14px",
-                    border: !finalizacionModal.listo ? "1px solid rgba(251,191,36,0.45)" : "1px solid rgba(255,255,255,0.08)",
-                    background: !finalizacionModal.listo ? "rgba(251,191,36,0.12)" : "rgba(255,255,255,0.03)",
-                    color: !finalizacionModal.listo ? "#fcd34d" : "var(--sw-text)",
+                    border: !finalizacionModal.listo
+                      ? "1px solid color-mix(in srgb, var(--sw-warning, #f59e0b) 45%, var(--sw-border))"
+                      : "1px solid var(--sw-border)",
+                    background: !finalizacionModal.listo
+                      ? "color-mix(in srgb, var(--sw-warning, #f59e0b) 12%, var(--sw-surface))"
+                      : "var(--sw-surface-2)",
+                    color: "var(--sw-text)",
                     fontWeight: 700,
                     cursor: "pointer",
                   }}
                 >
                   ↺ Queda trabajo
-                  <div style={{ fontSize: "0.82rem", fontWeight: 500, color: "var(--sw-muted)", marginTop: "0.25rem" }}>
+                  <div style={{ fontSize: "0.82rem", fontWeight: 500, color: !finalizacionModal.listo ? "var(--sw-warning, #f59e0b)" : "var(--sw-muted)", marginTop: "0.25rem" }}>
                     Se crea la siguiente fase con lo que falta por hacer.
                   </div>
                 </button>

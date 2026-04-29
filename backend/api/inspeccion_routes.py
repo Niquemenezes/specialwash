@@ -100,7 +100,12 @@ def _filter_partes_info_por_inspeccion(partes_info, inspeccion):
         fecha_parte = fecha_fin or fecha_inicio
         if fecha_parte is None:
             return True
-        return fecha_parte >= fecha_ref
+        try:
+            fp = fecha_parte.replace(tzinfo=None) if getattr(fecha_parte, "tzinfo", None) else fecha_parte
+            fr = fecha_ref.replace(tzinfo=None) if getattr(fecha_ref, "tzinfo", None) else fecha_ref
+            return fp >= fr
+        except (TypeError, AttributeError):
+            return True
 
     activas = [
         parte for parte in (partes_info.get("partes_activas_detalle") or [])
@@ -116,8 +121,16 @@ def _filter_partes_info_por_inspeccion(partes_info, inspeccion):
         parte_principal = None
     elif fecha_ref is not None:
         fecha_principal = getattr(parte_principal, "fecha_fin", None) or getattr(parte_principal, "fecha_inicio", None)
-        if fecha_principal is not None and fecha_principal < fecha_ref:
-            parte_principal = None
+        if fecha_principal is not None:
+            try:
+                # Normalizar a naive para comparar (fecha_inspeccion puede ser timezone-aware
+                # mientras que ParteTrabajo.fecha_fin/inicio es naive)
+                fp = fecha_principal.replace(tzinfo=None) if getattr(fecha_principal, "tzinfo", None) else fecha_principal
+                fr = fecha_ref.replace(tzinfo=None) if getattr(fecha_ref, "tzinfo", None) else fecha_ref
+                if fp < fr:
+                    parte_principal = None
+            except (TypeError, AttributeError):
+                pass
 
     if parte_principal is None:
         partes_candidatas = []
@@ -761,6 +774,83 @@ def _normalize_servicios_aplicados(raw):
         })
 
     return normalized
+
+
+def _servicio_sync_key(servicio):
+    if not isinstance(servicio, dict):
+        return None
+
+    servicio_catalogo_id = servicio.get("servicio_catalogo_id")
+    try:
+        servicio_catalogo_id = int(servicio_catalogo_id) if servicio_catalogo_id is not None else None
+    except (TypeError, ValueError):
+        servicio_catalogo_id = None
+
+    if servicio_catalogo_id:
+        return ("catalogo", servicio_catalogo_id)
+
+    nombre = str(servicio.get("nombre") or servicio.get("descripcion") or "").strip()
+    if nombre:
+        return ("manual", nombre.casefold())
+    return None
+
+
+def _sync_partes_pendientes_desde_servicios(inspeccion, servicios):
+    """
+    Sincroniza el área (`tipo_tarea`) de partes de la inspección cuando
+    un servicio cambia de rol. Actualiza pendiente, en_proceso y en_pausa
+    (no toca finalizados para no alterar el historial).
+    """
+    if not inspeccion or not inspeccion.id or not inspeccion.coche_id:
+        return
+    if not isinstance(servicios, list) or not servicios:
+        return
+
+    roles_por_clave = {}
+    for servicio in servicios:
+        clave = _servicio_sync_key(servicio)
+        if not clave:
+            continue
+        tipo_tarea = normalize_role(servicio.get("tipo_tarea") or servicio.get("rol") or servicio.get("rol_responsable") or "")
+        if not tipo_tarea:
+            continue
+        roles_por_clave[clave] = tipo_tarea
+
+    if not roles_por_clave:
+        return
+
+    partes_activos = (
+        ParteTrabajo.query
+        .filter(
+            ParteTrabajo.inspeccion_id == inspeccion.id,
+            ParteTrabajo.coche_id == inspeccion.coche_id,
+            ParteTrabajo.estado.in_([
+                EstadoParte.pendiente,
+                EstadoParte.en_proceso,
+                EstadoParte.en_pausa,
+            ]),
+        )
+        .all()
+    )
+
+    for parte in partes_activos:
+        clave = None
+        if parte.servicio_catalogo_id:
+            clave = ("catalogo", int(parte.servicio_catalogo_id))
+        else:
+            observaciones = (parte.observaciones or "").strip()
+            if observaciones:
+                clave = ("manual", observaciones.casefold())
+
+        if not clave:
+            continue
+
+        nuevo_tipo = roles_por_clave.get(clave)
+        if not nuevo_tipo:
+            continue
+
+        if normalize_role(getattr(parte, "tipo_tarea", "") or "") != nuevo_tipo:
+            parte.tipo_tarea = nuevo_tipo
 
 
 def _safe_servicios_aplicados(inspeccion):
@@ -1450,6 +1540,7 @@ def actualizar_inspeccion(inspeccion_id):
             inspeccion.confirmado = data["confirmado"]
 
         if servicios_actualizados:
+            _sync_partes_pendientes_desde_servicios(inspeccion, servicios_aplicados)
             _auto_crear_partes_desde_inspeccion(inspeccion)
 
         db.session.commit()

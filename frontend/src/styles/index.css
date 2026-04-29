@@ -2731,8 +2731,9 @@ button {
 }
 
 .sw-parte-card__vehicle-name {
-  font-size: 1.02rem;
-  font-weight: 700;
+  font-size: 1.22rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   color: var(--sw-text);
 }
 
@@ -2759,17 +2760,20 @@ button {
   color: var(--sw-text);
   background: color-mix(in srgb, var(--sw-accent) 16%, var(--sw-surface));
   border-color: color-mix(in srgb, var(--sw-accent) 38%, var(--sw-border));
+  padding: 0.24rem 0.75rem;
 }
 
 .sw-parte-card__matricula {
-  font-size: 1.1rem;
-  font-weight: 700;
+  font-size: 1.18rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
   color: var(--sw-text);
 }
 
 .sw-parte-card__desc,
 .sw-parte-card__cliente {
-  font-size: 0.85rem;
+  font-size: 0.76rem;
+  font-weight: 500;
   color: var(--sw-muted);
 }
 
