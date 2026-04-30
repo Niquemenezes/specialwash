@@ -2,6 +2,8 @@ import React, { useEffect, useState, useContext, useRef, useMemo } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Context } from "../store/appContext";
 import SignaturePad from "../components/SignaturePad.jsx";
+import ProgressIndicator from "../components/ProgressIndicator.jsx";
+import NextStepsModal from "../components/NextStepsModal.jsx";
 import { getStoredRol, normalizeRol } from "../utils/authSession";
 import "../styles/inspeccion-responsive.css";
 import "../styles/progress-indicator.css";
@@ -15,7 +17,6 @@ const INITIAL_FORM_DATA = {
   matricula: "",
   kilometros: "",
   es_concesionario: false,
-  requiere_hoja_intervencion: false,
   firma_cliente_recepcion: "",
   consentimiento_datos_recepcion: false,
   averias_notas: "",
@@ -57,6 +58,21 @@ const EMPTY_CATALOG_SELECTION = CATALOG_ROLE_SECTIONS.reduce((acc, { rol }) => {
 const resolveCatalogRole = (servicio) => {
   const normalized = normalizeRol(servicio?.rol_responsable || servicio?.tipo_tarea || "");
   return ROUTEABLE_SERVICE_ROLES.has(normalized) ? normalized : "otro";
+};
+
+const getRoleBadgeClass = (role) => {
+  switch (normalizeRol(role)) {
+    case "detailing":
+      return "bg-primary";
+    case "pintura":
+      return "bg-danger";
+    case "tapicero":
+      return "bg-warning text-dark";
+    case "calidad":
+      return "bg-info text-dark";
+    default:
+      return "bg-secondary";
+  }
 };
 
 const mapServicioForPayload = (servicio) => {
@@ -113,7 +129,6 @@ const InspeccionRecepcionPage = () => {
   const [guardando, setGuardando] = useState(false);
   const [cargandoEdicion, setCargandoEdicion] = useState(false);
   const [inspeccionCreada, setInspeccionCreada] = useState(null);
-  const [ultimaAccionGuardado, setUltimaAccionGuardado] = useState(null);
   const [formError, setFormError] = useState("");
   const [servicioManualError, setServicioManualError] = useState("");
   const [inspeccionEditandoId, setInspeccionEditandoId] = useState(null);
@@ -128,11 +143,12 @@ const InspeccionRecepcionPage = () => {
     tipo_tarea: "",
   });
   const [servicioCatalogoSeleccionado, setServicioCatalogoSeleccionado] = useState(EMPTY_CATALOG_SELECTION);
+  const [showNextStepsModal, setShowNextStepsModal] = useState(false);
+  const [esProfesional, setEsProfesional] = useState(false);
   const [clienteExistenteBusqueda, setClienteExistenteBusqueda] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
   const rol = getStoredRol();
   const isAdmin = rol === "administrador";
-  const modoAgregarServicios = searchParams.get("action") === "servicios";
 
   useEffect(() => {
     let active = true;
@@ -162,7 +178,6 @@ const InspeccionRecepcionPage = () => {
           matricula: inspeccion.matricula || "",
           kilometros: inspeccion.kilometros || "",
           es_concesionario: Boolean(inspeccion.es_concesionario),
-          requiere_hoja_intervencion: Boolean(inspeccion.requiere_hoja_intervencion),
           firma_cliente_recepcion: inspeccion.firma_cliente_recepcion || "",
           consentimiento_datos_recepcion: Boolean(inspeccion.consentimiento_datos_recepcion),
           averias_notas: inspeccion.averias_notas || "",
@@ -176,8 +191,6 @@ const InspeccionRecepcionPage = () => {
             : ""
         );
         setInspeccionEditandoId(inspeccion.id);
-        setInspeccionCreada(null);
-        setUltimaAccionGuardado(null);
         setFotos([]);
         setVideos([]);
         setFotosPreview([]);
@@ -634,24 +647,22 @@ const InspeccionRecepcionPage = () => {
         if (!inspeccion?.id) {
           throw new Error("No se pudo actualizar la inspección");
         }
-        setUltimaAccionGuardado("actualizada");
       } else {
         inspeccion = await actions.crearInspeccion(payload);
         if (!inspeccion || !inspeccion.id) {
           throw new Error("No se pudo crear la inspección");
         }
-        setUltimaAccionGuardado("creada");
       }
 
       setInspeccionCreada(inspeccion);
 
-      await subirArchivos({
+      const { subidos: fotosSubidas, fallidos: fotosFallidas } = await subirArchivos({
         inspeccionId: inspeccion.id,
         archivos: fotos,
         subirArchivo: actions.subirFotoInspeccion
       });
 
-      await subirArchivos({
+      const { subidos: videosSubidos, fallidos: videosFallidos } = await subirArchivos({
         inspeccionId: inspeccion.id,
         archivos: videos,
         subirArchivo: actions.subirVideoInspeccion,
@@ -688,8 +699,6 @@ const InspeccionRecepcionPage = () => {
 
   const cancelarEdicion = () => {
     setInspeccionEditandoId(null);
-    setInspeccionCreada(null);
-    setUltimaAccionGuardado(null);
     setSearchParams({});
     setFormData(INITIAL_FORM_DATA);
     setClienteExistenteBusqueda("");
@@ -825,14 +834,10 @@ const InspeccionRecepcionPage = () => {
                 Panel de gestión · SpecialWash
               </p>
               <h1 style={{ fontSize: "clamp(1.4rem, 3vw, 2rem)", fontWeight: 700, color: "var(--sw-text)", margin: 0, letterSpacing: "-0.01em" }}>
-                {inspeccionEditandoId
-                  ? (modoAgregarServicios ? `Anadir servicios a inspeccion #${inspeccionEditandoId}` : `Editar Inspeccion #${inspeccionEditandoId}`)
-                  : "Inspeccion de Recepcion"}
+                {inspeccionEditandoId ? `Editar Inspección #${inspeccionEditandoId}` : "Inspección de Recepción"}
               </h1>
               <p style={{ fontSize: "0.85rem", color: "var(--sw-muted)", marginTop: "0.35rem", marginBottom: 0 }}>
-                {modoAgregarServicios
-                  ? "Actualiza los servicios acordados y el sistema creara los partes nuevos que falten."
-                  : "Registro de entrada · datos del vehiculo y servicios acordados"}
+                Registro de entrada · datos del vehículo y servicios acordados
               </p>
             </div>
             <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
@@ -860,25 +865,12 @@ const InspeccionRecepcionPage = () => {
             <button type="button" className="btn-close btn-sm" onClick={() => setFormError("")} />
           </div>
         )}
-        {modoAgregarServicios && inspeccionEditandoId && (
-          <div style={{ background: "color-mix(in srgb, var(--sw-accent) 10%, var(--sw-surface))", border: "1px solid color-mix(in srgb, var(--sw-accent) 30%, transparent)", borderRadius: "10px", padding: "0.85rem 1rem", marginBottom: "1rem", color: "var(--sw-text)" }}>
-            Aqui puedes anadir, quitar o corregir servicios despues de haber hecho la inspeccion. Al guardar, se intentaran crear automaticamente los partes que falten para los servicios nuevos.
-          </div>
-        )}
         {/* BANNER SIGUIENTE (arriba) */}
         {inspeccionCreada && (
           <div style={{ background: "color-mix(in srgb, var(--sw-success) 10%, var(--sw-surface))", border: "1px solid color-mix(in srgb, var(--sw-success) 30%, transparent)", borderRadius: "12px", padding: "1rem 1.25rem", color: "var(--sw-success)", marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
             <div>
-              <div>
-                {ultimaAccionGuardado === "actualizada"
-                  ? `✦ Inspeccion #${inspeccionCreada.id} actualizada correctamente`
-                  : `✦ Inspeccion #${inspeccionCreada.id} creada correctamente`}
-              </div>
-              <small style={{ opacity: 0.8 }}>
-                {ultimaAccionGuardado === "actualizada"
-                  ? "Se han revisado los servicios y se han creado los partes nuevos necesarios."
-                  : "Partes de trabajo creados automaticamente"}
-              </small>
+              <div>✦ Inspección #{inspeccionCreada.id} creada correctamente</div>
+              <small style={{ opacity: 0.8 }}>Partes de trabajo creados automáticamente</small>
             </div>
             <button
               type="button"
@@ -959,15 +951,6 @@ const InspeccionRecepcionPage = () => {
                     <input className="form-check-input" type="checkbox" id="es_concesionario" name="es_concesionario" checked={Boolean(formData.es_concesionario)} onChange={handleInputChange} style={{ flexShrink: 0 }} />
                     <label className="form-check-label" htmlFor="es_concesionario" style={{ color: "var(--sw-text)", fontSize: "0.88rem", cursor: "pointer" }}>
                       Coche de concesionario / profesional — no se solicita firma de cliente en recepción
-                    </label>
-                  </div>
-                </div>
-
-                <div className="col-12">
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.75rem 1rem", background: "color-mix(in srgb, #d4af37 8%, var(--sw-surface-2))", border: "1px solid color-mix(in srgb, #d4af37 30%, var(--sw-border))", borderRadius: "10px" }}>
-                    <input className="form-check-input" type="checkbox" id="requiere_hoja_intervencion" name="requiere_hoja_intervencion" checked={Boolean(formData.requiere_hoja_intervencion)} onChange={handleInputChange} style={{ flexShrink: 0 }} />
-                    <label className="form-check-label" htmlFor="requiere_hoja_intervencion" style={{ color: "var(--sw-text)", fontSize: "0.88rem", cursor: "pointer" }}>
-                      Requiere hoja de intervención — se generará un documento imprimible al finalizar el trabajo
                     </label>
                   </div>
                 </div>
@@ -1316,7 +1299,7 @@ const InspeccionRecepcionPage = () => {
             )}
             <button type="submit" disabled={guardando || cargandoEdicion}
               style={{ background: guardando || cargandoEdicion ? "rgba(212,175,55,0.4)" : "linear-gradient(135deg,#f5e19a,#d4af37)", border: "none", color: "#0a0b0e", fontWeight: 800, fontSize: "1rem", borderRadius: "12px", padding: "0.85rem 2.5rem", cursor: guardando || cargandoEdicion ? "not-allowed" : "pointer", letterSpacing: "0.03em", minWidth: "220px" }}>
-              {cargandoEdicion ? "⏳ Cargando inspeccion..." : guardando ? "⏳ Guardando..." : inspeccionEditandoId ? (modoAgregarServicios ? "💾 Guardar servicios" : "💾 Actualizar inspeccion") : "✦ Guardar inspeccion"}
+              {cargandoEdicion ? "⏳ Cargando inspección..." : guardando ? "⏳ Guardando..." : inspeccionEditandoId ? "💾 Actualizar inspección" : "✦ Guardar inspección"}
             </button>
           </div>
 

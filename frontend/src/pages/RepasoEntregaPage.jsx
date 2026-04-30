@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Context } from "../store/appContext";
 import FirmaEntregaPage from "./FirmaEntregaPage";
 import "../styles/inspeccion-responsive.css";
-import { buildChecklistState, buildRepasoChecklistItems } from "../utils/repasoChecklist";
 
 const TIPO_COLORES = {
   detailing: "#6366f1",
@@ -14,11 +13,44 @@ const TIPO_COLORES = {
   otro:      "#a78bfa",
 };
 
-const buildChecklistItems = (selected) => {
-  return buildRepasoChecklistItems({
-    servicios: selected?.servicios_aplicados || [],
-    partesFinalizadas: selected?.estado_coche?.partes_finalizados_detalle || [],
+const formatTipoLabel = (value) => {
+  if (!value) return "Trabajo";
+  return value.charAt(0).toUpperCase() + value.slice(1);
+};
+
+const cleanParteDetalle = (value, fase, tipoTarea) => {
+  const text = String(value || "").trim();
+  if (!text) return "Sin detalle";
+
+  const prefixes = [
+    fase === "preparacion" ? "preparacion" : null,
+    fase === "pintura" ? "pintura" : null,
+    tipoTarea || null,
+  ].filter(Boolean);
+
+  let cleaned = text;
+  prefixes.forEach((prefix) => {
+    const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    cleaned = cleaned.replace(new RegExp(`^${escaped}\\s+`, "i"), "");
   });
+
+  return cleaned.trim() || text;
+};
+
+const getParteRepasoLabel = (parte) => {
+  if (parte?.fase === "preparacion") return "Preparación";
+  if (parte?.fase === "pintura") return "Pintura";
+  return formatTipoLabel(parte?.tipo_tarea);
+};
+
+const buildChecklistItems = (selected) => {
+  const partes = selected?.estado_coche?.partes_finalizados_detalle || [];
+  return partes.map((p) => ({
+    key: `parte_${p.id}`,
+    label: `${getParteRepasoLabel(p)} — ${cleanParteDetalle(p.observaciones, p.fase, p.tipo_tarea)}`,
+    tipo: p.fase === "preparacion" ? "preparacion" : p.tipo_tarea,
+    observaciones: p.empleado_nombre || "Sin asignar",
+  }));
 };
 
 const isProfesional = (item) => {
@@ -69,10 +101,7 @@ export default function RepasoEntregaPage() {
       .filter((i) => {
         if (i.entregado) return false;
         const estado = i.estado_coche?.estado;
-        const partesFinalizadas = Array.isArray(i.estado_coche?.partes_finalizados_detalle)
-          ? i.estado_coche.partes_finalizados_detalle.length
-          : 0;
-        return estado === "en_repaso" || estado === "listo_entrega" || i.repaso_completado || partesFinalizadas > 0;
+        return estado === "en_repaso" || estado === "listo_entrega" || i.repaso_completado;
       })
       .filter((i) => {
         if (!term) return true;
@@ -108,7 +137,10 @@ export default function RepasoEntregaPage() {
     }
     const saved = selected.repaso_checklist && typeof selected.repaso_checklist === "object"
       ? selected.repaso_checklist : {};
-    setChecklistDraft(buildChecklistState(buildChecklistItems(selected), saved));
+    // Inicializar con false para cada parte, luego sobreescribir con lo guardado
+    const base = {};
+    buildChecklistItems(selected).forEach((it) => { base[it.key] = false; });
+    setChecklistDraft({ ...base, ...saved });
     setNotasDraft(selected.repaso_notas || "");
     setHojaIntervencionDraft(Boolean(selected.requiere_hoja_intervencion));
   }, [selected]);
@@ -140,7 +172,7 @@ export default function RepasoEntregaPage() {
     setSaving(true);
     try {
       await actions.guardarRepasoInspeccion(selected.id, {
-        checklist: buildChecklistState(checklistItems, checklistDraft),
+        checklist: checklistDraft,
         notas: notasDraft,
         marcar_listo: marcarListo,
         requiere_hoja_intervencion: hojaIntervencionDraft,
@@ -343,10 +375,10 @@ export default function RepasoEntregaPage() {
                           )}
                         </div>
 
-                        {/* Checklist solo con trabajos contratados/realizados */}
+                        {/* Checklist por roles que han trabajado */}
                         {checklistItems.length === 0 ? (
                           <div className="text-muted py-3 text-center">
-                            No hay trabajos contratados o finalizados registrados para este coche.
+                            Sin partes de trabajo finalizados registrados para este coche.
                           </div>
                         ) : (
                           <div className="row g-2 mb-3">

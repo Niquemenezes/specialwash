@@ -88,7 +88,7 @@ const ResumenClientesPage = () => {
   return (
     <div className="sw-ent-wrapper">
       {/* ── Hero ──────────────────────────────────────────────────── */}
-      <style>{`@media print { .no-print { display: none !important; } [class*="sw-sidebar"], .sw-sidebar-overlay { display: none !important; } body { margin: 0; padding: 16px; background: white !important; color: black !important; } body * { color: black !important; background: transparent !important; box-shadow: none !important; } .table th, .table td { border-color: #ccc !important; } }`}</style>
+      <style>{`@media print { .no-print { display: none !important; } body { margin: 0; padding: 16px; } }`}</style>
 
       <div className="sw-veh-hero no-print">
         <div className="sw-veh-hero-inner container">

@@ -309,7 +309,6 @@ export default function GastosEmpresaPage() {
 
   return (
     <div className="container py-4 sw-page-shell sw-view-stack" style={{ color: "var(--sw-text)" }}>
-      <style>{`@media print { [class*="sw-sidebar"], .sw-sidebar-overlay { display: none !important; } body { margin: 0; padding: 16px; background: white !important; color: black !important; } body * { color: black !important; background: transparent !important; box-shadow: none !important; } .table th, .table td { border-color: #ccc !important; } }`}</style>
       <div className="d-flex justify-content-between align-items-center mb-3 sw-view-header">
         <h2 className="mb-0" style={{ color: "var(--sw-text)" }}>Finanzas Empresa</h2>
         <div className="d-flex gap-2">

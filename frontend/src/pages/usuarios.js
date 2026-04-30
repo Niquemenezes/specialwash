@@ -233,7 +233,6 @@ export default function Usuarios() {
                       <option value="calidad">Calidad</option>
                       <option value="pintura">Pintura</option>
                       <option value="tapicero">Tapicero</option>
-                      <option value="salida">Salida de productos</option>
                       <option value="administrador">Administrador</option>
                       <option value="encargado">Encargado</option>
                     </select>

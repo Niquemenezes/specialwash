@@ -112,6 +112,9 @@ const RegistrarEntradaPage = () => {
   });
 
   const [saving, setSaving] = useState(false);
+  const [ocrFile, setOcrFile] = useState(null);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrMsg, setOcrMsg] = useState("");
   const [showNuevo, setShowNuevo] = useState(false);
   const [productoModalInitial, setProductoModalInitial] = useState(null);
   const [editando, setEditando] = useState(null);
@@ -197,11 +200,50 @@ const RegistrarEntradaPage = () => {
     }
   };
 
+  const procesarOcrArchivo = async (file) => {
+    if (!file) return;
+    setOcrFile(file);
+    setOcrMsg("");
+    setOcrLoading(true);
+    try {
+      const sugerencia = await actions.sugerirEntradaOCR(file);
+      const hasCantidad   = sugerencia?.cantidad != null && Number.isFinite(Number(sugerencia.cantidad));
+      const hasPrecio     = sugerencia?.precio_unitario != null && Number.isFinite(Number(sugerencia.precio_unitario));
+      const hasIva        = sugerencia?.porcentaje_iva != null && Number.isFinite(Number(sugerencia.porcentaje_iva));
+      const hasDescuento  = sugerencia?.descuento_porcentaje != null && Number.isFinite(Number(sugerencia.descuento_porcentaje));
+      const hasNumero     = Boolean((sugerencia?.numero_albaran || "").trim());
+      setForm((prev) => ({
+        ...prev,
+        cantidad:             hasCantidad  ? String(sugerencia.cantidad)            : prev.cantidad,
+        precio_unitario:      hasPrecio    ? String(sugerencia.precio_unitario)     : prev.precio_unitario,
+        iva_porcentaje:       hasIva       ? String(sugerencia.porcentaje_iva)      : prev.iva_porcentaje,
+        descuento_porcentaje: hasDescuento ? String(sugerencia.descuento_porcentaje): prev.descuento_porcentaje,
+        numero_documento:     sugerencia?.numero_albaran || prev.numero_documento,
+      }));
+      const detectedUseful = [hasCantidad, hasPrecio, hasIva, hasDescuento].filter(Boolean).length;
+      if (detectedUseful === 0 && !hasNumero) {
+        setOcrMsg("warning:No se detectaron datos. Intenta con otra foto más cerca y con mejor luz.");
+      } else if (sugerencia?.multiple_items_detected) {
+        setOcrMsg("warning:OCR parcial: varios artículos detectados. Revisa los campos antes de guardar.");
+      } else {
+        setOcrMsg("success:Datos detectados y completados. Revisa y confirma antes de guardar.");
+      }
+    } catch (err) {
+      setOcrMsg("danger:" + (err?.message || "No se pudo leer el documento."));
+    } finally {
+      setOcrLoading(false);
+    }
+  };
+
   const entradasOrdenadas = useMemo(() => {
     return [...(store.entradas || [])].sort(
       (a, b) => new Date(b.created_at || b.fecha) - new Date(a.created_at || a.fecha)
     );
   }, [store.entradas]);
+
+  /* ── Parsear ocrMsg ──────── */
+  const ocrMsgType  = ocrMsg ? ocrMsg.split(":")[0] : null;
+  const ocrMsgText  = ocrMsg ? ocrMsg.slice(ocrMsgType.length + 1) : "";
 
   return (
     <div className="sw-ent-wrapper">
@@ -215,7 +257,7 @@ const RegistrarEntradaPage = () => {
             <div>
               <p className="sw-home-eyebrow" style={{ marginBottom: "0.2rem" }}>Inventario · Entradas</p>
               <h1 className="sw-veh-hero-title">Registrar Entrada de Stock</h1>
-              <p className="sw-veh-hero-sub">Registra entradas de producto mediante entrada manual</p>
+              <p className="sw-veh-hero-sub">Registra entradas de producto con soporte OCR para albaranes y facturas</p>
             </div>
           </div>
         </div>
@@ -228,6 +270,50 @@ const RegistrarEntradaPage = () => {
         <div className="sw-ent-card">
           <form onSubmit={handleSubmit}>
             <div className="sw-ent-card-body">
+
+              {/* ── Bloque OCR ─────────────────────────────────── */}
+              <div className="sw-ent-ocr-block">
+                <div className="sw-ent-ocr-header">
+                  <span className="sw-ent-ocr-icon">{ICONS.scan}</span>
+                  <div>
+                    <p className="sw-ent-ocr-title">Escaneo OCR</p>
+                    <p className="sw-ent-ocr-sub">Extrae precio, cantidad e IVA directamente de una foto del albarán</p>
+                  </div>
+                </div>
+
+                {/* Inputs file ocultos */}
+                <input id="ocr-camera" type="file" accept="image/*" capture="environment" style={{ display: "none" }}
+                  onChange={(e) => procesarOcrArchivo(e.target.files?.[0])} />
+                <input id="ocr-gallery" type="file" accept="image/*" style={{ display: "none" }}
+                  onChange={(e) => procesarOcrArchivo(e.target.files?.[0])} />
+
+                <div className="sw-ent-ocr-actions">
+                  <label htmlFor="ocr-camera" className="sw-ent-ocr-btn sw-ent-ocr-btn--primary"
+                    style={{ opacity: ocrLoading ? 0.5 : 1, pointerEvents: ocrLoading ? "none" : "auto" }}>
+                    <span style={{ width: 16, height: 16, display: "flex" }}>{ocrLoading ? ICONS.spinner : ICONS.camera}</span>
+                    {ocrLoading ? "Escaneando…" : "Escanear Factura"}
+                  </label>
+                  <label htmlFor="ocr-gallery" className="sw-ent-ocr-btn sw-ent-ocr-btn--outline"
+                    style={{ opacity: ocrLoading ? 0.5 : 1, pointerEvents: ocrLoading ? "none" : "auto" }}>
+                    <span style={{ width: 16, height: 16, display: "flex" }}>{ICONS.upload}</span>
+                    Seleccionar archivo
+                  </label>
+                </div>
+
+                {ocrFile && !ocrLoading && !ocrMsg && (
+                  <p style={{ margin: "0.5rem 0 0", fontSize: "0.75rem", color: "var(--sw-muted)" }}>
+                    {ocrFile.name} ({(ocrFile.size / 1024).toFixed(0)} KB)
+                  </p>
+                )}
+                {!ocrMsg && !ocrFile && (
+                  <p style={{ margin: "0.5rem 0 0", fontSize: "0.75rem", color: "var(--sw-muted)", opacity: 0.7 }}>
+                    Toma una foto o selecciona una imagen para extraer los datos automáticamente
+                  </p>
+                )}
+                {ocrMsg && (
+                  <Feedback msg={ocrMsgText} type={ocrMsgType} onClose={() => setOcrMsg("")} />
+                )}
+              </div>
 
               {/* ── Grid campos ────────────────────────────────── */}
               <div className="sw-ent-grid">

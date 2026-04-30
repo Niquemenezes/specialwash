@@ -28,10 +28,8 @@
   button,
   nav,
   .navbar,
-  .sw-sidebar,
-  .sw-sidebar-overlay,
-  [class*="sw-sidebar"],
   .accordion-button::after,
+  .card.mb-4,
   .modal-header,
   .modal-footer {
     display: none !important;
