@@ -17,61 +17,29 @@ const estadoBadge = (devuelto) =>
 
 const pageShellStyle = {
   minHeight: "calc(100vh - 56px)",
-  color: "var(--sw-text)",
+  color: "#eef2f7",
   position: "relative",
   zIndex: 1,
 };
 
 const sectionCardStyle = {
-  background: "var(--sw-surface)",
-  border: "1px solid var(--sw-border)",
+  background: "#131924",
+  border: "1px solid #30394a",
   borderRadius: 18,
-  boxShadow: "var(--sw-shadow)",
+  boxShadow: "0 12px 28px rgba(0, 0, 0, 0.35)",
   position: "relative",
   zIndex: 2,
 };
 
 const sectionHeaderStyle = {
   padding: "1rem 1.15rem",
-  borderBottom: "1px solid var(--sw-border)",
+  borderBottom: "1px solid #30394a",
   fontWeight: 700,
-  color: "var(--sw-text)",
+  color: "#eef2f7",
 };
 
 const sectionBodyStyle = {
   padding: "1rem 1.15rem",
-};
-
-const inputStyle = {
-  background: "var(--sw-surface-2)",
-  border: "1px solid var(--sw-border)",
-  color: "var(--sw-text)",
-};
-
-const ghostButtonStyle = {
-  background: "var(--sw-surface-2)",
-  border: "1px solid var(--sw-border)",
-  color: "var(--sw-text)",
-};
-
-const primaryButtonStyle = {
-  background: "linear-gradient(135deg,#f5e19a,#d4af37)",
-  border: "none",
-  color: "#0a0b0e",
-  fontWeight: 700,
-};
-
-const successButtonStyle = {
-  background: "color-mix(in srgb, #22c55e 18%, white)",
-  border: "1px solid color-mix(in srgb, #22c55e 40%, transparent)",
-  color: "#14532d",
-  fontWeight: 700,
-};
-
-const infoButtonStyle = {
-  background: "color-mix(in srgb, var(--sw-accent) 10%, var(--sw-surface))",
-  border: "1px solid color-mix(in srgb, var(--sw-accent) 28%, var(--sw-border))",
-  color: "var(--sw-text)",
 };
 
 export default function CocheSustitucionPage() {
@@ -111,12 +79,6 @@ export default function CocheSustitucionPage() {
     combustible_devolucion: "lleno",
     estado_devolucion: "",
     firma_devolucion: "",
-  });
-
-  const [formEdit, setFormEdit] = useState({
-    cliente_nombre: "", cliente_dni: "", cliente_telefono: "",
-    coche_cliente_matricula: "", matricula: "", marca: "", modelo: "",
-    km_entrega: "", combustible_entrega: "lleno", estado_entrega: "",
   });
 
   const cargarLista = async () => {
@@ -217,52 +179,6 @@ export default function CocheSustitucionPage() {
     }
   };
 
-  const abrirEditar = (item) => {
-    setSeleccionado(item);
-    setFormEdit({
-      cliente_nombre: item.cliente_nombre || "",
-      cliente_dni: item.cliente_dni || "",
-      cliente_telefono: item.cliente_telefono || "",
-      coche_cliente_matricula: item.coche_cliente_matricula || "",
-      matricula: item.matricula || "",
-      marca: item.marca || "",
-      modelo: item.modelo || "",
-      km_entrega: item.km_entrega ?? "",
-      combustible_entrega: item.combustible_entrega || "lleno",
-      estado_entrega: item.estado_entrega || "",
-    });
-    setError("");
-    setVista("editar");
-  };
-
-  const handleEditarGuardar = async (e) => {
-    e.preventDefault();
-    setError("");
-    setGuardando(true);
-    try {
-      await apiFetch(`/api/coche-sustitucion/${seleccionado.id}`, {
-        method: "PUT",
-        body: { ...formEdit, km_entrega: formEdit.km_entrega !== "" ? parseInt(formEdit.km_entrega) : null },
-      });
-      await cargarLista();
-      setVista("lista");
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  const handleEliminar = async (item) => {
-    if (!window.confirm(`¿Eliminar el préstamo de ${item.cliente_nombre} (${item.matricula})?\n\nEsta acción no se puede deshacer.`)) return;
-    try {
-      await apiFetch(`/api/coche-sustitucion/${item.id}`, { method: "DELETE" });
-      await cargarLista();
-    } catch (e) {
-      setError(e.message);
-    }
-  };
-
   const resetForm = () => {
     setForm({ cliente_nombre: "", cliente_dni: "", cliente_telefono: "", coche_cliente_matricula: "", matricula: "", marca: "", modelo: "", km_entrega: "", combustible_entrega: "lleno", estado_entrega: "", firma_cliente: "", consentimiento_rgpd: false });
     setCarnetFrenteFile(null); setCarnetFrentePreview(null);
@@ -275,97 +191,12 @@ export default function CocheSustitucionPage() {
     return <ImprimirContrato item={seleccionado} onVolver={() => setVista("lista")} />;
   }
 
-  // ─── FORMULARIO EDITAR ─────────────────────────────────────────────
-  if (vista === "editar" && seleccionado) {
-    return (
-      <div className="sw-page-bg" style={pageShellStyle}>
-      <div className="container py-4" style={{ maxWidth: 860, color: "var(--sw-text)", position: "relative", zIndex: 3 }}>
-        <button className="btn btn-sm mb-3" style={ghostButtonStyle} onClick={() => { setVista("lista"); setError(""); }}>
-          ← Volver
-        </button>
-        <div style={{ ...sectionCardStyle, marginBottom: "1rem" }}>
-          <div style={sectionBodyStyle}>
-            <div className="small text-uppercase fw-bold mb-1" style={{ color: "#d4af37", letterSpacing: "0.08em" }}>Coches Sustitución</div>
-            <h4 className="fw-bold mb-1">Editar préstamo #{String(seleccionado.id).padStart(4, "0")}</h4>
-            <p className="text-muted mb-0">Modifica los datos del préstamo. La firma y las fotos no se pueden cambiar desde aquí.</p>
-          </div>
-        </div>
-        {error && <div className="alert alert-danger">{error}</div>}
-        <form onSubmit={handleEditarGuardar}>
-          <div className="mb-3" style={sectionCardStyle}>
-            <div style={sectionHeaderStyle}>Datos del cliente</div>
-            <div style={sectionBodyStyle}>
-              <div className="row g-3">
-                <div className="col-md-6">
-                  <label className="form-label">Nombre completo *</label>
-                  <input className="form-control" style={inputStyle} value={formEdit.cliente_nombre} onChange={e => setFormEdit(f => ({ ...f, cliente_nombre: e.target.value }))} required />
-                </div>
-                <div className="col-md-6">
-                  <label className="form-label">DNI / NIE *</label>
-                  <input className="form-control" style={inputStyle} value={formEdit.cliente_dni} onChange={e => setFormEdit(f => ({ ...f, cliente_dni: e.target.value }))} required />
-                </div>
-                <div className="col-md-6">
-                  <label className="form-label">Teléfono</label>
-                  <input className="form-control" style={inputStyle} value={formEdit.cliente_telefono} onChange={e => setFormEdit(f => ({ ...f, cliente_telefono: e.target.value }))} />
-                </div>
-                <div className="col-md-6">
-                  <label className="form-label">Matrícula coche en taller</label>
-                  <input className="form-control" style={inputStyle} value={formEdit.coche_cliente_matricula} onChange={e => setFormEdit(f => ({ ...f, coche_cliente_matricula: e.target.value.toUpperCase() }))} />
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="mb-3" style={sectionCardStyle}>
-            <div style={sectionHeaderStyle}>Coche de sustitución</div>
-            <div style={sectionBodyStyle}>
-              <div className="row g-3">
-                <div className="col-md-4">
-                  <label className="form-label">Matrícula *</label>
-                  <input className="form-control" style={inputStyle} value={formEdit.matricula} onChange={e => setFormEdit(f => ({ ...f, matricula: e.target.value.toUpperCase() }))} required />
-                </div>
-                <div className="col-md-4">
-                  <label className="form-label">Marca</label>
-                  <input className="form-control" style={inputStyle} value={formEdit.marca} onChange={e => setFormEdit(f => ({ ...f, marca: e.target.value }))} />
-                </div>
-                <div className="col-md-4">
-                  <label className="form-label">Modelo</label>
-                  <input className="form-control" style={inputStyle} value={formEdit.modelo} onChange={e => setFormEdit(f => ({ ...f, modelo: e.target.value }))} />
-                </div>
-                <div className="col-md-4">
-                  <label className="form-label">Kilómetros</label>
-                  <input type="number" className="form-control" style={inputStyle} value={formEdit.km_entrega} onChange={e => setFormEdit(f => ({ ...f, km_entrega: e.target.value }))} />
-                </div>
-                <div className="col-md-4">
-                  <label className="form-label">Combustible</label>
-                  <select className="form-select" style={inputStyle} value={formEdit.combustible_entrega} onChange={e => setFormEdit(f => ({ ...f, combustible_entrega: e.target.value }))}>
-                    {COMBUSTIBLE_OPTS.map(o => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                </div>
-                <div className="col-12">
-                  <label className="form-label">Estado / daños existentes</label>
-                  <textarea className="form-control" style={inputStyle} rows={3} value={formEdit.estado_entrega} onChange={e => setFormEdit(f => ({ ...f, estado_entrega: e.target.value }))} />
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="d-flex gap-2">
-            <button type="submit" className="btn" style={primaryButtonStyle} disabled={guardando}>
-              {guardando ? "Guardando..." : "Guardar cambios"}
-            </button>
-            <button type="button" className="btn" style={ghostButtonStyle} onClick={() => { setVista("lista"); setError(""); }}>Cancelar</button>
-          </div>
-        </form>
-      </div>
-      </div>
-    );
-  }
-
   // ─── FORMULARIO NUEVO ──────────────────────────────────────────────
   if (vista === "nuevo") {
     return (
       <div className="sw-page-bg" style={pageShellStyle}>
-      <div className="container py-4" style={{ maxWidth: 860, color: "var(--sw-text)", position: "relative", zIndex: 3 }}>
-        <button className="btn btn-sm mb-3" style={ghostButtonStyle} onClick={() => { setVista("lista"); resetForm(); setError(""); }}>
+      <div className="container py-4" style={{ maxWidth: 860, color: "#eef2f7", position: "relative", zIndex: 3 }}>
+        <button className="btn btn-outline-secondary btn-sm mb-3" onClick={() => { setVista("lista"); resetForm(); setError(""); }}>
           ← Volver
         </button>
         <div style={{ ...sectionCardStyle, marginBottom: "1rem" }}>
@@ -378,7 +209,7 @@ export default function CocheSustitucionPage() {
                 <h4 className="fw-bold mb-1">Nuevo préstamo de coche de sustitución</h4>
                 <p className="text-muted mb-0">Completa los datos del cliente, del coche prestado y la firma.</p>
               </div>
-              <span className="badge rounded-pill" style={{ background: "var(--sw-surface-2)", color: "var(--sw-text)", border: "1px solid var(--sw-border)", padding: "0.65rem 0.9rem" }}>
+              <span className="badge rounded-pill text-bg-dark" style={{ border: "1px solid #30394a", padding: "0.65rem 0.9rem" }}>
                 Formulario activo
               </span>
             </div>
@@ -392,26 +223,26 @@ export default function CocheSustitucionPage() {
               <div className="row g-3">
                 <div className="col-md-6">
                   <label className="form-label">Nombre completo *</label>
-                  <input className="form-control" style={inputStyle} value={form.cliente_nombre} onChange={e => setForm(f => ({ ...f, cliente_nombre: e.target.value }))} required />
+                  <input className="form-control" value={form.cliente_nombre} onChange={e => setForm(f => ({ ...f, cliente_nombre: e.target.value }))} required />
                 </div>
                 <div className="col-md-6">
                   <label className="form-label">DNI / NIE *</label>
-                  <input className="form-control" style={inputStyle} value={form.cliente_dni} onChange={e => setForm(f => ({ ...f, cliente_dni: e.target.value }))} required />
+                  <input className="form-control" value={form.cliente_dni} onChange={e => setForm(f => ({ ...f, cliente_dni: e.target.value }))} required />
                 </div>
                 <div className="col-md-6">
                   <label className="form-label">Teléfono</label>
-                  <input className="form-control" style={inputStyle} value={form.cliente_telefono} onChange={e => setForm(f => ({ ...f, cliente_telefono: e.target.value }))} />
+                  <input className="form-control" value={form.cliente_telefono} onChange={e => setForm(f => ({ ...f, cliente_telefono: e.target.value }))} />
                 </div>
                 <div className="col-md-6">
                   <label className="form-label">Matrícula coche en taller</label>
-                  <input className="form-control" style={inputStyle} placeholder="Ej: 1234ABC" value={form.coche_cliente_matricula} onChange={e => setForm(f => ({ ...f, coche_cliente_matricula: e.target.value.toUpperCase() }))} />
+                  <input className="form-control" placeholder="Ej: 1234ABC" value={form.coche_cliente_matricula} onChange={e => setForm(f => ({ ...f, coche_cliente_matricula: e.target.value.toUpperCase() }))} />
                 </div>
                 <div className="col-12">
                   <label className="form-label fw-semibold">Foto del carnet de conducir</label>
                   <div className="d-flex gap-3 flex-wrap mt-1">
                     <div className="text-center">
                       <input ref={frenteRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleCarnetFrente} />
-                      <button type="button" className="btn d-flex flex-column align-items-center px-4 py-3" style={{ ...infoButtonStyle, minWidth: 130 }} onClick={() => frenteRef.current.click()}>
+                      <button type="button" className="btn btn-outline-primary d-flex flex-column align-items-center px-4 py-3" style={{ minWidth: 130 }} onClick={() => frenteRef.current.click()}>
                         <i className="fas fa-camera fa-2x mb-1" />
                         <span className="small">Frente</span>
                       </button>
@@ -419,7 +250,7 @@ export default function CocheSustitucionPage() {
                     </div>
                     <div className="text-center">
                       <input ref={versoRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleCarnetVerso} />
-                      <button type="button" className="btn d-flex flex-column align-items-center px-4 py-3" style={{ ...infoButtonStyle, minWidth: 130 }} onClick={() => versoRef.current.click()}>
+                      <button type="button" className="btn btn-outline-primary d-flex flex-column align-items-center px-4 py-3" style={{ minWidth: 130 }} onClick={() => versoRef.current.click()}>
                         <i className="fas fa-camera fa-2x mb-1" />
                         <span className="small">Verso</span>
                       </button>
@@ -437,35 +268,35 @@ export default function CocheSustitucionPage() {
               <div className="row g-3">
                 <div className="col-md-4">
                   <label className="form-label">Matrícula *</label>
-                  <input className="form-control" style={inputStyle} value={form.matricula} onChange={e => setForm(f => ({ ...f, matricula: e.target.value.toUpperCase() }))} required />
+                  <input className="form-control" value={form.matricula} onChange={e => setForm(f => ({ ...f, matricula: e.target.value.toUpperCase() }))} required />
                 </div>
                 <div className="col-md-4">
                   <label className="form-label">Marca</label>
-                  <input className="form-control" style={inputStyle} value={form.marca} onChange={e => setForm(f => ({ ...f, marca: e.target.value }))} />
+                  <input className="form-control" value={form.marca} onChange={e => setForm(f => ({ ...f, marca: e.target.value }))} />
                 </div>
                 <div className="col-md-4">
                   <label className="form-label">Modelo</label>
-                  <input className="form-control" style={inputStyle} value={form.modelo} onChange={e => setForm(f => ({ ...f, modelo: e.target.value }))} />
+                  <input className="form-control" value={form.modelo} onChange={e => setForm(f => ({ ...f, modelo: e.target.value }))} />
                 </div>
                 <div className="col-md-4">
                   <label className="form-label">Kilómetros</label>
-                  <input type="number" className="form-control" style={inputStyle} value={form.km_entrega} onChange={e => setForm(f => ({ ...f, km_entrega: e.target.value }))} />
+                  <input type="number" className="form-control" value={form.km_entrega} onChange={e => setForm(f => ({ ...f, km_entrega: e.target.value }))} />
                 </div>
                 <div className="col-md-4">
                   <label className="form-label">Combustible</label>
-                  <select className="form-select" style={inputStyle} value={form.combustible_entrega} onChange={e => setForm(f => ({ ...f, combustible_entrega: e.target.value }))}>
+                  <select className="form-select" value={form.combustible_entrega} onChange={e => setForm(f => ({ ...f, combustible_entrega: e.target.value }))}>
                     {COMBUSTIBLE_OPTS.map(o => <option key={o} value={o}>{o}</option>)}
                   </select>
                 </div>
                 <div className="col-12">
                   <label className="form-label">Estado / daños existentes</label>
-                  <textarea className="form-control" style={inputStyle} rows={3} value={form.estado_entrega} onChange={e => setForm(f => ({ ...f, estado_entrega: e.target.value }))} placeholder="Describa rasguños, golpes u otros daños previos..." />
+                  <textarea className="form-control" rows={3} value={form.estado_entrega} onChange={e => setForm(f => ({ ...f, estado_entrega: e.target.value }))} placeholder="Describa rasguños, golpes u otros daños previos..." />
                 </div>
                 <div className="col-12">
                   <label className="form-label fw-semibold">Fotos del coche (arañazos, golpes, etc.)</label>
                   <div className="mt-1">
                     <input ref={fotoCocheRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleFotos} />
-                    <button type="button" className="btn d-flex align-items-center gap-2 px-3 py-2" style={ghostButtonStyle} onClick={() => fotoCocheRef.current.click()}>
+                    <button type="button" className="btn btn-outline-secondary d-flex align-items-center gap-2 px-3 py-2" onClick={() => fotoCocheRef.current.click()}>
                       <i className="fas fa-camera" />
                       <span>Hacer foto</span>
                     </button>
@@ -505,10 +336,10 @@ export default function CocheSustitucionPage() {
           </div>
 
           <div className="d-flex gap-2">
-            <button type="submit" className="btn" style={primaryButtonStyle} disabled={guardando}>
+            <button type="submit" className="btn btn-primary" disabled={guardando}>
               {guardando ? "Guardando..." : "Guardar y generar contrato"}
             </button>
-            <button type="button" className="btn" style={ghostButtonStyle} onClick={() => { setVista("lista"); resetForm(); }}>Cancelar</button>
+            <button type="button" className="btn btn-outline-secondary" onClick={() => { setVista("lista"); resetForm(); }}>Cancelar</button>
           </div>
         </form>
       </div>
@@ -520,8 +351,8 @@ export default function CocheSustitucionPage() {
   if (vista === "devolucion" && seleccionado) {
     return (
       <div className="sw-page-bg" style={pageShellStyle}>
-      <div className="container py-4" style={{ maxWidth: 860, color: "var(--sw-text)", position: "relative", zIndex: 3 }}>
-        <button className="btn btn-sm mb-3" style={ghostButtonStyle} onClick={() => { setVista("lista"); setError(""); }}>← Volver</button>
+      <div className="container py-4" style={{ maxWidth: 860, color: "#eef2f7", position: "relative", zIndex: 3 }}>
+        <button className="btn btn-outline-secondary btn-sm mb-3" onClick={() => { setVista("lista"); setError(""); }}>← Volver</button>
         <div style={{ ...sectionCardStyle, marginBottom: "1rem" }}>
           <div style={sectionBodyStyle}>
             <h4 className="fw-bold mb-1">Registrar devolución</h4>
@@ -535,25 +366,25 @@ export default function CocheSustitucionPage() {
               <div className="row g-3">
                 <div className="col-md-4">
                   <label className="form-label">Kilómetros devolución</label>
-                  <input type="number" className="form-control" style={inputStyle} value={formDev.km_devolucion} onChange={e => setFormDev(f => ({ ...f, km_devolucion: e.target.value }))} />
+                  <input type="number" className="form-control" value={formDev.km_devolucion} onChange={e => setFormDev(f => ({ ...f, km_devolucion: e.target.value }))} />
                 </div>
                 <div className="col-md-4">
                   <label className="form-label">Combustible</label>
-                  <select className="form-select" style={inputStyle} value={formDev.combustible_devolucion} onChange={e => setFormDev(f => ({ ...f, combustible_devolucion: e.target.value }))}>
+                  <select className="form-select" value={formDev.combustible_devolucion} onChange={e => setFormDev(f => ({ ...f, combustible_devolucion: e.target.value }))}>
                     {COMBUSTIBLE_OPTS.map(o => <option key={o} value={o}>{o}</option>)}
                   </select>
                 </div>
                 <div className="col-12">
                   <label className="form-label">Observaciones devolución</label>
-                  <textarea className="form-control" style={inputStyle} rows={3} value={formDev.estado_devolucion} onChange={e => setFormDev(f => ({ ...f, estado_devolucion: e.target.value }))} />
+                  <textarea className="form-control" rows={3} value={formDev.estado_devolucion} onChange={e => setFormDev(f => ({ ...f, estado_devolucion: e.target.value }))} />
                 </div>
               </div>
             </div>
           </div>
           <SignaturePad title="Firma del cliente (devolución) *" value={formDev.firma_devolucion} onChange={v => setFormDev(f => ({ ...f, firma_devolucion: v }))} height={160} />
           <div className="d-flex gap-2 mt-2">
-            <button type="submit" className="btn" style={successButtonStyle} disabled={guardando}>{guardando ? "Guardando..." : "Confirmar devolución"}</button>
-            <button type="button" className="btn" style={ghostButtonStyle} onClick={() => setVista("lista")}>Cancelar</button>
+            <button type="submit" className="btn btn-success" disabled={guardando}>{guardando ? "Guardando..." : "Confirmar devolución"}</button>
+            <button type="button" className="btn btn-outline-secondary" onClick={() => setVista("lista")}>Cancelar</button>
           </div>
         </form>
       </div>
@@ -564,7 +395,7 @@ export default function CocheSustitucionPage() {
   // ─── LISTA ─────────────────────────────────────────────────────────
   return (
     <div className="sw-page-bg" style={pageShellStyle}>
-    <div className="container py-4" style={{ color: "var(--sw-text)", position: "relative", zIndex: 3 }}>
+    <div className="container py-4" style={{ color: "#eef2f7", position: "relative", zIndex: 3 }}>
       <div style={{ ...sectionCardStyle, marginBottom: "1rem" }}>
         <div style={sectionBodyStyle}>
           <div className="d-flex align-items-center justify-content-between gap-3 flex-wrap">
@@ -575,7 +406,7 @@ export default function CocheSustitucionPage() {
               <h4 className="fw-bold mb-1">Gestión de préstamos de coche de sustitución</h4>
               <p className="text-muted small mb-0">Préstamos a clientes mientras su vehículo está en taller</p>
             </div>
-            <button className="btn" style={primaryButtonStyle} onClick={() => { resetForm(); setError(""); setVista("nuevo"); }}>
+            <button className="btn btn-primary" onClick={() => { resetForm(); setError(""); setVista("nuevo"); }}>
               + Nuevo préstamo
             </button>
           </div>
@@ -614,21 +445,15 @@ export default function CocheSustitucionPage() {
                   <td className="small">{item.fecha_devolucion ? fmtFecha(item.fecha_devolucion) : "-"}</td>
                   <td>{estadoBadge(item.devuelto)}</td>
                   <td>
-                    <div className="d-flex gap-1 flex-wrap">
-                      <button className="btn btn-sm" style={ghostButtonStyle} onClick={() => { setSeleccionado(item); setVista("imprimir"); }}>
+                    <div className="d-flex gap-1">
+                      <button className="btn btn-outline-secondary btn-sm" onClick={() => { setSeleccionado(item); setVista("imprimir"); }}>
                         Imprimir
                       </button>
                       {!item.devuelto && (
-                        <button className="btn btn-sm" style={successButtonStyle} onClick={() => { setSeleccionado(item); setFormDev({ km_devolucion: "", combustible_devolucion: "lleno", estado_devolucion: "", firma_devolucion: "" }); setVista("devolucion"); }}>
+                        <button className="btn btn-outline-success btn-sm" onClick={() => { setSeleccionado(item); setFormDev({ km_devolucion: "", combustible_devolucion: "lleno", estado_devolucion: "", firma_devolucion: "" }); setVista("devolucion"); }}>
                           Devolver
                         </button>
                       )}
-                      <button className="btn btn-sm" style={infoButtonStyle} onClick={() => abrirEditar(item)} title="Editar">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                      </button>
-                      <button className="btn btn-sm btn-outline-danger" onClick={() => handleEliminar(item)} title="Eliminar">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-                      </button>
                     </div>
                   </td>
                 </tr>

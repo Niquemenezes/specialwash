@@ -1,5 +1,5 @@
 // src/front/js/pages/ProductoFormModal.jsx
-import React, { useCallback, useContext, useEffect, useRef, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { Context } from "../store/appContext";
 import { detectBarcodeFromFile } from "../utils/barcode";
 import { toast } from "../utils/toast";
@@ -23,7 +23,7 @@ export default function ProductoFormModal({ show, onClose, onSaved, initial, sug
     stock_actual: 0,
   });
 
-  const parseCodigosAlternativos = useCallback((rawValue, codigoPrincipal = "") => {
+  const parseCodigosAlternativos = (rawValue, codigoPrincipal = "") => {
     const principal = String(codigoPrincipal || "").trim();
     return Array.from(
       new Set(
@@ -33,9 +33,9 @@ export default function ProductoFormModal({ show, onClose, onSaved, initial, sug
           .filter(Boolean)
       )
     ).filter((codigo) => codigo !== principal);
-  }, []);
+  };
 
-  const buildFormState = useCallback((producto = null) => {
+  const buildFormState = (producto = null) => {
     const principalActual = String(producto?.codigo_barras || "").trim();
     const alternativos = parseCodigosAlternativos(
       (producto?.codigos_barras || []).map((c) => c?.codigo_barras).join("\n"),
@@ -64,7 +64,7 @@ export default function ProductoFormModal({ show, onClose, onSaved, initial, sug
       stock_minimo: Number(producto?.stock_minimo ?? 0),
       stock_actual: Number(producto?.stock_actual ?? 0),
     };
-  }, [cleanedSuggestedBarcode, parseCodigosAlternativos]);
+  };
 
   useEffect(() => {
     setForm(buildFormState(isEdit ? initial : null));
@@ -73,7 +73,7 @@ export default function ProductoFormModal({ show, onClose, onSaved, initial, sug
         ? "Se ha rellenado el código detectado. Puedes guardarlo o borrarlo; no es obligatorio."
         : ""
     );
-  }, [isEdit, initial, cleanedSuggestedBarcode, buildFormState]);
+  }, [isEdit, initial, cleanedSuggestedBarcode]);
 
   const onChange = (e) => {
     const { name, value } = e.target;

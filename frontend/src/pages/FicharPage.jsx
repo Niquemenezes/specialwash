@@ -29,10 +29,7 @@ const HORAS_VACIAS = { entrada: "", inicio_comida: "", fin_comida: "", salida: "
 function calcularHoras(r) {
   if (!r.entrada || !r.salida) return null;
   let ms = new Date(r.salida) - new Date(r.entrada);
-  const descansoMin = Number(r.descanso_total_minutos || 0);
-  if (descansoMin > 0) {
-    ms -= descansoMin * 60000;
-  } else if (r.inicio_comida && r.fin_comida) {
+  if (r.inicio_comida && r.fin_comida) {
     const pausa = new Date(r.fin_comida) - new Date(r.inicio_comida);
     if (pausa > 0) ms -= pausa;
   }
@@ -41,21 +38,6 @@ function calcularHoras(r) {
   const h = Math.floor(totalMin / 60);
   const m = totalMin % 60;
   return `${h}h ${String(m).padStart(2, "0")}m`;
-}
-
-function formatPausas(r) {
-  const pausas = Array.isArray(r?.pausas) ? r.pausas : [];
-  if (pausas.length === 0) {
-    if (r.inicio_comida) {
-      return r.fin_comida
-        ? `${formatHora(r.inicio_comida)} – ${formatHora(r.fin_comida)}`
-        : `${formatHora(r.inicio_comida)} (activo)`;
-    }
-    return "—";
-  }
-  return pausas.map(([ini, fin]) =>
-    fin ? `${formatHora(ini)} – ${formatHora(fin)}` : `${formatHora(ini)} …`
-  ).join(" / ");
 }
 
 function isoToHHMM(isoStr) {
@@ -367,7 +349,8 @@ export default function FicharPage() {
                 <tr>
                   <th>Empleado</th>
                   <th>Entrada</th>
-                  <th>Descansos</th>
+                  <th>Ini. descanso</th>
+                  <th>Fin descanso</th>
                   <th>Salida</th>
                   <th>Horas</th>
                   <th className="text-center">Acciones</th>
@@ -380,7 +363,8 @@ export default function FicharPage() {
                     <tr key={r.empleado_id} style={incompleto ? { background: "rgba(245,158,11,0.08)" } : {}}>
                       <td className="fw-semibold text-nowrap">{r.empleado_nombre}</td>
                       <td className="text-nowrap">{r.entrada ? formatHora(r.entrada) : <span className="text-danger fw-bold">—</span>}</td>
-                      <td className="text-nowrap" style={{ fontSize: "0.78rem" }}>{formatPausas(r)}</td>
+                      <td className="text-nowrap">{r.inicio_comida ? formatHora(r.inicio_comida) : "—"}</td>
+                      <td className="text-nowrap">{r.fin_comida ? formatHora(r.fin_comida) : "—"}</td>
                       <td className="text-nowrap">{r.salida ? formatHora(r.salida) : "—"}</td>
                       <td className="text-nowrap fw-semibold" style={{ color: calcularHoras(r) ? "#16a34a" : "var(--sw-muted)" }}>
                         {calcularHoras(r) || "—"}

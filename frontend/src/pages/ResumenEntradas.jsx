@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Context } from "../store/appContext";
 import GoldSelect from "../components/GoldSelect.jsx";
 import { confirmar } from "../utils/confirmar";
@@ -109,7 +109,67 @@ export default function ResumenEntradas() {
 
 
 
-  const aplicar = useCallback(async () => {
+  useEffect(() => {
+
+    actions.getProveedores();
+
+    actions.getProductos();
+
+
+
+    const load = async () => {
+
+      setLoading(true);
+
+      try {
+
+        await actions.getEntradas();
+
+      } finally {
+
+        setLoading(false);
+
+      }
+
+    };
+
+
+
+    load();
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+  }, []);
+
+
+
+  // Auto-filtrar cuando cambien los valores (con debounce para búsqueda)
+
+  useEffect(() => {
+
+    const timeoutId = setTimeout(() => {
+
+      if (desde || hasta || proveedorId || productoId || q.trim()) {
+
+        aplicar();
+
+      }
+
+    }, q.trim() ? 500 : 0); // 500ms debounce para búsqueda de texto
+
+
+
+    return () => clearTimeout(timeoutId);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+  }, [desde, hasta, proveedorId, productoId, q]);
+
+
+
+  // Aplicar filtros
+
+  const aplicar = async () => {
 
     setLoading(true);
 
@@ -135,55 +195,7 @@ export default function ResumenEntradas() {
 
     }
 
-  }, [actions, desde, hasta, proveedorId, productoId, q]);
-
-
-
-  useEffect(() => {
-
-    actions.getProveedores();
-
-    actions.getProductos();
-
-    const load = async () => {
-
-      setLoading(true);
-
-      try {
-
-        await actions.getEntradas();
-
-      } finally {
-
-        setLoading(false);
-
-      }
-
-    };
-
-    load();
-
-  }, [actions]);
-
-
-
-  // Auto-filtrar cuando cambien los valores (con debounce para búsqueda)
-
-  useEffect(() => {
-
-    const timeoutId = setTimeout(() => {
-
-      if (desde || hasta || proveedorId || productoId || q.trim()) {
-
-        aplicar();
-
-      }
-
-    }, q.trim() ? 500 : 0); // 500ms debounce para búsqueda de texto
-
-    return () => clearTimeout(timeoutId);
-
-  }, [desde, hasta, proveedorId, productoId, q, aplicar]);
+  };
 
 
 
@@ -465,11 +477,9 @@ export default function ResumenEntradas() {
         @media print {
           .no-print { display: none !important; }
           .print-title { display: block !important; }
-          [class*="sw-sidebar"], .sw-sidebar-overlay { display: none !important; }
-          body { margin: 0; padding: 16px; background: white !important; color: black !important; }
-          body * { color: black !important; background: transparent !important; box-shadow: none !important; }
+          body { margin: 0; padding: 16px; }
           .table { font-size: 11px; }
-          .table th, .table td { padding: 6px; border-color: #ccc !important; }
+          .table th, .table td { padding: 6px; }
         }
         @media screen { .print-title { display: none; } }
       `}</style>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { confirmar } from "../utils/confirmar";
 import { toast } from "../utils/toast";
@@ -80,6 +80,12 @@ export default function UniformesPage() {
     cargarEmpleados();
   }, []);
 
+  useEffect(() => {
+    if (tab === "entregas") cargarEntregas();
+    if (tab === "stock") cargarStock();
+    if (tab === "resumen") cargarResumen();
+  }, [tab, filtroEmpleado, filtroPrenda]);
+
   const cargarEmpleados = async () => {
     try {
       const data = await apiFetch("/api/uniformes/empleados");
@@ -89,7 +95,7 @@ export default function UniformesPage() {
     }
   };
 
-  const cargarEntregas = useCallback(async () => {
+  const cargarEntregas = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -102,13 +108,7 @@ export default function UniformesPage() {
     } finally {
       setLoading(false);
     }
-  }, [filtroEmpleado, filtroPrenda]);
-
-  useEffect(() => {
-    if (tab === "entregas") cargarEntregas();
-    if (tab === "stock") cargarStock();
-    if (tab === "resumen") cargarResumen();
-  }, [tab, filtroEmpleado, filtroPrenda, cargarEntregas]);
+  };
 
   const cargarStock = async () => {
     setLoading(true);

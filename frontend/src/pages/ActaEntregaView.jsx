@@ -68,24 +68,40 @@ const parseServicios = (value) => {
   }
 };
 
-const buildServiciosContratadosTexto = (servicios = []) => {
-  const lineas = servicios
-    .map((item) => String(item?.nombre || item?.servicio_nombre || "").trim())
-    .filter(Boolean)
-    .map((nombre) => `- ${nombre}`);
-
-  if (!lineas.length) return "";
-  return `Conforme a la orden de trabajo registrada y a la contratacion validada, el alcance tecnico de la intervencion prevista para este vehiculo comprende los siguientes conceptos de actuacion:\n\n${lineas.join("\n")}`.trim();
-};
-
-const hasStructuredActaSections = (texto = "") =>
-  /(servicio solicitado \/ objetivo|estado inicial \/ diagnóstico|trabajos realizados|productos y materiales utilizados|resultado y comprobaciones finales|recomendaciones)\s*:/i.test(
-    String(texto || "")
-  );
-
 const buildFallbackTrabajos = (data) => {
+  const partesFinalizadas = Array.isArray(data?.estado_coche?.partes_finalizados_detalle)
+    ? data.estado_coche.partes_finalizados_detalle
+    : [];
+
+  if (partesFinalizadas.length > 0) {
+    const seen = new Set();
+    return partesFinalizadas
+      .map((parte) => {
+        const detalle = String(parte?.observaciones || "").trim();
+        if (!detalle) return null;
+        const fase = String(parte?.fase || "").trim().toLowerCase();
+        const prefijo = fase === "preparacion" ? "Preparación" : fase === "pintura" ? "Pintura" : "Trabajo";
+        const linea = `${prefijo}: ${detalle}`;
+        const key = linea.toLowerCase();
+        if (seen.has(key)) return null;
+        seen.add(key);
+        return linea;
+      })
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+  }
+
   const servicios = parseServicios(data?.servicios_aplicados);
-  return buildServiciosContratadosTexto(servicios);
+  if (servicios.length > 0) {
+    return servicios
+      .map((s) => s?.nombre || s?.servicio_nombre || "")
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+  }
+
+  return "";
 };
 
 const normalizeTechnicalContent = (contenido = "") => {
@@ -172,12 +188,10 @@ const ActaEntregaView = () => {
         setFirmaCliente(data?.firma_cliente_entrega || "");
         const trabajosPrevios = String(data?.trabajos_realizados || "").trim();
         const fallbackTrabajos = buildFallbackTrabajos(data);
-        if (trabajosPrevios && hasStructuredActaSections(trabajosPrevios)) {
+        if (trabajosPrevios) {
           setTrabajosEditados(trabajosPrevios);
         } else if (fallbackTrabajos) {
           setTrabajosEditados(fallbackTrabajos);
-        } else if (trabajosPrevios) {
-          setTrabajosEditados(trabajosPrevios);
         }
         setNombreFirmante(parsedObs.firmante || data?.cliente_nombre || "");
         setConsentimiento(Boolean(data?.consentimiento_datos_entrega));

@@ -16,11 +16,9 @@ const isBajoStock = (p) =>
 const PRINT_STYLE = `
   @media print {
     .no-print { display: none !important; }
-    [class*="sw-sidebar"], .sw-sidebar-overlay { display: none !important; }
-    body { margin: 0; padding: 16px; background: white !important; color: black !important; }
-    body * { color: black !important; background: transparent !important; box-shadow: none !important; }
+    body { margin: 0; padding: 16px; }
     .table { font-size: 11px; }
-    .table th, .table td { padding: 6px; border-color: #ccc !important; }
+    .table th, .table td { padding: 6px; }
   }
 `;
 
@@ -51,7 +49,7 @@ export default function ProductosPage() {
     return () => { active = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const productos = useMemo(() => store.productos || [], [store.productos]);
+  const productos = store.productos || [];
 
   const productosFiltrados = useMemo(() => {
     const term = filtro.trim().toLowerCase();

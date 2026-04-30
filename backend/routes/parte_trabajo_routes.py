@@ -1010,6 +1010,17 @@ def cambiar_estado_parte(parte_id):
                 return jsonify({'msg': 'Solo puedes pausar tu trabajo en curso'}), 400
             _set_colaborador_en_pausa(colaborador)
             _sync_estado_parte_con_colaboradores(parte)
+        elif nuevo_estado == 'pendiente':
+            if not _can_manage_all_partes():
+                return jsonify({'msg': 'Solo un administrador puede reabrir un parte finalizado'}), 403
+            parte.estado = EstadoParte.pendiente
+            parte.fecha_fin = None
+            parte.empleado_id = None
+            for col in list(getattr(parte, 'colaboradores', []) or []):
+                try:
+                    db.session.delete(col)
+                except Exception:
+                    pass
         elif nuevo_estado in {'finalizado', 'finalizar_y_siguiente'}:
             if colaborador.estado not in {EstadoParte.en_proceso, EstadoParte.en_pausa}:
                 return jsonify({'msg': 'Solo puedes finalizar tu participación si está activa o en pausa'}), 400
