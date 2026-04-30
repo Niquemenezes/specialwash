@@ -1977,84 +1977,61 @@ function CocheGrupoCard({ grupo, empleadoId, onAccionParte, onAccionGrupo, onSum
             </div>
           </div>
         )}
-        {partes.map((p) => {
-          if (esBloquePintura) return null;
-          const esMio = Number(p.empleado_id) === yoId;
+        {!esBloquePintura && (() => {
+          const partesActivos = partes.filter(p => p.estado !== "finalizado");
+          const partesFinalizados = partes.filter(p => p.estado === "finalizado");
+          const hayEnProceso = partesActivos.some(p => p.estado === "en_proceso");
+          const hayEnPausa = partesActivos.some(p => p.estado === "en_pausa");
+          const todosPendiente = partesActivos.length > 0 && partesActivos.every(p => p.estado === "pendiente");
+          const esMioAlguno = partesActivos.some(p => Number(p.empleado_id) === yoId || p.estado === "pendiente");
+
+          // Colaboradores activos de todos los partes activos
+          const colaboradoresActivos = partesActivos.flatMap(p => {
+            if (Array.isArray(p.colaboradores) && p.colaboradores.length > 0)
+              return p.colaboradores.filter(c => c.estado !== "finalizado");
+            if (p.empleado_nombre && (p.estado === "en_proceso" || p.estado === "en_pausa"))
+              return [{ empleado_nombre: p.empleado_nombre, estado: p.estado }];
+            return [];
+          });
+
           return (
-            <div
-              key={p.id}
-              style={{
-                border: "1px solid var(--sw-border)",
-                borderRadius: "8px",
-                padding: "0.5rem",
-                background: "rgba(255,255,255,0.02)",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
-                <div style={{ fontSize: "0.85rem", minWidth: 0 }}>
-                  <strong>#{p.id}</strong> · {getTipoTareaLabel(p.tipo_tarea)}
-                  {p.observaciones ? ` — ${p.observaciones}` : ""}
-                  {(p.estado === "en_proceso" || p.estado === "en_pausa") && (() => {
-                    const colabs = Array.isArray(p.colaboradores) && p.colaboradores.length > 0
-                      ? p.colaboradores.filter(c => c.estado !== "finalizado")
-                      : p.empleado_nombre
-                        ? [{ empleado_nombre: p.empleado_nombre, estado: p.estado }]
-                        : [];
-                    if (!colabs.length) return null;
-                    return (
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginTop: "0.3rem" }}>
-                        {colabs.map((c, i) => (
-                          <span
-                            key={i}
-                            style={{
-                              background: c.estado === "en_pausa" ? "rgba(234,179,8,0.15)" : "rgba(34,197,94,0.15)",
-                              color: c.estado === "en_pausa" ? "#ca8a04" : "#16a34a",
-                              border: `1px solid ${c.estado === "en_pausa" ? "rgba(234,179,8,0.4)" : "rgba(34,197,94,0.4)"}`,
-                              borderRadius: "12px",
-                              padding: "0.1rem 0.55rem",
-                              fontSize: "0.78rem",
-                              fontWeight: 600,
-                            }}
-                          >
-                            {c.estado === "en_pausa" ? "⏸ " : "▶ "}{c.empleado_nombre || "Sin nombre"}
-                          </span>
-                        ))}
-                      </div>
-                    );
-                  })()}
-                  {!esTareaInterna && (
-                    <div className="sw-parte-card__service-meta">
-                      <span>🚗 {vehicleTitle}</span>
-                      <span>·</span>
-                      <span>🔖 {plateLabel}</span>
-                      {cliente_nombre && (
-                        <>
-                          <span>·</span>
-                          <span>👤 {cliente_nombre}</span>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", flexWrap: "wrap" }}>
-                  <FaseBadge fase={p.fase} esTareaInterna={esTareaInterna} />
-                  <EstadoBadge estado={p.estado} />
-                </div>
-                <div style={{ display: "flex", gap: "0.55rem", flexWrap: "wrap" }}>
-                  {p.estado === "finalizado" && (
-                    <span style={{
-                      background: "rgba(34,197,94,0.12)",
-                      border: "1px solid rgba(34,197,94,0.35)",
-                      color: "#4ade80",
-                      borderRadius: "8px",
-                      padding: "0.25rem 0.75rem",
-                      fontSize: "0.8rem",
-                      fontWeight: 700,
+            <div style={{ border: "1px solid var(--sw-border)", borderRadius: "8px", padding: "0.65rem 0.75rem", background: "rgba(255,255,255,0.02)", display: "flex", flexDirection: "column", gap: "0.55rem" }}>
+              {/* Lista de servicios */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+                {partesActivos.map(p => (
+                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", color: "var(--sw-text)" }}>
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: p.estado === "en_proceso" ? "#4ade80" : p.estado === "en_pausa" ? "#f59e0b" : "var(--sw-muted)", flexShrink: 0 }} />
+                    {p.observaciones || getTipoTareaLabel(p.tipo_tarea)}
+                  </div>
+                ))}
+                {partesFinalizados.map(p => (
+                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.82rem", color: "var(--sw-muted)", textDecoration: "line-through" }}>
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ade80", flexShrink: 0 }} />
+                    {p.observaciones || getTipoTareaLabel(p.tipo_tarea)}
+                  </div>
+                ))}
+              </div>
+
+              {/* Chips de colaboradores */}
+              {colaboradoresActivos.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
+                  {[...new Map(colaboradoresActivos.map(c => [c.empleado_nombre, c])).values()].map((c, i) => (
+                    <span key={i} style={{
+                      background: c.estado === "en_pausa" ? "rgba(234,179,8,0.15)" : "rgba(34,197,94,0.15)",
+                      color: c.estado === "en_pausa" ? "#ca8a04" : "#16a34a",
+                      border: `1px solid ${c.estado === "en_pausa" ? "rgba(234,179,8,0.4)" : "rgba(34,197,94,0.4)"}`,
+                      borderRadius: "12px", padding: "0.1rem 0.55rem", fontSize: "0.78rem", fontWeight: 600,
                     }}>
-                      ✓ Completado
+                      {c.estado === "en_pausa" ? "⏸ " : "▶ "}{c.empleado_nombre || "Sin nombre"}
                     </span>
-                  )}
-                  {p.estado === "pendiente" && (
+                  ))}
+                </div>
+              )}
+
+              {/* Botones de acción grupales */}
+              {partesActivos.length > 0 && esMioAlguno && (
+                <div style={{ display: "flex", gap: "0.55rem", flexWrap: "wrap" }}>
+                  {todosPendiente && (
                     <button
                       className="sw-parte-btn sw-parte-btn--start"
                       disabled={cargando}
@@ -2068,87 +2045,52 @@ function CocheGrupoCard({ grupo, empleadoId, onAccionParte, onAccionGrupo, onSum
                           }).join("\n· ");
                           if (!window.confirm(`⚠ Otros departamentos están trabajando en este coche:\n· ${nombres}\n\n¿Seguro que quieres iniciar tu parte ahora?`)) return;
                         }
-                        onAccionParte(p.id, "tomar_e_iniciar");
+                        onAccionGrupo(partesActivos, "tomar_e_iniciar");
                       }}
                     >
-                      ▶ Iniciar
+                      ▶ Empezar
                     </button>
                   )}
-                  {p.estado === "en_proceso" && esMio && (
+                  {(hayEnProceso || hayEnPausa) && (
                     <>
-                      <button
-                        className="sw-parte-btn sw-parte-btn--pause"
-                        disabled={cargando}
-                        style={{ flex: "1 1 140px", justifyContent: "center" }}
-                        onClick={() => onAccionParte(p.id, "en_pausa")}
-                      >
-                        ⏸ Pausar
-                      </button>
-                      {esTareaInterna || !usaFlujoPintura(p) ? (
+                      {hayEnProceso && (
                         <button
-                          className="sw-parte-btn sw-parte-btn--finish"
+                          className="sw-parte-btn sw-parte-btn--pause"
                           disabled={cargando}
-                          style={{ flex: "1 1 160px", justifyContent: "center" }}
-                          onClick={() => onAccionParte(p.id, "finalizado")}
+                          style={{ flex: "1 1 140px", justifyContent: "center" }}
+                          onClick={() => onAccionGrupo(partesActivos, "en_pausa")}
                         >
-                          ✓ Finalizar
-                        </button>
-                      ) : (
-                        <button
-                          className="sw-parte-btn sw-parte-btn--finish"
-                          disabled={cargando}
-                          style={{ flex: "1 1 180px", justifyContent: "center" }}
-                          onClick={() => onSolicitarFinalizacion(
-                            p.id,
-                            p.fase,
-                            p.matricula || p.vehiculo || `coche ${p.coche_id || ""}`.trim()
-                          )}
-                        >
-                          ✓ Finalizar fase
+                          ⏸ Pausar
                         </button>
                       )}
-                    </>
-                  )}
-                  {p.estado === "en_pausa" && esMio && (
-                    <>
-                      <button
-                        className="sw-parte-btn sw-parte-btn--resume"
-                        disabled={cargando}
-                        style={{ flex: "1 1 140px", justifyContent: "center" }}
-                        onClick={() => onAccionParte(p.id, "quitar_pausa")}
-                      >
-                        ▶ Reanudar
-                      </button>
-                      {esTareaInterna || !usaFlujoPintura(p) ? (
+                      {hayEnPausa && !hayEnProceso && (
                         <button
-                          className="sw-parte-btn sw-parte-btn--finish"
+                          className="sw-parte-btn sw-parte-btn--resume"
                           disabled={cargando}
-                          style={{ flex: "1 1 160px", justifyContent: "center" }}
-                          onClick={() => onAccionParte(p.id, "finalizado")}
+                          style={{ flex: "1 1 140px", justifyContent: "center" }}
+                          onClick={() => onAccionGrupo(partesActivos, "quitar_pausa")}
                         >
-                          ✓ Finalizar
-                        </button>
-                      ) : (
-                        <button
-                          className="sw-parte-btn sw-parte-btn--finish"
-                          disabled={cargando}
-                          style={{ flex: "1 1 180px", justifyContent: "center" }}
-                          onClick={() => onSolicitarFinalizacion(
-                            p.id,
-                            p.fase,
-                            p.matricula || p.vehiculo || `coche ${p.coche_id || ""}`.trim()
-                          )}
-                        >
-                          ✓ Finalizar fase
+                          ▶ Reanudar
                         </button>
                       )}
+                      <button
+                        className="sw-parte-btn sw-parte-btn--finish"
+                        disabled={cargando}
+                        style={{ flex: "1 1 160px", justifyContent: "center" }}
+                        onClick={() => onAccionGrupo(partesActivos, "finalizado")}
+                      >
+                        ✓ Finalizar
+                      </button>
                     </>
                   )}
                 </div>
-              </div>
+              )}
+              {partesActivos.length === 0 && (
+                <span style={{ fontSize: "0.82rem", color: "#4ade80", fontWeight: 700 }}>✓ Todo completado</span>
+              )}
             </div>
           );
-        })}
+        })()}
       </div>
 
       {/* Timer referencia del coche */}
