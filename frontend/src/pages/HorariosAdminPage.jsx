@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { obtenerMensual, obtenerEmpleadosActivos, obtenerSelfieBlobUrl, editarRegistro } from "../utils/horarioApi";
+import { obtenerMensual, obtenerSemanal, obtenerDiario, obtenerEmpleadosActivos, obtenerSelfieBlobUrl, editarRegistro } from "../utils/horarioApi";
 
 const MESES = [
   "Enero","Febrero","Marzo","Abril","Mayo","Junio",
@@ -39,10 +39,38 @@ function formatFecha(isoStr) {
   return `${d}/${m}/${y}`;
 }
 
+function formatFechaCorta(isoStr) {
+  if (!isoStr) return "";
+  const [, m, d] = isoStr.split("-");
+  return `${d}/${m}`;
+}
+
+function getWeekRange(dateStr) {
+  const d = new Date(dateStr + "T00:00:00");
+  const day = d.getDay();
+  const diffToMon = day === 0 ? -6 : 1 - day;
+  const mon = new Date(d);
+  mon.setDate(d.getDate() + diffToMon);
+  const sun = new Date(mon);
+  sun.setDate(mon.getDate() + 6);
+  const fmt = (dt) => dt.toISOString().slice(0, 10);
+  return { inicio: fmt(mon), fin: fmt(sun) };
+}
+
+function addDays(dateStr, days) {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 export default function HorariosAdminPage() {
   const hoy = new Date();
+  const hoyISO = hoy.toISOString().slice(0, 10);
+  const [vista, setVista] = useState("mensual");
   const [anio, setAnio] = useState(hoy.getFullYear());
   const [mes, setMes] = useState(hoy.getMonth() + 1);
+  const [fechaDiaria, setFechaDiaria] = useState(hoyISO);
+  const [semanaBase, setSemanaBase] = useState(hoyISO);
   const [empleadoId, setEmpleadoId] = useState("");
   const [empleados, setEmpleados] = useState([]);
   const [registros, setRegistros] = useState([]);
@@ -50,7 +78,7 @@ export default function HorariosAdminPage() {
   const [error, setError] = useState("");
   const [fotoLoadingKey, setFotoLoadingKey] = useState("");
   const [fotoPreview, setFotoPreview] = useState({ abierta: false, url: "", titulo: "" });
-  const [editando, setEditando] = useState(null); // registro completo
+  const [editando, setEditando] = useState(null);
   const [formHoras, setFormHoras] = useState({ entrada: "", inicio_comida: "", fin_comida: "", salida: "" });
   const [guardando, setGuardando] = useState(false);
 
@@ -70,14 +98,22 @@ export default function HorariosAdminPage() {
     setCargando(true);
     setError("");
     try {
-      const data = await obtenerMensual({ anio, mes, empleado_id: empleadoId || undefined });
+      let data;
+      if (vista === "mensual") {
+        data = await obtenerMensual({ anio, mes, empleado_id: empleadoId || undefined });
+      } else if (vista === "semanal") {
+        const { inicio, fin } = getWeekRange(semanaBase);
+        data = await obtenerSemanal({ fechaInicio: inicio, fechaFin: fin, empleado_id: empleadoId || undefined });
+      } else {
+        data = await obtenerDiario({ fecha: fechaDiaria, empleado_id: empleadoId || undefined });
+      }
       setRegistros(data || []);
     } catch (e) {
       setError(e.message || "Error al cargar los horarios.");
     } finally {
       setCargando(false);
     }
-  }, [anio, mes, empleadoId]);
+  }, [vista, anio, mes, empleadoId, semanaBase, fechaDiaria]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -157,8 +193,14 @@ export default function HorariosAdminPage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [fotoPreview.abierta, cerrarPreviewFoto]);
 
-  // Group by empleado_nombre for display
   const empleadoNombre = empleados.find(e => String(e.id) === String(empleadoId))?.nombre || "";
+  const semanaRango = getWeekRange(semanaBase);
+  const periodoLabel = vista === "mensual"
+    ? `${MESES[mes - 1]} ${anio}`
+    : vista === "semanal"
+    ? `Semana del ${formatFechaCorta(semanaRango.inicio)} al ${formatFechaCorta(semanaRango.fin)} · ${semanaRango.inicio.slice(0, 4)}`
+    : formatFecha(fechaDiaria);
+  const resumenLabel = vista === "mensual" ? "Resumen mensual" : vista === "semanal" ? "Resumen semanal" : "Resumen del día";
 
   return (
     <>
@@ -205,32 +247,98 @@ export default function HorariosAdminPage() {
       <div className="container-fluid py-4">
         {/* Filtros */}
         <div className="no-print d-flex flex-wrap align-items-end gap-3 mb-4">
+          {/* Toggle vista */}
           <div>
-            <label className="form-label small mb-1">Año</label>
-            <select
-              className="form-select form-select-sm"
-              value={anio}
-              onChange={e => setAnio(Number(e.target.value))}
-              style={{ width: 90 }}
-            >
-              {[hoy.getFullYear() - 1, hoy.getFullYear(), hoy.getFullYear() + 1].map(y => (
-                <option key={y} value={y}>{y}</option>
+            <label className="form-label small mb-1">Vista</label>
+            <div className="btn-group d-flex" role="group">
+              {[
+                { key: "diario", label: "Diario" },
+                { key: "semanal", label: "Semanal" },
+                { key: "mensual", label: "Mensual" },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={`btn btn-sm ${vista === key ? "btn-primary" : "btn-outline-primary"}`}
+                  onClick={() => setVista(key)}
+                >
+                  {label}
+                </button>
               ))}
-            </select>
+            </div>
           </div>
-          <div>
-            <label className="form-label small mb-1">Mes</label>
-            <select
-              className="form-select form-select-sm"
-              value={mes}
-              onChange={e => setMes(Number(e.target.value))}
-              style={{ width: 130 }}
-            >
-              {MESES.map((m, i) => (
-                <option key={i + 1} value={i + 1}>{m}</option>
-              ))}
-            </select>
-          </div>
+
+          {/* Selector de período según vista */}
+          {vista === "mensual" && (
+            <>
+              <div>
+                <label className="form-label small mb-1">Año</label>
+                <select
+                  className="form-select form-select-sm"
+                  value={anio}
+                  onChange={e => setAnio(Number(e.target.value))}
+                  style={{ width: 90 }}
+                >
+                  {[hoy.getFullYear() - 1, hoy.getFullYear(), hoy.getFullYear() + 1].map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="form-label small mb-1">Mes</label>
+                <select
+                  className="form-select form-select-sm"
+                  value={mes}
+                  onChange={e => setMes(Number(e.target.value))}
+                  style={{ width: 130 }}
+                >
+                  {MESES.map((m, i) => (
+                    <option key={i + 1} value={i + 1}>{m}</option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
+
+          {vista === "semanal" && (
+            <div>
+              <label className="form-label small mb-1">Semana</label>
+              <div className="d-flex align-items-center gap-1">
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={() => setSemanaBase(prev => addDays(prev, -7))}
+                >
+                  <i className="fa-solid fa-chevron-left" />
+                </button>
+                <span className="px-2 small text-nowrap" style={{ minWidth: 200, textAlign: "center" }}>
+                  {formatFechaCorta(semanaRango.inicio)} – {formatFechaCorta(semanaRango.fin)} · {semanaRango.inicio.slice(0, 4)}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={() => setSemanaBase(prev => addDays(prev, 7))}
+                >
+                  <i className="fa-solid fa-chevron-right" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {vista === "diario" && (
+            <div>
+              <label className="form-label small mb-1">Fecha</label>
+              <input
+                type="date"
+                className="form-control form-control-sm"
+                value={fechaDiaria}
+                onChange={e => setFechaDiaria(e.target.value)}
+                style={{ width: 155 }}
+              />
+            </div>
+          )}
+
+          {/* Empleado (siempre visible) */}
           <div>
             <label className="form-label small mb-1">Empleado</label>
             <select
@@ -245,6 +353,7 @@ export default function HorariosAdminPage() {
               ))}
             </select>
           </div>
+
           <button className="btn btn-outline-secondary btn-sm" onClick={cargar} disabled={cargando}>
             <i className="fa-solid fa-rotate-right me-1" />Actualizar
           </button>
@@ -257,14 +366,14 @@ export default function HorariosAdminPage() {
         <div className="d-none d-print-block mb-3">
           <h5 className="mb-0">SpecialWash — Control de horarios</h5>
           <p className="mb-0 text-muted">
-            {MESES[mes - 1]} {anio}
+            {periodoLabel}
             {empleadoNombre ? ` — ${empleadoNombre}` : ""}
           </p>
         </div>
 
         <h4 className="mb-1 fw-bold no-print">Control de horarios</h4>
         <p className="text-muted small mb-4 no-print">
-          {MESES[mes - 1]} {anio}
+          {periodoLabel}
           {empleadoNombre ? ` — ${empleadoNombre}` : ""}
         </p>
 
@@ -438,7 +547,7 @@ export default function HorariosAdminPage() {
 
           return (
             <div className="mt-4">
-              <h6 className="fw-semibold">Resumen mensual</h6>
+              <h6 className="fw-semibold">{resumenLabel}</h6>
               <table className="table table-sm table-bordered" style={{ maxWidth: 400 }}>
                 <thead className="table-light">
                   <tr>

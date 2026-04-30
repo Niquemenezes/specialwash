@@ -21,6 +21,22 @@ export async function obtenerMensual({ anio, mes, empleado_id } = {}) {
   return apiFetch(`/api/horario/mensual?${params}`);
 }
 
+export async function obtenerSemanal({ fechaInicio, fechaFin, empleado_id } = {}) {
+  const anioI = Number(fechaInicio.slice(0, 4));
+  const mesI = Number(fechaInicio.slice(5, 7));
+  const anioF = Number(fechaFin.slice(0, 4));
+  const mesF = Number(fechaFin.slice(5, 7));
+  if (anioI === anioF && mesI === mesF) {
+    const todos = await obtenerMensual({ anio: anioI, mes: mesI, empleado_id });
+    return (todos || []).filter(r => r.fecha >= fechaInicio && r.fecha <= fechaFin);
+  }
+  const [p1, p2] = await Promise.all([
+    obtenerMensual({ anio: anioI, mes: mesI, empleado_id }),
+    obtenerMensual({ anio: anioF, mes: mesF, empleado_id }),
+  ]);
+  return [...(p1 || []), ...(p2 || [])].filter(r => r.fecha >= fechaInicio && r.fecha <= fechaFin);
+}
+
 export async function obtenerDiario({ fecha, empleado_id } = {}) {
   const params = new URLSearchParams();
   if (fecha) params.set("fecha", fecha);
