@@ -826,6 +826,52 @@ def _servicio_sync_key(servicio):
     return None
 
 
+def _eliminar_partes_huerfanos_pendientes(inspeccion, servicios):
+    """
+    Elimina partes en estado 'pendiente' cuyo servicio ya no existe en la
+    inspección. Se usa al actualizar los servicios de una inspección para
+    evitar que queden partes obsoletos cuando se quita o reemplaza un servicio.
+    Solo toca partes 'pendiente' — no cancela trabajos ya iniciados.
+    """
+    if not inspeccion or not inspeccion.id or not inspeccion.coche_id:
+        return
+    if not isinstance(servicios, list):
+        return
+
+    # Construir conjuntos de claves de los servicios actuales
+    ids_catalogo_actuales = set()
+    nombres_manuales_actuales = set()
+    for svc in servicios:
+        if not isinstance(svc, dict):
+            continue
+        sid = svc.get("servicio_catalogo_id")
+        try:
+            sid = int(sid) if sid is not None else None
+        except (TypeError, ValueError):
+            sid = None
+        if sid:
+            ids_catalogo_actuales.add(sid)
+        else:
+            nombre = str(svc.get("nombre") or svc.get("descripcion") or "").strip()
+            if nombre:
+                nombres_manuales_actuales.add(nombre)
+
+    partes_pendientes = ParteTrabajo.query.filter(
+        ParteTrabajo.inspeccion_id == inspeccion.id,
+        ParteTrabajo.coche_id == inspeccion.coche_id,
+        ParteTrabajo.estado == EstadoParte.pendiente,
+    ).all()
+
+    for parte in partes_pendientes:
+        if parte.servicio_catalogo_id:
+            if parte.servicio_catalogo_id not in ids_catalogo_actuales:
+                db.session.delete(parte)
+        else:
+            obs = (parte.observaciones or "").strip()
+            if obs and obs not in nombres_manuales_actuales:
+                db.session.delete(parte)
+
+
 def _sync_partes_pendientes_desde_servicios(inspeccion, servicios):
     """
     Sincroniza el área (`tipo_tarea`) de partes de la inspección cuando
@@ -1571,6 +1617,7 @@ def actualizar_inspeccion(inspeccion_id):
             inspeccion.confirmado = data["confirmado"]
 
         if servicios_actualizados:
+            _eliminar_partes_huerfanos_pendientes(inspeccion, servicios_aplicados)
             _sync_partes_pendientes_desde_servicios(inspeccion, servicios_aplicados)
             _auto_crear_partes_desde_inspeccion(inspeccion)
 
