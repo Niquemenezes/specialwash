@@ -1107,6 +1107,8 @@ def cambiar_estado_parte(parte_id):
         parte.estado = EstadoParte.en_pausa
     elif nuevo_estado == 'pendiente':
         parte.estado = EstadoParte.pendiente
+        parte.fecha_fin = None
+        parte.empleado_id = None
     try:
         db.session.commit()
     except Exception:

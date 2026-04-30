@@ -1,8 +1,8 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Context } from "../store/appContext";
-import { normalizeRol } from "../utils/authSession";
-import { editarParteTrabajo, setCocheUrgente } from "../utils/parteTrabajoApi";
+import { normalizeRol, getStoredRol } from "../utils/authSession";
+import { editarParteTrabajo, setCocheUrgente, cambiarEstadoParte } from "../utils/parteTrabajoApi";
 
 const ESTADOS = [
   { key: "todos", label: "Todos" },
@@ -404,6 +404,111 @@ function EditarPartesModal({ row, onClose, onSaved }) {
   );
 }
 
+function ReabrirParteModal({ row, onClose, onSaved }) {
+  const partesFinalizados = Array.isArray(row?.estado_coche?.partes_finalizados_detalle)
+    ? row.estado_coche.partes_finalizados_detalle.filter(Boolean)
+    : [];
+  const [reabriendo, setReabriendo] = useState({});
+  const [errores, setErrores] = useState({});
+  const [completados, setCompletados] = useState({});
+
+  const reabrir = async (parteId) => {
+    setReabriendo((prev) => ({ ...prev, [parteId]: true }));
+    setErrores((prev) => ({ ...prev, [parteId]: "" }));
+    try {
+      await cambiarEstadoParte(parteId, "pendiente");
+      setCompletados((prev) => ({ ...prev, [parteId]: true }));
+      onSaved();
+    } catch (e) {
+      setErrores((prev) => ({ ...prev, [parteId]: e?.message || "Error al reabrir" }));
+    } finally {
+      setReabriendo((prev) => ({ ...prev, [parteId]: false }));
+    }
+  };
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9999,
+      background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem",
+    }} onClick={onClose}>
+      <div style={{
+        background: "var(--sw-surface)", border: "1px solid rgba(255,255,255,0.1)",
+        borderRadius: "16px", padding: "1.5rem", width: "100%", maxWidth: "520px",
+        boxShadow: "0 24px 64px rgba(0,0,0,0.5)",
+      }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+          <div>
+            <h4 style={{ margin: 0, fontWeight: 700, color: "var(--sw-text)", fontSize: "1rem" }}>
+              Reabrir parte finalizado
+            </h4>
+            <p style={{ margin: "0.2rem 0 0", fontSize: "0.78rem", color: "var(--sw-muted)" }}>
+              {row?.matricula} · {row?.cliente_nombre}
+            </p>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--sw-muted)", fontSize: "1.2rem", cursor: "pointer", lineHeight: 1 }}>✕</button>
+        </div>
+
+        {partesFinalizados.length === 0 ? (
+          <p style={{ color: "var(--sw-muted)", fontSize: "0.88rem" }}>No hay partes finalizados para este coche.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            {partesFinalizados.map((p) => (
+              <div key={p.id} style={{
+                background: completados[p.id] ? "rgba(34,197,94,0.07)" : "rgba(255,255,255,0.03)",
+                border: completados[p.id] ? "1px solid rgba(34,197,94,0.3)" : "1px solid rgba(255,255,255,0.07)",
+                borderRadius: "10px", padding: "0.85rem",
+                display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem",
+              }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: "0.7rem", color: "var(--sw-muted)", fontFamily: "monospace", marginBottom: "0.2rem" }}>Parte #{p.id}</div>
+                  <div style={{ fontSize: "0.86rem", fontWeight: 700, color: "var(--sw-text)" }}>
+                    {fmtRol(p.tipo_tarea)}
+                  </div>
+                  {p.observaciones && (
+                    <div style={{ fontSize: "0.78rem", color: "var(--sw-muted)", marginTop: "0.15rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {p.observaciones}
+                    </div>
+                  )}
+                  {p.empleado_nombre && (
+                    <div style={{ fontSize: "0.74rem", color: "var(--sw-muted)", marginTop: "0.1rem" }}>
+                      Hecho por: {p.empleado_nombre}
+                    </div>
+                  )}
+                  {errores[p.id] && (
+                    <div style={{ fontSize: "0.75rem", color: "#f87171", marginTop: "0.25rem" }}>{errores[p.id]}</div>
+                  )}
+                </div>
+                {completados[p.id] ? (
+                  <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#4ade80", whiteSpace: "nowrap" }}>✓ Reabierto</span>
+                ) : (
+                  <button
+                    disabled={!!reabriendo[p.id]}
+                    onClick={() => reabrir(p.id)}
+                    style={{
+                      background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.35)",
+                      color: "#a5b4fc", borderRadius: "8px", padding: "0.35rem 0.85rem",
+                      fontSize: "0.78rem", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
+                    }}
+                  >
+                    {reabriendo[p.id] ? "…" : "↺ Reabrir"}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.25rem" }}>
+          <button onClick={onClose} style={{ background: "none", border: "1px solid var(--sw-border)", color: "var(--sw-muted)", borderRadius: "8px", padding: "0.45rem 1rem", fontSize: "0.84rem", cursor: "pointer", fontWeight: 600 }}>
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function EstadoCochesPage() {
   const { actions } = useContext(Context);
   const [loading, setLoading] = useState(true);
@@ -411,7 +516,11 @@ export default function EstadoCochesPage() {
   const [filtroEstado, setFiltroEstado] = useState("todos");
   const [q, setQ] = useState("");
   const [editandoRow, setEditandoRow] = useState(null);
+  const [reabrirRow, setRreabrirRow] = useState(null);
   const [urgentePending, setUrgentePending] = useState({});
+
+  const rolActual = getStoredRol();
+  const puedeReabrir = rolActual === "administrador" || rolActual === "encargado";
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -774,6 +883,19 @@ export default function EstadoCochesPage() {
                       >
                         {urgentePending[r?.coche_id] ? "…" : r?.urgente ? "⚡ Urgente" : "⚡ Urgente"}
                       </button>
+                      {puedeReabrir && Array.isArray(r?.estado_coche?.partes_finalizados_detalle) && r.estado_coche.partes_finalizados_detalle.length > 0 && (
+                        <button
+                          onClick={() => setRreabrirRow(r)}
+                          style={{
+                            background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.28)",
+                            color: "#a5b4fc", borderRadius: "6px", padding: "0.2rem 0.65rem",
+                            fontSize: "0.7rem", fontWeight: 700, cursor: "pointer",
+                          }}
+                          title="Reabrir parte finalizado por error"
+                        >
+                          ↺ Reabrir
+                        </button>
+                      )}
                       <button
                         onClick={() => setEditandoRow(r)}
                         style={{
@@ -797,6 +919,14 @@ export default function EstadoCochesPage() {
         <EditarPartesModal
           row={editandoRow}
           onClose={() => setEditandoRow(null)}
+          onSaved={cargar}
+        />
+      )}
+
+      {reabrirRow && (
+        <ReabrirParteModal
+          row={reabrirRow}
+          onClose={() => setRreabrirRow(null)}
           onSaved={cargar}
         />
       )}
