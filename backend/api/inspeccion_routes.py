@@ -671,6 +671,37 @@ def _auto_crear_partes_desde_inspeccion(inspeccion):
             if existe:
                 continue
 
+            # Para servicios manuales: si no hay parte con el nombre exacto,
+            # buscar un parte "huérfano" del mismo rol cuya descripción ya no
+            # coincide con ningún servicio activo — actualizar en vez de duplicar.
+            if not servicio_catalogo_id:
+                nombres_actuales = {
+                    str(s.get("nombre") or s.get("descripcion") or "").strip()
+                    for s in servicios
+                    if isinstance(s, dict) and not s.get("servicio_catalogo_id")
+                }
+                with db.session.no_autoflush:
+                    huerfanos = ParteTrabajo.query.filter(
+                        ParteTrabajo.inspeccion_id == inspeccion.id,
+                        ParteTrabajo.coche_id == inspeccion.coche_id,
+                        ParteTrabajo.servicio_catalogo_id == None,
+                        ParteTrabajo.tipo_tarea == tipo_tarea,
+                        ParteTrabajo.estado.in_([
+                            EstadoParte.pendiente,
+                            EstadoParte.en_proceso,
+                            EstadoParte.en_pausa,
+                        ]),
+                    ).all()
+                huerfano = next(
+                    (p for p in huerfanos
+                     if _parte_es_de_inspeccion_actual(p, inspeccion)
+                     and (p.observaciones or "").strip() not in nombres_actuales),
+                    None
+                )
+                if huerfano:
+                    huerfano.observaciones = nombre
+                    continue
+
             tiempo = int(svc.get("tiempo_estimado_minutos") or 0)
             if tiempo <= 0 and servicio_catalogo_id:
                 catalogo = ServicioCatalogo.query.get(servicio_catalogo_id)
