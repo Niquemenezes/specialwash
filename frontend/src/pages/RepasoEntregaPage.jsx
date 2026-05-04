@@ -1,7 +1,6 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Context } from "../store/appContext";
-import FirmaEntregaPage from "./FirmaEntregaPage";
 import "../styles/inspeccion-responsive.css";
 
 const TIPO_COLORES = {
@@ -219,7 +218,6 @@ export default function RepasoEntregaPage() {
           <div style={{ display: "flex", gap: 0, marginBottom: "-1px" }}>
             {[
               { key: "repaso", icon: "✅", label: "Control final" },
-              { key: "firma",  icon: "📝", label: "Hoja / firma" },
             ].map(({ key, icon, label }) => {
               const active = activeTab === key;
               return (
@@ -487,11 +485,6 @@ export default function RepasoEntregaPage() {
         </div>
       )}
 
-      {activeTab === "firma" && (
-        <div className="container py-3" style={{ maxWidth: "1200px" }}>
-          <FirmaEntregaPage />
-        </div>
-      )}
     </div>
   );
 }
