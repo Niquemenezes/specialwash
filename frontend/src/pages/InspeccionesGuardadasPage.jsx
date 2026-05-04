@@ -1,7 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Context } from "../store/appContext";
-import CochesPendientesEntrega from "./CochesPendientesEntrega";
 import { getApiBase } from "../utils/apiBase";
 import { confirmar } from "../utils/confirmar";
 import "../styles/inspeccion-responsive.css";
@@ -251,7 +250,6 @@ const InspeccionesGuardadasPage = () => {
         <div style={{ display: "flex", gap: 0, borderBottom: "2px solid var(--sw-border)", marginBottom: "1.75rem" }}>
           {[
             { key: "guardadas", label: "Guardadas", count: inspeccionesGuardadas.length },
-            { key: "pendientes", label: "Pendientes / Hoja", count: null },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -796,7 +794,6 @@ const InspeccionesGuardadasPage = () => {
           </>
         )}
 
-        {activeTab === "pendientes" && <CochesPendientesEntrega />}
       </div>
     </div>
   );
