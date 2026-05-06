@@ -2731,9 +2731,9 @@ button {
 }
 
 .sw-parte-card__vehicle-name {
-  font-size: 1.55rem;
+  font-size: 1.22rem;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   color: var(--sw-text);
 }
 
@@ -2772,10 +2772,9 @@ button {
 
 .sw-parte-card__desc,
 .sw-parte-card__cliente {
-  font-size: 0.7rem;
-  font-weight: 400;
+  font-size: 0.76rem;
+  font-weight: 500;
   color: var(--sw-muted);
-  opacity: 0.75;
 }
 
 .sw-parte-card__service-meta {
