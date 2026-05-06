@@ -36,6 +36,11 @@ inspeccion_bp = Blueprint('inspeccion', __name__, url_prefix='/api')
 # ============ HELPERS ESTADO DEL COCHE ============
 
 _PRIORIDAD_ESTADO_PARTE = {"en_proceso": 0, "en_pausa": 1, "pendiente": 2, "finalizado": 3}
+
+def _estado_str(estado, default="finalizado"):
+    if not estado:
+        return default
+    return estado.value if hasattr(estado, "value") else str(estado)
 _COBRO_METODOS_VALIDOS = {"efectivo", "bizum", "tarjeta", "transferencia"}
 
 
@@ -172,7 +177,7 @@ def _get_partes_por_coche(coche_ids):
     for parte in partes:
         cid = parte.coche_id
         iid = parte.inspeccion_id
-        st = parte.estado.value if parte.estado else "finalizado"
+        st = _estado_str(parte.estado, "finalizado")
         prioridad = _PRIORIDAD_ESTADO_PARTE.get(st, 99)
         recency = _parte_recency_key(parte)
 
@@ -395,7 +400,7 @@ def _compute_estado_coche(
             "partes_activas_empleados": [],
         }
 
-    st = parte.estado.value if parte.estado else "desconocido"
+    st = _estado_str(parte.estado, "desconocido")
     obs = (parte.observaciones or "").strip()
     short_obs = obs[:60] if obs else None
     empleado_nombre = (getattr(getattr(parte, "empleado", None), "nombre", "") or "").strip() or None
@@ -508,7 +513,7 @@ def _serialize_inspeccion_con_estado(inspeccion, partes_por_coche):
         p = info.get("parte") if isinstance(info, dict) else None
         if p is None:
             return 99
-        st = p.estado.value if p.estado else "finalizado"
+        st = _estado_str(p.estado, "finalizado")
         return _PRIORIDAD_ESTADO_PARTE.get(st, 99)
 
     if partes_info_insp is not None and isinstance(partes_info_coche, dict) and partes_info_coche:
