@@ -24,12 +24,51 @@ function formatMinutesShort(totalMinutes) {
   return `${h} h ${m} min`;
 }
 
+function getPausas(r) {
+  if (Array.isArray(r?.pausas) && r.pausas.length > 0) {
+    return r.pausas.filter((pausa) => Array.isArray(pausa) && pausa[0]);
+  }
+  if (r?.inicio_comida) return [[r.inicio_comida, r.fin_comida || null]];
+  return [];
+}
+
+function formatDescansos(r) {
+  const pausas = getPausas(r);
+  if (pausas.length === 0) return "--";
+
+  const tramos = pausas.map((pausa) => {
+    const inicio = formatHora(pausa[0]);
+    const fin = pausa[1] ? formatHora(pausa[1]) : "en curso";
+    return `${inicio}-${fin}`;
+  });
+
+  const descansoMin = Number(r?.descanso_total_minutos || 0);
+  const total = descansoMin > 0 ? ` (${formatMinutesShort(descansoMin)})` : "";
+  return `${tramos.join(", ")}${total}`;
+}
+
+function formatDescansoTotal(r) {
+  const descansoMin = Number(r?.descanso_total_minutos || 0);
+  return descansoMin > 0 ? formatMinutesShort(descansoMin) : "";
+}
+
+function getRegistroHoyItems(registro) {
+  return [
+    { key: "entrada", label: "Entrada", icon: "fa-sign-in-alt", color: "success", value: registro?.entrada ? formatHora(registro.entrada) : "--:--" },
+    { key: "descansos", label: "Descansos", icon: "fa-mug-hot", color: "warning", value: formatDescansos(registro) },
+    { key: "salida", label: "Salida", icon: "fa-sign-out-alt", color: "danger", value: registro?.salida ? formatHora(registro.salida) : "--:--" },
+  ];
+}
+
 const HORAS_VACIAS = { entrada: "", inicio_comida: "", fin_comida: "", salida: "" };
 
 function calcularHoras(r) {
   if (!r.entrada || !r.salida) return null;
   let ms = new Date(r.salida) - new Date(r.entrada);
-  if (r.inicio_comida && r.fin_comida) {
+  const descansoMin = Number(r.descanso_total_minutos || 0);
+  if (descansoMin > 0) {
+    ms -= descansoMin * 60000;
+  } else if (r.inicio_comida && r.fin_comida) {
     const pausa = new Date(r.fin_comida) - new Date(r.inicio_comida);
     if (pausa > 0) ms -= pausa;
   }
@@ -314,19 +353,22 @@ export default function FicharPage() {
               Registro de hoy
             </h6>
             <div className="row g-2">
-              {TIPOS.map(({ key, label, icon, color }) => (
-                <div key={key} className="col-6">
-                  <div className={`d-flex align-items-center gap-2 p-2 rounded border ${registro?.[key] ? `border-${color} bg-opacity-10 bg-${color}` : "border-secondary-subtle"}`}>
+              {getRegistroHoyItems(registro).map(({ key, label, icon, color, value }) => {
+                const marcado = key === "descansos" ? getPausas(registro).length > 0 : Boolean(registro?.[key]);
+                return (
+                <div key={key} className={key === "descansos" ? "col-12" : "col-6"}>
+                  <div className={`d-flex align-items-center gap-2 p-2 rounded border ${marcado ? `border-${color} bg-opacity-10 bg-${color}` : "border-secondary-subtle"}`}>
                     <i className={`fa-solid ${icon} text-${color}`} />
-                    <div>
+                    <div className="min-w-0">
                       <div className="small text-muted">{label}</div>
                       <div className="fw-semibold" style={{ fontSize: "0.95rem" }}>
-                        {registro?.[key] ? formatHora(registro[key]) : "--:--"}
+                        {value}
                       </div>
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -346,7 +388,7 @@ export default function FicharPage() {
           <div className="table-responsive">
             <table className="table table-sm table-bordered align-middle" style={{ fontSize: "0.82rem" }}>
               <thead className="table-light">
-                <tr>
+                  <tr>
                   <th>Empleado</th>
                   <th>Entrada</th>
                   <th>Ini. descanso</th>
@@ -363,8 +405,21 @@ export default function FicharPage() {
                     <tr key={r.empleado_id} style={incompleto ? { background: "rgba(245,158,11,0.08)" } : {}}>
                       <td className="fw-semibold text-nowrap">{r.empleado_nombre}</td>
                       <td className="text-nowrap">{r.entrada ? formatHora(r.entrada) : <span className="text-danger fw-bold">—</span>}</td>
-                      <td className="text-nowrap">{r.inicio_comida ? formatHora(r.inicio_comida) : "—"}</td>
-                      <td className="text-nowrap">{r.fin_comida ? formatHora(r.fin_comida) : "—"}</td>
+                      <td className="text-nowrap">
+                        {getPausas(r).length > 0 ? getPausas(r).map((pausa, idx) => (
+                          <div key={`${r.empleado_id}-inicio-${idx}`}>{formatHora(pausa[0])}</div>
+                        )) : "—"}
+                      </td>
+                      <td className="text-nowrap">
+                        {getPausas(r).length > 0 ? (
+                          <>
+                            {getPausas(r).map((pausa, idx) => (
+                              <div key={`${r.empleado_id}-fin-${idx}`}>{pausa[1] ? formatHora(pausa[1]) : "en curso"}</div>
+                            ))}
+                            {formatDescansoTotal(r) && <small className="text-muted">Total: {formatDescansoTotal(r)}</small>}
+                          </>
+                        ) : "—"}
+                      </td>
                       <td className="text-nowrap">{r.salida ? formatHora(r.salida) : "—"}</td>
                       <td className="text-nowrap fw-semibold" style={{ color: calcularHoras(r) ? "#16a34a" : "var(--sw-muted)" }}>
                         {calcularHoras(r) || "—"}

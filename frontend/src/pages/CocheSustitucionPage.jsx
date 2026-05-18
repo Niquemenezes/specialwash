@@ -45,7 +45,7 @@ const sectionBodyStyle = {
 export default function CocheSustitucionPage() {
   const [lista, setLista] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [vista, setVista] = useState("lista"); // lista | nuevo | devolucion | detalle | imprimir
+  const [vista, setVista] = useState("lista"); // lista | nuevo | devolucion | detalle | imprimir | editar_carnet
   const [seleccionado, setSeleccionado] = useState(null);
   const [error, setError] = useState("");
   const [guardando, setGuardando] = useState(false);
@@ -171,6 +171,32 @@ export default function CocheSustitucionPage() {
       });
       setSeleccionado(actualizado);
       await cargarLista();
+      setVista("imprimir");
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const handleGuardarCarnet = async () => {
+    if (!carnetFrenteFile && !carnetVersoFile) { setError("Selecciona al menos una foto del carnet"); return; }
+    setGuardando(true);
+    setError("");
+    try {
+      for (const [file, lado] of [[carnetFrenteFile, "frente"], [carnetVersoFile, "verso"]]) {
+        if (file) {
+          const fd = new FormData();
+          fd.append("file", file);
+          fd.append("lado", lado);
+          await apiFetch(`/api/coche-sustitucion/${seleccionado.id}/upload-carnet`, { method: "POST", body: fd });
+        }
+      }
+      const actualizado = await apiFetch(`/api/coche-sustitucion/${seleccionado.id}`);
+      setSeleccionado(actualizado);
+      await cargarLista();
+      setCarnetFrenteFile(null); setCarnetFrentePreview(null);
+      setCarnetVersoFile(null); setCarnetVersoPreview(null);
       setVista("imprimir");
     } catch (e) {
       setError(e.message);
@@ -392,6 +418,59 @@ export default function CocheSustitucionPage() {
     );
   }
 
+  // ─── EDITAR CARNET ─────────────────────────────────────────────────
+  if (vista === "editar_carnet" && seleccionado) {
+    const apiBase = window.location.origin;
+    return (
+      <div className="sw-page-bg" style={pageShellStyle}>
+      <div className="container py-4" style={{ maxWidth: 600, color: "#eef2f7", position: "relative", zIndex: 3 }}>
+        <button className="btn btn-outline-secondary btn-sm mb-3" onClick={() => { setVista("lista"); setError(""); setCarnetFrenteFile(null); setCarnetFrentePreview(null); setCarnetVersoFile(null); setCarnetVersoPreview(null); }}>← Volver</button>
+        <div style={{ ...sectionCardStyle, marginBottom: "1rem" }}>
+          <div style={sectionBodyStyle}>
+            <h4 className="fw-bold mb-1">Añadir foto del carnet</h4>
+            <p className="text-muted mb-0">{seleccionado.cliente_nombre} — {seleccionado.cliente_dni}</p>
+          </div>
+        </div>
+        {error && <div className="alert alert-danger">{error}</div>}
+        <div style={sectionCardStyle}>
+          <div style={sectionBodyStyle}>
+            <div className="d-flex gap-4 flex-wrap">
+              <div className="text-center">
+                <p className="fw-semibold mb-2 small">Carnet — Frente</p>
+                {seleccionado.carnet_foto && !carnetFrentePreview && (
+                  <img src={`${apiBase}/api/coche-sustitucion/media/${seleccionado.carnet_foto}`} alt="Frente actual" className="rounded border mb-2" style={{ height: 90, width: 140, objectFit: "cover" }} />
+                )}
+                {carnetFrentePreview && <img src={carnetFrentePreview} alt="Frente nueva" className="rounded border mb-2" style={{ height: 90, width: 140, objectFit: "cover" }} />}
+                <input ref={frenteRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleCarnetFrente} />
+                <button type="button" className="btn btn-outline-primary d-flex align-items-center gap-2 px-3 py-2 mx-auto" onClick={() => frenteRef.current.click()}>
+                  <i className="fas fa-camera" />{seleccionado.carnet_foto ? "Cambiar" : "Subir foto"}
+                </button>
+              </div>
+              <div className="text-center">
+                <p className="fw-semibold mb-2 small">Carnet — Verso</p>
+                {seleccionado.carnet_foto_verso && !carnetVersoPreview && (
+                  <img src={`${apiBase}/api/coche-sustitucion/media/${seleccionado.carnet_foto_verso}`} alt="Verso actual" className="rounded border mb-2" style={{ height: 90, width: 140, objectFit: "cover" }} />
+                )}
+                {carnetVersoPreview && <img src={carnetVersoPreview} alt="Verso nueva" className="rounded border mb-2" style={{ height: 90, width: 140, objectFit: "cover" }} />}
+                <input ref={versoRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleCarnetVerso} />
+                <button type="button" className="btn btn-outline-primary d-flex align-items-center gap-2 px-3 py-2 mx-auto" onClick={() => versoRef.current.click()}>
+                  <i className="fas fa-camera" />{seleccionado.carnet_foto_verso ? "Cambiar" : "Subir foto"}
+                </button>
+              </div>
+            </div>
+            <div className="d-flex gap-2 mt-4">
+              <button className="btn btn-primary" onClick={handleGuardarCarnet} disabled={guardando}>
+                {guardando ? "Guardando..." : "Guardar e imprimir contrato"}
+              </button>
+              <button className="btn btn-outline-secondary" onClick={() => { setVista("lista"); setCarnetFrenteFile(null); setCarnetFrentePreview(null); setCarnetVersoFile(null); setCarnetVersoPreview(null); }}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+    );
+  }
+
   // ─── LISTA ─────────────────────────────────────────────────────────
   return (
     <div className="sw-page-bg" style={pageShellStyle}>
@@ -445,9 +524,12 @@ export default function CocheSustitucionPage() {
                   <td className="small">{item.fecha_devolucion ? fmtFecha(item.fecha_devolucion) : "-"}</td>
                   <td>{estadoBadge(item.devuelto)}</td>
                   <td>
-                    <div className="d-flex gap-1">
+                    <div className="d-flex gap-1 flex-wrap">
                       <button className="btn btn-outline-secondary btn-sm" onClick={() => { setSeleccionado(item); setVista("imprimir"); }}>
                         Imprimir
+                      </button>
+                      <button className="btn btn-outline-primary btn-sm" title="Añadir/editar foto del carnet" onClick={() => { setSeleccionado(item); setCarnetFrenteFile(null); setCarnetFrentePreview(null); setCarnetVersoFile(null); setCarnetVersoPreview(null); setError(""); setVista("editar_carnet"); }}>
+                        <i className="fas fa-id-card me-1" />Carnet
                       </button>
                       {!item.devuelto && (
                         <button className="btn btn-outline-success btn-sm" onClick={() => { setSeleccionado(item); setFormDev({ km_devolucion: "", combustible_devolucion: "lleno", estado_devolucion: "", firma_devolucion: "" }); setVista("devolucion"); }}>
@@ -574,6 +656,7 @@ function generarHtmlContrato(item) {
 
     ${seccion("CONDICIONES DE USO", `
       <ul style="padding-left:18px;line-height:1.8;">
+        <li>El vehículo de sustitución se entrega en perfectas condiciones, de acuerdo con el estado en que se encontraba con anterioridad a su cesión, tal y como queda reflejado en el presente contrato.</li>
         <li>El conductor se responsabiliza del uso correcto del vehículo durante el préstamo.</li>
         <li>Cualquier multa o infracción cometida durante el período de préstamo es responsabilidad exclusiva del conductor.</li>
         <li>El vehículo debe devolverse en el mismo estado en que fue entregado.</li>

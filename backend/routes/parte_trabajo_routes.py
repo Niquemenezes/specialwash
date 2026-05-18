@@ -886,6 +886,7 @@ def listar_partes_trabajo():
                         and p.estado == EstadoParte.pendiente
                         and not p.es_tarea_interna
                         and not p.fase  # solo partes base sin fase explícita en BD
+                        and normalize_role(p.tipo_tarea or '') == 'pintura'  # solo fantasmas de pintura
                     )
                 ]
 
@@ -1022,10 +1023,19 @@ def cambiar_estado_parte(parte_id):
                 except Exception:
                     pass
         elif nuevo_estado in {'finalizado', 'finalizar_y_siguiente'}:
-            if colaborador.estado not in {EstadoParte.en_proceso, EstadoParte.en_pausa}:
-                return jsonify({'msg': 'Solo puedes finalizar tu participación si está activa o en pausa'}), 400
-            _set_colaborador_finalizado(colaborador)
-            _sync_estado_parte_con_colaboradores(parte)
+            if _can_manage_all_partes():
+                # Admin/calidad puede forzar la finalización de todos los colaboradores activos
+                for col in list(getattr(parte, 'colaboradores', []) or []):
+                    if col.estado in {EstadoParte.en_proceso, EstadoParte.en_pausa}:
+                        _set_colaborador_finalizado(col)
+                _sync_estado_parte_con_colaboradores(parte)
+                if parte.estado != EstadoParte.finalizado:
+                    parte.finalizar_trabajo()
+            else:
+                if colaborador.estado not in {EstadoParte.en_proceso, EstadoParte.en_pausa}:
+                    return jsonify({'msg': 'Solo puedes finalizar tu participación si está activa o en pausa'}), 400
+                _set_colaborador_finalizado(colaborador)
+                _sync_estado_parte_con_colaboradores(parte)
             if parte.estado == EstadoParte.finalizado:
                 fase_actual = _normalize_fase(
                     parte.fase,

@@ -14,13 +14,38 @@ function formatHora(isoStr) {
   return d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
 }
 
+function formatMinutesShort(totalMinutes) {
+  const total = Number.isFinite(Number(totalMinutes)) ? Math.max(0, Number(totalMinutes)) : 0;
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0) return `${m} min`;
+  if (m === 0) return `${h} h`;
+  return `${h} h ${m} min`;
+}
+
+function getPausas(r) {
+  if (Array.isArray(r?.pausas) && r.pausas.length > 0) {
+    return r.pausas.filter((pausa) => Array.isArray(pausa) && pausa[0]);
+  }
+  if (r?.inicio_comida) return [[r.inicio_comida, r.fin_comida || null]];
+  return [];
+}
+
+function formatDescansoTotal(r) {
+  const descansoMin = Number(r?.descanso_total_minutos || 0);
+  return descansoMin > 0 ? formatMinutesShort(descansoMin) : "";
+}
+
 function calcularHoras(r) {
   if (!r.entrada || !r.salida) return null;
   const entrada = new Date(r.entrada);
   const salida = new Date(r.salida);
   let totalMs = salida - entrada;
+  const descansoMin = Number(r.descanso_total_minutos || 0);
 
-  if (r.inicio_comida && r.fin_comida) {
+  if (descansoMin > 0) {
+    totalMs -= descansoMin * 60000;
+  } else if (r.inicio_comida && r.fin_comida) {
     const ic = new Date(r.inicio_comida);
     const fc = new Date(r.fin_comida);
     if (fc > ic) totalMs -= (fc - ic);
@@ -43,6 +68,7 @@ export default function HorariosAdminPage() {
   const hoy = new Date();
   const [anio, setAnio] = useState(hoy.getFullYear());
   const [mes, setMes] = useState(hoy.getMonth() + 1);
+  const [dia, setDia] = useState("");
   const [empleadoId, setEmpleadoId] = useState("");
   const [empleados, setEmpleados] = useState([]);
   const [registros, setRegistros] = useState([]);
@@ -159,6 +185,15 @@ export default function HorariosAdminPage() {
 
   // Group by empleado_nombre for display
   const empleadoNombre = empleados.find(e => String(e.id) === String(empleadoId))?.nombre || "";
+  const diasDelMes = Array.from({ length: new Date(anio, mes, 0).getDate() }, (_, idx) => idx + 1);
+  const registrosVisibles = dia
+    ? registros.filter((r) => Number(String(r.fecha || "").slice(8, 10)) === Number(dia))
+    : registros;
+  const periodoLabel = `${dia ? `${String(dia).padStart(2, "0")} de ` : ""}${MESES[mes - 1]} ${anio}`;
+
+  useEffect(() => {
+    if (dia && Number(dia) > diasDelMes.length) setDia("");
+  }, [dia, diasDelMes.length]);
 
   return (
     <>
@@ -232,6 +267,20 @@ export default function HorariosAdminPage() {
             </select>
           </div>
           <div>
+            <label className="form-label small mb-1">Día</label>
+            <select
+              className="form-select form-select-sm"
+              value={dia}
+              onChange={e => setDia(e.target.value)}
+              style={{ width: 100 }}
+            >
+              <option value="">Todos</option>
+              {diasDelMes.map(d => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label className="form-label small mb-1">Empleado</label>
             <select
               className="form-select form-select-sm"
@@ -257,14 +306,14 @@ export default function HorariosAdminPage() {
         <div className="d-none d-print-block mb-3">
           <h5 className="mb-0">SpecialWash — Control de horarios</h5>
           <p className="mb-0 text-muted">
-            {MESES[mes - 1]} {anio}
+            {periodoLabel}
             {empleadoNombre ? ` — ${empleadoNombre}` : ""}
           </p>
         </div>
 
         <h4 className="mb-1 fw-bold no-print">Control de horarios</h4>
         <p className="text-muted small mb-4 no-print">
-          {MESES[mes - 1]} {anio}
+          {periodoLabel}
           {empleadoNombre ? ` — ${empleadoNombre}` : ""}
         </p>
 
@@ -349,7 +398,7 @@ export default function HorariosAdminPage() {
           <div className="text-center py-5 no-print">
             <span className="spinner-border spinner-border-sm me-2" />Cargando...
           </div>
-        ) : registros.length === 0 ? (
+        ) : registrosVisibles.length === 0 ? (
           <div className="text-muted text-center py-5">No hay registros para este período.</div>
         ) : (
           <div className="table-responsive">
@@ -359,8 +408,8 @@ export default function HorariosAdminPage() {
                   <th>Fecha</th>
                   <th>Empleado</th>
                   <th>Entrada</th>
-                  <th>Inicio comida</th>
-                  <th>Fin comida</th>
+                  <th>Inicio descanso</th>
+                  <th>Fin descanso</th>
                   <th>Salida</th>
                   <th>Horas trabajadas</th>
                   <th className="no-print">Fotos</th>
@@ -368,7 +417,7 @@ export default function HorariosAdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {registros.map((r) => {
+                {registrosVisibles.map((r) => {
                   const horas = calcularHoras(r);
                   const incompleto = !r.entrada || !r.salida;
                   return (
@@ -376,8 +425,21 @@ export default function HorariosAdminPage() {
                       <td className="text-nowrap">{formatFecha(r.fecha)}</td>
                       <td>{r.empleado_nombre}</td>
                       <td className="text-nowrap">{formatHora(r.entrada)}</td>
-                      <td className="text-nowrap">{formatHora(r.inicio_comida)}</td>
-                      <td className="text-nowrap">{formatHora(r.fin_comida)}</td>
+                      <td className="text-nowrap">
+                        {getPausas(r).length > 0 ? getPausas(r).map((pausa, idx) => (
+                          <div key={`${r.id}-inicio-${idx}`}>{formatHora(pausa[0])}</div>
+                        )) : "--:--"}
+                      </td>
+                      <td className="text-nowrap">
+                        {getPausas(r).length > 0 ? (
+                          <>
+                            {getPausas(r).map((pausa, idx) => (
+                              <div key={`${r.id}-fin-${idx}`}>{pausa[1] ? formatHora(pausa[1]) : "en curso"}</div>
+                            ))}
+                            {formatDescansoTotal(r) && <small className="text-muted">Total: {formatDescansoTotal(r)}</small>}
+                          </>
+                        ) : "--:--"}
+                      </td>
                       <td className="text-nowrap">{formatHora(r.salida)}</td>
                       <td className="fw-semibold text-nowrap">
                         {horas || <span className="text-muted">—</span>}
@@ -419,9 +481,9 @@ export default function HorariosAdminPage() {
         )}
 
         {/* Resumen totales por empleado */}
-        {registros.length > 0 && (() => {
+        {registrosVisibles.length > 0 && (() => {
           const totales = {};
-          registros.forEach(r => {
+          registrosVisibles.forEach(r => {
             if (!totales[r.empleado_nombre]) totales[r.empleado_nombre] = 0;
             if (r.entrada && r.salida) {
               let ms = new Date(r.salida) - new Date(r.entrada);

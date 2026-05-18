@@ -2,7 +2,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useState } from "re
 import { Link } from "react-router-dom";
 import { Context } from "../store/appContext";
 import { normalizeRol, getStoredRol } from "../utils/authSession";
-import { editarParteTrabajo, setCocheUrgente, cambiarEstadoParte } from "../utils/parteTrabajoApi";
+import { editarParteTrabajo, setCocheUrgente, cambiarEstadoParte, listarPartesTrabajo } from "../utils/parteTrabajoApi";
 
 const ESTADOS = [
   { key: "todos", label: "Todos" },
@@ -509,6 +509,151 @@ function ReabrirParteModal({ row, onClose, onSaved }) {
   );
 }
 
+function GestionarPartesModal({ row, onClose, onSaved }) {
+  const cocheId = row?.coche_id;
+  const [partesActivos, setPartesActivos] = useState([]);
+  const [loadingPartes, setLoadingPartes] = useState(true);
+  const [accionando, setAccionando] = useState({});
+  const [errores, setErrores] = useState({});
+  const [completados, setCompletados] = useState({});
+
+  useEffect(() => {
+    if (!cocheId) return;
+    setLoadingPartes(true);
+    listarPartesTrabajo({ coche_id: cocheId })
+      .then(data => {
+        const lista = Array.isArray(data) ? data : [];
+        setPartesActivos(lista.filter(p => p.estado !== "finalizado"));
+      })
+      .catch(() => setPartesActivos([]))
+      .finally(() => setLoadingPartes(false));
+  }, [cocheId]);
+
+  const accion = async (parteId, nuevoEstado) => {
+    setAccionando(prev => ({ ...prev, [parteId]: true }));
+    setErrores(prev => ({ ...prev, [parteId]: "" }));
+    try {
+      await cambiarEstadoParte(parteId, nuevoEstado);
+      setCompletados(prev => ({ ...prev, [parteId]: nuevoEstado }));
+      onSaved();
+    } catch (e) {
+      setErrores(prev => ({ ...prev, [parteId]: e?.message || "Error al procesar" }));
+    } finally {
+      setAccionando(prev => ({ ...prev, [parteId]: false }));
+    }
+  };
+
+  const estadoBadgeKey = (estado) =>
+    estado === "en_proceso" ? "en_proceso" : estado === "en_pausa" ? "en_pausa" : "parte_pendiente";
+  const estadoLabel = (estado) =>
+    estado === "en_proceso" ? "En proceso" : estado === "en_pausa" ? "En pausa" : "Pendiente";
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9999,
+      background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)",
+      display: "flex", alignItems: "flex-start", justifyContent: "center",
+      padding: "1rem", overflowY: "auto",
+    }} onClick={onClose}>
+      <div style={{
+        background: "var(--sw-surface)", border: "1px solid rgba(255,255,255,0.1)",
+        borderRadius: "16px", padding: "1.5rem", width: "100%", maxWidth: "540px",
+        boxShadow: "0 24px 64px rgba(0,0,0,0.5)", margin: "auto",
+      }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+          <div>
+            <h4 style={{ margin: 0, fontWeight: 700, color: "var(--sw-text)", fontSize: "1rem" }}>
+              Gestionar trabajos
+            </h4>
+            <p style={{ margin: "0.2rem 0 0", fontSize: "0.78rem", color: "var(--sw-muted)" }}>
+              {row?.matricula} · {row?.cliente_nombre}
+            </p>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--sw-muted)", fontSize: "1.2rem", cursor: "pointer", lineHeight: 1 }}>✕</button>
+        </div>
+
+        {loadingPartes ? (
+          <div style={{ textAlign: "center", padding: "1.5rem 0" }}>
+            <div className="spinner-border" style={{ color: "var(--sw-accent)", width: "1.5rem", height: "1.5rem" }} role="status" />
+          </div>
+        ) : partesActivos.length === 0 ? (
+          <p style={{ color: "var(--sw-muted)", fontSize: "0.88rem" }}>No hay partes activos para este coche.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            {partesActivos.map((p) => {
+              const estadoActual = completados[p.id] || p.estado;
+              const finalizado = completados[p.id] === "finalizado";
+              const enProceso = completados[p.id] === "en_proceso";
+              return (
+                <div key={p.id} style={{
+                  background: finalizado ? "rgba(34,197,94,0.07)" : "rgba(255,255,255,0.03)",
+                  border: finalizado ? "1px solid rgba(34,197,94,0.3)" : "1px solid rgba(255,255,255,0.07)",
+                  borderRadius: "10px", padding: "0.85rem",
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.75rem", flexWrap: "wrap" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: "0.7rem", color: "var(--sw-muted)", fontFamily: "monospace", marginBottom: "0.2rem" }}>Parte #{p.id}</div>
+                      <div style={{ fontSize: "0.86rem", fontWeight: 700, color: "var(--sw-text)" }}>{fmtRol(p.tipo_tarea)}</div>
+                      {p.observaciones && (
+                        <div style={{ fontSize: "0.78rem", color: "var(--sw-muted)", marginTop: "0.15rem" }}>{p.observaciones}</div>
+                      )}
+                      <div style={{ fontSize: "0.74rem", color: "var(--sw-muted)", marginTop: "0.1rem" }}>
+                        {p.empleado_nombre ? `👤 ${p.empleado_nombre}` : "Sin asignar"}
+                      </div>
+                      {errores[p.id] && (
+                        <div style={{ fontSize: "0.75rem", color: "#f87171", marginTop: "0.25rem" }}>{errores[p.id]}</div>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.4rem", flexShrink: 0 }}>
+                      <EstadoBadge estadoKey={estadoBadgeKey(estadoActual)} label={estadoLabel(estadoActual)} />
+                      {finalizado ? (
+                        <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#4ade80" }}>✓ Finalizado</span>
+                      ) : (
+                        <div style={{ display: "flex", gap: "0.4rem" }}>
+                          {(p.estado === "pendiente" && !enProceso) && (
+                            <button
+                              disabled={!!accionando[p.id]}
+                              onClick={() => accion(p.id, "en_proceso")}
+                              style={{
+                                background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.35)",
+                                color: "#6ee7b7", borderRadius: "7px", padding: "0.28rem 0.7rem",
+                                fontSize: "0.76rem", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
+                              }}
+                            >
+                              {accionando[p.id] ? "…" : "▶ Empezar"}
+                            </button>
+                          )}
+                          <button
+                            disabled={!!accionando[p.id]}
+                            onClick={() => accion(p.id, "finalizado")}
+                            style={{
+                              background: "linear-gradient(135deg,#16a34a,#15803d)", border: "none",
+                              color: "white", borderRadius: "7px", padding: "0.28rem 0.7rem",
+                              fontSize: "0.76rem", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
+                            }}
+                          >
+                            {accionando[p.id] ? "…" : "✦ Finalizar"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.25rem" }}>
+          <button onClick={onClose} style={{ background: "none", border: "1px solid var(--sw-border)", color: "var(--sw-muted)", borderRadius: "8px", padding: "0.45rem 1rem", fontSize: "0.84rem", cursor: "pointer", fontWeight: 600 }}>
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function EstadoCochesPage() {
   const { actions } = useContext(Context);
   const [loading, setLoading] = useState(true);
@@ -517,10 +662,12 @@ export default function EstadoCochesPage() {
   const [q, setQ] = useState("");
   const [editandoRow, setEditandoRow] = useState(null);
   const [reabrirRow, setRreabrirRow] = useState(null);
+  const [gestionarRow, setGestionarRow] = useState(null);
   const [urgentePending, setUrgentePending] = useState({});
 
   const rolActual = getStoredRol();
   const puedeReabrir = rolActual === "administrador" || rolActual === "encargado";
+  const puedeGestionar = rolActual === "administrador" || rolActual === "calidad";
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -896,6 +1043,19 @@ export default function EstadoCochesPage() {
                           ↺ Reabrir
                         </button>
                       )}
+                      {puedeGestionar && (
+                        <button
+                          onClick={() => setGestionarRow(r)}
+                          style={{
+                            background: "rgba(22,163,74,0.1)", border: "1px solid rgba(22,163,74,0.35)",
+                            color: "#4ade80", borderRadius: "6px", padding: "0.2rem 0.65rem",
+                            fontSize: "0.7rem", fontWeight: 700, cursor: "pointer",
+                          }}
+                          title="Empezar o finalizar trabajos de este coche"
+                        >
+                          ✦ Gestionar
+                        </button>
+                      )}
                       <button
                         onClick={() => setEditandoRow(r)}
                         style={{
@@ -927,6 +1087,14 @@ export default function EstadoCochesPage() {
         <ReabrirParteModal
           row={reabrirRow}
           onClose={() => setRreabrirRow(null)}
+          onSaved={cargar}
+        />
+      )}
+
+      {gestionarRow && (
+        <GestionarPartesModal
+          row={gestionarRow}
+          onClose={() => setGestionarRow(null)}
           onSaved={cargar}
         />
       )}
