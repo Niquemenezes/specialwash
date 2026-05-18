@@ -194,6 +194,16 @@ export default function AdminPartesTrabajoListado() {
     }
   };
 
+  const onEmpezarGrupo = async (ids) => {
+    setError("");
+    try {
+      for (const id of ids) await cambiarEstadoParte(id, "en_proceso");
+      await cargarPartes();
+    } catch (e) {
+      setError(e?.message || "No se pudo empezar el grupo.");
+    }
+  };
+
   const onFinalizarGrupo = async (ids) => {
     setError("");
     try {
@@ -485,6 +495,14 @@ export default function AdminPartesTrabajoListado() {
                           </div>
                           {/* Acciones */}
                           <div style={{ padding: "0.65rem 1.1rem", display: "flex", gap: "0.5rem", justifyContent: "flex-end", flexWrap: "wrap" }}>
+                            {estadoGlobal === "pendiente" && (
+                              <button
+                                onClick={() => onEmpezarGrupo(ids)}
+                                style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.35)", color: "#6ee7b7", borderRadius: "8px", padding: "0.35rem 0.9rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer" }}
+                              >
+                                ▶ Empezar
+                              </button>
+                            )}
                             {estadoGlobal === "en_pausa" && (
                               <button
                                 onClick={() => onReanudarGrupo(ids)}
