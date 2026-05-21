@@ -21,6 +21,26 @@ export async function obtenerMensual({ anio, mes, empleado_id } = {}) {
   return apiFetch(`/api/horario/mensual?${params}`);
 }
 
+export async function obtenerHorarios({
+  periodo,
+  anio,
+  mes,
+  dia,
+  semana,
+  fecha,
+  empleado_id,
+} = {}) {
+  const params = new URLSearchParams();
+  if (periodo) params.set("periodo", periodo);
+  if (anio) params.set("anio", anio);
+  if (mes) params.set("mes", mes);
+  if (dia) params.set("dia", dia);
+  if (semana) params.set("semana", semana);
+  if (fecha) params.set("fecha", fecha);
+  if (empleado_id) params.set("empleado_id", empleado_id);
+  return apiFetch(`/api/horario/mensual?${params}`);
+}
+
 export async function obtenerDiario({ fecha, empleado_id } = {}) {
   const params = new URLSearchParams();
   if (fecha) params.set("fecha", fecha);

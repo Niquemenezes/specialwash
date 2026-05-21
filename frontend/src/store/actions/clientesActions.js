@@ -32,11 +32,15 @@ export function createClientesActions({ apiFetch, getStore, setStore }) {
     },
 
     // ===== COCHES
-    getCoches: async () => {
+    getCoches: async (options = {}) => {
       if (_loadingCoches) return getStore().coches;
       _loadingCoches = true;
       try {
-        const data = await apiFetch("/api/coches");
+        const params = new URLSearchParams();
+        if (options?.clienteId) params.append("cliente_id", String(options.clienteId));
+        if (options?.q) params.append("q", String(options.q));
+        const suffix = params.toString() ? `?${params.toString()}` : "";
+        const data = await apiFetch(`/api/coches${suffix}`);
         setStore({ coches: data || [] });
         return data;
       } catch (err) { console.error("getCoches:", err); return []; }
