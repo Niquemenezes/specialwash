@@ -130,6 +130,12 @@ const useCocheSustitucionRouteMatch = () => {
   );
 };
 
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
+};
+
 const AppContent = () => {
   const matchCocheSustitucion = useCocheSustitucionRouteMatch();
 
@@ -154,6 +160,7 @@ const AppContent = () => {
 
   return (
     <>
+      <ScrollToTop />
       <div className="sw-app">
         <NavbarSW />
 
