@@ -66,6 +66,8 @@ export default function RepasoEntregaPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab") || "repaso";
   const activeTab = ["repaso", "firma"].includes(requestedTab) ? requestedTab : "repaso";
+  const requestedInspeccionParam = searchParams.get("inspeccion");
+  const requestedInspeccionId = requestedInspeccionParam ? Number(requestedInspeccionParam) : null;
 
   const switchTab = (tab) => {
     const next = new URLSearchParams(searchParams);
@@ -82,6 +84,7 @@ export default function RepasoEntregaPage() {
   const [checklistDraft, setChecklistDraft] = useState({});
   const [notasDraft, setNotasDraft] = useState("");
   const [hojaIntervencionDraft, setHojaIntervencionDraft] = useState(false);
+  const [showList, setShowList] = useState(!requestedInspeccionParam);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -116,15 +119,28 @@ export default function RepasoEntregaPage() {
 
   useEffect(() => {
     if (!pendientes.length) { setSelectedId(null); return; }
+    // Si se solicitó una inspección concreta en la URL, priorizarla
+    if (requestedInspeccionId && pendientes.some((p) => p.id === requestedInspeccionId)) {
+      if (selectedId !== requestedInspeccionId) setSelectedId(requestedInspeccionId);
+      return;
+    }
     if (!selectedId || !pendientes.some((p) => p.id === selectedId)) {
       setSelectedId(pendientes[0].id);
     }
-  }, [pendientes, selectedId]);
+  }, [pendientes, selectedId, requestedInspeccionId]);
 
   const selected = useMemo(
     () => pendientes.find((p) => p.id === selectedId) || null,
     [pendientes, selectedId]
   );
+
+  // Si se abre el tab firma con un coche concreto, navegar directo a su acta/hoja
+  useEffect(() => {
+    if (activeTab !== "firma" || !requestedInspeccionId || !selected) return;
+    const esConcesionario = isProfesional(selected);
+    const actaLista = esConcesionario || Boolean((selected.trabajos_realizados || "").trim());
+    navigate(actaLista ? `/acta-entrega/${selected.id}` : `/hoja-tecnica/${selected.id}`, { replace: true });
+  }, [activeTab, requestedInspeccionId, selected, navigate]);
 
   // Items dinámicos según los partes del coche seleccionado
   const checklistItems = useMemo(() => buildChecklistItems(selected), [selected]);
@@ -265,14 +281,20 @@ export default function RepasoEntregaPage() {
       {activeTab === "repaso" && (
         <div className="container py-3 py-md-4" style={{ maxWidth: "1200px" }}>
           <>
-            <div className="d-flex justify-content-end mb-2">
+            <div className="d-flex justify-content-end gap-2 mb-2">
+              {!showList && (
+                <button className="btn btn-outline-secondary btn-sm sw-action-btn" onClick={() => setShowList(true)}>
+                  ← Volver a lista
+                </button>
+              )}
               <button className="btn btn-outline-dark btn-sm sw-action-btn" onClick={cargar} disabled={loading}>
                 {loading ? "Actualizando..." : "🔄 Actualizar"}
               </button>
             </div>
 
             <div className="row g-3">
-              {/* Lista de coches */}
+              {/* Lista de coches - OCULTA si viene de parámetro directo */}
+              {showList && (
               <div className="col-12 col-lg-4">
                 <div className="card h-100">
                   <div className="card-header fw-semibold d-flex justify-content-between align-items-center">
@@ -337,9 +359,10 @@ export default function RepasoEntregaPage() {
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Checklist dinámico */}
-              <div className="col-12 col-lg-8">
+              <div className={`${showList ? "col-12 col-lg-8" : "col-12"}`}>
                 <div className="card h-100">
                   <div className="card-header d-flex justify-content-between align-items-center">
                     <span className="fw-semibold">
