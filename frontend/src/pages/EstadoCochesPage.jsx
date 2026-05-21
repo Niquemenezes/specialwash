@@ -986,8 +986,8 @@ export default function EstadoCochesPage() {
                     </div>
                     {estadoKey === "en_repaso" ? (
                       <Link
-                        to="/repaso-entrega?tab=repaso"
-                        title="Abrir página de Repaso"
+                        to={`/repaso-entrega?tab=repaso&inspeccion=${r.id}`}
+                        title="Abrir página de Repaso (abrir este coche)"
                         style={{
                           textDecoration: "none",
                           cursor: "pointer",
