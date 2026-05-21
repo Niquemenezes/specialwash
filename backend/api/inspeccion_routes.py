@@ -1379,6 +1379,14 @@ def crear_inspeccion():
         # Crear partes de trabajo automáticamente según el rol de cada servicio
         _auto_crear_partes_desde_inspeccion(inspeccion)
 
+        # Registrar en Google Sheets (no bloquea si falla)
+        try:
+            from services.google_sheets_service import registrar_inspeccion as _sheets_registrar
+            _sheets_registrar(inspeccion, servicios_aplicados_raw=inspeccion.servicios_aplicados)
+        except Exception as _e:
+            import logging as _log
+            _log.warning(f"[Google Sheets] Error al registrar inspección: {_e}")
+
         return jsonify(inspeccion.to_dict()), 201
     
     except ValueError as e:
@@ -1627,9 +1635,17 @@ def actualizar_inspeccion(inspeccion_id):
             _auto_crear_partes_desde_inspeccion(inspeccion)
 
         db.session.commit()
+
+        # Sincronizar con Google Sheets
+        try:
+            from services.google_sheets_service import actualizar_inspeccion as _sheets_actualizar
+            _sheets_actualizar(inspeccion)
+        except Exception:
+            pass
+
         partes = _get_partes_por_coche([inspeccion.coche_id] if inspeccion.coche_id else [])
         return jsonify(_serialize_inspeccion_con_estado(inspeccion, partes)), 200
-    
+
     except ValueError as e:
         db.session.rollback()
         return jsonify({"msg": str(e)}), 400
@@ -2150,14 +2166,12 @@ def chat_acta_premium(inspeccion_id):
         return jsonify({"msg": f"Error en chatbot OpenAI: {str(e)}"}), 500
 
 
-# ============ SUBIR FOTO (Cloudinary con auto-borrado 60 días; local IONOS como fallback) ============
+# ============ SUBIR FOTO (almacenamiento local IONOS) ============
 @inspeccion_bp.route("/inspeccion-recepcion/<int:inspeccion_id>/upload-foto", methods=["POST"])
 @jwt_required()
 def upload_foto(inspeccion_id):
     """
-    Subir una foto de inspección.
-    Si Cloudinary está configurado: sube con expires_at (auto-borrado 60 días).
-    Si no: guarda en local IONOS con caducidad 60 días (limpiado por cleanup_media.py).
+    Subir una foto de inspección. Se guarda en el servidor local IONOS.
     """
     inspeccion = InspeccionRecepcion.query.get(inspeccion_id)
     if not inspeccion:
@@ -2179,7 +2193,6 @@ def upload_foto(inspeccion_id):
     if not file or file.filename == "":
         return jsonify({"msg": "No se seleccionó archivo"}), 400
 
-    # Validar extensión (nunca confiar en Content-Type del cliente)
     raw_name = file.filename or ""
     ext = os.path.splitext(raw_name)[1].lower()
     if ext not in FOTO_ALLOWED_EXTS:
@@ -2189,32 +2202,15 @@ def upload_foto(inspeccion_id):
         now = datetime.now(timezone.utc)
         expires_at = now + timedelta(days=FOTO_EXPIRY_DAYS)
 
-        if _cloudinary_configured():
-            # Cloudinary gestiona el borrado automático via expires_at (Unix timestamp)
-            result = cloudinary.uploader.upload(
-                file,
-                folder=f"specialwash/inspecciones/{inspeccion_id}",
-                resource_type="auto",
-                expires_at=int(expires_at.timestamp()),
-            )
-            foto_entry = {
-                "url": result["secure_url"],
-                "public_id": result["public_id"],
-                "original_name": raw_name,
-                "uploaded_at": now.isoformat(),
-                "expires_at": expires_at.isoformat(),
-            }
-        else:
-            # Fallback: almacenamiento local IONOS
-            unique_name = f"{uuid.uuid4()}{ext}"
-            foto_dir = _foto_dir(inspeccion_id)
-            file.save(str(foto_dir / unique_name))
-            foto_entry = {
-                "filename": unique_name,
-                "original_name": raw_name,
-                "uploaded_at": now.isoformat(),
-                "expires_at": expires_at.isoformat(),
-            }
+        unique_name = f"{uuid.uuid4()}{ext}"
+        foto_dir = _foto_dir(inspeccion_id)
+        file.save(str(foto_dir / unique_name))
+        foto_entry = {
+            "filename": unique_name,
+            "original_name": raw_name,
+            "uploaded_at": now.isoformat(),
+            "expires_at": expires_at.isoformat(),
+        }
 
         fotos = json.loads(inspeccion.fotos_cloudinary or "[]")
         fotos.append(foto_entry)
@@ -2427,9 +2423,17 @@ def eliminar_inspeccion(inspeccion_id):
             db.session.delete(acta)
             db.session.flush()
 
+        matricula = inspeccion.matricula
         db.session.delete(inspeccion)
         db.session.commit()
-        
+
+        # Eliminar del Google Sheet
+        try:
+            from services.google_sheets_service import eliminar_inspeccion as _sheets_eliminar
+            _sheets_eliminar(matricula)
+        except Exception:
+            pass
+
         return jsonify({"msg": "Inspección eliminada correctamente"}), 200
     
     except Exception as e:
