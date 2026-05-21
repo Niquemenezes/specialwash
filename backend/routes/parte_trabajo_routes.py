@@ -1325,16 +1325,20 @@ def reporte_empleados():
 
         if _painting_part_supports_collaboration(p):
             # Tiempo individual por colaborador
-            colaboradores = getattr(p, 'colaboradores', []) or []
-            for colab in colaboradores:
-                if not colab.empleado_id:
-                    continue
-                mins = _colab_minutos_individuales(colab)
+            colaboradores = [c for c in (getattr(p, 'colaboradores', []) or []) if c.empleado_id]
+            if colaboradores:
+                for colab in colaboradores:
+                    mins = _colab_minutos_individuales(colab)
+                    entry = dict(base)
+                    entry['duracion_minutos'] = mins
+                    entry['fecha_inicio'] = attach_madrid(colab.fecha_inicio).isoformat() if colab.fecha_inicio else base['fecha_inicio']
+                    entry['fecha_fin'] = attach_madrid(colab.fecha_fin).isoformat() if colab.fecha_fin else base['fecha_fin']
+                    por_empleado[colab.empleado_id].append(entry)
+            elif p.empleado_id:
+                # Parte de pintura sin colaboradores registrados: usar empleado_id directamente
                 entry = dict(base)
-                entry['duracion_minutos'] = mins
-                entry['fecha_inicio'] = attach_madrid(colab.fecha_inicio).isoformat() if colab.fecha_inicio else base['fecha_inicio']
-                entry['fecha_fin'] = attach_madrid(colab.fecha_fin).isoformat() if colab.fecha_fin else base['fecha_fin']
-                por_empleado[colab.empleado_id].append(entry)
+                entry['duracion_minutos'] = int(round(p.duracion_total() * 60))
+                por_empleado[p.empleado_id].append(entry)
         else:
             if not p.empleado_id:
                 continue
