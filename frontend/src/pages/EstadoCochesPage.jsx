@@ -882,7 +882,7 @@ export default function EstadoCochesPage() {
         ) : (
           <div style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(310px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(min(310px, 100%), 1fr))",
             gap: "1rem",
             animation: "sw-fade-up 0.45s ease 0.15s both",
           }}>
@@ -926,7 +926,7 @@ export default function EstadoCochesPage() {
                   <div style={{
                     padding: "0.8rem 1rem",
                     borderBottom: "1px solid rgba(255,255,255,0.05)",
-                    display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.65rem",
+                    display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.65rem", flexWrap: "wrap",
                   }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.55rem", minWidth: 0, flex: 1 }}>
                       <span style={{
@@ -1064,11 +1064,12 @@ export default function EstadoCochesPage() {
                     justifyContent: "space-between",
                     alignItems: "center",
                     gap: "0.5rem",
+                    flexWrap: "wrap",
                   }}>
                     <span style={{ fontSize: "0.7rem", color: "var(--sw-muted)" }}>
                       🕐 {fmtFecha(r?.fecha_inspeccion)}
                     </span>
-                    <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0 }}>
+                    <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
                       <button
                         disabled={!!urgentePending[r?.coche_id]}
                         onClick={() => toggleUrgente(r?.coche_id, r?.urgente)}
