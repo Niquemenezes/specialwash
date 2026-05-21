@@ -732,6 +732,41 @@ export default function EstadoCochesPage() {
 
   return (
     <div>
+      <style>{`
+        .ec-card-footer {
+          padding: 0.5rem 1rem;
+          border-top: 1px solid rgba(255,255,255,0.04);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+        }
+        .ec-card-btns {
+          display: flex;
+          gap: 0.4rem;
+          flex-wrap: wrap;
+        }
+        .ec-card-btn {
+          border-radius: 6px;
+          padding: 0.2rem 0.65rem;
+          font-size: 0.7rem;
+          font-weight: 700;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        @media (max-width: 480px) {
+          .ec-card-btns {
+            width: 100%;
+          }
+          .ec-card-btn {
+            flex: 1;
+            text-align: center;
+            padding: 0.4rem 0.4rem;
+            font-size: 0.68rem;
+          }
+        }
+      `}</style>
       {/* ESTADO HERO */}
       <div style={{
         borderBottom: "1px solid color-mix(in srgb, var(--sw-accent) 12%, var(--sw-border))",
@@ -1057,41 +1092,29 @@ export default function EstadoCochesPage() {
                   </div>
 
                   {/* Footer */}
-                  <div style={{
-                    padding: "0.5rem 1rem",
-                    borderTop: "1px solid rgba(255,255,255,0.04)",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                    flexWrap: "wrap",
-                  }}>
+                  <div className="ec-card-footer">
                     <span style={{ fontSize: "0.7rem", color: "var(--sw-muted)" }}>
                       🕐 {fmtFecha(r?.fecha_inspeccion)}
                     </span>
-                    <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                    <div className="ec-card-btns">
                       <button
+                        className="ec-card-btn"
                         disabled={!!urgentePending[r?.coche_id]}
                         onClick={() => toggleUrgente(r?.coche_id, r?.urgente)}
                         style={{
                           background: r?.urgente ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.04)",
                           border: r?.urgente ? "1px solid rgba(239,68,68,0.45)" : "1px solid rgba(255,255,255,0.1)",
                           color: r?.urgente ? "#f87171" : "var(--sw-muted)",
-                          borderRadius: "6px", padding: "0.2rem 0.6rem",
-                          fontSize: "0.7rem", fontWeight: 700, cursor: "pointer",
                         }}
                         title={r?.urgente ? "Quitar urgencia" : "Marcar como urgente"}
                       >
-                        {urgentePending[r?.coche_id] ? "…" : r?.urgente ? "⚡ Urgente" : "⚡ Urgente"}
+                        {urgentePending[r?.coche_id] ? "…" : "⚡ Urgente"}
                       </button>
                       {puedeReabrir && Array.isArray(r?.estado_coche?.partes_finalizados_detalle) && r.estado_coche.partes_finalizados_detalle.length > 0 && (
                         <button
+                          className="ec-card-btn"
                           onClick={() => setRreabrirRow(r)}
-                          style={{
-                            background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.28)",
-                            color: "#a5b4fc", borderRadius: "6px", padding: "0.2rem 0.65rem",
-                            fontSize: "0.7rem", fontWeight: 700, cursor: "pointer",
-                          }}
+                          style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.28)", color: "#a5b4fc" }}
                           title="Reabrir parte finalizado por error"
                         >
                           ↺ Reabrir
@@ -1099,24 +1122,18 @@ export default function EstadoCochesPage() {
                       )}
                       {puedeGestionar && (
                         <button
+                          className="ec-card-btn"
                           onClick={() => setGestionarRow(r)}
-                          style={{
-                            background: "rgba(22,163,74,0.1)", border: "1px solid rgba(22,163,74,0.35)",
-                            color: "#4ade80", borderRadius: "6px", padding: "0.2rem 0.65rem",
-                            fontSize: "0.7rem", fontWeight: 700, cursor: "pointer",
-                          }}
+                          style={{ background: "rgba(22,163,74,0.1)", border: "1px solid rgba(22,163,74,0.35)", color: "#4ade80" }}
                           title="Empezar o finalizar trabajos de este coche"
                         >
                           ✦ Gestionar
                         </button>
                       )}
                       <button
+                        className="ec-card-btn"
                         onClick={() => setEditandoRow(r)}
-                        style={{
-                          background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.25)",
-                          color: "var(--sw-accent)", borderRadius: "6px", padding: "0.2rem 0.65rem",
-                          fontSize: "0.7rem", fontWeight: 700, cursor: "pointer",
-                        }}
+                        style={{ background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.25)", color: "var(--sw-accent)" }}
                       >
                         ✎ Editar
                       </button>
