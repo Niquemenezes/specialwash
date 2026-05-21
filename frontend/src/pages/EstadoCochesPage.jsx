@@ -4,6 +4,15 @@ import { Context } from "../store/appContext";
 import { normalizeRol, getStoredRol } from "../utils/authSession";
 import { editarParteTrabajo, setCocheUrgente, cambiarEstadoParte, listarPartesTrabajo } from "../utils/parteTrabajoApi";
 
+const getToken = () => (typeof localStorage !== "undefined" ? localStorage.getItem("token") || "" : "");
+const getFotoUrl = (foto, inspeccionId) => {
+  if (!foto) return null;
+  if (foto.url && foto.url.startsWith("http")) return foto.url;
+  const filename = foto.filename || (foto.url ? foto.url.split("/").pop().split("?")[0] : null);
+  if (filename) return `/api/inspeccion-recepcion/${inspeccionId}/foto-file/${filename}?token=${encodeURIComponent(getToken())}`;
+  return foto.url || null;
+};
+
 const ESTADOS = [
   { key: "todos", label: "Todos" },
   { key: "en_proceso", label: "En trabajo" },
@@ -942,8 +951,7 @@ export default function EstadoCochesPage() {
                     </div>
                     {(() => {
                       const foto = Array.isArray(r?.fotos_cloudinary) ? r.fotos_cloudinary[0] : null;
-                      const token = typeof localStorage !== "undefined" ? (localStorage.getItem("token") || "") : "";
-                      const fotoUrl = foto?.url || (foto?.filename ? `/api/inspeccion-recepcion/${r.id}/foto-file/${foto.filename}?token=${encodeURIComponent(token)}` : null);
+                      const fotoUrl = getFotoUrl(foto, r.id);
                       return fotoUrl ? (
                         <img
                           src={fotoUrl}
@@ -981,9 +989,9 @@ export default function EstadoCochesPage() {
                       <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
                         <span style={{ fontSize: "0.7rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--sw-muted)", minWidth: "4.2rem", flexShrink: 0 }}>Vehículo</span>
                         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", minWidth: 0, flex: 1 }}>
-                          {r?.fotos_cloudinary?.[0]?.url && (
+                          {getFotoUrl(r?.fotos_cloudinary?.[0], r.id) && (
                             <img
-                              src={r.fotos_cloudinary[0].url}
+                              src={getFotoUrl(r.fotos_cloudinary[0], r.id)}
                               alt="Foto del vehículo"
                               style={{
                                 width: "60px",
