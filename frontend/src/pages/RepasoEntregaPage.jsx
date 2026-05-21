@@ -214,12 +214,12 @@ export default function RepasoEntregaPage() {
             Entrega de coches · SpecialWash
           </p>
           <h2 style={{ fontSize: "clamp(1.3rem, 2.5vw, 1.8rem)", fontWeight: 700, color: "var(--sw-text)", margin: "0 0 1.2rem", letterSpacing: "-0.01em" }}>
-            Control final y entrega
+            Repaso y entrega
           </h2>
           <div style={{ display: "flex", gap: 0, marginBottom: "-1px" }}>
             {[
-              { key: "repaso", icon: "✅", label: "Control final" },
-              { key: "firma",  icon: "📝", label: "Hoja / firma" },
+              { key: "repaso", icon: "✅", label: "Repaso" },
+              { key: "firma",  icon: "📝", label: "Entrega" },
             ].map(({ key, icon, label }) => {
               const active = activeTab === key;
               return (
@@ -474,7 +474,7 @@ export default function RepasoEntregaPage() {
                             className="btn btn-primary sw-action-btn"
                             onClick={() => navigate(`/acta-entrega/${selected.id}`)}
                           >
-                            📋 Ir a Hoja de intervencion / Entrega
+                            📋 Hoja de entrega
                           </button>
                         </div>
                       </>
