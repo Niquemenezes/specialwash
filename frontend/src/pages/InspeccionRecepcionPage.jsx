@@ -110,6 +110,18 @@ const sameClientPhone = (cliente, telefono) => {
   return normalizePhoneDigits(cliente?.telefono) === telefonoManual;
 };
 
+const formatCocheDescripcion = (coche) => {
+  if (!coche) return "";
+  return [coche?.marca, coche?.modelo].filter(Boolean).join(" ").trim();
+};
+
+const formatCocheExistenteLabel = (coche) => {
+  if (!coche) return "";
+  const matricula = String(coche?.matricula || "").trim().toUpperCase();
+  const descripcion = formatCocheDescripcion(coche);
+  return descripcion ? `${matricula} · ${descripcion}` : matricula;
+};
+
 const InspeccionRecepcionPage = () => {
   const { actions } = useContext(Context);
   const navigate = useNavigate();
@@ -135,6 +147,9 @@ const InspeccionRecepcionPage = () => {
   const [catalogoServicios, setCatalogoServicios] = useState([]);
   const [catalogoServiciosCargando, setCatalogoServiciosCargando] = useState(true);
   const [clientesDisponibles, setClientesDisponibles] = useState([]);
+  const [cochesCliente, setCochesCliente] = useState([]);
+  const [cochesClienteCargando, setCochesClienteCargando] = useState(false);
+  const [cocheExistenteSeleccionado, setCocheExistenteSeleccionado] = useState("");
   const [servicioManual, setServicioManual] = useState({
     nombre: "",
     precio: "",
@@ -190,6 +205,7 @@ const InspeccionRecepcionPage = () => {
             ? `${inspeccion.cliente_nombre}${inspeccion.cliente_telefono ? ` · ${inspeccion.cliente_telefono}` : ""}`
             : ""
         );
+        setCocheExistenteSeleccionado(inspeccion.coche_id ? String(inspeccion.coche_id) : "");
         setInspeccionEditandoId(inspeccion.id);
         setFotos([]);
         setVideos([]);
@@ -226,6 +242,36 @@ const InspeccionRecepcionPage = () => {
       active = false;
     };
   }, [actions]);
+
+  useEffect(() => {
+    let active = true;
+    const clienteId = Number.parseInt(formData.cliente_id || "", 10);
+
+    if (!Number.isFinite(clienteId) || clienteId <= 0) {
+      setCochesCliente([]);
+      setCochesClienteCargando(false);
+      setCocheExistenteSeleccionado("");
+      return;
+    }
+
+    setCochesClienteCargando(true);
+    actions.getCoches({ clienteId })
+      .then((coches) => {
+        if (!active) return;
+        setCochesCliente(Array.isArray(coches) ? coches : []);
+      })
+      .catch(() => {
+        if (!active) return;
+        setCochesCliente([]);
+      })
+      .finally(() => {
+        if (active) setCochesClienteCargando(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [actions, formData.cliente_id]);
 
   useEffect(() => {
     let active = true;
@@ -318,6 +364,7 @@ const InspeccionRecepcionPage = () => {
       cliente_nombre: cliente?.nombre || prev.cliente_nombre,
       cliente_telefono: cliente?.telefono || prev.cliente_telefono,
     }));
+    setCocheExistenteSeleccionado("");
     setClienteExistenteBusqueda(formatClienteExistenteLabel(cliente));
   };
 
@@ -357,6 +404,10 @@ const InspeccionRecepcionPage = () => {
             : prev.cliente_telefono,
         };
       });
+      if (!value.trim()) {
+        setClienteExistenteBusqueda("");
+      }
+      setCocheExistenteSeleccionado("");
       return;
     }
 
@@ -375,7 +426,12 @@ const InspeccionRecepcionPage = () => {
           cliente_telefono: value,
         };
       });
+      setCocheExistenteSeleccionado("");
       return;
+    }
+
+    if (name === "coche_descripcion" || name === "matricula") {
+      setCocheExistenteSeleccionado("");
     }
 
     setFormData((prev) => ({
@@ -387,6 +443,22 @@ const InspeccionRecepcionPage = () => {
             consentimiento_datos_recepcion: true,
           }
         : {})
+    }));
+  };
+
+  const handleCocheExistenteChange = (e) => {
+    const cocheId = String(e.target.value || "");
+    setCocheExistenteSeleccionado(cocheId);
+
+    if (!cocheId) return;
+
+    const coche = cochesCliente.find((item) => String(item?.id) === cocheId);
+    if (!coche) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      coche_descripcion: formatCocheDescripcion(coche) || prev.coche_descripcion,
+      matricula: String(coche?.matricula || "").trim().toUpperCase() || prev.matricula,
     }));
   };
 
@@ -934,6 +1006,35 @@ const InspeccionRecepcionPage = () => {
                 <div className="col-12 col-md-6">
                   <label style={_lbl}>Coche (Marca/Modelo) <span style={{ color: "var(--sw-danger)" }}>*</span></label>
                   <input type="text" className="form-control" name="coche_descripcion" value={formData.coche_descripcion} onChange={handleInputChange} placeholder="Ej: Ford Focus 2015" required style={_inp} />
+                </div>
+
+                <div className="col-12 col-md-6">
+                  <label style={_lbl}>Coche existente del cliente (opcional)</label>
+                  <select
+                    className="form-select"
+                    value={cocheExistenteSeleccionado}
+                    onChange={handleCocheExistenteChange}
+                    disabled={!formData.cliente_id || cochesClienteCargando || cochesCliente.length === 0}
+                    style={_inp}
+                  >
+                    <option value="">
+                      {!formData.cliente_id
+                        ? "Selecciona primero un cliente existente..."
+                        : cochesClienteCargando
+                          ? "Cargando coches..."
+                          : cochesCliente.length === 0
+                            ? "Este cliente no tiene coches guardados"
+                            : "Selecciona un coche del cliente..."}
+                    </option>
+                    {cochesCliente.map((coche) => (
+                      <option key={coche.id} value={coche.id}>
+                        {formatCocheExistenteLabel(coche)}
+                      </option>
+                    ))}
+                  </select>
+                  <small style={{ color: "var(--sw-muted)", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>
+                    Si el cliente ya tiene coches registrados, al elegir uno se rellenan automáticamente la descripción y la matrícula.
+                  </small>
                 </div>
 
                 <div className="col-12 col-md-6">

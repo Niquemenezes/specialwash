@@ -206,7 +206,39 @@ systemctl restart specialwash-backend.service
 
 **¿Cómo hago backup de la BD en servidor?**  
 → Manual: `cp /var/www/specialwash/data/specialwash.db ./backup-$(date +%s).db`  
-→ Automático: Descomentar cron en DEPLOY_IONOS.md paso 12
+→ Automático recomendado: activar los timers `specialwash-backup.timer` y `specialwash-backup-check.timer`
+
+### Backup diario recomendado
+
+Archivos incluidos en `deploy/`:
+
+- `backup_db.sh`: crea una copia consistente con `sqlite3 .backup`
+- `check_backup_fresh.sh`: valida que exista un backup reciente
+- `specialwash-backup.service` + `specialwash-backup.timer`: backup diario a las `03:30`
+- `specialwash-backup-check.service` + `specialwash-backup-check.timer`: comprobación diaria a las `08:00`
+
+Instalación en servidor:
+
+```bash
+sudo cp /root/specialwash/deploy/specialwash-backup.service /etc/systemd/system/
+sudo cp /root/specialwash/deploy/specialwash-backup.timer /etc/systemd/system/
+sudo cp /root/specialwash/deploy/specialwash-backup-check.service /etc/systemd/system/
+sudo cp /root/specialwash/deploy/specialwash-backup-check.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now specialwash-backup.timer
+sudo systemctl enable --now specialwash-backup-check.timer
+sudo systemctl start specialwash-backup.service
+```
+
+Comandos útiles:
+
+```bash
+systemctl list-timers --all | grep specialwash-backup
+systemctl status specialwash-backup.timer
+systemctl status specialwash-backup-check.timer
+cat /root/specialwash/backend/instance/backups/auto/LAST_BACKUP_STATUS.txt
+ls -lah /root/specialwash/backend/instance/backups/auto
+```
 
 **¿Se pierde información entre redeploys?**  
 → No, la BD persiste en `/var/www/specialwash/data/`

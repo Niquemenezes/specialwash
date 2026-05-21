@@ -1,6 +1,7 @@
 import os
 import uuid
 import json
+import calendar
 from datetime import date, timedelta, datetime
 from io import BytesIO
 from pathlib import Path
@@ -282,13 +283,49 @@ def horario_hoy():
 @role_required("administrador", "encargado")
 def horario_mensual():
     _ensure_registro_horario_schema()
-    anio = request.args.get("anio", type=int, default=now_madrid().year)
-    mes = request.args.get("mes", type=int, default=now_madrid().month)
+    hoy = now_madrid().date()
+    anio = request.args.get("anio", type=int, default=hoy.year)
+    mes = request.args.get("mes", type=int, default=hoy.month)
+    dia = request.args.get("dia", type=int, default=hoy.day)
+    semana = request.args.get("semana", type=int)
+    periodo = (request.args.get("periodo") or "mes").strip().lower()
+    fecha_str = request.args.get("fecha")
     empleado_id = request.args.get("empleado_id", type=int)
 
+    if fecha_str:
+        try:
+            fecha_ref = date.fromisoformat(fecha_str)
+        except ValueError:
+            return jsonify({"msg": "Formato de fecha inválido. Usa YYYY-MM-DD"}), 400
+    else:
+        try:
+            fecha_ref = date(anio, mes, dia)
+        except ValueError:
+            return jsonify({"msg": "Fecha inválida"}), 400
+
+    if periodo == "dia":
+        fecha_inicio = fecha_ref
+        fecha_fin = fecha_ref
+    elif periodo == "semana":
+        if semana:
+            try:
+                fecha_inicio = date.fromisocalendar(anio, semana, 1)
+            except ValueError:
+                return jsonify({"msg": "Semana inválida"}), 400
+        else:
+            fecha_inicio = fecha_ref - timedelta(days=fecha_ref.weekday())
+        fecha_fin = fecha_inicio + timedelta(days=6)
+    elif periodo == "anio":
+        fecha_inicio = date(anio, 1, 1)
+        fecha_fin = date(anio, 12, 31)
+    else:
+        ultimo_dia = calendar.monthrange(anio, mes)[1]
+        fecha_inicio = date(anio, mes, 1)
+        fecha_fin = date(anio, mes, ultimo_dia)
+
     query = RegistroHorario.query.filter(
-        db.extract("year", RegistroHorario.fecha) == anio,
-        db.extract("month", RegistroHorario.fecha) == mes,
+        RegistroHorario.fecha >= fecha_inicio,
+        RegistroHorario.fecha <= fecha_fin,
     )
     if empleado_id:
         query = query.filter_by(empleado_id=empleado_id)
