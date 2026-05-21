@@ -949,17 +949,6 @@ export default function EstadoCochesPage() {
                         </span>
                       )}
                     </div>
-                    {(() => {
-                      const foto = Array.isArray(r?.fotos_cloudinary) ? r.fotos_cloudinary[0] : null;
-                      const fotoUrl = getFotoUrl(foto, r.id);
-                      return fotoUrl ? (
-                        <img
-                          src={fotoUrl}
-                          alt=""
-                          style={{ height: "46px", width: "auto", maxWidth: "72px", objectFit: "cover", borderRadius: "7px", border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }}
-                        />
-                      ) : null;
-                    })()}
                     {estadoKey === "en_repaso" ? (
                       <Link
                         to="/repaso-entrega?tab=repaso"
