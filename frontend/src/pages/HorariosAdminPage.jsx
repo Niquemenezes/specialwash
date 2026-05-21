@@ -42,7 +42,6 @@ function calcularHoras(r) {
   const salida = new Date(r.salida);
   let totalMs = salida - entrada;
   const descansoMin = Number(r.descanso_total_minutos || 0);
-
   if (descansoMin > 0) {
     totalMs -= descansoMin * 60000;
   } else if (r.inicio_comida && r.fin_comida) {
@@ -50,7 +49,6 @@ function calcularHoras(r) {
     const fc = new Date(r.fin_comida);
     if (fc > ic) totalMs -= (fc - ic);
   }
-
   if (totalMs < 0) return null;
   const totalMin = Math.round(totalMs / 60000);
   const h = Math.floor(totalMin / 60);
@@ -68,7 +66,7 @@ export default function HorariosAdminPage() {
   const hoy = new Date();
   const [anio, setAnio] = useState(hoy.getFullYear());
   const [mes, setMes] = useState(hoy.getMonth() + 1);
-  const [dia, setDia] = useState("");
+  const [dia, setDia] = useState(hoy.getDate());
   const [empleadoId, setEmpleadoId] = useState("");
   const [empleados, setEmpleados] = useState([]);
   const [registros, setRegistros] = useState([]);
@@ -76,7 +74,7 @@ export default function HorariosAdminPage() {
   const [error, setError] = useState("");
   const [fotoLoadingKey, setFotoLoadingKey] = useState("");
   const [fotoPreview, setFotoPreview] = useState({ abierta: false, url: "", titulo: "" });
-  const [editando, setEditando] = useState(null); // registro completo
+  const [editando, setEditando] = useState(null);
   const [formHoras, setFormHoras] = useState({ entrada: "", inicio_comida: "", fin_comida: "", salida: "" });
   const [guardando, setGuardando] = useState(false);
 
@@ -107,7 +105,88 @@ export default function HorariosAdminPage() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
-  const handleImprimir = () => window.print();
+  const handleImprimir = (filas) => {
+    const datos = filas || registrosVisibles;
+    const titulo = `SpecialWash — Horarios — ${periodoLabel}${empleadoNombre ? " — " + empleadoNombre : ""}`;
+
+    const filaHtml = (r) => {
+      const horas = calcularHoras(r);
+      const incompleto = !r.entrada || !r.salida;
+      const pausas = getPausas(r);
+      const bg = incompleto ? "#fff8e1" : "#ffffff";
+      return `<tr style="background:${bg}">
+        <td>${formatFecha(r.fecha)}</td>
+        <td>${r.empleado_nombre || ""}</td>
+        <td>${formatHora(r.entrada)}</td>
+        <td>${pausas.length > 0 ? pausas.map(p => formatHora(p[0])).join("<br>") : "--:--"}</td>
+        <td>${pausas.length > 0 ? pausas.map(p => p[1] ? formatHora(p[1]) : "en curso").join("<br>") : "--:--"}</td>
+        <td>${formatHora(r.salida)}</td>
+        <td style="font-weight:600">${horas || "—"}</td>
+      </tr>`;
+    };
+
+    // Resumen de totales
+    const totales = {};
+    datos.forEach(r => {
+      if (!totales[r.empleado_nombre]) totales[r.empleado_nombre] = 0;
+      if (r.entrada && r.salida) {
+        let ms = new Date(r.salida) - new Date(r.entrada);
+        const desc = Number(r.descanso_total_minutos || 0);
+        if (desc > 0) ms -= desc * 60000;
+        else if (r.inicio_comida && r.fin_comida) {
+          const p = new Date(r.fin_comida) - new Date(r.inicio_comida);
+          if (p > 0) ms -= p;
+        }
+        if (ms > 0) totales[r.empleado_nombre] += ms;
+      }
+    });
+    const resumenHtml = Object.entries(totales).map(([nombre, ms]) => {
+      const min = Math.round(ms / 60000);
+      return `<tr><td>${nombre}</td><td style="font-weight:600">${Math.floor(min/60)}h ${String(min%60).padStart(2,"0")}m</td></tr>`;
+    }).join("");
+
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>${titulo}</title>
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 11px; color: #000; background: #fff; margin: 12mm; }
+    h2 { font-size: 14px; margin: 0 0 2px; }
+    p  { font-size: 11px; color: #555; margin: 0 0 12px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    th { background: #f0f0f0; font-weight: 700; text-align: left; padding: 5px 7px; border: 1px solid #ccc; font-size: 10px; }
+    td { padding: 4px 7px; border: 1px solid #ccc; vertical-align: top; }
+    .resumen th, .resumen td { width: auto; }
+    h3 { font-size: 12px; margin: 16px 0 4px; }
+    @page { size: A4 landscape; margin: 12mm; }
+  </style>
+</head>
+<body>
+  <h2>SpecialWash — Control de horarios</h2>
+  <p>${titulo.replace("SpecialWash — Horarios — ", "")}</p>
+  <table>
+    <thead><tr>
+      <th>Fecha</th><th>Empleado</th><th>Entrada</th>
+      <th>Inicio descanso</th><th>Fin descanso</th>
+      <th>Salida</th><th>Horas trabajadas</th>
+    </tr></thead>
+    <tbody>${datos.map(filaHtml).join("")}</tbody>
+  </table>
+  <h3>Resumen</h3>
+  <table class="resumen" style="max-width:320px">
+    <thead><tr><th>Empleado</th><th>Total horas</th></tr></thead>
+    <tbody>${resumenHtml}</tbody>
+  </table>
+</body>
+</html>`;
+
+    const win = window.open("", "_blank", "width=900,height=700");
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); }, 400);
+  };
 
   const isoToHHMM = (isoStr) => {
     if (!isoStr) return "";
@@ -143,7 +222,6 @@ export default function HorariosAdminPage() {
   const verSelfie = async (registro, tipo) => {
     const tieneFoto = registro?.[`tiene_foto_${tipo}`];
     if (!tieneFoto) return;
-
     const key = `${registro.id}-${tipo}`;
     setFotoLoadingKey(key);
     try {
@@ -172,18 +250,11 @@ export default function HorariosAdminPage() {
 
   useEffect(() => {
     if (!fotoPreview.abierta) return undefined;
-
-    const onKeyDown = (event) => {
-      if (event.key === "Escape") {
-        cerrarPreviewFoto();
-      }
-    };
-
+    const onKeyDown = (event) => { if (event.key === "Escape") cerrarPreviewFoto(); };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [fotoPreview.abierta, cerrarPreviewFoto]);
 
-  // Group by empleado_nombre for display
   const empleadoNombre = empleados.find(e => String(e.id) === String(empleadoId))?.nombre || "";
   const diasDelMes = Array.from({ length: new Date(anio, mes, 0).getDate() }, (_, idx) => idx + 1);
   const registrosVisibles = dia
@@ -195,40 +266,48 @@ export default function HorariosAdminPage() {
     if (dia && Number(dia) > diasDelMes.length) setDia("");
   }, [dia, diasDelMes.length]);
 
+  // Resumen de totales por empleado
+  const totalesPorEmpleado = {};
+  registrosVisibles.forEach(r => {
+    if (!totalesPorEmpleado[r.empleado_nombre]) totalesPorEmpleado[r.empleado_nombre] = 0;
+    if (r.entrada && r.salida) {
+      let ms = new Date(r.salida) - new Date(r.entrada);
+      const descansoMin = Number(r.descanso_total_minutos || 0);
+      if (descansoMin > 0) {
+        ms -= descansoMin * 60000;
+      } else if (r.inicio_comida && r.fin_comida) {
+        const pausaMs = new Date(r.fin_comida) - new Date(r.inicio_comida);
+        if (pausaMs > 0) ms -= pausaMs;
+      }
+      if (ms > 0) totalesPorEmpleado[r.empleado_nombre] += ms;
+    }
+  });
+
   return (
     <>
-      {/* Estilos de impresión */}
       <style>{`
         @media print {
           .no-print { display: none !important; }
-          [class*="sw-sidebar"], .sw-sidebar-overlay { display: none !important; }
-          body { margin: 0; padding: 16px; font-size: 11px; background: white !important; color: black !important; }
-          body * { color: black !important; background: transparent !important; box-shadow: none !important; }
-          .table { font-size: 11px; }
-          .table th, .table td { border-color: #ccc !important; padding: 5px !important; }
-          h4 { font-size: 14px; }
+          .horario-print-header { display: block !important; }
         }
+        .horario-print-header { display: none; }
 
         .horarios-admin-table thead th {
           background: var(--sw-surface-2, #f5f7fb) !important;
           color: var(--sw-text, #0f172a) !important;
         }
-
         .horarios-admin-table .horario-row-incompleto > * {
           background: color-mix(in srgb, var(--sw-warning, #f59e0b) 18%, var(--sw-surface, #fff)) !important;
           color: var(--sw-text, #0f172a) !important;
         }
-
         .horarios-admin-table .btn-foto-on {
           border-color: color-mix(in srgb, var(--sw-accent, #d4af37) 55%, var(--sw-border, #cbd5e1));
           color: var(--sw-text, #0f172a);
         }
-
         .horarios-admin-table .btn-foto-on:hover {
           background: color-mix(in srgb, var(--sw-accent, #d4af37) 15%, transparent);
           color: var(--sw-text, #0f172a);
         }
-
         .horarios-admin-table .btn-editar-pendiente {
           background: color-mix(in srgb, var(--sw-warning, #f59e0b) 80%, #fff) !important;
           border-color: color-mix(in srgb, var(--sw-warning, #f59e0b) 85%, #000) !important;
@@ -238,16 +317,12 @@ export default function HorariosAdminPage() {
       `}</style>
 
       <div className="container-fluid py-4">
+
         {/* Filtros */}
         <div className="no-print d-flex flex-wrap align-items-end gap-3 mb-4">
           <div>
             <label className="form-label small mb-1">Año</label>
-            <select
-              className="form-select form-select-sm"
-              value={anio}
-              onChange={e => setAnio(Number(e.target.value))}
-              style={{ width: 90 }}
-            >
+            <select className="form-select form-select-sm" value={anio} onChange={e => setAnio(Number(e.target.value))} style={{ width: 90 }}>
               {[hoy.getFullYear() - 1, hoy.getFullYear(), hoy.getFullYear() + 1].map(y => (
                 <option key={y} value={y}>{y}</option>
               ))}
@@ -255,12 +330,7 @@ export default function HorariosAdminPage() {
           </div>
           <div>
             <label className="form-label small mb-1">Mes</label>
-            <select
-              className="form-select form-select-sm"
-              value={mes}
-              onChange={e => setMes(Number(e.target.value))}
-              style={{ width: 130 }}
-            >
+            <select className="form-select form-select-sm" value={mes} onChange={e => setMes(Number(e.target.value))} style={{ width: 130 }}>
               {MESES.map((m, i) => (
                 <option key={i + 1} value={i + 1}>{m}</option>
               ))}
@@ -268,12 +338,7 @@ export default function HorariosAdminPage() {
           </div>
           <div>
             <label className="form-label small mb-1">Día</label>
-            <select
-              className="form-select form-select-sm"
-              value={dia}
-              onChange={e => setDia(e.target.value)}
-              style={{ width: 100 }}
-            >
+            <select className="form-select form-select-sm" value={dia} onChange={e => setDia(e.target.value)} style={{ width: 100 }}>
               <option value="">Todos</option>
               {diasDelMes.map(d => (
                 <option key={d} value={d}>{d}</option>
@@ -282,12 +347,7 @@ export default function HorariosAdminPage() {
           </div>
           <div>
             <label className="form-label small mb-1">Empleado</label>
-            <select
-              className="form-select form-select-sm"
-              value={empleadoId}
-              onChange={e => setEmpleadoId(e.target.value)}
-              style={{ width: 180 }}
-            >
+            <select className="form-select form-select-sm" value={empleadoId} onChange={e => setEmpleadoId(e.target.value)} style={{ width: 180 }}>
               <option value="">Todos</option>
               {empleados.map(e => (
                 <option key={e.id} value={e.id}>{e.nombre}</option>
@@ -297,24 +357,25 @@ export default function HorariosAdminPage() {
           <button className="btn btn-outline-secondary btn-sm" onClick={cargar} disabled={cargando}>
             <i className="fa-solid fa-rotate-right me-1" />Actualizar
           </button>
-          <button className="btn btn-outline-primary btn-sm ms-auto" onClick={handleImprimir}>
-            <i className="fa-solid fa-print me-1" />Imprimir
+
+          {/* Botón imprimir: siempre disponible */}
+          <button className="btn btn-outline-primary btn-sm ms-auto" onClick={() => handleImprimir()}>
+            <i className="fa-solid fa-print me-1" />
+            {empleadoNombre ? `Imprimir — ${empleadoNombre}` : "Imprimir"}
           </button>
         </div>
 
-        {/* Cabecera impresión */}
-        <div className="d-none d-print-block mb-3">
-          <h5 className="mb-0">SpecialWash — Control de horarios</h5>
-          <p className="mb-0 text-muted">
-            {periodoLabel}
-            {empleadoNombre ? ` — ${empleadoNombre}` : ""}
-          </p>
+        {/* Cabecera visible solo en impresión */}
+        <div className="horario-print-header mb-3">
+          <strong style={{ fontSize: 15 }}>SpecialWash — Control de horarios</strong>
+          <div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>
+            {periodoLabel}{empleadoNombre ? ` — ${empleadoNombre}` : ""}
+          </div>
         </div>
 
         <h4 className="mb-1 fw-bold no-print">Control de horarios</h4>
         <p className="text-muted small mb-4 no-print">
-          {periodoLabel}
-          {empleadoNombre ? ` — ${empleadoNombre}` : ""}
+          {periodoLabel}{empleadoNombre ? ` — ${empleadoNombre}` : ""}
         </p>
 
         {error && <div className="alert alert-danger no-print">{error}</div>}
@@ -350,9 +411,7 @@ export default function HorariosAdminPage() {
                   ))}
                 </div>
                 <div className="modal-footer">
-                  <button className="btn btn-secondary btn-sm" onClick={() => setEditando(null)} disabled={guardando}>
-                    Cancelar
-                  </button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setEditando(null)} disabled={guardando}>Cancelar</button>
                   <button className="btn btn-primary btn-sm" onClick={guardarEdicion} disabled={guardando}>
                     {guardando ? <><span className="spinner-border spinner-border-sm me-1" />Guardando...</> : "Guardar"}
                   </button>
@@ -362,32 +421,20 @@ export default function HorariosAdminPage() {
           </div>
         )}
 
+        {/* Modal foto */}
         {fotoPreview.abierta && (
-          <div
-            className="modal show d-block no-print"
-            style={{ background: "rgba(0,0,0,0.72)" }}
-            onMouseDown={cerrarPreviewFoto}
-          >
-            <div
-              className="modal-dialog modal-lg modal-dialog-centered"
-              onMouseDown={(e) => e.stopPropagation()}
-            >
+          <div className="modal show d-block no-print" style={{ background: "rgba(0,0,0,0.72)" }} onMouseDown={cerrarPreviewFoto}>
+            <div className="modal-dialog modal-lg modal-dialog-centered" onMouseDown={(e) => e.stopPropagation()}>
               <div className="modal-content">
                 <div className="modal-header">
                   <h6 className="modal-title">{fotoPreview.titulo}</h6>
                   <button className="btn-close" onClick={cerrarPreviewFoto} />
                 </div>
                 <div className="modal-body text-center">
-                  <img
-                    src={fotoPreview.url}
-                    alt={fotoPreview.titulo}
-                    style={{ maxWidth: "100%", maxHeight: "70vh", borderRadius: 8 }}
-                  />
+                  <img src={fotoPreview.url} alt={fotoPreview.titulo} style={{ maxWidth: "100%", maxHeight: "70vh", borderRadius: 8 }} />
                 </div>
                 <div className="modal-footer justify-content-center">
-                  <button type="button" className="btn btn-secondary" onClick={cerrarPreviewFoto}>
-                    Salir de la foto
-                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={cerrarPreviewFoto}>Salir de la foto</button>
                 </div>
               </div>
             </div>
@@ -401,106 +448,88 @@ export default function HorariosAdminPage() {
         ) : registrosVisibles.length === 0 ? (
           <div className="text-muted text-center py-5">No hay registros para este período.</div>
         ) : (
-          <div className="table-responsive">
-            <table className="table table-sm table-bordered table-hover align-middle horarios-admin-table">
-              <thead className="table-light">
-                <tr>
-                  <th>Fecha</th>
-                  <th>Empleado</th>
-                  <th>Entrada</th>
-                  <th>Inicio descanso</th>
-                  <th>Fin descanso</th>
-                  <th>Salida</th>
-                  <th>Horas trabajadas</th>
-                  <th className="no-print">Fotos</th>
-                  <th className="no-print">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {registrosVisibles.map((r) => {
-                  const horas = calcularHoras(r);
-                  const incompleto = !r.entrada || !r.salida;
-                  return (
-                    <tr key={r.id} className={incompleto ? "horario-row-incompleto" : ""}>
-                      <td className="text-nowrap">{formatFecha(r.fecha)}</td>
-                      <td>{r.empleado_nombre}</td>
-                      <td className="text-nowrap">{formatHora(r.entrada)}</td>
-                      <td className="text-nowrap">
-                        {getPausas(r).length > 0 ? getPausas(r).map((pausa, idx) => (
-                          <div key={`${r.id}-inicio-${idx}`}>{formatHora(pausa[0])}</div>
-                        )) : "--:--"}
-                      </td>
-                      <td className="text-nowrap">
-                        {getPausas(r).length > 0 ? (
-                          <>
-                            {getPausas(r).map((pausa, idx) => (
-                              <div key={`${r.id}-fin-${idx}`}>{pausa[1] ? formatHora(pausa[1]) : "en curso"}</div>
-                            ))}
-                            {formatDescansoTotal(r) && <small className="text-muted">Total: {formatDescansoTotal(r)}</small>}
-                          </>
-                        ) : "--:--"}
-                      </td>
-                      <td className="text-nowrap">{formatHora(r.salida)}</td>
-                      <td className="fw-semibold text-nowrap">
-                        {horas || <span className="text-muted">—</span>}
-                      </td>
-                      <td className="no-print" style={{ minWidth: 220 }}>
-                        <div className="d-flex flex-wrap gap-1">
-                          {TIPOS_FOTO.map((tipo) => {
-                            const key = `${r.id}-${tipo}`;
-                            const tieneFoto = Boolean(r[`tiene_foto_${tipo}`]);
-                            return (
-                              <button
-                                key={tipo}
-                                type="button"
-                                className={`btn btn-sm ${tieneFoto ? "btn-foto-on" : "btn-outline-secondary"}`}
-                                disabled={!tieneFoto || fotoLoadingKey === key}
-                                onClick={() => verSelfie(r, tipo)}
-                              >
-                                {fotoLoadingKey === key ? "..." : `Foto ${tipo}`}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </td>
-                      <td className="no-print text-nowrap" style={{ minWidth: 120 }}>
-                        <button
-                          type="button"
-                          className={`btn btn-sm ${incompleto ? "btn-editar-pendiente" : "btn-primary"}`}
-                          onClick={() => abrirEdicion(r)}
-                        >
-                          Editar
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+          <>
+            <div className="table-responsive">
+              <table className="table table-sm table-bordered table-hover align-middle horarios-admin-table">
+                <thead className="table-light">
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Empleado</th>
+                    <th>Entrada</th>
+                    <th>Inicio descanso</th>
+                    <th>Fin descanso</th>
+                    <th>Salida</th>
+                    <th>Horas trabajadas</th>
+                    <th className="no-print">Fotos</th>
+                    <th className="no-print">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {registrosVisibles.map((r) => {
+                    const horas = calcularHoras(r);
+                    const incompleto = !r.entrada || !r.salida;
+                    return (
+                      <tr key={r.id} className={incompleto ? "horario-row-incompleto" : ""}>
+                        <td className="text-nowrap">{formatFecha(r.fecha)}</td>
+                        <td>{r.empleado_nombre}</td>
+                        <td className="text-nowrap">{formatHora(r.entrada)}</td>
+                        <td className="text-nowrap">
+                          {getPausas(r).length > 0 ? getPausas(r).map((pausa, idx) => (
+                            <div key={`${r.id}-inicio-${idx}`}>{formatHora(pausa[0])}</div>
+                          )) : "--:--"}
+                        </td>
+                        <td className="text-nowrap">
+                          {getPausas(r).length > 0 ? (
+                            <>
+                              {getPausas(r).map((pausa, idx) => (
+                                <div key={`${r.id}-fin-${idx}`}>{pausa[1] ? formatHora(pausa[1]) : "en curso"}</div>
+                              ))}
+                              {formatDescansoTotal(r) && <small className="text-muted">Total: {formatDescansoTotal(r)}</small>}
+                            </>
+                          ) : "--:--"}
+                        </td>
+                        <td className="text-nowrap">{formatHora(r.salida)}</td>
+                        <td className="fw-semibold text-nowrap">
+                          {horas || <span className="text-muted">—</span>}
+                        </td>
+                        <td className="no-print" style={{ minWidth: 220 }}>
+                          <div className="d-flex flex-wrap gap-1">
+                            {TIPOS_FOTO.map((tipo) => {
+                              const key = `${r.id}-${tipo}`;
+                              const tieneFoto = Boolean(r[`tiene_foto_${tipo}`]);
+                              return (
+                                <button
+                                  key={tipo}
+                                  type="button"
+                                  className={`btn btn-sm ${tieneFoto ? "btn-foto-on" : "btn-outline-secondary"}`}
+                                  disabled={!tieneFoto || fotoLoadingKey === key}
+                                  onClick={() => verSelfie(r, tipo)}
+                                >
+                                  {fotoLoadingKey === key ? "..." : `Foto ${tipo}`}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </td>
+                        <td className="no-print text-nowrap" style={{ minWidth: 120 }}>
+                          <button
+                            type="button"
+                            className={`btn btn-sm ${incompleto ? "btn-editar-pendiente" : "btn-primary"}`}
+                            onClick={() => abrirEdicion(r)}
+                          >
+                            Editar
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
 
-        {/* Resumen totales por empleado */}
-        {registrosVisibles.length > 0 && (() => {
-          const totales = {};
-          registrosVisibles.forEach(r => {
-            if (!totales[r.empleado_nombre]) totales[r.empleado_nombre] = 0;
-            if (r.entrada && r.salida) {
-              let ms = new Date(r.salida) - new Date(r.entrada);
-              const descansoMin = Number(r.descanso_total_minutos || 0);
-              if (descansoMin > 0) {
-                ms -= descansoMin * 60000;
-              } else if (r.inicio_comida && r.fin_comida) {
-                const pausaMs = new Date(r.fin_comida) - new Date(r.inicio_comida);
-                if (pausaMs > 0) ms -= pausaMs;
-              }
-              if (ms > 0) totales[r.empleado_nombre] += ms;
-            }
-          });
-
-          return (
+            {/* Resumen totales */}
             <div className="mt-4">
-              <h6 className="fw-semibold">Resumen mensual</h6>
+              <h6 className="fw-semibold">Resumen {empleadoNombre ? `— ${empleadoNombre}` : "mensual"}</h6>
               <table className="table table-sm table-bordered" style={{ maxWidth: 400 }}>
                 <thead className="table-light">
                   <tr>
@@ -509,7 +538,7 @@ export default function HorariosAdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.entries(totales).map(([nombre, ms]) => {
+                  {Object.entries(totalesPorEmpleado).map(([nombre, ms]) => {
                     const totalMin = Math.round(ms / 60000);
                     const h = Math.floor(totalMin / 60);
                     const m = totalMin % 60;
@@ -523,8 +552,8 @@ export default function HorariosAdminPage() {
                 </tbody>
               </table>
             </div>
-          );
-        })()}
+          </>
+        )}
       </div>
     </>
   );
