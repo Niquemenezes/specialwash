@@ -953,7 +953,20 @@ export default function EstadoCochesPage() {
                       ) : null;
                     })()}
                     {estadoKey === "en_repaso" ? (
-                      <Link to="/repaso-entrega?tab=repaso" style={{ textDecoration: "none" }} title="Ir a Repaso">
+                      <Link
+                        to="/repaso-entrega?tab=repaso"
+                        title="Abrir página de Repaso"
+                        style={{
+                          textDecoration: "none",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          borderRadius: "999px",
+                          outline: "2px solid transparent",
+                          transition: "outline 0.15s, box-shadow 0.15s",
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.outline = "2px solid rgba(56,189,248,0.6)"; e.currentTarget.style.boxShadow = "0 0 8px rgba(56,189,248,0.35)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.outline = "2px solid transparent"; e.currentTarget.style.boxShadow = "none"; }}
+                      >
                         <EstadoBadge estadoKey={estadoKey} label={estadoConConteo} overrideColor={estado?.color} />
                       </Link>
                     ) : (
