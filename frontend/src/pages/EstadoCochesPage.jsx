@@ -939,15 +939,40 @@ export default function EstadoCochesPage() {
                           ⚡ URGENTE
                         </span>
                       )}
-                      <span style={{ fontSize: "0.82rem", color: "var(--sw-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {r?.coche_descripcion || "-"}
-                      </span>
                     </div>
                     <EstadoBadge estadoKey={estadoKey} label={estadoConConteo} overrideColor={estado?.color} />
                   </div>
 
                   {/* Cuerpo */}
                   <div style={{ padding: "0.8rem 1rem", display: "flex", flexDirection: "column", gap: "0.45rem" }}>
+                    {/* Vehículo */}
+                    {(r?.fotos_cloudinary?.length > 0 || r?.coche_descripcion) && (
+                      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                        <span style={{ fontSize: "0.7rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--sw-muted)", minWidth: "4.2rem", flexShrink: 0 }}>Vehículo</span>
+                        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", minWidth: 0, flex: 1 }}>
+                          {r?.fotos_cloudinary?.[0]?.url && (
+                            <img
+                              src={r.fotos_cloudinary[0].url}
+                              alt="Foto del vehículo"
+                              style={{
+                                width: "60px",
+                                height: "44px",
+                                objectFit: "cover",
+                                borderRadius: "6px",
+                                border: "1px solid rgba(255,255,255,0.12)",
+                                flexShrink: 0,
+                              }}
+                            />
+                          )}
+                          {r?.coche_descripcion && (
+                            <span style={{ fontSize: "0.85rem", color: "var(--sw-text)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {r.coche_descripcion}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Cliente */}
                     <div style={{ display: "flex", gap: "0.5rem", alignItems: "baseline" }}>
                       <span style={{ fontSize: "0.7rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--sw-muted)", minWidth: "4.2rem" }}>Cliente</span>
