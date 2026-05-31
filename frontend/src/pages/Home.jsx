@@ -31,7 +31,7 @@ const MODULES = [
     links: () => [
       { to: "/inspeccion-recepcion", label: "Inspección de entrada", detail: "Crear o editar la recepción del coche" },
       { to: "/partes-trabajo", label: "Seguimiento", detail: "Ver dónde está cada coche" },
-      { to: "/repaso-entrega?tab=firma", label: "Entrega y firma", detail: "Firma y cobro final del cliente" },
+      { to: "/repaso-entrega?tab=firma", label: "Repaso y entrega", detail: "Control final, entrega y firma" },
     ],
     roles: ["administrador", "calidad"],
   },

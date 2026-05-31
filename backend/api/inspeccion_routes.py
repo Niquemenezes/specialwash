@@ -1828,9 +1828,6 @@ def registrar_entrega(inspeccion_id):
         _tr = "\n".join(s["nombre"] for s in _svcs if s.get("nombre"))
     trabajos_realizados_final = _tr
 
-    if not es_concesionario and not trabajos_realizados_final:
-        return jsonify({"msg": "Campo requerido: trabajos_realizados"}), 400
-
     if not es_concesionario and not (data.get("firma_cliente_entrega") or "").strip():
         return jsonify({"msg": "Campo requerido: firma_cliente_entrega"}), 400
 

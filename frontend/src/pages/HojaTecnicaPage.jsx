@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Context } from "../store/appContext";
 import { buildApiUrl } from "../utils/apiBase";
 import "../styles/inspeccion-responsive.css";
@@ -125,6 +125,7 @@ const hydrateForm = (insp) => {
 
 export default function HojaTecnicaPage() {
   const { inspeccion_id } = useParams();
+  const location = useLocation();
   const { actions } = useContext(Context);
   const navigate = useNavigate();
 
@@ -134,6 +135,10 @@ export default function HojaTecnicaPage() {
   const [inspeccion, setInspeccion] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [usando_ia, setUsandoIa] = useState(false);
+  const [iaGeneradaAuto, setIaGeneradaAuto] = useState(false);
+
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const iaPreparar = searchParams.get("ia") === "true" || searchParams.get("ai") === "true";
 
   const servicios = useMemo(
     () => parseServicios(inspeccion?.servicios_aplicados || "[]"),
@@ -215,7 +220,7 @@ export default function HojaTecnicaPage() {
     }
   };
 
-  const generarConIA = async () => {
+  const generarConIA = useCallback(async () => {
     setUsandoIa(true);
     setFeedback(null);
     try {
@@ -251,13 +256,20 @@ export default function HojaTecnicaPage() {
       }));
 
       setFeedback({ type: "success", msg: "Borrador generado con IA. Revisa y ajusta antes de guardar." });
+      setIaGeneradaAuto(true);
     } catch (err) {
       console.error("Error IA", err);
       setFeedback({ type: "error", msg: "Error al generar con IA: " + err.message });
     } finally {
       setUsandoIa(false);
     }
-  };
+  }, [form, inspeccion, inspeccion_id]);
+
+  useEffect(() => {
+    if (!loading && inspeccion && iaPreparar && !iaGeneradaAuto) {
+      generarConIA();
+    }
+  }, [loading, inspeccion, iaPreparar, iaGeneradaAuto, generarConIA]);
 
   if (loading) {
     return (

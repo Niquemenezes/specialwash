@@ -531,7 +531,9 @@ const ActaEntregaView = () => {
         <div className="single-header avoid-break">
           <div className="header-wrap">
             <div>
-              <h3 className="single-title">INFORME TECNICO DE INTERVENCION</h3>
+              <h3 className="single-title">
+                {inspeccion.requiere_hoja_intervencion || esConcesionario ? "INFORME TECNICO DE INTERVENCION" : "ACTA DE ENTREGA"}
+              </h3>
               <div className="single-subtitle">Special Wash Studio</div>
               <div className="single-tagline">Detailing · Paint Lab · Restauracion de Interiores</div>
             </div>
@@ -573,7 +575,9 @@ const ActaEntregaView = () => {
 
         {!isEntregado && !esConcesionario && (
           <div className="mb-3 no-print">
-            <label className="form-label fw-bold">Trabajos realizados *</label>
+            <label className="form-label fw-bold">
+              Trabajos realizados (opcional)
+            </label>
             <textarea
               className="form-control"
               rows={4}
@@ -581,6 +585,7 @@ const ActaEntregaView = () => {
               value={trabajosEditados}
               onChange={(e) => setTrabajosEditados(e.target.value)}
             />
+            <div className="form-text">Este campo es opcional para entregas de particulares. Usa la hoja de intervención solo si quieres documentar un informe técnico.</div>
           </div>
         )}
 

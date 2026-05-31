@@ -1,0 +1,11 @@
+[Unit]
+Description=SpecialWash backup freshness check
+After=network.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/root/specialwash
+Environment=MAX_AGE_HOURS=36
+ExecStart=/usr/bin/env bash /root/specialwash/deploy/check_backup_fresh.sh
+
