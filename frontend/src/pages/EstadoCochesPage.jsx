@@ -75,16 +75,6 @@ const GENERIC_OBSERVACIONES = new Set([
   "listo para pintura",
 ]);
 const normalizeText = (value) => String(value || "").replace(/\s+/g, " ").trim();
-const resolveFotoUrl = (foto) => {
-  if (!foto) return null;
-  const url = foto.url || "";
-  if (!url) return null;
-  if (url.startsWith("/api/")) {
-    const token = getStoredToken();
-    return token ? `${url}?token=${encodeURIComponent(token)}` : null;
-  }
-  return url;
-};
 const getFaseLabel = (fase) => FASE_LABEL[String(fase || "").trim().toLowerCase()] || "Pendiente";
 const sanitizeTrabajo = (value) => {
   const text = normalizeText(value);
