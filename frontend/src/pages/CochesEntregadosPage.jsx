@@ -50,6 +50,9 @@ const getVideoUrl = (item, inspeccionId) => {
   return item.url || "";
 };
 
+const METODO_LABEL = { efectivo: "Efectivo", bizum: "Bizum", tarjeta: "Tarjeta", transferencia: "Transferencia" };
+const METODO_COLOR = { efectivo: "#22c55e", bizum: "#38bdf8", tarjeta: "#a78bfa", transferencia: "#f59e0b" };
+
 const CochesEntregadosPage = () => {
   const { actions } = useContext(Context);
   const navigate = useNavigate();
@@ -62,6 +65,13 @@ const CochesEntregadosPage = () => {
   const [busqueda, setBusqueda] = useState("");
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
+
+  const [pagoEditando, setPagoEditando] = useState(null);
+  const [pagoMetodo, setPagoMetodo] = useState("");
+  const [pagoReferencia, setPagoReferencia] = useState("");
+  const [pagoObservaciones, setPagoObservaciones] = useState("");
+  const [pagoLoading, setPagoLoading] = useState(false);
+  const [pagoError, setPagoError] = useState("");
 
   const cargarInspecciones = useCallback(async () => {
     try {
@@ -129,6 +139,39 @@ const CochesEntregadosPage = () => {
     const hoy = new Date();
     setFechaDesde(toDateInputValue(new Date(hoy.getFullYear(), hoy.getMonth(), 1)));
     setFechaHasta(toDateInputValue(hoy));
+  };
+
+  const abrirEditarPago = (item) => {
+    setPagoEditando(item);
+    setPagoMetodo(item?.cobro?.metodo || "");
+    setPagoReferencia(item?.cobro?.referencia || "");
+    setPagoObservaciones(item?.cobro?.observaciones || "");
+    setPagoError("");
+  };
+
+  const cerrarEditarPago = () => {
+    setPagoEditando(null);
+    setPagoError("");
+  };
+
+  const guardarPago = async () => {
+    if (!pagoEditando) return;
+    if (!pagoMetodo) { setPagoError("Selecciona un método de pago."); return; }
+    setPagoError("");
+    setPagoLoading(true);
+    try {
+      const payload = { importe: 0, metodo: pagoMetodo };
+      if (pagoReferencia) payload.referencia = pagoReferencia;
+      if (pagoObservaciones) payload.observaciones = pagoObservaciones;
+      const result = await actions.registrarCobroInspeccion(pagoEditando.id, payload);
+      if (!result || !result.id) throw new Error("No se pudo actualizar la forma de pago");
+      await cargarInspecciones();
+      setPagoEditando(null);
+    } catch (err) {
+      setPagoError(err?.message || "Error actualizando la forma de pago");
+    } finally {
+      setPagoLoading(false);
+    }
   };
 
   const editarInspeccion = (id) => {
@@ -321,7 +364,7 @@ const CochesEntregadosPage = () => {
             <table className="table align-middle mb-0" style={{ color: "var(--sw-text)" }}>
               <thead>
                 <tr style={{ background: "var(--sw-surface-2)", borderBottom: "2px solid var(--sw-border)" }}>
-                  {["#", "Fecha entrega", "Cliente", "Coche", "Matrícula", "Km", ""].map((h) => (
+                  {["#", "Fecha entrega", "Cliente", "Coche", "Matrícula", "Km", "Pago", ""].map((h) => (
                     <th key={h} style={{
                       padding: "0.85rem 1rem", fontSize: "0.65rem", fontWeight: 700,
                       letterSpacing: "0.08em", textTransform: "uppercase",
@@ -384,8 +427,37 @@ const CochesEntregadosPage = () => {
                           </span>
                         : <span style={{ fontStyle: "italic", opacity: 0.5 }}>—</span>}
                     </td>
+                    <td style={{ padding: "0.85rem 1rem" }}>
+                      {item.cobro?.metodo ? (
+                        <span style={{
+                          background: `color-mix(in srgb,${METODO_COLOR[item.cobro.metodo] || "#888"} 14%,transparent)`,
+                          border: `1px solid color-mix(in srgb,${METODO_COLOR[item.cobro.metodo] || "#888"} 32%,transparent)`,
+                          color: METODO_COLOR[item.cobro.metodo] || "#888",
+                          borderRadius: 6, padding: "0.15rem 0.6rem",
+                          fontWeight: 700, fontSize: "0.75rem", whiteSpace: "nowrap",
+                        }}>
+                          {METODO_LABEL[item.cobro.metodo] || item.cobro.metodo}
+                        </span>
+                      ) : (
+                        <span style={{ color: "var(--sw-muted)", fontStyle: "italic", fontSize: "0.8rem" }}>—</span>
+                      )}
+                    </td>
                     <td style={{ padding: "0.85rem 1rem", textAlign: "right" }}>
                       <div style={{ display: "flex", gap: "0.4rem", justifyContent: "flex-end", flexWrap: "wrap" }}>
+                        {/* Editar pago */}
+                        <button
+                          onClick={() => abrirEditarPago(item)}
+                          title="Editar forma de pago"
+                          style={{
+                            background: "color-mix(in srgb,#f59e0b 12%,transparent)",
+                            border: "1px solid color-mix(in srgb,#f59e0b 30%,transparent)",
+                            color: "#f59e0b", borderRadius: 8,
+                            padding: "0.35rem 0.55rem", cursor: "pointer", display: "flex", alignItems: "center",
+                            fontWeight: 700, fontSize: "0.72rem",
+                          }}
+                        >
+                          Pago
+                        </button>
                         {/* Ver hoja firmada */}
                         <Link
                           to={`/acta-entrega/${item.id}`}
@@ -607,6 +679,100 @@ const CochesEntregadosPage = () => {
                 }}
               >
                 Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal editar pago ── */}
+      {pagoEditando && (
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 1060,
+            background: "var(--sw-overlay-bg,rgba(0,0,0,0.6))",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "1rem", backdropFilter: "blur(4px)",
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) cerrarEditarPago(); }}
+        >
+          <div style={{
+            background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderRadius: 20,
+            width: "100%", maxWidth: 520, maxHeight: "92vh", overflowY: "auto",
+            boxShadow: "0 24px 60px rgba(0,0,0,0.5)", animation: "sw-fade-up 0.22s ease both",
+          }}>
+            <div style={{
+              padding: "1.25rem 1.5rem", borderBottom: "1px solid var(--sw-border)",
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              position: "sticky", top: 0, background: "var(--sw-surface)", zIndex: 1,
+            }}>
+              <div>
+                <p style={{ margin: 0, fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-muted)" }}>
+                  Forma de pago
+                </p>
+                <h3 style={{ margin: "0.35rem 0 0", fontSize: "1rem", fontWeight: 700, color: "var(--sw-text)" }}>
+                  #{pagoEditando.id} · {pagoEditando.matricula || pagoEditando.cliente_nombre || "Sin matrícula"}
+                </h3>
+              </div>
+              <button onClick={cerrarEditarPago} style={{ background: "none", border: "none", color: "var(--sw-muted)", cursor: "pointer", padding: "0.25rem", borderRadius: 6, display: "flex" }}>
+                <span style={{ width: 20, height: 20, display: "flex" }}>{ICONS.close}</span>
+              </button>
+            </div>
+
+            <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+              {pagoError && (
+                <div style={{ background: "color-mix(in srgb,var(--sw-danger,#ef4444) 12%,transparent)", border: "1px solid color-mix(in srgb,var(--sw-danger,#ef4444) 30%,transparent)", color: "var(--sw-danger,#ef4444)", borderRadius: 12, padding: "0.85rem 1rem" }}>
+                  {pagoError}
+                </div>
+              )}
+              <div>
+                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 700, color: "var(--sw-text)" }}>Método de pago</label>
+                <select
+                  value={pagoMetodo}
+                  onChange={(e) => setPagoMetodo(e.target.value)}
+                  style={{ width: "100%", padding: "0.75rem 0.9rem", borderRadius: 10, border: "1px solid var(--sw-border)", background: "var(--sw-surface)", color: "var(--sw-text)" }}
+                >
+                  <option value="">Selecciona un método</option>
+                  <option value="efectivo">Efectivo</option>
+                  <option value="bizum">Bizum</option>
+                  <option value="tarjeta">Tarjeta</option>
+                  <option value="transferencia">Transferencia</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 700, color: "var(--sw-text)" }}>Referencia</label>
+                <input
+                  type="text"
+                  value={pagoReferencia}
+                  onChange={(e) => setPagoReferencia(e.target.value)}
+                  style={{ width: "100%", padding: "0.75rem 0.9rem", borderRadius: 10, border: "1px solid var(--sw-border)", background: "var(--sw-surface)", color: "var(--sw-text)" }}
+                  placeholder="Opcional"
+                />
+              </div>
+              <div>
+                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 700, color: "var(--sw-text)" }}>Observaciones</label>
+                <textarea
+                  value={pagoObservaciones}
+                  onChange={(e) => setPagoObservaciones(e.target.value)}
+                  style={{ width: "100%", minHeight: 100, padding: "0.75rem 0.9rem", borderRadius: 10, border: "1px solid var(--sw-border)", background: "var(--sw-surface)", color: "var(--sw-text)" }}
+                  placeholder="Opcional"
+                />
+              </div>
+            </div>
+
+            <div style={{ padding: "1rem 1.5rem", borderTop: "1px solid var(--sw-border)", display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
+              <button
+                onClick={cerrarEditarPago}
+                style={{ background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-muted)", borderRadius: 10, padding: "0.6rem 1.2rem", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer" }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={guardarPago}
+                disabled={pagoLoading}
+                style={{ background: "color-mix(in srgb,#22c55e 14%,transparent)", border: "1px solid color-mix(in srgb,#22c55e 30%,transparent)", color: "#22c55e", borderRadius: 10, padding: "0.6rem 1.2rem", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer", opacity: pagoLoading ? 0.7 : 1 }}
+              >
+                {pagoLoading ? "Guardando…" : "Guardar pago"}
               </button>
             </div>
           </div>
