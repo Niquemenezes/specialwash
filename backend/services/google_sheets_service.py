@@ -142,6 +142,40 @@ def actualizar_inspeccion(inspeccion):
         logging.warning(f"[Google Sheets] Error al actualizar {getattr(inspeccion, 'matricula', '?')}: {e}")
 
 
+def registrar_entrega_sheets(inspeccion):
+    """
+    Actualiza la fila del Sheet cuando se entrega el coche:
+    - Columna H: método de pago (Efectivo, Bizum, Tarjeta, Transferencia)
+    - Columna I: fecha de entrega
+    - Columna K: Estado → "Entregado"
+    """
+    try:
+        worksheet = _get_worksheet()
+        fila_num = _buscar_fila_por_matricula(worksheet, inspeccion.matricula or "")
+        if not fila_num:
+            logging.warning(f"[Google Sheets] Matrícula no encontrada para registrar entrega: {inspeccion.matricula}")
+            return
+
+        METODO_LABEL = {
+            "efectivo": "Efectivo",
+            "bizum": "Bizum",
+            "tarjeta": "Tarjeta",
+            "transferencia": "Transferencia",
+        }
+        metodo = METODO_LABEL.get(str(inspeccion.cobro_metodo or "").strip().lower(), inspeccion.cobro_metodo or "")
+
+        fecha_entrega = inspeccion.fecha_entrega or datetime.now()
+        fecha_str = fecha_entrega.strftime("%d/%m/%Y") if hasattr(fecha_entrega, "strftime") else str(fecha_entrega)[:10]
+
+        worksheet.update(f"H{fila_num}", [[metodo]])
+        worksheet.update(f"I{fila_num}", [[fecha_str]])
+        worksheet.update(f"K{fila_num}", [["Entregado"]])
+        logging.info(f"[Google Sheets] Entrega registrada fila {fila_num}: {inspeccion.matricula} · {metodo} · {fecha_str}")
+
+    except Exception as e:
+        logging.warning(f"[Google Sheets] Error al registrar entrega {getattr(inspeccion, 'matricula', '?')}: {e}")
+
+
 def eliminar_inspeccion(matricula):
     """Elimina la fila del sheet cuando se borra una inspección del sistema."""
     try:
