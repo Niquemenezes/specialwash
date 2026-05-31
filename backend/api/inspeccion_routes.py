@@ -1909,6 +1909,14 @@ def registrar_entrega(inspeccion_id):
         except Exception:
             pass  # Nunca bloquear la respuesta por el WhatsApp
 
+        # Actualizar Google Sheets con fecha de entrega y forma de pago
+        try:
+            from services.google_sheets_service import registrar_entrega_sheets as _sheets_entrega
+            _sheets_entrega(inspeccion)
+        except Exception as _e:
+            import logging as _log
+            _log.warning(f"[Google Sheets] Error al registrar entrega: {_e}")
+
         payload = inspeccion.to_dict()
         payload["cobro_entrega_registrado"] = cobro_registrado_en_entrega
         return jsonify(payload), 200
