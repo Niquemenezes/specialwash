@@ -204,14 +204,16 @@ def registrar_entrega_sheets(inspeccion):
                         },
                         "cell": {
                             "userEnteredFormat": {
-                                "backgroundColor": {
-                                    "red": 0.718,
-                                    "green": 0.882,
-                                    "blue": 0.804,
+                                "textFormat": {
+                                    "foregroundColor": {
+                                        "red": 0.133,
+                                        "green": 0.545,
+                                        "blue": 0.133,
+                                    }
                                 }
                             }
                         },
-                        "fields": "userEnteredFormat.backgroundColor",
+                        "fields": "userEnteredFormat.textFormat.foregroundColor",
                     }
                 }
             ]
