@@ -229,13 +229,16 @@ export default function RepasoEntregaPage() {
           <p style={{ fontSize: "0.73rem", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--sw-accent)", opacity: 0.85, marginBottom: "0.3rem" }}>
             Entrega de coches · SpecialWash
           </p>
-          <h2 style={{ fontSize: "clamp(1.3rem, 2.5vw, 1.8rem)", fontWeight: 700, color: "var(--sw-text)", margin: "0 0 1.2rem", letterSpacing: "-0.01em" }}>
+          <h2 style={{ fontSize: "clamp(1.3rem, 2.5vw, 1.8rem)", fontWeight: 700, color: "var(--sw-text)", margin: "0 0 0.6rem", letterSpacing: "-0.01em" }}>
             Repaso y entrega
           </h2>
+          <p style={{ margin: "0 0 1.2rem", color: "var(--sw-muted)", fontSize: "0.95rem" }}>
+            Primero completa el repaso de calidad, luego marca el coche como listo para entrega y, finalmente, gestiona la entrega con la firma.
+          </p>
           <div style={{ display: "flex", gap: 0, marginBottom: "-1px" }}>
             {[
-              { key: "repaso", icon: "✅", label: "Repaso" },
-              { key: "firma",  icon: "📝", label: "Entrega" },
+              { key: "repaso", icon: "✅", label: "1. Repaso" },
+              { key: "firma",  icon: "📝", label: "2. Entrega" },
             ].map(({ key, icon, label }) => {
               const active = activeTab === key;
               return (
@@ -319,21 +322,24 @@ export default function RepasoEntregaPage() {
                     )}
 
                     {!loading && pendientesRepaso.length > 0 && (
-                      <div style={{ maxHeight: 420, overflowY: "auto" }}>
-                        {pendientesRepaso.map((p) => (
-                          <div
-                            key={p.id}
-                            className={`sw-coche-item ${selectedId === p.id ? "activo" : ""}`}
-                            onClick={() => setSelectedId(p.id)}
-                            role="button" tabIndex={0}
-                            onKeyDown={(e) => e.key === "Enter" && setSelectedId(p.id)}
-                          >
-                            <div className="fw-semibold">{p.matricula || "-"} <span className="fw-normal text-muted small">#{p.id}</span></div>
-                            <div className="small">{p.cliente_nombre || "-"}</div>
-                            <div className="small opacity-75">{p.coche_descripcion || "-"}</div>
-                          </div>
-                        ))}
-                      </div>
+                      <>
+                        <div className="px-2 pt-2 pb-1 fw-semibold small text-primary">⏳ Pendientes de repaso</div>
+                        <div style={{ maxHeight: 420, overflowY: "auto" }}>
+                          {pendientesRepaso.map((p) => (
+                            <div
+                              key={p.id}
+                              className={`sw-coche-item ${selectedId === p.id ? "activo" : ""}`}
+                              onClick={() => setSelectedId(p.id)}
+                              role="button" tabIndex={0}
+                              onKeyDown={(e) => e.key === "Enter" && setSelectedId(p.id)}
+                            >
+                              <div className="fw-semibold">{p.matricula || "-"} <span className="fw-normal text-muted small">#{p.id}</span></div>
+                              <div className="small">{p.cliente_nombre || "-"}</div>
+                              <div className="small opacity-75">{p.coche_descripcion || "-"}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </>
                     )}
 
                     {!loading && listosEntrega.length > 0 && (
@@ -391,12 +397,19 @@ export default function RepasoEntregaPage() {
                             <div className="col-12 col-sm-4"><strong>Vehículo:</strong> {selected.coche_descripcion || "-"}</div>
                             <div className="col-12 col-sm-4"><strong>Matrícula:</strong> {selected.matricula || "-"}</div>
                           </div>
-                          {selected.repaso_completado && (
-                            <div className="text-success fw-semibold mt-2">
-                              ✅ Listo por {selected.repaso_completado_por_nombre || "-"}
-                            </div>
-                          )}
+                          {selected.repaso_completado ? (
+                          <div className="text-success fw-semibold mt-2">
+                            ✅ Listo por {selected.repaso_completado_por_nombre || "-"}
+                          </div>
+                        ) : (
+                          <div className="text-info fw-semibold mt-2">
+                            ⏳ Pendiente de repaso de calidad
+                          </div>
+                        )}
+                        <div className="mt-2 text-muted" style={{ fontSize: "0.9rem" }}>
+                          Siguiente paso: {selected.repaso_completado ? "Entrega / firma" : "Completar repaso y marcar listo para entrega"}.
                         </div>
+                      </div>
 
                         {/* Checklist por roles que han trabajado */}
                         {checklistItems.length === 0 ? (
@@ -472,7 +485,7 @@ export default function RepasoEntregaPage() {
                         {/* Botones */}
                         <div className="d-flex flex-column flex-sm-row flex-wrap gap-2">
                           <button type="button" className="btn btn-outline-secondary sw-action-btn" onClick={() => guardarRepaso(false)} disabled={saving}>
-                            {saving ? "Guardando..." : "💾 Guardar"}
+                            {saving ? "Guardando..." : "💾 Guardar repaso"}
                           </button>
                           {checklistItems.length > 0 && (
                             <>
@@ -497,7 +510,7 @@ export default function RepasoEntregaPage() {
                             className="btn btn-primary sw-action-btn"
                             onClick={() => navigate(`/acta-entrega/${selected.id}`)}
                           >
-                            📋 Hoja de entrega
+                            📋 Ir a entrega / firma
                           </button>
                         </div>
                       </>

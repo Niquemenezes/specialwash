@@ -74,6 +74,24 @@ const getFotoUrl = (item, inspeccionId) => {
 
 const phoneToDigits = (value) => (value || "").replace(/\D/g, "");
 
+const formatCobroMetodo = (metodo, esConcesionario, cobroEstado) => {
+  if (!metodo) {
+    if (esConcesionario) {
+      return cobroEstado === "facturar_despues" ? "Facturar después" : "Factura";
+    }
+    return "—";
+  }
+  const norm = String(metodo || "").trim().toLowerCase();
+  if (esConcesionario && norm === "transferencia") {
+    return "Transferencia con factura";
+  }
+  if (norm === "bizum") return "Bizum";
+  if (norm === "efectivo") return "Efectivo";
+  if (norm === "tarjeta") return "Tarjeta";
+  if (norm === "transferencia") return "Transferencia";
+  return metodo;
+};
+
 const ESTADO_FILTERS = [
   { key: "todos", label: "Todos" },
   { key: "en_proceso", label: "En trabajo" },
@@ -91,6 +109,12 @@ const InspeccionesGuardadasPage = () => {
   const [loading, setLoading] = useState(true);
   const [detalle, setDetalle] = useState(null);
   const [actionError, setActionError] = useState("");
+  const [pagoEditando, setPagoEditando] = useState(null);
+  const [pagoMetodo, setPagoMetodo] = useState("");
+  const [pagoReferencia, setPagoReferencia] = useState("");
+  const [pagoObservaciones, setPagoObservaciones] = useState("");
+  const [pagoLoading, setPagoLoading] = useState(false);
+  const [pagoError, setPagoError] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState("todos");
   const focoAbiertoRef = useRef(null);
   const requestedTab = searchParams.get("tab") || "guardadas";
@@ -173,6 +197,55 @@ const InspeccionesGuardadasPage = () => {
     } catch (error) {
       console.error("Error al eliminar inspección:", error);
       setActionError(`No se pudo eliminar: ${error.message}`);
+    }
+  };
+
+  const abrirEditarPago = (insp) => {
+    setPagoEditando(insp);
+    setPagoMetodo(insp?.cobro?.metodo || "");
+    setPagoReferencia(insp?.cobro?.referencia || "");
+    setPagoObservaciones(insp?.cobro?.observaciones || "");
+    setPagoError("");
+  };
+
+  const cerrarEditarPago = () => {
+    setPagoEditando(null);
+    setPagoError("");
+  };
+
+  const guardarPago = async () => {
+    if (!pagoEditando) return;
+    if (!pagoMetodo) {
+      setPagoError("Selecciona un método de pago.");
+      return;
+    }
+
+    setPagoError("");
+    setPagoLoading(true);
+
+    try {
+      const payload = {
+        importe: 0,
+        metodo: pagoMetodo,
+      };
+      if (pagoReferencia) payload.referencia = pagoReferencia;
+      if (pagoObservaciones) payload.observaciones = pagoObservaciones;
+
+      const result = await actions.registrarCobroInspeccion(pagoEditando.id, payload);
+      if (!result || !result.id) {
+        throw new Error("No se pudo actualizar la forma de pago");
+      }
+
+      await cargarInspecciones();
+      if (detalle?.id === result.id) {
+        setDetalle(result);
+      }
+      setPagoEditando(null);
+    } catch (error) {
+      console.error("Error al actualizar cobro:", error);
+      setPagoError(error?.message || "Error actualizando la forma de pago");
+    } finally {
+      setPagoLoading(false);
     }
   };
 
@@ -333,7 +406,7 @@ const InspeccionesGuardadasPage = () => {
                 <table className="table align-middle mb-0" style={{ color: "var(--sw-text)" }}>
                   <thead>
                     <tr style={{ background: "var(--sw-surface-2)", borderBottom: "2px solid var(--sw-border)" }}>
-                      {["#", "Fecha", "Cliente", "Coche", "Matrícula", "Por", "📷", "🎥", "Estado", "Cobro", ""].map((h) => (
+                      {["#", "Fecha", "Cliente", "Coche", "Matrícula", "Por", "Pago", "📷", "🎥", "Estado", "Cobro", ""].map((h) => (
                         <th key={h} style={{
                           padding: "0.85rem 0.9rem", fontSize: "0.65rem", fontWeight: 700,
                           letterSpacing: "0.08em", textTransform: "uppercase",
@@ -397,6 +470,9 @@ const InspeccionesGuardadasPage = () => {
                           </td>
                           <td style={{ padding: "0.8rem 0.9rem", color: "var(--sw-muted)", fontSize: "0.82rem" }}>
                             {insp.usuario_nombre || "—"}
+                          </td>
+                          <td style={{ padding: "0.8rem 0.9rem", color: "var(--sw-muted)", fontSize: "0.82rem" }}>
+                            {formatCobroMetodo(insp.cobro?.metodo, insp.es_concesionario, insp.cobro?.estado)}
                           </td>
                           <td style={{ padding: "0.8rem 0.9rem", textAlign: "center", color: "var(--sw-muted)", fontSize: "0.82rem" }}>
                             {insp.fotos_cloudinary?.length || 0}
@@ -467,6 +543,19 @@ const InspeccionesGuardadasPage = () => {
                                 }}
                               >
                                 <span style={{ width: 14, height: 14, display: "flex" }}><IconEye /></span>
+                              </button>
+                              <button
+                                onClick={() => abrirEditarPago(insp)}
+                                title="Editar pago"
+                                style={{
+                                  background: "color-mix(in srgb,#f59e0b 12%,transparent)",
+                                  border: "1px solid color-mix(in srgb,#f59e0b 30%,transparent)",
+                                  color: "#f59e0b", borderRadius: 8,
+                                  padding: "0.35rem 0.55rem", cursor: "pointer", display: "flex", alignItems: "center",
+                                  fontWeight: 700, fontSize: "0.72rem",
+                                }}
+                              >
+                                Pago
                               </button>
                               <button
                                 onClick={() => abrirFichaCompleta(insp.id)}
@@ -653,7 +742,7 @@ const InspeccionesGuardadasPage = () => {
                             {" · "}Pendiente <strong style={{ color: "#f87171" }}>{Number(detalle.cobro.importe_pendiente || 0).toFixed(2)} €</strong>
                           </span>
                           <span style={{ color: "var(--sw-muted)", fontSize: "0.78rem" }}>
-                            Método: {detalle.cobro.metodo || "—"} · Ref: {detalle.cobro.referencia || "—"}
+                            Método: {formatCobroMetodo(detalle.cobro?.metodo, detalle.es_concesionario, detalle.cobro?.estado)} · Ref: {detalle.cobro.referencia || "—"}
                           </span>
                         </div>
                       </div>
@@ -788,6 +877,106 @@ const InspeccionesGuardadasPage = () => {
                       }}
                     >
                       Cerrar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {pagoEditando && (
+              <div
+                style={{
+                  position: "fixed", inset: 0, zIndex: 1060,
+                  background: "var(--sw-overlay-bg,rgba(0,0,0,0.6))",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  padding: "1rem", backdropFilter: "blur(4px)",
+                }}
+                onClick={(e) => { if (e.target === e.currentTarget) cerrarEditarPago(); }}
+              >
+                <div style={{
+                  background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderRadius: 20,
+                  width: "100%", maxWidth: 560, maxHeight: "92vh", overflowY: "auto",
+                  boxShadow: "0 24px 60px rgba(0,0,0,0.5)", animation: "sw-fade-up 0.22s ease both",
+                }}>
+                  <div style={{
+                    padding: "1.25rem 1.5rem", borderBottom: "1px solid var(--sw-border)",
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    position: "sticky", top: 0, background: "var(--sw-surface)", zIndex: 1,
+                  }}>
+                    <div>
+                      <p style={{ margin: 0, fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sw-muted)" }}>
+                        Editar forma de pago
+                      </p>
+                      <h3 style={{ margin: "0.35rem 0 0", fontSize: "1rem", fontWeight: 700, color: "var(--sw-text)" }}>
+                        #{pagoEditando.id} · {pagoEditando.matricula || "Sin matrícula"}
+                      </h3>
+                    </div>
+                    <button onClick={cerrarEditarPago} style={{ background: "none", border: "none", color: "var(--sw-muted)", cursor: "pointer", padding: "0.25rem", borderRadius: 6, display: "flex" }}>
+                      <span style={{ width: 20, height: 20, display: "flex" }}><IconClose /></span>
+                    </button>
+                  </div>
+
+                  <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+                    {pagoError && (
+                      <div style={{ background: "color-mix(in srgb,var(--sw-danger,#ef4444) 12%,transparent)", border: "1px solid color-mix(in srgb,var(--sw-danger,#ef4444) 30%,transparent)", color: "var(--sw-danger,#ef4444)", borderRadius: 12, padding: "0.85rem 1rem" }}>
+                        {pagoError}
+                      </div>
+                    )}
+
+                    <div style={{ display: "grid", gap: "1rem" }}>
+                      <div>
+                        <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 700, color: "var(--sw-text)" }}>Método de pago</label>
+                        <select
+                          value={pagoMetodo}
+                          onChange={(e) => setPagoMetodo(e.target.value)}
+                          style={{ width: "100%", padding: "0.75rem 0.9rem", borderRadius: 10, border: "1px solid var(--sw-border)", background: "var(--sw-surface)", color: "var(--sw-text)" }}
+                        >
+                          <option value="">Selecciona un método</option>
+                          <option value="efectivo">Efectivo</option>
+                          <option value="bizum">Bizum</option>
+                          <option value="tarjeta">Tarjeta</option>
+                          <option value="transferencia">Transferencia</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 700, color: "var(--sw-text)" }}>Referencia</label>
+                        <input
+                          type="text"
+                          value={pagoReferencia}
+                          onChange={(e) => setPagoReferencia(e.target.value)}
+                          style={{ width: "100%", padding: "0.75rem 0.9rem", borderRadius: 10, border: "1px solid var(--sw-border)", background: "var(--sw-surface)", color: "var(--sw-text)" }}
+                          placeholder="Opcional"
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 700, color: "var(--sw-text)" }}>Observaciones</label>
+                        <textarea
+                          value={pagoObservaciones}
+                          onChange={(e) => setPagoObservaciones(e.target.value)}
+                          style={{ width: "100%", minHeight: 110, padding: "0.75rem 0.9rem", borderRadius: 10, border: "1px solid var(--sw-border)", background: "var(--sw-surface)", color: "var(--sw-text)" }}
+                          placeholder="Opcional"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ padding: "1rem 1.5rem", borderTop: "1px solid var(--sw-border)", display: "flex", justifyContent: "flex-end", gap: "0.75rem", flexWrap: "wrap" }}>
+                    <button
+                      onClick={cerrarEditarPago}
+                      style={{
+                        background: "var(--sw-surface-2)", border: "1px solid var(--sw-border)", color: "var(--sw-muted)", borderRadius: 10, padding: "0.6rem 1.2rem", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer",
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={guardarPago}
+                      disabled={pagoLoading}
+                      style={{
+                        background: "color-mix(in srgb,#22c55e 14%,transparent)", border: "1px solid color-mix(in srgb,#22c55e 30%,transparent)", color: "#22c55e", borderRadius: 10, padding: "0.6rem 1.2rem", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer", opacity: pagoLoading ? 0.7 : 1,
+                      }}
+                    >
+                      {pagoLoading ? "Guardando…" : "Guardar pago"}
                     </button>
                   </div>
                 </div>

@@ -1,0 +1,11 @@
+[Unit]
+Description=Check SpecialWash backup freshness every morning
+
+[Timer]
+OnCalendar=*-*-* 08:00:00
+Persistent=true
+Unit=specialwash-backup-check.service
+
+[Install]
+WantedBy=timers.target
+

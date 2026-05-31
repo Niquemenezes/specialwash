@@ -81,6 +81,17 @@ class InspeccionRecepcion(db.Model):
     cliente = db.relationship("Cliente", backref="inspecciones_recepcion")
     coche = db.relationship("Coche", backref="inspecciones_recepcion")
 
+    def _fotos_con_url(self):
+        fotos = json.loads(self.fotos_cloudinary or "[]")
+        result = []
+        for f in fotos:
+            if not isinstance(f, dict):
+                continue
+            if not f.get("url") and f.get("filename"):
+                f = dict(f, url=f"/api/inspeccion-recepcion/{self.id}/foto-file/{f['filename']}")
+            result.append(f)
+        return result
+
     def to_dict(self):
         return {
             "id": self.id,
@@ -99,7 +110,7 @@ class InspeccionRecepcion(db.Model):
             "firma_empleado_recepcion": self.firma_empleado_recepcion,
             "consentimiento_datos_recepcion": self.consentimiento_datos_recepcion,
             "fecha_inspeccion": iso(self.fecha_inspeccion),
-            "fotos_cloudinary": json.loads(self.fotos_cloudinary or "[]"),
+            "fotos_cloudinary": self._fotos_con_url(),
             "videos_cloudinary": json.loads(self.videos_cloudinary or "[]"),
             "averias_notas": self.averias_notas,
             "servicios_aplicados": json.loads(self.servicios_aplicados or "[]"),

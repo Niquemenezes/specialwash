@@ -1,0 +1,11 @@
+[Unit]
+Description=Run SpecialWash backup every day
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+Unit=specialwash-backup.service
+
+[Install]
+WantedBy=timers.target
+

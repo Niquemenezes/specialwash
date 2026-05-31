@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { confirmar } from "../utils/confirmar";
 import {
   listarPartesTrabajo,
@@ -558,6 +559,8 @@ export function AdminPartesTrabajo() {
     }
   };
 
+  const navigate = useNavigate();
+
   const onFinalizarGrupo = async (grupoPartes) => {
     setError("");
     try {
@@ -565,6 +568,10 @@ export function AdminPartesTrabajo() {
         await cambiarEstadoParte(parte.id, "finalizado");
       }
       await cargarPartes();
+      // Navegar a repaso después de finalizar
+      setTimeout(() => {
+        navigate("/repaso-entrega?tab=repaso");
+      }, 600);
     } catch (e) {
       setError(e?.message || "No se pudo finalizar el grupo.");
     }

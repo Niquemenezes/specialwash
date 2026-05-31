@@ -1346,11 +1346,22 @@ def reporte_empleados():
             entry['duracion_minutos'] = int(round(p.duracion_total() * 60))
             por_empleado[p.empleado_id].append(entry)
 
+    # Incluir todos los empleados operativos activos aunque no tengan partes en el periodo
+    empleados_activos = User.query.filter(
+        User.activo == True,
+        User.rol.in_(list(WORKSHOP_ROLES)),
+    ).all()
+    for emp in empleados_activos:
+        if emp.id not in por_empleado:
+            por_empleado[emp.id]  # defaultdict crea lista vacía
+
     resultado = []
     for emp_id, detalle in por_empleado.items():
         emp = User.query.get(emp_id)
-        nombre = emp.nombre if emp else f'ID {emp_id}'
-        rol = getattr(emp, 'rol', '') if emp else ''
+        if not emp:
+            continue
+        nombre = emp.nombre
+        rol = getattr(emp, 'rol', '')
         total_minutos = sum(d['duracion_minutos'] for d in detalle)
         total_minutos_interno = sum(d['duracion_minutos'] for d in detalle if d['es_tarea_interna'])
         total_minutos_coche = max(total_minutos - total_minutos_interno, 0)
@@ -1365,7 +1376,7 @@ def reporte_empleados():
             'total_minutos_interno': total_minutos_interno,
             'partes': detalle,
         })
-    resultado.sort(key=lambda x: x['total_minutos'], reverse=True)
+    resultado.sort(key=lambda x: (x['total_minutos'], x['nombre']), reverse=True)
     return jsonify(resultado)
 
 

@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Context } from "../store/appContext";
-import { normalizeRol, getStoredRol } from "../utils/authSession";
+import { normalizeRol, getStoredRol, getStoredToken } from "../utils/authSession";
 import { editarParteTrabajo, setCocheUrgente, cambiarEstadoParte, listarPartesTrabajo } from "../utils/parteTrabajoApi";
 
 const getToken = () => (typeof localStorage !== "undefined" ? localStorage.getItem("token") || "" : "");
@@ -75,6 +75,16 @@ const GENERIC_OBSERVACIONES = new Set([
   "listo para pintura",
 ]);
 const normalizeText = (value) => String(value || "").replace(/\s+/g, " ").trim();
+const resolveFotoUrl = (foto) => {
+  if (!foto) return null;
+  const url = foto.url || "";
+  if (!url) return null;
+  if (url.startsWith("/api/")) {
+    const token = getStoredToken();
+    return token ? `${url}?token=${encodeURIComponent(token)}` : null;
+  }
+  return url;
+};
 const getFaseLabel = (fase) => FASE_LABEL[String(fase || "").trim().toLowerCase()] || "Pendiente";
 const sanitizeTrabajo = (value) => {
   const text = normalizeText(value);
@@ -1127,6 +1137,34 @@ export default function EstadoCochesPage() {
                       >
                         {urgentePending[r?.coche_id] ? "…" : "⚡ Urgente"}
                       </button>
+                      {estadoKey === "finalizado" && (
+                        <Link
+                          to={`/repaso-entrega?tab=repaso&inspeccion=${r.id}`}
+                          style={{
+                            background: "rgba(56,189,248,0.12)", border: "1px solid rgba(56,189,248,0.4)",
+                            color: "#38bdf8", borderRadius: "6px", padding: "0.2rem 0.65rem",
+                            fontSize: "0.7rem", fontWeight: 800, cursor: "pointer",
+                            textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "0.3rem",
+                          }}
+                          title="Ir al repaso de este coche"
+                        >
+                          ✅ Repaso
+                        </Link>
+                      )}
+                      {estadoKey === "listo_entrega" && (
+                        <Link
+                          to={`/acta-entrega/${r.id}`}
+                          style={{
+                            background: "rgba(212,175,55,0.18)", border: "1px solid rgba(212,175,55,0.55)",
+                            color: "#d4af37", borderRadius: "6px", padding: "0.2rem 0.65rem",
+                            fontSize: "0.7rem", fontWeight: 800, cursor: "pointer",
+                            textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "0.3rem",
+                          }}
+                          title="Ir a la hoja de entrega"
+                        >
+                          🚗 Entregar
+                        </Link>
+                      )}
                       {puedeReabrir && Array.isArray(r?.estado_coche?.partes_finalizados_detalle) && r.estado_coche.partes_finalizados_detalle.length > 0 && (
                         <button
                           className="ec-card-btn"

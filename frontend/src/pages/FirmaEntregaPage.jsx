@@ -80,7 +80,7 @@ const FirmaEntregaPage = () => {
       <div className="card shadow-sm border-0">
         <div className="card-header py-3 sw-modal-header-dark">
           <div className="d-flex justify-content-between align-items-center">
-            <span>Hoja de intervención / firma</span>
+            <span>Entrega / firma</span>
             <div className="d-flex gap-2">
               <button className="btn btn-outline-secondary btn-sm" onClick={volver}>
                 Volver
@@ -93,7 +93,8 @@ const FirmaEntregaPage = () => {
         </div>
         <div className="card-body p-3">
           <p className="text-muted mb-3" style={{ fontSize: "0.95rem" }}>
-            Aquí puedes abrir la hoja de intervención desde el sidebar, prepararla si está pendiente y completar la firma o cierre de entrega.
+            Aquí puedes abrir la hoja de entrega y firmar el coche cuando el cliente ya está esperando.
+            La hoja de intervención técnica es opcional para particulares, y solo se requiere si el coche lo necesita.
           </p>
 
           {loading && <p className="text-muted mb-0">Cargando pendientes...</p>}
@@ -106,7 +107,8 @@ const FirmaEntregaPage = () => {
             <div className="d-flex flex-column gap-3">
               {pendientes.map((item) => {
                 const esConcesionario = isProfesional(item);
-                const actaLista = esConcesionario || Boolean((item.trabajos_realizados || "").trim());
+                const necesitaHoja = Boolean(item.requiere_hoja_intervencion);
+                const tieneHojaIntervencionPendiente = necesitaHoja && !esConcesionario;
                 return (
                   <div key={item.id} className="sw-firma-card">
                     <div>
@@ -122,19 +124,29 @@ const FirmaEntregaPage = () => {
                     </div>
                     <div>
                       <div className="d-flex gap-2 flex-wrap justify-content-end">
-                        {actaLista ? (
+                        {tieneHojaIntervencionPendiente ? (
+                          <>
+                            <Link
+                              className="btn btn-outline-warning sw-firma-btn"
+                              to={`/hoja-tecnica/${item.id}?ia=true`}
+                            >
+                              ✨ Preparar con IA
+                            </Link>
+                            <Link
+                              className="btn btn-success sw-firma-btn"
+                              to={`/acta-entrega/${item.id}`}
+                            >
+                              📝 Hoja de entrega / firmar
+                            </Link>
+                          </>
+                        ) : (
                           <Link
                             className="btn btn-success sw-firma-btn"
                             to={`/acta-entrega/${item.id}`}
                           >
-                            {esConcesionario ? "💼 Cerrar entrega" : "📝 Abrir hoja / firmar"}
-                          </Link>
-                        ) : (
-                          <Link
-                            className="btn btn-outline-warning sw-firma-btn"
-                            to={`/hoja-tecnica/${item.id}`}
-                          >
-                            🛠️ Preparar hoja pendiente
+                            {esConcesionario
+                              ? "💼 Cerrar entrega"
+                              : "📝 Abrir acta de entrega / firmar"}
                           </Link>
                         )}
 
