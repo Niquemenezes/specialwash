@@ -148,9 +148,26 @@ def registrar_entrega_sheets(inspeccion):
     - Columna H: método de pago (Efectivo, Bizum, Tarjeta, Transferencia)
     - Columna I: fecha de entrega
     - Columna K: Estado → "Entregado"
+    - Fondo de toda la fila → verde claro
     """
     try:
-        worksheet = _get_worksheet()
+        import gspread
+        from google.oauth2.service_account import Credentials
+
+        creds_path = os.path.abspath(CREDENTIALS_FILE)
+        scopes = [
+            "https://www.googleapis.com/auth/spreadsheets",
+        ]
+        creds = Credentials.from_service_account_file(creds_path, scopes=scopes)
+        client = gspread.authorize(creds)
+        spreadsheet = client.open_by_key(SPREADSHEET_ID)
+
+        mes_actual = MESES_ES[datetime.now().month - 1]
+        try:
+            worksheet = spreadsheet.worksheet(mes_actual)
+        except gspread.WorksheetNotFound:
+            worksheet = spreadsheet.sheet1
+
         fila_num = _buscar_fila_por_matricula(worksheet, inspeccion.matricula or "")
         if not fila_num:
             logging.warning(f"[Google Sheets] Matrícula no encontrada para registrar entrega: {inspeccion.matricula}")
@@ -170,7 +187,38 @@ def registrar_entrega_sheets(inspeccion):
         worksheet.update(f"H{fila_num}", [[metodo]])
         worksheet.update(f"I{fila_num}", [[fecha_str]])
         worksheet.update(f"K{fila_num}", [["Entregado"]])
-        logging.info(f"[Google Sheets] Entrega registrada fila {fila_num}: {inspeccion.matricula} · {metodo} · {fecha_str}")
+
+        # Pintar toda la fila en verde claro (#b7e1cd equivale a verde Sheets)
+        sheet_id = worksheet.id
+        num_cols = len(worksheet.row_values(1)) or 11
+        body = {
+            "requests": [
+                {
+                    "repeatCell": {
+                        "range": {
+                            "sheetId": sheet_id,
+                            "startRowIndex": fila_num - 1,
+                            "endRowIndex": fila_num,
+                            "startColumnIndex": 0,
+                            "endColumnIndex": num_cols,
+                        },
+                        "cell": {
+                            "userEnteredFormat": {
+                                "backgroundColor": {
+                                    "red": 0.718,
+                                    "green": 0.882,
+                                    "blue": 0.804,
+                                }
+                            }
+                        },
+                        "fields": "userEnteredFormat.backgroundColor",
+                    }
+                }
+            ]
+        }
+        spreadsheet.batch_update(body)
+
+        logging.info(f"[Google Sheets] Entrega registrada fila {fila_num} (verde): {inspeccion.matricula} · {metodo} · {fecha_str}")
 
     except Exception as e:
         logging.warning(f"[Google Sheets] Error al registrar entrega {getattr(inspeccion, 'matricula', '?')}: {e}")
