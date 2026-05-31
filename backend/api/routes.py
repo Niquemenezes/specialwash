@@ -143,6 +143,13 @@ def maquinaria_create():
     except Exception:
         db.session.rollback()
         return jsonify({"msg": "Error al guardar en base de datos"}), 500
+
+    try:
+        from services.google_sheets_service import registrar_maquinaria as _sheets_maq
+        _sheets_maq(m)
+    except Exception:
+        pass
+
     return jsonify(m.to_dict()), 201
 
 
@@ -206,6 +213,13 @@ def maquinaria_update(mid):
     except Exception:
         db.session.rollback()
         return jsonify({"msg": "Error al guardar en base de datos"}), 500
+
+    try:
+        from services.google_sheets_service import actualizar_maquinaria as _sheets_maq_upd
+        _sheets_maq_upd(m)
+    except Exception:
+        pass
+
     return jsonify(m.to_dict()), 200
 
 
@@ -213,12 +227,20 @@ def maquinaria_update(mid):
 @role_required("administrador")
 def maquinaria_delete(mid):
     m = Maquinaria.query.get_or_404(mid)
+    nombre = m.nombre
     try:
         db.session.delete(m)
         db.session.commit()
     except Exception:
         db.session.rollback()
         return jsonify({"msg": "No se puede eliminar la maquinaria"}), 400
+
+    try:
+        from services.google_sheets_service import eliminar_maquinaria as _sheets_maq_del
+        _sheets_maq_del(nombre)
+    except Exception:
+        pass
+
     return jsonify({"msg": "Maquinaria eliminada"}), 200
 
 

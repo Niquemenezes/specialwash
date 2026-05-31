@@ -8,6 +8,7 @@ import os
 from datetime import datetime
 
 SPREADSHEET_ID = "1snVAvnfJ39abubFXGFZ2be566G0QEiEsBjSTS9tcf6M"
+MAQUINARIA_SPREADSHEET_ID = "13TsK50_ycdntTXPKWfsYVbX0k0EndvOPH-NL0mog6M4"
 CREDENTIALS_FILE = os.path.join(os.path.dirname(__file__), "..", "google_credentials.json")
 
 MESES_ES = [
@@ -240,3 +241,120 @@ def eliminar_inspeccion(matricula):
 
     except Exception as e:
         logging.warning(f"[Google Sheets] Error al eliminar {matricula}: {e}")
+
+
+# ============================================================
+# MAQUINARIA
+# ============================================================
+
+def _get_maquinaria_worksheet():
+    import gspread
+    from google.oauth2.service_account import Credentials
+
+    creds_path = os.path.abspath(CREDENTIALS_FILE)
+    if not os.path.exists(creds_path):
+        raise FileNotFoundError(f"Credenciales Google no encontradas: {creds_path}")
+
+    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+    creds = Credentials.from_service_account_file(creds_path, scopes=scopes)
+    client = gspread.authorize(creds)
+    spreadsheet = client.open_by_key(MAQUINARIA_SPREADSHEET_ID)
+    try:
+        return spreadsheet.worksheet("Maquinaria")
+    except Exception:
+        return spreadsheet.sheet1
+
+
+def _buscar_fila_maquinaria(worksheet, nombre):
+    """Devuelve índice de fila (1-based) que coincide con el nombre en columna A, o None."""
+    col_a = worksheet.col_values(1)
+    nombre_norm = str(nombre or "").strip().lower()
+    for idx, val in enumerate(col_a):
+        if str(val).strip().lower() == nombre_norm:
+            return idx + 1
+    return None
+
+
+def _fila_maquinaria(m):
+    """Construye la lista de valores para una fila del sheet de maquinaria."""
+    fecha_str = ""
+    if m.fecha_compra:
+        try:
+            fecha_str = m.fecha_compra.strftime("%d/%m/%Y")
+        except Exception:
+            fecha_str = str(m.fecha_compra)
+
+    precio_sin_iva = float(m.precio_sin_iva or 0)
+    iva_pct = float(m.iva or 0)
+    precio_con_iva = float(m.precio_con_iva or 0)
+    cantidad = int(m.cantidad or 1)
+
+    return [
+        m.nombre or "",          # A: nombre
+        m.numero_serie or "",    # B: número de factura
+        fecha_str,               # C: Fecha de compra
+        "",                      # D: Proveedor (sin campo en BD)
+        cantidad,                # E: Cantidad
+        precio_sin_iva,          # F: Precio
+        iva_pct,                 # G: IVA (%)
+        "",                      # H: Descuento (%)
+        precio_sin_iva,          # I: precio sin IVA
+        precio_con_iva,          # J: Total
+    ]
+
+
+def registrar_maquinaria(m):
+    """Añade una fila al Sheet de maquinaria cuando se crea un equipo."""
+    try:
+        worksheet = _get_maquinaria_worksheet()
+        fila = _fila_maquinaria(m)
+
+        # Insertar al final (antes de cualquier fila "Total" si existe)
+        col_a = worksheet.col_values(1)
+        total_row = next(
+            (idx + 1 for idx, v in enumerate(col_a) if str(v).strip().lower() == "total"),
+            None,
+        )
+        if total_row:
+            worksheet.insert_row(fila, index=total_row, value_input_option="USER_ENTERED")
+        else:
+            last = len([v for v in col_a if str(v).strip()])
+            worksheet.update(f"A{last + 1}", [fila], value_input_option="USER_ENTERED")
+
+        logging.info(f"[Sheets Maquinaria] Fila añadida: {m.nombre}")
+    except Exception as e:
+        logging.warning(f"[Sheets Maquinaria] Error al registrar '{getattr(m, 'nombre', '?')}': {e}")
+
+
+def actualizar_maquinaria(m):
+    """Actualiza la fila del Sheet de maquinaria cuando se edita un equipo."""
+    try:
+        worksheet = _get_maquinaria_worksheet()
+        fila_num = _buscar_fila_maquinaria(worksheet, m.nombre)
+        if not fila_num:
+            # Si no existe la fila, la creamos
+            registrar_maquinaria(m)
+            return
+
+        fila = _fila_maquinaria(m)
+        col_letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
+        for col, val in zip(col_letters, fila):
+            worksheet.update(f"{col}{fila_num}", [[val]], value_input_option="USER_ENTERED")
+
+        logging.info(f"[Sheets Maquinaria] Fila {fila_num} actualizada: {m.nombre}")
+    except Exception as e:
+        logging.warning(f"[Sheets Maquinaria] Error al actualizar '{getattr(m, 'nombre', '?')}': {e}")
+
+
+def eliminar_maquinaria(nombre):
+    """Elimina la fila del Sheet de maquinaria cuando se borra un equipo."""
+    try:
+        worksheet = _get_maquinaria_worksheet()
+        fila_num = _buscar_fila_maquinaria(worksheet, nombre)
+        if not fila_num:
+            logging.warning(f"[Sheets Maquinaria] No encontrado para eliminar: {nombre}")
+            return
+        worksheet.delete_rows(fila_num)
+        logging.info(f"[Sheets Maquinaria] Fila {fila_num} eliminada: {nombre}")
+    except Exception as e:
+        logging.warning(f"[Sheets Maquinaria] Error al eliminar '{nombre}': {e}")
