@@ -1336,6 +1336,7 @@ def reporte_empleados():
                     mins = _colab_minutos_individuales(colab)
                     entry = dict(base)
                     entry['duracion_minutos'] = mins
+                    entry['estado'] = colab.estado.value if colab.estado else base['estado']
                     entry['fecha_inicio'] = attach_madrid(colab.fecha_inicio).isoformat() if colab.fecha_inicio else base['fecha_inicio']
                     entry['fecha_fin'] = attach_madrid(colab.fecha_fin).isoformat() if colab.fecha_fin else base['fecha_fin']
                     por_empleado[colab.empleado_id].append(entry)
