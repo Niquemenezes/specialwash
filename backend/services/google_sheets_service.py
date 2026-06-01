@@ -145,20 +145,19 @@ def actualizar_inspeccion(inspeccion):
 
 def registrar_entrega_sheets(inspeccion):
     """
-    Actualiza la fila del Sheet cuando se entrega el coche:
-    - Columna H: método de pago (Efectivo, Bizum, Tarjeta, Transferencia)
+    Al entregar el coche actualiza la fila del sheet:
+    - Columna H: método de pago
     - Columna I: fecha de entrega
-    - Columna K: Estado → "Entregado"
-    - Fondo de toda la fila → verde claro
+    - Columna K: "Entregado"
+    - Texto de toda la fila → verde
+    Busca primero en el mes actual y luego en todas las pestañas.
     """
     try:
         import gspread
         from google.oauth2.service_account import Credentials
 
         creds_path = os.path.abspath(CREDENTIALS_FILE)
-        scopes = [
-            "https://www.googleapis.com/auth/spreadsheets",
-        ]
+        scopes = ["https://www.googleapis.com/auth/spreadsheets"]
         creds = Credentials.from_service_account_file(creds_path, scopes=scopes)
         client = gspread.authorize(creds)
         spreadsheet = client.open_by_key(SPREADSHEET_ID)
@@ -169,100 +168,57 @@ def registrar_entrega_sheets(inspeccion):
         except gspread.WorksheetNotFound:
             worksheet = spreadsheet.sheet1
 
-        fila_num = _buscar_fila_por_matricula(worksheet, inspeccion.matricula or "")
+        matricula = inspeccion.matricula or ""
+        fila_num = _buscar_fila_por_matricula(worksheet, matricula)
+
+        # Si no está en el mes actual buscar en todas las pestañas
         if not fila_num:
-            logging.warning(f"[Google Sheets] Matrícula no encontrada para registrar entrega: {inspeccion.matricula}")
+            for ws in spreadsheet.worksheets():
+                if ws.id == worksheet.id:
+                    continue
+                f = _buscar_fila_por_matricula(ws, matricula)
+                if f:
+                    fila_num = f
+                    worksheet = ws
+                    break
+
+        if not fila_num:
+            logging.warning(f"[Google Sheets] Matrícula no encontrada para entrega: {matricula}")
             return
 
-        METODO_LABEL = {
-            "efectivo": "Efectivo",
-            "bizum": "Bizum",
-            "tarjeta": "Tarjeta",
-            "transferencia": "Transferencia",
-        }
-        metodo = METODO_LABEL.get(str(inspeccion.cobro_metodo or "").strip().lower(), inspeccion.cobro_metodo or "")
-
+        # Fecha de entrega
         fecha_entrega = inspeccion.fecha_entrega or datetime.now()
         fecha_str = fecha_entrega.strftime("%d/%m/%Y") if hasattr(fecha_entrega, "strftime") else str(fecha_entrega)[:10]
+
+        # Método de pago: intentar desde cobro o atributo directo
+        cobro = getattr(inspeccion, "cobro", None)
+        metodo_raw = (getattr(cobro, "metodo_pago", None) or getattr(inspeccion, "cobro_metodo", None) or "")
+        METODO_LABEL = {"efectivo": "Efectivo", "bizum": "Bizum", "tarjeta": "Tarjeta", "transferencia": "Transferencia"}
+        metodo = METODO_LABEL.get(str(metodo_raw).strip().lower(), str(metodo_raw).capitalize())
 
         worksheet.update(f"H{fila_num}", [[metodo]])
         worksheet.update(f"I{fila_num}", [[fecha_str]])
         worksheet.update(f"K{fila_num}", [["Entregado"]])
 
-        # Pintar toda la fila en verde claro (#b7e1cd equivale a verde Sheets)
-        sheet_id = worksheet.id
-        num_cols = len(worksheet.row_values(1)) or 11
-        body = {
-            "requests": [
-                {
-                    "repeatCell": {
-                        "range": {
-                            "sheetId": sheet_id,
-                            "startRowIndex": fila_num - 1,
-                            "endRowIndex": fila_num,
-                            "startColumnIndex": 0,
-                            "endColumnIndex": num_cols,
-                        },
-                        "cell": {
-                            "userEnteredFormat": {
-                                "textFormat": {
-                                    "foregroundColor": {
-                                        "red": 0.133,
-                                        "green": 0.545,
-                                        "blue": 0.133,
-                                    }
-                                }
-                            }
-                        },
-                        "fields": "userEnteredFormat.textFormat.foregroundColor",
-                    }
-                }
-            ]
-        }
-        spreadsheet.batch_update(body)
+        # Poner texto de la fila en verde
+        num_cols = max(len(worksheet.row_values(1)), 11)
+        spreadsheet.batch_update({"requests": [{
+            "repeatCell": {
+                "range": {
+                    "sheetId": worksheet.id,
+                    "startRowIndex": fila_num - 1,
+                    "endRowIndex": fila_num,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": num_cols,
+                },
+                "cell": {"userEnteredFormat": {"textFormat": {"foregroundColor": {
+                    "red": 0.133, "green": 0.545, "blue": 0.133
+                }}}},
+                "fields": "userEnteredFormat.textFormat.foregroundColor",
+            }
+        }]})
 
-        logging.info(f"[Google Sheets] Entrega registrada fila {fila_num} (verde): {inspeccion.matricula} · {metodo} · {fecha_str}")
-
-    except Exception as e:
-        logging.warning(f"[Google Sheets] Error al registrar entrega {getattr(inspeccion, 'matricula', '?')}: {e}")
-
-
-def registrar_entrega_sheets(inspeccion):
-    """Actualiza la fila del sheet con la fecha de entrega y método de pago al cerrar el coche."""
-    try:
-        worksheet = _get_worksheet()
-        fila_num = _buscar_fila_por_matricula(worksheet, inspeccion.matricula or "")
-
-        # Si no está en la hoja del mes actual, buscar en todas las hojas
-        if not fila_num:
-            try:
-                spreadsheet = worksheet.spreadsheet
-                for ws in spreadsheet.worksheets():
-                    f = _buscar_fila_por_matricula(ws, inspeccion.matricula or "")
-                    if f:
-                        fila_num = f
-                        worksheet = ws
-                        break
-            except Exception:
-                pass
-
-        if not fila_num:
-            logging.warning(f"[Google Sheets] Matrícula no encontrada para entrega: {inspeccion.matricula}")
-            return
-
-        fecha_entrega = inspeccion.fecha_entrega or datetime.now()
-        fecha_str = fecha_entrega.strftime("%d/%m/%Y %H:%M") if hasattr(fecha_entrega, "strftime") else str(fecha_entrega)[:16]
-
-        # Columna I = Entrega (fecha), columna H = Método de Pago
-        worksheet.update(f"I{fila_num}", [[fecha_str]])
-
-        cobro = getattr(inspeccion, "cobro", None)
-        if cobro:
-            metodo = getattr(cobro, "metodo_pago", None) or ""
-            if metodo:
-                worksheet.update(f"H{fila_num}", [[metodo.capitalize()]])
-
-        logging.info(f"[Google Sheets] Entrega registrada en fila {fila_num}: {inspeccion.matricula}")
+        logging.info(f"[Google Sheets] Entrega registrada fila {fila_num} (verde): {matricula} · {metodo} · {fecha_str}")
 
     except Exception as e:
         logging.warning(f"[Google Sheets] Error al registrar entrega {getattr(inspeccion, 'matricula', '?')}: {e}")
