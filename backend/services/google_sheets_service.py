@@ -227,6 +227,47 @@ def registrar_entrega_sheets(inspeccion):
         logging.warning(f"[Google Sheets] Error al registrar entrega {getattr(inspeccion, 'matricula', '?')}: {e}")
 
 
+def registrar_entrega_sheets(inspeccion):
+    """Actualiza la fila del sheet con la fecha de entrega y método de pago al cerrar el coche."""
+    try:
+        worksheet = _get_worksheet()
+        fila_num = _buscar_fila_por_matricula(worksheet, inspeccion.matricula or "")
+
+        # Si no está en la hoja del mes actual, buscar en todas las hojas
+        if not fila_num:
+            try:
+                spreadsheet = worksheet.spreadsheet
+                for ws in spreadsheet.worksheets():
+                    f = _buscar_fila_por_matricula(ws, inspeccion.matricula or "")
+                    if f:
+                        fila_num = f
+                        worksheet = ws
+                        break
+            except Exception:
+                pass
+
+        if not fila_num:
+            logging.warning(f"[Google Sheets] Matrícula no encontrada para entrega: {inspeccion.matricula}")
+            return
+
+        fecha_entrega = inspeccion.fecha_entrega or datetime.now()
+        fecha_str = fecha_entrega.strftime("%d/%m/%Y %H:%M") if hasattr(fecha_entrega, "strftime") else str(fecha_entrega)[:16]
+
+        # Columna I = Entrega (fecha), columna H = Método de Pago
+        worksheet.update(f"I{fila_num}", [[fecha_str]])
+
+        cobro = getattr(inspeccion, "cobro", None)
+        if cobro:
+            metodo = getattr(cobro, "metodo_pago", None) or ""
+            if metodo:
+                worksheet.update(f"H{fila_num}", [[metodo.capitalize()]])
+
+        logging.info(f"[Google Sheets] Entrega registrada en fila {fila_num}: {inspeccion.matricula}")
+
+    except Exception as e:
+        logging.warning(f"[Google Sheets] Error al registrar entrega {getattr(inspeccion, 'matricula', '?')}: {e}")
+
+
 def eliminar_inspeccion(matricula):
     """Elimina la fila del sheet cuando se borra una inspección del sistema."""
     try:
