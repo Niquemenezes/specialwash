@@ -1286,18 +1286,23 @@ def reporte_empleados():
     Para partes colaborativos (pintura) usa el tiempo individual de cada colaborador,
     no el tiempo de reloj del parte, para reflejar la aportación real de cada persona."""
     from collections import defaultdict
+    from sqlalchemy import or_ as _or
     fecha_inicio_param = request.args.get('fecha_inicio')
     fecha_fin_param = request.args.get('fecha_fin')
-    query = ParteTrabajo.query
-    if fecha_inicio_param:
-        dt = _parse_query_datetime(fecha_inicio_param)
-        if dt:
-            query = query.filter(ParteTrabajo.fecha_inicio >= dt)
-    if fecha_fin_param:
-        dt = _parse_query_datetime(fecha_fin_param, end_of_day=True)
-        if dt:
-            query = query.filter(ParteTrabajo.fecha_inicio <= dt)
-    partes = query.all()
+
+    dt_inicio = _parse_query_datetime(fecha_inicio_param) if fecha_inicio_param else None
+    dt_fin = _parse_query_datetime(fecha_fin_param, end_of_day=True) if fecha_fin_param else None
+
+    rango_cond = ParteTrabajo.fecha_inicio.isnot(None)
+    if dt_inicio:
+        rango_cond = ParteTrabajo.fecha_inicio >= dt_inicio
+    if dt_fin:
+        rango_cond = rango_cond & (ParteTrabajo.fecha_inicio <= dt_fin)
+
+    # Incluir también partes activos aunque empezaran antes del rango
+    activos_cond = ParteTrabajo.estado.in_([EstadoParte.en_proceso, EstadoParte.en_pausa])
+
+    partes = ParteTrabajo.query.filter(_or(rango_cond, activos_cond)).all()
 
     # emp_id -> list of detail dicts
     por_empleado = defaultdict(list)
@@ -1387,18 +1392,22 @@ def reporte_coches():
     - minutos_persona: suma real de tiempo individual de cada trabajador (para saber cuánto costó en mano de obra)
     - minutos_reloj: tiempo de reloj de pared del coche en cada fase (para saber cuánto tardó el coche)
     """
+    from sqlalchemy import or_ as _or
     fecha_inicio_param = request.args.get('fecha_inicio')
     fecha_fin_param = request.args.get('fecha_fin')
-    query = ParteTrabajo.query
-    if fecha_inicio_param:
-        dt = _parse_query_datetime(fecha_inicio_param)
-        if dt:
-            query = query.filter(ParteTrabajo.fecha_inicio >= dt)
-    if fecha_fin_param:
-        dt = _parse_query_datetime(fecha_fin_param, end_of_day=True)
-        if dt:
-            query = query.filter(ParteTrabajo.fecha_inicio <= dt)
-    partes = query.all()
+
+    dt_inicio = _parse_query_datetime(fecha_inicio_param) if fecha_inicio_param else None
+    dt_fin = _parse_query_datetime(fecha_fin_param, end_of_day=True) if fecha_fin_param else None
+
+    rango_cond = ParteTrabajo.fecha_inicio.isnot(None)
+    if dt_inicio:
+        rango_cond = ParteTrabajo.fecha_inicio >= dt_inicio
+    if dt_fin:
+        rango_cond = rango_cond & (ParteTrabajo.fecha_inicio <= dt_fin)
+
+    activos_cond = ParteTrabajo.estado.in_([EstadoParte.en_proceso, EstadoParte.en_pausa])
+
+    partes = ParteTrabajo.query.filter(_or(rango_cond, activos_cond)).all()
 
     coches = {}
     for p in partes:
