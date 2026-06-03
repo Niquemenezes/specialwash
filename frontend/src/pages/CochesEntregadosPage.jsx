@@ -73,6 +73,11 @@ const CochesEntregadosPage = () => {
   const [pagoLoading, setPagoLoading] = useState(false);
   const [pagoError, setPagoError] = useState("");
 
+  const [anularItem, setAnularItem] = useState(null);
+  const [anularEsConcesionario, setAnularEsConcesionario] = useState(false);
+  const [anularLoading, setAnularLoading] = useState(false);
+  const [anularError, setAnularError] = useState("");
+
   const cargarInspecciones = useCallback(async () => {
     try {
       setLoading(true);
@@ -176,6 +181,41 @@ const CochesEntregadosPage = () => {
 
   const editarInspeccion = (id) => {
     navigate(`/inspeccion-recepcion?editId=${id}`);
+  };
+
+  const abrirAnularEntrega = (item) => {
+    setAnularItem(item);
+    setAnularEsConcesionario(item?.es_concesionario || false);
+    setAnularError("");
+  };
+
+  const cerrarAnularEntrega = () => {
+    setAnularItem(null);
+    setAnularError("");
+  };
+
+  const confirmarAnularEntrega = async () => {
+    if (!anularItem) return;
+    setAnularLoading(true);
+    setAnularError("");
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/inspeccion-recepcion/${anularItem.id}/revertir-entrega`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ es_concesionario: anularEsConcesionario }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.msg || "Error al anular la entrega");
+      }
+      await cargarInspecciones();
+      setAnularItem(null);
+    } catch (e) {
+      setAnularError(e.message);
+    } finally {
+      setAnularLoading(false);
+    }
   };
 
   const verInspeccion = async (id) => {
@@ -489,7 +529,7 @@ const CochesEntregadosPage = () => {
                         {/* Editar */}
                         <button
                           onClick={() => editarInspeccion(item.id)}
-                          title="Editar"
+                          title="Editar inspección"
                           style={{
                             background: "color-mix(in srgb,var(--sw-accent,#d4af37) 12%,transparent)",
                             border: "1px solid color-mix(in srgb,var(--sw-accent,#d4af37) 30%,transparent)",
@@ -498,6 +538,19 @@ const CochesEntregadosPage = () => {
                           }}
                         >
                           <span style={{ width: 14, height: 14, display: "flex" }}>{ICONS.pen}</span>
+                        </button>
+                        {/* Anular entrega */}
+                        <button
+                          onClick={() => abrirAnularEntrega(item)}
+                          title="Anular entrega (revertir)"
+                          style={{
+                            background: "color-mix(in srgb,#ef4444 12%,transparent)",
+                            border: "1px solid color-mix(in srgb,#ef4444 30%,transparent)",
+                            color: "#ef4444", borderRadius: 8,
+                            padding: "0.35rem 0.6rem", cursor: "pointer", fontSize: "0.7rem", fontWeight: 700,
+                          }}
+                        >
+                          Anular
                         </button>
                         {/* Ver inspección */}
                         <button
@@ -773,6 +826,59 @@ const CochesEntregadosPage = () => {
                 style={{ background: "color-mix(in srgb,#22c55e 14%,transparent)", border: "1px solid color-mix(in srgb,#22c55e 30%,transparent)", color: "#22c55e", borderRadius: 10, padding: "0.6rem 1.2rem", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer", opacity: pagoLoading ? 0.7 : 1 }}
               >
                 {pagoLoading ? "Guardando…" : "Guardar pago"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal anular entrega ── */}
+      {anularItem && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1060, display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={(e) => { if (e.target === e.currentTarget) cerrarAnularEntrega(); }}
+        >
+          <div style={{ background: "var(--sw-surface,#1e1e2e)", border: "1px solid var(--sw-border,#333)", borderRadius: 14, width: "min(94vw,440px)", padding: "1.5rem", boxShadow: "0 8px 40px rgba(0,0,0,0.5)" }}>
+            <h5 style={{ margin: "0 0 0.5rem", color: "#ef4444", fontWeight: 700 }}>Anular entrega</h5>
+            <p style={{ color: "var(--sw-muted,#aaa)", fontSize: "0.85rem", margin: "0 0 1rem" }}>
+              ¿Seguro que quieres marcar <strong style={{ color: "var(--sw-text,#fff)" }}>
+                {anularItem.matricula || anularItem.coche_descripcion}
+              </strong> como NO entregado? El coche volverá al flujo de trabajo.
+            </p>
+
+            <div style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.6rem" }}>
+              <input
+                type="checkbox"
+                id="chk-concesionario"
+                checked={anularEsConcesionario}
+                onChange={(e) => setAnularEsConcesionario(e.target.checked)}
+                style={{ width: 16, height: 16, cursor: "pointer" }}
+              />
+              <label htmlFor="chk-concesionario" style={{ fontSize: "0.85rem", color: "var(--sw-text,#fff)", cursor: "pointer" }}>
+                Es concesionario
+                <span style={{ color: "var(--sw-muted,#aaa)", marginLeft: 6 }}>
+                  (actualmente: {anularItem.es_concesionario ? "Sí" : "No"})
+                </span>
+              </label>
+            </div>
+
+            {anularError && (
+              <p style={{ color: "#ef4444", fontSize: "0.8rem", marginBottom: "0.75rem" }}>{anularError}</p>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
+              <button
+                onClick={cerrarAnularEntrega}
+                style={{ background: "var(--sw-surface-2,#2a2a3e)", border: "1px solid var(--sw-border,#333)", color: "var(--sw-muted,#aaa)", borderRadius: 10, padding: "0.6rem 1.2rem", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer" }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarAnularEntrega}
+                disabled={anularLoading}
+                style={{ background: "color-mix(in srgb,#ef4444 14%,transparent)", border: "1px solid color-mix(in srgb,#ef4444 35%,transparent)", color: "#ef4444", borderRadius: 10, padding: "0.6rem 1.2rem", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer", opacity: anularLoading ? 0.7 : 1 }}
+              >
+                {anularLoading ? "Anulando…" : "Confirmar anulación"}
               </button>
             </div>
           </div>

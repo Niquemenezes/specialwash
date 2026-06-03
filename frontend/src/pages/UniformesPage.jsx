@@ -84,6 +84,7 @@ export default function UniformesPage() {
     if (tab === "entregas") cargarEntregas();
     if (tab === "stock") cargarStock();
     if (tab === "resumen") cargarResumen();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, filtroEmpleado, filtroPrenda]);
 
   const cargarEmpleados = async () => {

@@ -46,7 +46,7 @@ const estadoColor = (estado) => {
 
 export default function VehiculoDetallePage() {
   const { inspeccion_id } = useParams();
-  const { actions, store } = useContext(Context);
+  const { actions } = useContext(Context);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "partes";

@@ -73,6 +73,7 @@ export default function ProductoFormModal({ show, onClose, onSaved, initial, sug
         ? "Se ha rellenado el código detectado. Puedes guardarlo o borrarlo; no es obligatorio."
         : ""
     );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEdit, initial, cleanedSuggestedBarcode]);
 
   const onChange = (e) => {

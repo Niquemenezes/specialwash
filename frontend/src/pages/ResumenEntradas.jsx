@@ -136,9 +136,7 @@ export default function ResumenEntradas() {
 
 
     load();
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
 
@@ -160,9 +158,7 @@ export default function ResumenEntradas() {
 
 
     return () => clearTimeout(timeoutId);
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [desde, hasta, proveedorId, productoId, q]);
 
 

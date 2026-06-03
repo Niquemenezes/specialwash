@@ -99,11 +99,18 @@ def registrar_inspeccion(inspeccion, servicios_aplicados_raw=None):
         total_row = next((idx + 1 for idx, v in enumerate(col_a) if str(v).strip().lower() == "total"), None)
 
         if total_row:
-            worksheet.insert_row(fila, index=total_row, value_input_option="USER_ENTERED")
+            # Buscar la última fila con datos antes de Total para no insertar en filas vacías
+            insert_at = total_row
+            for idx in range(total_row - 2, 0, -1):
+                if idx < len(col_a) and str(col_a[idx]).strip():
+                    insert_at = idx + 2  # fila siguiente al último dato
+                    break
+
+            worksheet.insert_row(fila, index=insert_at, value_input_option="USER_ENTERED")
             # Tras insertar, Total se desplaza una fila hacia abajo
             new_total_row = total_row + 1
             _actualizar_formulas_total(worksheet, new_total_row)
-            logging.info(f"[Google Sheets] Fila insertada antes de Total ({new_total_row}): {inspeccion.matricula}")
+            logging.info(f"[Google Sheets] Fila insertada en {insert_at} (Total en {new_total_row}): {inspeccion.matricula}")
         else:
             last = len(col_a)
             while last > 0 and not str(col_a[last - 1]).strip():
@@ -119,10 +126,38 @@ def registrar_inspeccion(inspeccion, servicios_aplicados_raw=None):
 def actualizar_inspeccion(inspeccion):
     """Actualiza la fila del sheet cuando cambian los servicios u otros datos de la inspección."""
     try:
-        worksheet = _get_worksheet()
-        fila_num = _buscar_fila_por_matricula(worksheet, inspeccion.matricula or "")
+        import gspread
+        from google.oauth2.service_account import Credentials
+
+        creds_path = os.path.abspath(CREDENTIALS_FILE)
+        scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+        creds = Credentials.from_service_account_file(creds_path, scopes=scopes)
+        client = gspread.authorize(creds)
+        spreadsheet = client.open_by_key(SPREADSHEET_ID)
+
+        matricula = inspeccion.matricula or ""
+
+        # Buscar primero en el mes actual, luego en todas las pestañas
+        mes_actual = MESES_ES[datetime.now().month - 1]
+        try:
+            worksheet = spreadsheet.worksheet(mes_actual)
+        except gspread.WorksheetNotFound:
+            worksheet = spreadsheet.sheet1
+
+        fila_num = _buscar_fila_por_matricula(worksheet, matricula)
+
         if not fila_num:
-            logging.warning(f"[Google Sheets] Matrícula no encontrada para actualizar: {inspeccion.matricula}")
+            for ws in spreadsheet.worksheets():
+                if ws.id == worksheet.id:
+                    continue
+                f = _buscar_fila_por_matricula(ws, matricula)
+                if f:
+                    fila_num = f
+                    worksheet = ws
+                    break
+
+        if not fila_num:
+            logging.warning(f"[Google Sheets] Matrícula no encontrada para actualizar: {matricula}")
             return
 
         servicios_str = _extraer_servicios(inspeccion.servicios_aplicados)
@@ -137,7 +172,7 @@ def actualizar_inspeccion(inspeccion):
         worksheet.update(f"C{fila_num}", [[inspeccion.cliente_nombre or ""]])
         worksheet.update(f"E{fila_num}", [[servicios_str]])
         worksheet.update(f"J{fila_num}", [[inspeccion.averias_notas or ""]])
-        logging.info(f"[Google Sheets] Fila {fila_num} actualizada: {inspeccion.matricula}")
+        logging.info(f"[Google Sheets] Fila {fila_num} actualizada ({worksheet.title}): {matricula}")
 
     except Exception as e:
         logging.warning(f"[Google Sheets] Error al actualizar {getattr(inspeccion, 'matricula', '?')}: {e}")
@@ -149,7 +184,7 @@ def registrar_entrega_sheets(inspeccion):
     - Columna H: método de pago
     - Columna I: fecha de entrega
     - Columna K: "Entregado"
-    - Texto de toda la fila → verde
+    - Texto de toda la fila → verde (particulares) o azul (concesionarios)
     Busca primero en el mes actual y luego en todas las pestañas.
     """
     try:
@@ -200,7 +235,15 @@ def registrar_entrega_sheets(inspeccion):
         worksheet.update(f"I{fila_num}", [[fecha_str]])
         worksheet.update(f"K{fila_num}", [["Entregado"]])
 
-        # Poner texto de la fila en verde
+        # Concesionarios → azul; particulares → verde
+        es_concesionario = bool(getattr(inspeccion, "es_concesionario", False))
+        if es_concesionario:
+            color = {"red": 0.114, "green": 0.459, "blue": 0.824}  # azul
+            color_label = "azul"
+        else:
+            color = {"red": 0.133, "green": 0.545, "blue": 0.133}  # verde
+            color_label = "verde"
+
         num_cols = max(len(worksheet.row_values(1)), 11)
         spreadsheet.batch_update({"requests": [{
             "repeatCell": {
@@ -211,17 +254,145 @@ def registrar_entrega_sheets(inspeccion):
                     "startColumnIndex": 0,
                     "endColumnIndex": num_cols,
                 },
-                "cell": {"userEnteredFormat": {"textFormat": {"foregroundColor": {
-                    "red": 0.133, "green": 0.545, "blue": 0.133
-                }}}},
+                "cell": {"userEnteredFormat": {"textFormat": {"foregroundColor": color}}},
                 "fields": "userEnteredFormat.textFormat.foregroundColor",
             }
         }]})
 
-        logging.info(f"[Google Sheets] Entrega registrada fila {fila_num} (verde): {matricula} · {metodo} · {fecha_str}")
+        logging.info(f"[Google Sheets] Entrega registrada fila {fila_num} ({color_label}): {matricula} · {metodo} · {fecha_str}")
 
     except Exception as e:
         logging.warning(f"[Google Sheets] Error al registrar entrega {getattr(inspeccion, 'matricula', '?')}: {e}")
+
+
+def actualizar_tabla_inspeccion(inspeccion, campos):
+    """Actualiza columnas manuales (F precio, G IVA, H método, I entrega, K estado) en el sheet."""
+    if not campos:
+        return
+    try:
+        import gspread
+        from google.oauth2.service_account import Credentials
+
+        creds_path = os.path.abspath(CREDENTIALS_FILE)
+        scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+        creds = Credentials.from_service_account_file(creds_path, scopes=scopes)
+        client = gspread.authorize(creds)
+        spreadsheet = client.open_by_key(SPREADSHEET_ID)
+
+        matricula = inspeccion.matricula or ""
+        mes_actual = MESES_ES[datetime.now().month - 1]
+        try:
+            worksheet = spreadsheet.worksheet(mes_actual)
+        except gspread.WorksheetNotFound:
+            worksheet = spreadsheet.sheet1
+
+        fila_num = _buscar_fila_por_matricula(worksheet, matricula)
+        if not fila_num:
+            for ws in spreadsheet.worksheets():
+                if ws.id == worksheet.id:
+                    continue
+                f = _buscar_fila_por_matricula(ws, matricula)
+                if f:
+                    fila_num = f
+                    worksheet = ws
+                    break
+
+        if not fila_num:
+            logging.warning(f"[Google Sheets] Matrícula no encontrada para tabla: {matricula}")
+            return
+
+        precio = float(inspeccion.cobro_importe_pagado or 0)
+        metodo_raw = (inspeccion.cobro_metodo or "").lower()
+        METODO_LABEL = {"efectivo": "Efectivo", "bizum": "Bizum", "tarjeta": "Tarjeta",
+                        "transferencia": "Transferencia", "factura": "Factura"}
+        metodo = METODO_LABEL.get(metodo_raw, metodo_raw.capitalize() if metodo_raw else "")
+        iva = round(precio * 0.21, 2) if metodo_raw == "factura" and precio > 0 else 0
+
+        if "precio" in campos:
+            worksheet.update(f"F{fila_num}", [[precio if precio > 0 else ""]], value_input_option="USER_ENTERED")
+            worksheet.update(f"G{fila_num}", [[iva if iva > 0 else ""]], value_input_option="USER_ENTERED")
+        elif "metodo" in campos:
+            # Recalcular IVA si cambió el método
+            worksheet.update(f"G{fila_num}", [[iva if iva > 0 else ""]], value_input_option="USER_ENTERED")
+
+        if "metodo" in campos:
+            worksheet.update(f"H{fila_num}", [[metodo]], value_input_option="USER_ENTERED")
+
+        if "fecha_entrega" in campos:
+            fecha_str = ""
+            if inspeccion.fecha_entrega:
+                try:
+                    fecha_str = inspeccion.fecha_entrega.strftime("%d/%m/%Y")
+                except Exception:
+                    fecha_str = str(inspeccion.fecha_entrega)[:10]
+            worksheet.update(f"I{fila_num}", [[fecha_str]], value_input_option="USER_ENTERED")
+
+        if "estado" in campos:
+            estado = inspeccion.tabla_estado or ("Entregado" if inspeccion.entregado else "")
+            worksheet.update(f"K{fila_num}", [[estado]], value_input_option="USER_ENTERED")
+
+        logging.info(f"[Google Sheets] Tabla actualizada fila {fila_num} campos={campos}: {matricula}")
+
+    except Exception as e:
+        logging.warning(f"[Google Sheets] Error al actualizar tabla {getattr(inspeccion, 'matricula', '?')}: {e}")
+
+
+def revertir_entrega_sheets(inspeccion):
+    """Limpia columnas I (entrega), K (estado) y resetea el color del texto a negro."""
+    try:
+        import gspread
+        from google.oauth2.service_account import Credentials
+
+        creds_path = os.path.abspath(CREDENTIALS_FILE)
+        scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+        creds = Credentials.from_service_account_file(creds_path, scopes=scopes)
+        client = gspread.authorize(creds)
+        spreadsheet = client.open_by_key(SPREADSHEET_ID)
+
+        matricula = inspeccion.matricula or ""
+        mes_actual = MESES_ES[datetime.now().month - 1]
+        try:
+            worksheet = spreadsheet.worksheet(mes_actual)
+        except gspread.WorksheetNotFound:
+            worksheet = spreadsheet.sheet1
+
+        fila_num = _buscar_fila_por_matricula(worksheet, matricula)
+        if not fila_num:
+            for ws in spreadsheet.worksheets():
+                if ws.id == worksheet.id:
+                    continue
+                f = _buscar_fila_por_matricula(ws, matricula)
+                if f:
+                    fila_num = f
+                    worksheet = ws
+                    break
+
+        if not fila_num:
+            logging.warning(f"[Google Sheets] Matrícula no encontrada para revertir entrega: {matricula}")
+            return
+
+        worksheet.update(f"I{fila_num}", [[""]])
+        worksheet.update(f"K{fila_num}", [[""]])
+
+        # Resetear color del texto a negro
+        num_cols = max(len(worksheet.row_values(1)), 11)
+        spreadsheet.batch_update({"requests": [{
+            "repeatCell": {
+                "range": {
+                    "sheetId": worksheet.id,
+                    "startRowIndex": fila_num - 1,
+                    "endRowIndex": fila_num,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": num_cols,
+                },
+                "cell": {"userEnteredFormat": {"textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 0}}}},
+                "fields": "userEnteredFormat.textFormat.foregroundColor",
+            }
+        }]})
+
+        logging.info(f"[Google Sheets] Entrega revertida fila {fila_num}: {matricula}")
+    except Exception as e:
+        logging.warning(f"[Google Sheets] Error al revertir entrega {getattr(inspeccion, 'matricula', '?')}: {e}")
 
 
 def eliminar_inspeccion(matricula):

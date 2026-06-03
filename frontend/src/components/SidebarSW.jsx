@@ -19,6 +19,7 @@ const SECTIONS = [
       { to: "/repaso-entrega?tab=repaso",  icon: "fas fa-edit",            label: "Repaso"          },
       { to: "/repaso-entrega?tab=firma",   icon: "fas fa-file-signature",  label: "Hoja de entrega" },
       { to: "/entregados",                 icon: "fas fa-check-double",    label: "Coches entregados"         },
+      { to: "/tabla-registros",           icon: "fas fa-table",           label: "Tabla de registros"        },
     ],
   },
   {

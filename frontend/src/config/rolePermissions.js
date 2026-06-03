@@ -69,6 +69,9 @@ export const ROUTE_PERMISSIONS = {
   "/administracion/cobros-profesionales": [ROLES.ADMIN], // Cobro concesionarios
   "/cobro-particulares": [ROLES.ADMIN, ROLES.CALIDAD], // Cobro particulares (NUEVO)
 
+  // ═══ TABLA DE REGISTROS ═══
+  "/tabla-registros": [ROLES.ADMIN],
+
   // ═══ CITAS Y RESPALDO ═══
   "/citas": [ROLES.ADMIN, ROLES.CALIDAD],
   "/fichar": [ROLES.ADMIN, ROLES.CALIDAD, ...EMPLOYEE_ROLES],
@@ -116,6 +119,7 @@ export const NAVIGATION_BY_ROLE = {
     {
       section: "Gestión",
       items: [
+        { label: "📋 Tabla de Registros", to: "/tabla-registros" },
         { label: "📊 Dashboard", to: "/dashboard" },
         { label: "👥 Clientes", to: "/clientes" },
         { label: "🚗 Coches", to: "/coches" },

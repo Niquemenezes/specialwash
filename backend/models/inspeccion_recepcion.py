@@ -54,6 +54,7 @@ class InspeccionRecepcion(db.Model):
     cobro_metodo = db.Column(db.String(50), nullable=True)
     cobro_referencia = db.Column(db.String(120), nullable=True)
     cobro_observaciones = db.Column(db.Text, nullable=True)
+    tabla_estado = db.Column(db.String(100), nullable=True)
 
     # Repaso pre-entrega
     repaso_checklist = db.Column(db.Text, default="{}")
@@ -129,6 +130,7 @@ class InspeccionRecepcion(db.Model):
             "cobro_metodo": self.cobro_metodo,
             "cobro_referencia": self.cobro_referencia,
             "cobro_observaciones": self.cobro_observaciones,
+            "tabla_estado": self.tabla_estado,
             "repaso_checklist": json.loads(self.repaso_checklist or "{}"),
             "repaso_notas": self.repaso_notas,
             "repaso_completado": self.repaso_completado,
