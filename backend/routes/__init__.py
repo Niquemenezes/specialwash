@@ -1,4 +1,9 @@
 from api.inspeccion_routes import inspeccion_bp
+from api.media_routes import media_bp
+from api.repaso_routes import repaso_bp
+from api.cobro_routes import cobro_bp
+from api.entrega_routes import entrega_bp
+from api.tabla_routes import tabla_bp
 from api.uniforme_routes import uniformes_bp
 from api.routes import api as core_api_bp
 from routes.almacen_routes import almacen_bp
@@ -25,6 +30,11 @@ def register_routes(app):
     app.register_blueprint(almacen_bp, url_prefix="/api")
     app.register_blueprint(core_api_bp, url_prefix="/api")
     app.register_blueprint(inspeccion_bp)
+    app.register_blueprint(media_bp)
+    app.register_blueprint(repaso_bp)
+    app.register_blueprint(cobro_bp)
+    app.register_blueprint(entrega_bp)
+    app.register_blueprint(tabla_bp)
     app.register_blueprint(parte_trabajo_bp, url_prefix="/api")
     app.register_blueprint(servicio_catalogo_bp, url_prefix="/api")
     app.register_blueprint(citas_bp, url_prefix="/api")
