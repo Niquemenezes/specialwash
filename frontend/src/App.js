@@ -56,6 +56,8 @@ import EntregaClientePage from "./pages/EntregaClientePage.jsx";
 import UniformesPage from "./pages/UniformesPage.jsx";
 import CocheSustitucionPage from "./pages/CocheSustitucionPage.jsx";
 import EstadoCochesPage from "./pages/EstadoCochesPage.jsx";
+import RepasoCoachePage from "./pages/RepasoCoachePage.jsx";
+import TablaRegistrosPage from "./pages/TablaRegistrosPage.jsx";
 
 // Helper: obtener permisos para una ruta desde la configuración centralizada
 const getRouteAllow = (routePath) => {
@@ -531,6 +533,15 @@ const AppContent = () => {
             />
 
             <Route
+              path="/repaso-coche/:id"
+              element={
+                <PrivateRoute allow={getRouteAllow("/repaso-entrega")}>
+                  <RepasoCoachePage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
               path="/fichar"
               element={
                 <PrivateRoute allow={getRouteAllow("/fichar")}>
@@ -553,6 +564,15 @@ const AppContent = () => {
               element={
                 <PrivateRoute allow={getRouteAllow("/entregados")}>
                   <CochesEntregadosPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/tabla-registros"
+              element={
+                <PrivateRoute allow={getRouteAllow("/tabla-registros")}>
+                  <TablaRegistrosPage />
                 </PrivateRoute>
               }
             />

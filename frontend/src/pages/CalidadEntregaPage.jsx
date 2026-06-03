@@ -120,6 +120,7 @@ const ICONS = {
 
 const ACCENT = "#6366f1";
 
+// eslint-disable-next-line no-unused-vars
 function CocheEntregaCard({ coche, onGenerarInforme, onEntregar, generando, entreganCombinados }) {
   const isParticular = !coche.cliente_tipo || coche.cliente_tipo === "particular";
 

@@ -177,13 +177,6 @@ function FichajePanel({ fichaje }) {
   );
 }
 
-function deviationView(real, estimado) {
-  const diff = Number(real || 0) - Number(estimado || 0);
-  let color = "#22c55e";
-  if (diff > 30) color = "#ef4444";
-  else if (diff > 10) color = "#f59e0b";
-  return <span style={{ color, fontWeight: 700 }}>{`${diff > 0 ? "+" : ""}${diff} min`}</span>;
-}
 
 const fmtEuros = (value) =>
   Number(value || 0).toLocaleString("es-ES", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -355,13 +348,9 @@ export default function ProductividadTrabajadoresPage() {
         );
         const parteActiva = [...partesOrdenadas].reverse().find((p) => ["en_proceso", "en_pausa"].includes(p?.estado)) || null;
         const ultimaParte = [...partesOrdenadas].sort((a, b) => new Date(b?.fecha_inicio || 0) - new Date(a?.fecha_inicio || 0))[0] || null;
-        const desviacionTotal = partes.reduce(
-          (sum, p) => sum + (Number(p?.duracion_minutos || 0) - Number(p?.tiempo_estimado_minutos || 0)),
-          0
-        );
         const cochesCount = partes.filter((p) => !p?.es_tarea_interna).length;
         const internasCount = partes.filter((p) => p?.es_tarea_interna).length;
-        return { ...emp, partes, partesOrdenadas, parteActiva, ultimaParte, desviacionTotal, cochesCount, internasCount };
+        return { ...emp, partes, partesOrdenadas, parteActiva, ultimaParte, cochesCount, internasCount };
       })
       .filter((emp) => {
         if (empleadoFiltro && String(emp?.empleado_id || "") !== empleadoFiltro) return false;
@@ -725,7 +714,6 @@ export default function ProductividadTrabajadoresPage() {
                       <div style={{ fontSize: "0.8rem", color: "var(--sw-muted)" }}>Total: <strong style={{ color: "var(--sw-text)" }}>{formatMinutes(emp.total_minutos)}</strong></div>
                       <div style={{ fontSize: "0.8rem", color: "var(--sw-muted)" }}>En coches: <strong style={{ color: "#38bdf8" }}>{formatMinutes(emp.total_minutos_coche)}</strong></div>
                       <div style={{ fontSize: "0.8rem", color: "var(--sw-muted)" }}>Interno: <strong style={{ color: "#f59e0b" }}>{formatMinutes(emp.total_minutos_interno)}</strong></div>
-                      <div style={{ fontSize: "0.8rem", color: "var(--sw-muted)" }}>Desviación: {deviationView(emp.desviacionTotal, 0)}</div>
                     </div>
 
                     <div style={{ marginTop: "0.55rem", fontSize: "0.82rem", color: "var(--sw-text)" }}>
@@ -799,7 +787,6 @@ export default function ProductividadTrabajadoresPage() {
                               "Estado",
                               "Real",
                               "Est.",
-                              "Desv.",
                               "Inicio",
                               "Fin",
                             ].map((h) => (
@@ -810,23 +797,17 @@ export default function ProductividadTrabajadoresPage() {
                         <tbody>
                           {(emp.partesOrdenadas || []).map((p) => {
                             const minReal = Number(p.duracion_minutos || 0);
-                            const minEst = Number(p.tiempo_estimado_minutos || 0);
-                            const diff = minReal - minEst;
-                            const diffColor = diff > 30 ? "#ef4444" : diff > 10 ? "#f59e0b" : "#22c55e";
                             return (
                             <tr key={p.parte_id} style={{ borderBottom: "1px solid var(--sw-border)" }}>
                               <td style={{ padding: "0.6rem 0.7rem", color: "var(--sw-text)", fontWeight: 600 }}>{fmtActividad(p)}</td>
                               <td style={{ padding: "0.6rem 0.7rem", color: "var(--sw-muted)" }}>{fmtRegistro(p)}</td>
                               <td style={{ padding: "0.6rem 0.7rem" }}><EstadoChip estado={p.estado} /></td>
                               <td style={{ padding: "0.6rem 0.7rem", fontWeight: 700 }}>
-                                <span style={{ color: minReal > 0 ? (diff > 30 ? "#ef4444" : diff > 10 ? "#f59e0b" : "var(--sw-accent,#d4af37)") : "var(--sw-muted)" }}>
+                                <span style={{ color: minReal > 0 ? "var(--sw-accent,#d4af37)" : "var(--sw-muted)" }}>
                                   {formatMinutes(p.duracion_minutos)}
                                 </span>
                               </td>
                               <td style={{ padding: "0.6rem 0.7rem", color: "var(--sw-muted)" }}>{formatMinutes(p.tiempo_estimado_minutos)}</td>
-                              <td style={{ padding: "0.6rem 0.7rem", fontWeight: 700, color: diffColor }}>
-                                {minEst > 0 ? `${diff > 0 ? "+" : ""}${diff} min` : "—"}
-                              </td>
                               <td style={{ padding: "0.6rem 0.7rem", color: "var(--sw-muted)", whiteSpace: "nowrap" }}>{fmtHour(p.fecha_inicio)}</td>
                               <td style={{ padding: "0.6rem 0.7rem", color: "var(--sw-muted)", whiteSpace: "nowrap" }}>{fmtHour(p.fecha_fin)}</td>
                             </tr>

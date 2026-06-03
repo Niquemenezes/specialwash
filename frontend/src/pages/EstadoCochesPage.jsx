@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Context } from "../store/appContext";
-import { normalizeRol, getStoredRol, getStoredToken } from "../utils/authSession";
+import { normalizeRol, getStoredRol } from "../utils/authSession";
 import { editarParteTrabajo, setCocheUrgente, cambiarEstadoParte, listarPartesTrabajo } from "../utils/parteTrabajoApi";
 
 const getToken = () => (typeof localStorage !== "undefined" ? localStorage.getItem("token") || "" : "");

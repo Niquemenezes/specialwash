@@ -2,12 +2,8 @@ import React, { useEffect, useState, useContext, useRef, useMemo } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Context } from "../store/appContext";
 import SignaturePad from "../components/SignaturePad.jsx";
-import ProgressIndicator from "../components/ProgressIndicator.jsx";
-import NextStepsModal from "../components/NextStepsModal.jsx";
 import { getStoredRol, normalizeRol } from "../utils/authSession";
 import "../styles/inspeccion-responsive.css";
-import "../styles/progress-indicator.css";
-import "../styles/next-steps-modal.css";
 
 const INITIAL_FORM_DATA = {
   cliente_id: "",
@@ -60,6 +56,7 @@ const resolveCatalogRole = (servicio) => {
   return ROUTEABLE_SERVICE_ROLES.has(normalized) ? normalized : "otro";
 };
 
+// eslint-disable-next-line no-unused-vars
 const getRoleBadgeClass = (role) => {
   switch (normalizeRol(role)) {
     case "detailing":
@@ -158,8 +155,7 @@ const InspeccionRecepcionPage = () => {
     tipo_tarea: "",
   });
   const [servicioCatalogoSeleccionado, setServicioCatalogoSeleccionado] = useState(EMPTY_CATALOG_SELECTION);
-  const [showNextStepsModal, setShowNextStepsModal] = useState(false);
-  const [esProfesional, setEsProfesional] = useState(false);
+  const [tamanoVehiculo, setTamanoVehiculo] = useState(""); // "turismo" | "suv" | "todoterreno" | ""
   const [clienteExistenteBusqueda, setClienteExistenteBusqueda] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
   const rol = getStoredRol();
@@ -478,6 +474,13 @@ const InspeccionRecepcionPage = () => {
         return prev;
       }
 
+      // Precio según tamaño del vehículo seleccionado
+      let precio = Number(servicio.precio_base || 0);
+      if (tamanoVehiculo === "turismo" && servicio.precio_turismo != null) precio = Number(servicio.precio_turismo);
+      else if (tamanoVehiculo === "suv" && servicio.precio_suv != null) precio = Number(servicio.precio_suv);
+      else if (tamanoVehiculo === "todoterreno" && servicio.precio_todoterreno != null) precio = Number(servicio.precio_todoterreno);
+      else if (servicio.precio_turismo != null) precio = Number(servicio.precio_turismo); // fallback al menor
+
       return {
         ...prev,
         servicios_aplicados: [
@@ -486,7 +489,7 @@ const InspeccionRecepcionPage = () => {
             origen: "catalogo",
             servicio_catalogo_id: servicioId,
             nombre: servicio.nombre || "Servicio",
-            precio: Number(servicio.precio_base || 0),
+            precio,
             tiempo_estimado_minutos: Number.parseInt(servicio.tiempo_estimado_minutos || 0, 10) || 0,
             tipo_tarea: rolServicio,
           },
@@ -728,13 +731,13 @@ const InspeccionRecepcionPage = () => {
 
       setInspeccionCreada(inspeccion);
 
-      const { subidos: fotosSubidas, fallidos: fotosFallidas } = await subirArchivos({
+      await subirArchivos({
         inspeccionId: inspeccion.id,
         archivos: fotos,
         subirArchivo: actions.subirFotoInspeccion
       });
 
-      const { subidos: videosSubidos, fallidos: videosFallidos } = await subirArchivos({
+      await subirArchivos({
         inspeccionId: inspeccion.id,
         archivos: videos,
         subirArchivo: actions.subirVideoInspeccion,
@@ -872,11 +875,17 @@ const InspeccionRecepcionPage = () => {
       const rolServicio = resolveCatalogRole(servicio);
       if (rolServicio === "otro") continue;
 
+      let precio = Number(servicio.precio_base || 0);
+      if (tamanoVehiculo === "turismo" && servicio.precio_turismo != null) precio = Number(servicio.precio_turismo);
+      else if (tamanoVehiculo === "suv" && servicio.precio_suv != null) precio = Number(servicio.precio_suv);
+      else if (tamanoVehiculo === "todoterreno" && servicio.precio_todoterreno != null) precio = Number(servicio.precio_todoterreno);
+      else if (servicio.precio_turismo != null) precio = Number(servicio.precio_turismo);
+
       const servicioNormalizado = {
         origen: "catalogo",
         servicio_catalogo_id: Number(servicio.id),
         nombre: servicio.nombre || "Servicio",
-        precio: Number(servicio.precio_base || 0),
+        precio,
         tiempo_estimado_minutos: Number.parseInt(servicio.tiempo_estimado_minutos || 0, 10) || 0,
         tipo_tarea: rolServicio,
       };
@@ -1170,6 +1179,39 @@ const InspeccionRecepcionPage = () => {
             <div style={_cardH}><span style={{ color: "#6ee7b7", marginRight: "0.5rem" }}>✦</span>Servicios para esta recepción</div>
             <div style={_cardB}>
 
+              {/* Tamaño del vehículo para precios por tramo */}
+              <div style={{ marginBottom: "1rem" }}>
+                <p style={{ ..._lbl, marginBottom: "0.5rem" }}>Tamaño del vehículo <span style={{ fontWeight: 400, color: "var(--sw-muted)", fontSize: "0.8rem" }}>(aplica el precio correcto a los servicios del catálogo)</span></p>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  {[
+                    { key: "turismo", label: "Turismo" },
+                    { key: "suv", label: "SUV / Minifurgoneta" },
+                    { key: "todoterreno", label: "Todoterreno / Furgoneta" },
+                  ].map(({ key, label }) => {
+                    const active = tamanoVehiculo === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setTamanoVehiculo(active ? "" : key)}
+                        style={{
+                          padding: "0.4rem 0.85rem",
+                          borderRadius: "999px",
+                          border: active ? "1px solid rgba(212,175,55,0.5)" : "1px solid var(--sw-border)",
+                          background: active ? "rgba(212,175,55,0.12)" : "var(--sw-surface-2)",
+                          color: active ? "var(--sw-accent,#d4af37)" : "var(--sw-muted)",
+                          fontWeight: 700,
+                          fontSize: "0.82rem",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Catálogo por rol */}
               <div style={{ marginBottom: "1.5rem" }}>
                 <p style={{ ..._lbl, marginBottom: "0.75rem" }}>Catálogo activo</p>
@@ -1203,17 +1245,27 @@ const InspeccionRecepcionPage = () => {
                         <div className="d-flex flex-column flex-md-row gap-2">
                           <div className="flex-grow-1">
                             <select
+                              key={`${rol}-${tamanoVehiculo}`}
                               className="form-select"
                               value={servicioCatalogoSeleccionado[rol]}
                               onChange={(e) => seleccionarServicioCatalogoPorRol(rol, e.target.value)}
                               style={_inp}
                             >
                               <option value="">Seleccionar servicio de {label.toLowerCase()}...</option>
-                              {serviciosCatalogoPorRol[rol].map((s) => (
-                                <option key={s.id} value={s.id}>
-                                  {`${s.nombre} · ${Number(s.precio_base || 0).toFixed(2)} €${Number(s.tiempo_estimado_minutos || 0) > 0 ? ` · ${Number(s.tiempo_estimado_minutos)} min` : ""}`}
-                                </option>
-                              ))}
+                              {serviciosCatalogoPorRol[rol].map((s) => {
+                                let precio = s.precio_base;
+                                if (tamanoVehiculo === "turismo" && s.precio_turismo != null) precio = s.precio_turismo;
+                                else if (tamanoVehiculo === "suv" && s.precio_suv != null) precio = s.precio_suv;
+                                else if (tamanoVehiculo === "todoterreno" && s.precio_todoterreno != null) precio = s.precio_todoterreno;
+                                else if (s.precio_turismo != null) precio = s.precio_turismo;
+                                const precioStr = precio != null ? `${Number(precio).toFixed(0)} €` : "—";
+                                const tiempoStr = Number(s.tiempo_estimado_minutos || 0) > 0 ? ` · ${Number(s.tiempo_estimado_minutos)} min` : "";
+                                return (
+                                  <option key={s.id} value={s.id}>
+                                    {`${s.nombre} · ${precioStr}${tiempoStr}`}
+                                  </option>
+                                );
+                              })}
                             </select>
                           </div>
                           <button
