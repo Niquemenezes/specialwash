@@ -10,6 +10,13 @@ REMOTE_FRONTEND = '/var/www/specialwash/public_html'
 FILES_BACKEND = [
     ('backend/services/google_sheets_service.py',           f'{REMOTE_BACKEND}/services/google_sheets_service.py'),
     ('backend/api/inspeccion_routes.py',                    f'{REMOTE_BACKEND}/api/inspeccion_routes.py'),
+    ('backend/api/media_routes.py',                         f'{REMOTE_BACKEND}/api/media_routes.py'),
+    ('backend/api/repaso_routes.py',                        f'{REMOTE_BACKEND}/api/repaso_routes.py'),
+    ('backend/api/cobro_routes.py',                         f'{REMOTE_BACKEND}/api/cobro_routes.py'),
+    ('backend/api/entrega_routes.py',                       f'{REMOTE_BACKEND}/api/entrega_routes.py'),
+    ('backend/api/tabla_routes.py',                         f'{REMOTE_BACKEND}/api/tabla_routes.py'),
+    ('backend/utils/inspeccion_helpers.py',                 f'{REMOTE_BACKEND}/utils/inspeccion_helpers.py'),
+    ('backend/routes/__init__.py',                          f'{REMOTE_BACKEND}/routes/__init__.py'),
     ('backend/routes/parte_trabajo_routes.py',              f'{REMOTE_BACKEND}/routes/parte_trabajo_routes.py'),
     ('backend/models/servicio_catalogo.py',                 f'{REMOTE_BACKEND}/models/servicio_catalogo.py'),
     ('backend/models/inspeccion_recepcion.py',              f'{REMOTE_BACKEND}/models/inspeccion_recepcion.py'),
