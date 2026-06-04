@@ -1,11 +1,14 @@
 """Deploy directo: sube archivos backend cambiados + frontend completo + reinicia Flask."""
 import paramiko, os, sys
+from dotenv import load_dotenv
 
-HOST = '194.164.164.78'
-USER = 'root'
-PASSWORD = '***REDACTED-PASSWORD***'
-REMOTE_BACKEND = '/root/specialwash/backend'
-REMOTE_FRONTEND = '/var/www/specialwash/public_html'
+load_dotenv()
+
+HOST = os.getenv('DEPLOY_HOST', '194.164.164.78')
+USER = os.getenv('DEPLOY_USER', 'root')
+PASSWORD = os.getenv('DEPLOY_PASSWORD', '')
+REMOTE_BACKEND = os.getenv('DEPLOY_REMOTE_BACKEND', '/root/specialwash/backend')
+REMOTE_FRONTEND = os.getenv('DEPLOY_REMOTE_FRONTEND', '/var/www/specialwash/public_html')
 
 FILES_BACKEND = [
     ('backend/services/google_sheets_service.py',           f'{REMOTE_BACKEND}/services/google_sheets_service.py'),
