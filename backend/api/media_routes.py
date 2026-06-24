@@ -13,6 +13,10 @@ from models.inspeccion_recepcion import InspeccionRecepcion
 from models.user import User
 from utils.inspeccion_helpers import _jwt_user_id, _is_inspeccion_role
 
+
+def _is_admin(user):
+    return user and getattr(user, "rol", "") == "administrador"
+
 media_bp = Blueprint('media', __name__, url_prefix='/api')
 
 CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME", "").strip()
@@ -170,7 +174,7 @@ def upload_video(inspeccion_id):
     """
     Subir un video de inspección al servidor local.
     Se guarda con nombre UUID, caducidad de 60 días.
-    Máximo 300 MB. Formatos: mp4, mov, avi, mkv, webm, 3gp, flv.
+    Máximo 500 MB. Formatos: mp4, mov, avi, mkv, webm, 3gp, flv.
     """
     inspeccion = InspeccionRecepcion.query.get(inspeccion_id)
     if not inspeccion:
@@ -390,3 +394,115 @@ def eliminar_video(inspeccion_id, video_index):
     except Exception as e:
         db.session.rollback()
         return jsonify({"msg": f"Error al eliminar video: {str(e)}"}), 500
+
+
+# ============ DIAGNÓSTICO DE VÍDEOS (solo administrador) ============
+@media_bp.route("/admin/inspeccion/<int:inspeccion_id>/videos-status", methods=["GET"])
+@jwt_required()
+def videos_status(inspeccion_id):
+    """
+    Devuelve el estado de los vídeos de una inspección:
+    - qué hay registrado en la BD
+    - si el archivo existe realmente en disco
+    - qué archivos hay en disco que quizás no estén en la BD
+    Solo accesible para administradores.
+    """
+    user_id = _jwt_user_id()
+    if not user_id:
+        return jsonify({"msg": "Usuario no válido en el token"}), 401
+    user = User.query.get(user_id)
+    if not _is_admin(user):
+        return jsonify({"msg": "Solo administradores pueden usar este endpoint"}), 403
+
+    inspeccion = InspeccionRecepcion.query.get(inspeccion_id)
+    if not inspeccion:
+        return jsonify({"msg": "Inspección no encontrada"}), 404
+
+    # ── Lo que dice la base de datos ──
+    videos_bd = json.loads(inspeccion.videos_cloudinary or "[]")
+    videos_info = []
+    for i, v in enumerate(videos_bd):
+        filename = v.get("filename", "")
+        en_disco = False
+        if filename:
+            ruta = VIDEOS_DIR / str(inspeccion_id) / os.path.basename(filename)
+            en_disco = ruta.exists()
+            tam_bytes = ruta.stat().st_size if en_disco else None
+        else:
+            tam_bytes = None
+        videos_info.append({
+            "indice": i,
+            "filename": filename,
+            "nombre_original": v.get("original_name", ""),
+            "subido_en": v.get("uploaded_at", ""),
+            "caduca_en": v.get("expires_at", ""),
+            "en_disco": en_disco,
+            "tamano_bytes": tam_bytes,
+        })
+
+    # ── Archivos en disco que quizás no están en la BD ──
+    video_dir = VIDEOS_DIR / str(inspeccion_id)
+    archivos_disco = []
+    if video_dir.exists():
+        nombres_en_bd = {os.path.basename(v.get("filename", "")) for v in videos_bd if v.get("filename")}
+        for f in sorted(video_dir.iterdir()):
+            if f.is_file():
+                archivos_disco.append({
+                    "filename": f.name,
+                    "en_bd": f.name in nombres_en_bd,
+                    "tamano_bytes": f.stat().st_size,
+                    "modificado": datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc).isoformat(),
+                })
+
+    return jsonify({
+        "inspeccion_id": inspeccion_id,
+        "cliente": inspeccion.cliente_nombre,
+        "matricula": inspeccion.matricula,
+        "fecha_inspeccion": inspeccion.fecha_inspeccion.isoformat() if inspeccion.fecha_inspeccion else None,
+        "videos_en_bd": len(videos_bd),
+        "videos": videos_info,
+        "archivos_en_disco": archivos_disco,
+        "directorio_disco": str(video_dir),
+    }), 200
+
+
+# ============ LISTAR TODAS LAS INSPECCIONES CON VÍDEOS (solo administrador) ============
+@media_bp.route("/admin/inspecciones/videos-resumen", methods=["GET"])
+@jwt_required()
+def videos_resumen():
+    """
+    Lista todas las inspecciones que tienen al menos 1 vídeo en la BD,
+    con el conteo de vídeos y si los archivos existen en disco.
+    Solo accesible para administradores.
+    """
+    user_id = _jwt_user_id()
+    if not user_id:
+        return jsonify({"msg": "Usuario no válido en el token"}), 401
+    user = User.query.get(user_id)
+    if not _is_admin(user):
+        return jsonify({"msg": "Solo administradores pueden usar este endpoint"}), 403
+
+    inspecciones = InspeccionRecepcion.query.order_by(InspeccionRecepcion.id.desc()).all()
+    resultado = []
+    for insp in inspecciones:
+        videos_bd = json.loads(insp.videos_cloudinary or "[]")
+        if not videos_bd:
+            continue
+        en_disco = sum(
+            1 for v in videos_bd
+            if v.get("filename") and (VIDEOS_DIR / str(insp.id) / os.path.basename(v["filename"])).exists()
+        )
+        resultado.append({
+            "inspeccion_id": insp.id,
+            "cliente": insp.cliente_nombre,
+            "matricula": insp.matricula,
+            "fecha_inspeccion": insp.fecha_inspeccion.isoformat() if insp.fecha_inspeccion else None,
+            "videos_en_bd": len(videos_bd),
+            "videos_en_disco": en_disco,
+            "videos_faltantes_disco": len(videos_bd) - en_disco,
+        })
+
+    return jsonify({
+        "total_inspecciones_con_video": len(resultado),
+        "inspecciones": resultado,
+    }), 200

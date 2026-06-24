@@ -19,7 +19,7 @@ const INITIAL_FORM_DATA = {
   servicios_aplicados: []
 };
 
-const MAX_VIDEO_SIZE_BYTES = 250 * 1024 * 1024; // 250 MB (1080p ~30fps, 1-2 min)
+const MAX_VIDEO_SIZE_BYTES = 500 * 1024 * 1024; // 500 MB (1080p ~30fps, 3-5 min)
 const FORMATOS_VIDEO_ACEPTADOS = ["mp4", "mov", "avi", "mkv", "webm", "3gp", "flv"];
 const FORMATOS_VIDEO_LABEL = "MP4, MOV, AVI, MKV, WEBM, 3GP, FLV";
 
@@ -156,7 +156,7 @@ const InspeccionRecepcionPage = () => {
   });
   const [servicioCatalogoSeleccionado, setServicioCatalogoSeleccionado] = useState(EMPTY_CATALOG_SELECTION);
   const [tamanoVehiculo, setTamanoVehiculo] = useState(""); // "turismo" | "suv" | "todoterreno" | ""
-  const [clienteExistenteBusqueda, setClienteExistenteBusqueda] = useState("");
+  const [clienteVinculado, setClienteVinculado] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const rol = getStoredRol();
   const isAdmin = rol === "administrador";
@@ -181,6 +181,10 @@ const InspeccionRecepcionPage = () => {
         const inspeccion = await actions.getInspeccion(editId);
         if (!active || !inspeccion) return;
 
+        const clienteEdit = inspeccion.cliente_id
+          ? clientesDisponibles.find((c) => String(c.id) === String(inspeccion.cliente_id)) || null
+          : null;
+        setClienteVinculado(clienteEdit);
         setFormData({
           cliente_id: inspeccion.cliente_id ? String(inspeccion.cliente_id) : "",
           cliente_nombre: inspeccion.cliente_nombre || "",
@@ -196,11 +200,6 @@ const InspeccionRecepcionPage = () => {
             ? inspeccion.servicios_aplicados.map(mapServicioForPayload)
             : []
         });
-        setClienteExistenteBusqueda(
-          inspeccion.cliente_nombre
-            ? `${inspeccion.cliente_nombre}${inspeccion.cliente_telefono ? ` · ${inspeccion.cliente_telefono}` : ""}`
-            : ""
-        );
         setCocheExistenteSeleccionado(inspeccion.coche_id ? String(inspeccion.coche_id) : "");
         setInspeccionEditandoId(inspeccion.id);
         setFotos([]);
@@ -288,9 +287,11 @@ const InspeccionRecepcionPage = () => {
   const buscarClientePorNombre = (nombre) => {
     const nombreNormalizado = normalizeText(nombre);
     if (!nombreNormalizado) return null;
-
     return (
-      clientesDisponibles.find((c) => normalizeText(c?.nombre) === nombreNormalizado) || null
+      clientesDisponibles.find((c) =>
+        normalizeText(c?.nombre) === nombreNormalizado ||
+        (c?.nombre_fiscal && normalizeText(c?.nombre_fiscal) === nombreNormalizado)
+      ) || null
     );
   };
 
@@ -314,72 +315,6 @@ const InspeccionRecepcionPage = () => {
     return exacta || null;
   };
 
-  const formatClienteExistenteLabel = (cliente) => {
-    if (!cliente) return "";
-    const nombre = String(cliente?.nombre || "Sin nombre").trim();
-    const telefono = String(cliente?.telefono || "").trim();
-    return telefono ? `${nombre} · ${telefono}` : nombre;
-  };
-
-  const buscarClienteExistentePorBusqueda = (value) => {
-    const raw = String(value || "").trim();
-    if (!raw) return null;
-
-    const nombreBase = raw.split("·")[0]?.trim() || raw;
-    const nombreNormalizado = normalizeText(nombreBase);
-    const telefonoDigits = normalizePhoneDigits(raw);
-
-    return clientesDisponibles.find((cliente) => {
-      const nombreCliente = normalizeText(cliente?.nombre);
-      const telefonoCliente = normalizePhoneDigits(cliente?.telefono);
-      return (
-        (nombreNormalizado && nombreCliente === nombreNormalizado) ||
-        (telefonoDigits && telefonoCliente && telefonoCliente === telefonoDigits)
-      );
-    }) || null;
-  };
-
-  const handleClienteExistenteChange = (e) => {
-    const rawValue = String(e.target.value || "");
-    setClienteExistenteBusqueda(rawValue);
-
-    if (!rawValue.trim()) {
-      setFormData((prev) => ({
-        ...prev,
-        cliente_id: "",
-      }));
-      return;
-    }
-
-    const cliente = buscarClienteExistentePorBusqueda(rawValue);
-    if (!cliente) return;
-
-    setFormData((prev) => ({
-      ...prev,
-      cliente_id: String(cliente.id || ""),
-      cliente_nombre: cliente?.nombre || prev.cliente_nombre,
-      cliente_telefono: cliente?.telefono || prev.cliente_telefono,
-    }));
-    setCocheExistenteSeleccionado("");
-    setClienteExistenteBusqueda(formatClienteExistenteLabel(cliente));
-  };
-
-  const clientesExistentesSugeridos = useMemo(() => {
-    const texto = normalizeText(clienteExistenteBusqueda || formData.cliente_nombre);
-    const telefono = normalizePhoneDigits(clienteExistenteBusqueda);
-    const listaOrdenada = [...clientesDisponibles].sort((a, b) => String(a?.nombre || "").localeCompare(String(b?.nombre || ""), "es"));
-
-    if (!texto && !telefono) return listaOrdenada.slice(0, 40);
-
-    return listaOrdenada.filter((cliente) => {
-      const nombre = normalizeText(cliente?.nombre);
-      const tel = normalizePhoneDigits(cliente?.telefono);
-      return (
-        (texto && nombre.includes(texto)) ||
-        (telefono && tel.includes(telefono))
-      );
-    }).slice(0, 40);
-  }, [clientesDisponibles, clienteExistenteBusqueda, formData.cliente_nombre]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -387,22 +322,15 @@ const InspeccionRecepcionPage = () => {
 
     if (name === "cliente_nombre") {
       const clienteCoincidente = buscarClientePorNombre(value);
-      setFormData((prev) => {
-        const vincularCliente = Boolean(
-          clienteCoincidente?.id && sameClientPhone(clienteCoincidente, prev.cliente_telefono)
-        );
-        return {
-          ...prev,
-          cliente_id: vincularCliente ? String(clienteCoincidente.id) : "",
-          cliente_nombre: value,
-          cliente_telefono: !prev.cliente_telefono && vincularCliente
-            ? (clienteCoincidente?.telefono || "")
-            : prev.cliente_telefono,
-        };
-      });
-      if (!value.trim()) {
-        setClienteExistenteBusqueda("");
-      }
+      setClienteVinculado(clienteCoincidente || null);
+      setFormData((prev) => ({
+        ...prev,
+        cliente_id: clienteCoincidente?.id ? String(clienteCoincidente.id) : "",
+        cliente_nombre: value,
+        cliente_telefono: !prev.cliente_telefono && clienteCoincidente?.telefono
+          ? clienteCoincidente.telefono
+          : prev.cliente_telefono,
+      }));
       setCocheExistenteSeleccionado("");
       return;
     }
@@ -564,7 +492,7 @@ const InspeccionRecepcionPage = () => {
     }));
   };
 
-  const appendFilePreviews = (archivos, setPreviewState) => {
+  const appendFotoPreviews = (archivos, setPreviewState) => {
     archivos.forEach((archivo) => {
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -574,12 +502,20 @@ const InspeccionRecepcionPage = () => {
     });
   };
 
+  const appendVideoPreviews = (archivos, setPreviewState) => {
+    // URL.createObjectURL evita cargar el binario completo en RAM (crítico en móvil)
+    archivos.forEach((archivo) => {
+      const objectUrl = URL.createObjectURL(archivo);
+      setPreviewState((prev) => [...prev, objectUrl]);
+    });
+  };
+
   const handleFotosChange = (e) => {
     const archivos = Array.from(e.target.files);
     if (archivos.length === 0) return;
 
     setFotos((prev) => [...prev, ...archivos]);
-    appendFilePreviews(archivos, setFotosPreview);
+    appendFotoPreviews(archivos, setFotosPreview);
   };
 
   const handleVideosChange = (e) => {
@@ -589,30 +525,30 @@ const InspeccionRecepcionPage = () => {
     const videosValidos = [];
     const videosGrandes = [];
     const formatosInvalidos = [];
-    
+
     archivos.forEach((archivo) => {
       const sizeInMB = formatFileSizeMB(archivo.size);
-      
+
       // Validar tamaño (máx 250 MB para 1080p)
       if (archivo.size > MAX_VIDEO_SIZE_BYTES) {
         videosGrandes.push(`${archivo.name} (${sizeInMB} MB)`);
         return;
       }
-      
+
       // Validar formato por extensión
       const extension = archivo.name.split(".").pop()?.toLowerCase();
-      
+
       if (!extension || !FORMATOS_VIDEO_ACEPTADOS.includes(extension)) {
         formatosInvalidos.push(`${archivo.name} (.${extension})`);
         return;
       }
-      
+
       videosValidos.push(archivo);
     });
-    
+
     const avisos = [];
     if (videosGrandes.length > 0)
-      avisos.push(`Videos demasiado grandes (máx 250 MB): ${videosGrandes.join(", ")}`);
+      avisos.push(`Videos demasiado grandes (máx 500 MB): ${videosGrandes.join(", ")}`);
     if (formatosInvalidos.length > 0)
       avisos.push(`Formatos no válidos (acepta: ${FORMATOS_VIDEO_LABEL}): ${formatosInvalidos.join(", ")}`);
     if (avisos.length > 0) setFormError(avisos.join(" · "));
@@ -620,7 +556,7 @@ const InspeccionRecepcionPage = () => {
     if (videosValidos.length === 0) return;
 
     setVideos((prev) => [...prev, ...videosValidos]);
-    appendFilePreviews(videosValidos, setVideosPreview);
+    appendVideoPreviews(videosValidos, setVideosPreview);
   };
 
   const eliminarFoto = (index) => {
@@ -629,8 +565,12 @@ const InspeccionRecepcionPage = () => {
   };
 
   const eliminarVideo = (index) => {
+    setVideosPreview((prev) => {
+      const url = prev[index];
+      if (url && url.startsWith("blob:")) URL.revokeObjectURL(url);
+      return prev.filter((_, i) => i !== index);
+    });
     setVideos((prev) => prev.filter((_, i) => i !== index));
-    setVideosPreview((prev) => prev.filter((_, i) => i !== index));
   };
 
   const subirArchivos = async ({ inspeccionId, archivos, subirArchivo, validarAntes }) => {
@@ -737,27 +677,34 @@ const InspeccionRecepcionPage = () => {
         subirArchivo: actions.subirFotoInspeccion
       });
 
-      await subirArchivos({
+      const resultVideos = await subirArchivos({
         inspeccionId: inspeccion.id,
         archivos: videos,
         subirArchivo: actions.subirVideoInspeccion,
         validarAntes: (video) => {
           if (video.size <= MAX_VIDEO_SIZE_BYTES) return null;
           const videoSize = formatFileSizeMB(video.size);
-          return `⚠️ El video "${video.name}" es muy grande (${videoSize} MB). Máximo: 250 MB`;
+          return `⚠️ El video "${video.name}" es muy grande (${videoSize} MB). Máximo: 500 MB`;
         }
       });
 
       window.scrollTo({ top: 0, behavior: "smooth" });
 
+      if (resultVideos.fallidos > 0) {
+        setFormError(`La inspección se guardó correctamente, pero ${resultVideos.fallidos} vídeo(s) no se pudieron subir. Comprueba tu conexión e inténtalo de nuevo editando la inspección.`);
+      }
+
       // Limpiar formulario
       setFormData(INITIAL_FORM_DATA);
-      setClienteExistenteBusqueda("");
+      setClienteVinculado(null);
       setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "", tipo_tarea: "" });
       setFotos([]);
       setVideos([]);
       setFotosPreview([]);
-      setVideosPreview([]);
+      setVideosPreview((prev) => {
+        prev.forEach((url) => { if (url && url.startsWith("blob:")) URL.revokeObjectURL(url); });
+        return [];
+      });
       if (inspeccionEditandoId) {
         setInspeccionEditandoId(null);
         setSearchParams({});
@@ -776,12 +723,15 @@ const InspeccionRecepcionPage = () => {
     setInspeccionEditandoId(null);
     setSearchParams({});
     setFormData(INITIAL_FORM_DATA);
-    setClienteExistenteBusqueda("");
+    setClienteVinculado(null);
     setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "", tipo_tarea: "" });
     setFotos([]);
     setVideos([]);
     setFotosPreview([]);
-    setVideosPreview([]);
+    setVideosPreview((prev) => {
+      prev.forEach((url) => { if (url && url.startsWith("blob:")) URL.revokeObjectURL(url); });
+      return [];
+    });
   };
 
   const volver = () => {
@@ -974,33 +924,27 @@ const InspeccionRecepcionPage = () => {
 
                 <div className="col-12 col-md-6">
                   <label style={_lbl}>Nombre del cliente <span style={{ color: "#f87171" }}>*</span></label>
-                  <input type="text" className="form-control" name="cliente_nombre" value={formData.cliente_nombre} onChange={handleInputChange} placeholder="Ej: Juan Pérez / Empresa XYZ" list="clientes-existentes" autoComplete="off" required style={_inp} />
+                  <input type="text" className="form-control" name="cliente_nombre" value={formData.cliente_nombre} onChange={handleInputChange} placeholder="Ej: Juan Pérez / Flexicar / YokaMotril" list="clientes-existentes" autoComplete="off" required style={_inp} />
                   <datalist id="clientes-existentes">
-                    {clientesDisponibles.map((c) => String(c?.nombre || "").trim()).filter((n, i, a) => n && a.indexOf(n) === i).sort((a, b) => a.localeCompare(b, "es")).map((n) => (<option key={n} value={n} />))}
+                    {clientesDisponibles.flatMap((c) => {
+                      const opts = [String(c?.nombre || "").trim()];
+                      if (c?.nombre_fiscal && c.nombre_fiscal !== c.nombre) opts.push(String(c.nombre_fiscal).trim());
+                      return opts;
+                    }).filter((n, i, a) => n && a.indexOf(n) === i).sort((a, b) => a.localeCompare(b, "es")).map((n) => (<option key={n} value={n} />))}
                   </datalist>
-                  <small style={{ color: "var(--sw-muted)", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>Primero escribe el nombre. Si ya existe, puedes seleccionarlo justo al lado.</small>
-                </div>
-
-                <div className="col-12 col-md-6">
-                  <label style={_lbl}>Cliente existente (opcional)</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    name="cliente_existente_busqueda"
-                    value={clienteExistenteBusqueda}
-                    onChange={handleClienteExistenteChange}
-                    placeholder="Busca cliente ya creado: Toyota"
-                    list="clientes-registrados-busqueda"
-                    autoComplete="off"
-                    style={_inp}
-                  />
-                  <datalist id="clientes-registrados-busqueda">
-                    {clientesExistentesSugeridos.map((cliente) => {
-                      const label = formatClienteExistenteLabel(cliente);
-                      return <option key={cliente.id} value={label} />;
-                    })}
-                  </datalist>
-                  <small style={{ color: "var(--sw-muted)", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>Si existe, escribe por ejemplo <strong>Toyota</strong> y selecciónalo para traer sus datos. Si no, sigues rellenando normal.</small>
+                  {clienteVinculado ? (
+                    clienteVinculado.nombre_fiscal && clienteVinculado.nombre_fiscal !== clienteVinculado.nombre ? (
+                      <small style={{ color: "#22c55e", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>
+                        ✓ Cliente vinculado · Nombre fiscal: <strong>{clienteVinculado.nombre_fiscal}</strong> (se usará en albaranes)
+                      </small>
+                    ) : (
+                      <small style={{ color: "#22c55e", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>
+                        ✓ Cliente existente vinculado
+                      </small>
+                    )
+                  ) : (
+                    <small style={{ color: "var(--sw-muted)", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>Escribe el nombre o selecciónalo de la lista si ya existe.</small>
+                  )}
                 </div>
 
                 <div className="col-12 col-md-6">
@@ -1144,7 +1088,7 @@ const InspeccionRecepcionPage = () => {
                   📹 Galería (múltiples)
                 </label>
               </div>
-              <small style={{ color: "var(--sw-muted)", fontSize: "0.74rem" }}>Formatos soportados: {FORMATOS_VIDEO_LABEL} · Tamaño máx: 250 MB por video</small>
+              <small style={{ color: "var(--sw-muted)", fontSize: "0.74rem" }}>Formatos soportados: {FORMATOS_VIDEO_LABEL} · Tamaño máx: 500 MB por video</small>
               {videosPreview.length > 0 && (
                 <div className="row g-2 mt-3">
                   {videosPreview.map((src, index) => (

@@ -29,6 +29,7 @@ ensure_servicio_catalogo_schema = _optional_bootstrap("update_servicio_catalogo_
 ensure_maquinaria_schema = _optional_bootstrap("update_maquinaria_schema", "ensure_maquinaria_schema")
 ensure_parte_trabajo_schema = _optional_bootstrap("update_parte_trabajo_schema", "ensure_parte_trabajo_schema")
 ensure_parte_trabajo_colaborador_schema = _optional_bootstrap("update_parte_trabajo_colaborador_schema", "ensure_parte_trabajo_colaborador_schema")
+ensure_cliente_schema = _optional_bootstrap("update_cliente_schema", "ensure_cliente_schema")
 
 
 load_dotenv()
@@ -46,7 +47,7 @@ def create_app():
     app.config.from_object(Config)
 
     # Límite de subida definido en config; no sobreescribir aquí
-    # (ya está en Config.MAX_CONTENT_LENGTH como 20 MB)
+    # (ya está en Config.MAX_CONTENT_LENGTH como 300 MB)
 
     # CORS: en producción solo los orígenes configurados vía FRONTEND_URLS/FRONTEND_URL.
     # En desarrollo se añaden localhost y patrones de Codespaces.
@@ -103,6 +104,7 @@ def create_app():
           ensure_maquinaria_schema,
           ensure_parte_trabajo_schema,
           ensure_parte_trabajo_colaborador_schema,
+          ensure_cliente_schema,
         ]:
           if callable(bootstrap_fn):
             bootstrap_fn()
