@@ -8,14 +8,99 @@ from models.user import User
 from models.notificacion import Notificacion
 from models.servicio_catalogo import ServicioCatalogo
 from extensions import db
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import uuid4
 import json
+import time
 from models.base import now_madrid, attach_madrid
 
 from utils.auth_utils import WORKSHOP_ROLES, normalize_role, role_required, _dev_auth_bypass_enabled
 
 bp = Blueprint('parte_trabajo', __name__)
+
+MAX_HORAS_ACTIVO = 10  # pausar automáticamente si llevan más de 10 h sin pausa
+_ultimo_autopauso_ts = 0.0
+_AUTOPAUSO_INTERVALO_SEG = 3600  # ejecutar como máximo una vez por hora
+
+
+def _naive(dt):
+    if dt is None:
+        return None
+    return dt.replace(tzinfo=None) if getattr(dt, "tzinfo", None) is not None else dt
+
+
+def _auto_pausar_partes_largos(max_horas=MAX_HORAS_ACTIVO):
+    """
+    Pausa todos los partes en_proceso cuya fecha_inicio supere max_horas.
+    La pausa se registra a las (fecha_inicio + max_horas), no a 'ahora',
+    para no inflar el tiempo trabajado.
+    """
+    ahora = _naive(now_madrid())
+    limite = ahora - timedelta(hours=max_horas)
+
+    partes_largos = ParteTrabajo.query.filter(
+        ParteTrabajo.estado == EstadoParte.en_proceso,
+        ParteTrabajo.fecha_inicio.isnot(None),
+    ).all()
+
+    pausados = 0
+    for parte in partes_largos:
+        inicio = _naive(parte.fecha_inicio)
+        if not inicio or inicio > limite:
+            continue
+        hora_pausa = inicio + timedelta(hours=max_horas)
+        pausas = json.loads(parte.pausas) if parte.pausas else []
+        pausas.append([hora_pausa.isoformat(), None])
+        parte.pausas = json.dumps(pausas)
+        parte.estado = EstadoParte.en_pausa
+        pausados += 1
+
+    colabs_largos = ParteTrabajoColaborador.query.filter(
+        ParteTrabajoColaborador.estado == EstadoParte.en_proceso,
+        ParteTrabajoColaborador.fecha_inicio.isnot(None),
+    ).all()
+
+    for colab in colabs_largos:
+        inicio = _naive(colab.fecha_inicio)
+        if not inicio or inicio > limite:
+            continue
+        hora_pausa = inicio + timedelta(hours=max_horas)
+        pausas = json.loads(colab.pausas) if colab.pausas else []
+        pausas.append([hora_pausa.isoformat(), None])
+        colab.pausas = json.dumps(pausas)
+        colab.estado = EstadoParte.en_pausa
+        # Sincronizar estado del parte padre
+        parte = ParteTrabajo.query.get(colab.parte_id)
+        if parte and parte.estado == EstadoParte.en_proceso:
+            otros_activos = ParteTrabajoColaborador.query.filter(
+                ParteTrabajoColaborador.parte_id == colab.parte_id,
+                ParteTrabajoColaborador.id != colab.id,
+                ParteTrabajoColaborador.estado == EstadoParte.en_proceso,
+            ).count()
+            if otros_activos == 0:
+                parte.estado = EstadoParte.en_pausa
+        pausados += 1
+
+    if pausados > 0:
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+    return pausados
+
+
+def _autopauso_throttled():
+    """Llama a _auto_pausar_partes_largos máximo una vez por hora."""
+    global _ultimo_autopauso_ts
+    ahora = time.time()
+    if ahora - _ultimo_autopauso_ts < _AUTOPAUSO_INTERVALO_SEG:
+        return
+    _ultimo_autopauso_ts = ahora
+    try:
+        _auto_pausar_partes_largos()
+    except Exception:
+        pass
 
 FASES_PARTE = {'preparacion', 'pintura', 'montaje', 'limpieza'}
 
@@ -777,6 +862,9 @@ def crear_parte_trabajo():
 @bp.route('/parte_trabajo', methods=['GET'])
 @jwt_required()
 def listar_partes_trabajo():
+    # Autopauso por tiempo excesivo (máx 1 vez/hora, no bloquea la respuesta)
+    _autopauso_throttled()
+
     estado = request.args.get('estado')
     empleado_id = request.args.get('empleado_id')
     coche_id = request.args.get('coche_id')
@@ -1570,3 +1658,24 @@ def set_coche_urgente(coche_id):
         p.prioridad = prioridad_val
     db.session.commit()
     return jsonify({'ok': True, 'urgente': urgente, 'partes_actualizados': len(partes)})
+
+
+@bp.route('/parte_trabajo/admin/auto-pausar', methods=['POST'])
+@role_required('administrador')
+def admin_auto_pausar():
+    """
+    Fuerza el autopauso de todos los partes que llevan más de max_horas en_proceso.
+    Útil para ejecutar manualmente o desde un cron externo.
+    """
+    data = request.get_json() or {}
+    try:
+        max_horas = float(data.get('max_horas', MAX_HORAS_ACTIVO))
+        if max_horas <= 0:
+            raise ValueError()
+    except (TypeError, ValueError):
+        return jsonify({'msg': 'max_horas debe ser un número positivo'}), 400
+
+    global _ultimo_autopauso_ts
+    _ultimo_autopauso_ts = 0.0  # forzar ejecución aunque haya pasado hace poco
+    pausados = _auto_pausar_partes_largos(max_horas=max_horas)
+    return jsonify({'pausados': pausados, 'max_horas': max_horas}), 200
