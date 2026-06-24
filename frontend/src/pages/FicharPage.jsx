@@ -186,7 +186,11 @@ export default function FicharPage() {
     try {
       const result = await fichar(tipo, null);
       setRegistro(result.registro);
-      setExito(`Fichaje "${TIPOS.find(t => t.key === tipo)?.label}" registrado correctamente.`);
+      let msg = `Fichaje "${TIPOS.find(t => t.key === tipo)?.label}" registrado correctamente.`;
+      if (result.aviso_partes_pausados > 0) {
+        msg += ` Se han pausado automáticamente ${result.aviso_partes_pausados} trabajo(s) en curso. Recuerda reanudarlos mañana.`;
+      }
+      setExito(msg);
     } catch (e) {
       setError(e.message || "Error al fichar.");
     } finally {
@@ -262,7 +266,11 @@ export default function FicharPage() {
     try {
       const result = await fichar(tipoSeleccionado, capturaBlob);
       setRegistro(result.registro);
-      setExito(`Fichaje "${TIPOS.find(t => t.key === tipoSeleccionado)?.label}" registrado correctamente.`);
+      let mensajeExito = `Fichaje "${TIPOS.find(t => t.key === tipoSeleccionado)?.label}" registrado correctamente.`;
+      if (result.aviso_partes_pausados > 0) {
+        mensajeExito += ` Se han pausado automáticamente ${result.aviso_partes_pausados} trabajo(s) en curso. Recuerda reanudarlos mañana.`;
+      }
+      setExito(mensajeExito);
       cerrarCamara();
     } catch (e) {
       setError(e.message || "Error al fichar.");

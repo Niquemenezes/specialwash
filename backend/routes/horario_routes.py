@@ -69,6 +69,46 @@ def _total_descanso_minutos(pausas) -> int:
     return total
 
 
+def _auto_pausar_partes_activos(empleado_id: int, momento_salida) -> None:
+    """Al fichar salida, pausa todos los partes en_proceso del empleado."""
+    from models.parte_trabajo import ParteTrabajo, EstadoParte
+    from models.parte_trabajo_colaborador import ParteTrabajoColaborador
+
+    momento_iso = momento_salida.isoformat()
+
+    # Partes directos en_proceso
+    partes_activos = ParteTrabajo.query.filter_by(
+        empleado_id=empleado_id,
+        estado=EstadoParte.en_proceso,
+    ).all()
+    for parte in partes_activos:
+        pausas = json.loads(parte.pausas) if parte.pausas else []
+        pausas.append([momento_iso, None])
+        parte.pausas = json.dumps(pausas)
+        parte.estado = EstadoParte.en_pausa
+
+    # Colaboraciones activas en partes de pintura compartidos
+    colabs_activos = ParteTrabajoColaborador.query.filter_by(
+        empleado_id=empleado_id,
+        estado=EstadoParte.en_proceso,
+    ).all()
+    for colab in colabs_activos:
+        pausas = json.loads(colab.pausas) if colab.pausas else []
+        pausas.append([momento_iso, None])
+        colab.pausas = json.dumps(pausas)
+        colab.estado = EstadoParte.en_pausa
+        # Sincronizar estado del parte padre si ya no queda nadie activo
+        parte = ParteTrabajo.query.get(colab.parte_id)
+        if parte and parte.estado == EstadoParte.en_proceso:
+            otros_activos = ParteTrabajoColaborador.query.filter(
+                ParteTrabajoColaborador.parte_id == colab.parte_id,
+                ParteTrabajoColaborador.id != colab.id,
+                ParteTrabajoColaborador.estado == EstadoParte.en_proceso,
+            ).count()
+            if otros_activos == 0:
+                parte.estado = EstadoParte.en_pausa
+
+
 def _foto_dir(empleado_id: int) -> Path:
     d = _MEDIA_BASE / str(empleado_id)
     d.mkdir(parents=True, exist_ok=True)
@@ -257,12 +297,30 @@ def fichar():
     if foto_path:
         setattr(registro, campo_foto, foto_path)
 
+    # Al fichar salida, pausar automáticamente todos los partes en curso
+    partes_pausados = 0
+    if tipo == "salida":
+        try:
+            _auto_pausar_partes_activos(empleado_id, momento)
+            # Contar cuántos se pausaron para informar al trabajador
+            from models.parte_trabajo import ParteTrabajo, EstadoParte
+            partes_pausados = ParteTrabajo.query.filter_by(
+                empleado_id=empleado_id,
+                estado=EstadoParte.en_pausa,
+            ).count()
+        except Exception:
+            pass  # No bloquear el fichaje si falla el autopauso
+
     try:
         db.session.commit()
     except Exception:
         db.session.rollback()
         return jsonify({"msg": "Error al guardar en base de datos"}), 500
-    return jsonify({"msg": "Fichaje registrado", "registro": registro.to_dict()}), 200
+
+    resp = {"msg": "Fichaje registrado", "registro": registro.to_dict()}
+    if tipo == "salida" and partes_pausados > 0:
+        resp["aviso_partes_pausados"] = partes_pausados
+    return jsonify(resp), 200
 
 
 # ─── GET /api/horario/hoy ────────────────────────────────────────────────────
