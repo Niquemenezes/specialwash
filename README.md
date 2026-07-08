@@ -317,6 +317,46 @@ nginx -t && systemctl reload nginx
 
 ---
 
+## Integración Google Sheets y utilidades (hojas mensuales)
+
+Se añade integración con Google Sheets para llevar un registro mensual de inspecciones/entregas.
+
+   - `backend/services/google_sheets_service.py` contiene funciones:
+      - `registrar_inspeccion(inspeccion)` — añade filas a la hoja del mes actual.
+      - `mover_filas_indices(src_month, dst_month, row_indices, dry_run=False)` — mover filas concretas entre hojas.
+      - `mover_coches_entre_meses(year, month, dry_run=False)` — mover todas las inspecciones de un mes (opcional/manual).
+      - `mover_abiertos_al_siguiente_mes(current_month, year=None, dry_run=False)` — utilidad para mover abiertos (no automática por defecto).
+
+   - `scripts/create_sheets_until_year_end.py` — crea las hojas mensuales faltantes desde el mes actual hasta diciembre.
+
+Ejemplos (ejecutar desde la raíz del repo):
+
+Crear hojas hasta fin de año:
+```bash
+python scripts/create_sheets_until_year_end.py
+```
+
+Mover filas concretas (ej. filas 146,147,148) de `Enero` a `Julio`:
+```bash
+python - <<'PY'
+from backend.services.google_sheets_service import mover_filas_indices
+print(mover_filas_indices('Enero','Julio',[146,147,148], dry_run=False))
+PY
+```
+
+Recomendación: ejecutar primero en `dry_run=True` para validar conteos antes de modificar el spreadsheet.
+
+Nota: estas operaciones son manuales — no se activó traspaso automático al cerrar mes. Quedan como utilidades disponibles para el equipo.
+
+## Seguridad: manejo de credenciales
+
+No subir nunca el archivo de credenciales de Google (`google_credentials.json`) ni claves privadas al repositorio.
+
+- Añade `backend/google_credentials.json` a tu `.gitignore` local y comparte el JSON sólo mediante un canal seguro.
+- Usa permisos mínimos en la cuenta de servicio (solo acceso a `spreadsheets`) y comparte la edición del spreadsheet usando la consola de Google Drive.
+- En entornos de producción, almacena secretos en variables de entorno o en un gestor de secretos (Vault, AWS Secrets Manager, etc.) y evita incluir ficheros sensibles en despliegues sin cifrar.
+
+
 ## Estado actual del proyecto
 
 SpecialWash no es un CRM genérico: está modelado alrededor de una operativa física real de recepción, ejecución, repaso y entrega de vehículos.

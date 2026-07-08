@@ -20,6 +20,7 @@ const SECTIONS = [
       { to: "/repaso-entrega?tab=firma",   icon: "fas fa-file-signature",  label: "Hoja de entrega" },
       { to: "/entregados",                 icon: "fas fa-check-double",    label: "Coches entregados"         },
       { to: "/tabla-registros",           icon: "fas fa-table",           label: "Tabla de registros"        },
+      { to: "/albaranes",                 icon: "fas fa-file-invoice",    label: "Albaranes"                 },
     ],
   },
   {
@@ -47,6 +48,7 @@ const SECTIONS = [
       { to: "/catalogo-servicios",                  icon: "fas fa-clipboard-list", label: "Catálogo de servicios" },
       { to: "/usuarios",                            icon: "fas fa-user-cog",       label: "Usuarios"               },
       { to: "/horarios",                            icon: "fas fa-clock",          label: "Horarios"               },
+      { to: "/ausencias",                           icon: "fas fa-umbrella-beach",  label: "Vacaciones y ausencias" },
       { to: "/uniformes",                           icon: "fas fa-tshirt",         label: "Uniformes"              },
       { to: "/coche-sustitucion",                   icon: "fas fa-car",            label: "Coches sustitución"     },
       { to: "/administracion/finanzas",             icon: "fas fa-euro-sign",      label: "Finanzas"               },

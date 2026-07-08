@@ -115,6 +115,9 @@ def crear_servicio_catalogo():
         nombre=nombre,
         descripcion=(data.get("descripcion") or "").strip() or None,
         precio_base=data.get("precio_base"),
+        precio_turismo=data.get("precio_turismo") or None,
+        precio_suv=data.get("precio_suv") or None,
+        precio_todoterreno=data.get("precio_todoterreno") or None,
         tiempo_estimado_minutos=tiempo_estimado_minutos,
         rol_responsable=rol_responsable or None,
         activo=True,
@@ -149,6 +152,12 @@ def editar_servicio_catalogo(servicio_id):
         servicio.descripcion = (data["descripcion"] or "").strip() or None
     if "precio_base" in data:
         servicio.precio_base = data["precio_base"]
+    if "precio_turismo" in data:
+        servicio.precio_turismo = data["precio_turismo"] or None
+    if "precio_suv" in data:
+        servicio.precio_suv = data["precio_suv"] or None
+    if "precio_todoterreno" in data:
+        servicio.precio_todoterreno = data["precio_todoterreno"] or None
     if "tiempo_estimado_minutos" in data:
         try:
             servicio.tiempo_estimado_minutos = parse_tiempo_estimado_minutos(

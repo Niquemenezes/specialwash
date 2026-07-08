@@ -58,6 +58,9 @@ import CocheSustitucionPage from "./pages/CocheSustitucionPage.jsx";
 import EstadoCochesPage from "./pages/EstadoCochesPage.jsx";
 import RepasoCoachePage from "./pages/RepasoCoachePage.jsx";
 import TablaRegistrosPage from "./pages/TablaRegistrosPage.jsx";
+import AlbaranesPage from "./pages/AlbaranesPage.jsx";
+import AlbaranDocumentoPage from "./pages/AlbaranDocumentoPage.jsx";
+import AusenciasPage from "./pages/AusenciasPage.jsx";
 
 // Helper: obtener permisos para una ruta desde la configuración centralizada
 const getRouteAllow = (routePath) => {
@@ -560,10 +563,37 @@ const AppContent = () => {
             />
 
             <Route
+              path="/ausencias"
+              element={
+                <PrivateRoute allow={getRouteAllow("/ausencias")}>
+                  <AusenciasPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
               path="/entregados"
               element={
                 <PrivateRoute allow={getRouteAllow("/entregados")}>
                   <CochesEntregadosPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/albaranes"
+              element={
+                <PrivateRoute allow={getRouteAllow("/albaranes")}>
+                  <AlbaranesPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/albaranes/:id"
+              element={
+                <PrivateRoute allow={getRouteAllow("/albaranes")}>
+                  <AlbaranDocumentoPage />
                 </PrivateRoute>
               }
             />

@@ -1,6 +1,7 @@
 import React, {
   useEffect,
   useMemo,
+  useRef,
   useState,
   useContext,
 } from "react";
@@ -35,6 +36,7 @@ const ICONS = {
   trash:   (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>),
   back:    (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>),
   spinner: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="sw-veh-spinner"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>),
+  ai:      (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/><circle cx="9" cy="14" r="1" fill="currentColor"/><circle cx="15" cy="14" r="1" fill="currentColor"/></svg>),
 };
 
 /* ── Feedback banner ────────────────────────────────────────────── */
@@ -116,6 +118,9 @@ const RegistrarEntradaPage = () => {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrMsg, setOcrMsg] = useState("");
   const [showNuevo, setShowNuevo] = useState(false);
+  const [showFacturaModal, setShowFacturaModal] = useState(false);
+  const [facturaArchivo, setFacturaArchivo] = useState(null);
+  const facturaInputRef = useRef(null);
   const [productoModalInitial, setProductoModalInitial] = useState(null);
   const [editando, setEditando] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -286,6 +291,16 @@ const RegistrarEntradaPage = () => {
                   onChange={(e) => procesarOcrArchivo(e.target.files?.[0])} />
                 <input id="ocr-gallery" type="file" accept="image/*" style={{ display: "none" }}
                   onChange={(e) => procesarOcrArchivo(e.target.files?.[0])} />
+                <input
+                  ref={facturaInputRef}
+                  type="file"
+                  accept="image/*,.pdf"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) { setFacturaArchivo(f); setShowFacturaModal(true); e.target.value = ""; }
+                  }}
+                />
 
                 <div className="sw-ent-ocr-actions">
                   <label htmlFor="ocr-camera" className="sw-ent-ocr-btn sw-ent-ocr-btn--primary"
@@ -298,6 +313,17 @@ const RegistrarEntradaPage = () => {
                     <span style={{ width: 16, height: 16, display: "flex" }}>{ICONS.upload}</span>
                     Seleccionar archivo
                   </label>
+                </div>
+                <div style={{ marginTop: "0.65rem", paddingTop: "0.65rem", borderTop: "1px solid color-mix(in srgb, var(--sw-border) 55%, transparent)" }}>
+                  <button
+                    type="button"
+                    className="sw-ent-ocr-btn sw-ent-ocr-btn--outline"
+                    style={{ width: "100%", borderColor: "rgba(167,139,250,0.35)", color: "#a78bfa" }}
+                    onClick={() => facturaInputRef.current?.click()}
+                  >
+                    <span style={{ width: 16, height: 16, display: "flex" }}>{ICONS.ai}</span>
+                    Factura completa con IA (multi-producto)
+                  </button>
                 </div>
 
                 {ocrFile && !ocrLoading && !ocrMsg && (
@@ -542,6 +568,21 @@ const RegistrarEntradaPage = () => {
           actions.getProductos();
         }}
       />
+
+      {showFacturaModal && (
+        <EntradaFacturaModal
+          show={showFacturaModal}
+          archivo={facturaArchivo}
+          onClose={() => { setShowFacturaModal(false); setFacturaArchivo(null); }}
+          onFinished={() => {
+            setShowFacturaModal(false);
+            setFacturaArchivo(null);
+            actions.getEntradas();
+            actions.getProductos();
+            setFeedback({ type: "success", msg: "Entradas registradas desde factura correctamente." });
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -675,6 +716,317 @@ const EditarEntradaModal = ({ show, entrada, productos, proveedores, onClose, on
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+};
+
+/* ======================
+   Modal Factura Multi-Línea (IA)
+====================== */
+const EntradaFacturaModal = ({ show, archivo, onClose, onFinished }) => {
+  const { store, actions } = useContext(Context);
+
+  const [phase, setPhase] = useState("loading"); // loading | review | registering | done | error
+  const [error, setError] = useState("");
+  const [cabecera, setCabecera] = useState({ proveedor_id: "", numero_factura: "", fecha: "", proveedor_detectado: "" });
+  const [lineas, setLineas] = useState([]);
+  const [resultados, setResultados] = useState([]);
+
+  useEffect(() => {
+    if (!show || !archivo) return;
+    setPhase("loading");
+    setError("");
+    setLineas([]);
+    setResultados([]);
+
+    actions.ocr_factura_multilinea(archivo).then((data) => {
+      const provNombre = (data.proveedor || "").toLowerCase();
+      const provMatch = provNombre
+        ? (store.proveedores || []).find(
+            (p) => p.nombre.toLowerCase().includes(provNombre) || provNombre.includes(p.nombre.toLowerCase())
+          )
+        : null;
+
+      setCabecera({
+        proveedor_id: provMatch ? String(provMatch.id) : "",
+        numero_factura: data.numero_factura || "",
+        fecha: data.fecha || "",
+        proveedor_detectado: data.proveedor || "",
+      });
+
+      setLineas(
+        (data.lineas || []).map((l, i) => ({
+          _key: i,
+          checked: true,
+          nombre_factura: l.nombre || "",
+          producto_id: l.producto_id_sugerido ? String(l.producto_id_sugerido) : "",
+          cantidad: l.cantidad != null ? String(l.cantidad) : "",
+          precio_unitario: l.precio_unitario != null ? String(l.precio_unitario) : "",
+          iva_pct: l.iva_pct != null ? String(l.iva_pct) : "21",
+          descuento_pct: l.descuento_pct != null ? String(l.descuento_pct) : "0",
+          match_score: l.match_score || 0,
+        }))
+      );
+      setPhase("review");
+    }).catch((err) => {
+      setError(err?.message || "No se pudo leer la factura.");
+      setPhase("error");
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [show, archivo]);
+
+  const updateLinea = (idx, field, value) =>
+    setLineas((prev) => prev.map((l, i) => (i === idx ? { ...l, [field]: value } : l)));
+
+  const checkedCount = lineas.filter((l) => l.checked && l.producto_id && l.cantidad && l.precio_unitario).length;
+
+  const handleRegistrar = async () => {
+    const seleccionadas = lineas.filter((l) => l.checked && l.producto_id && l.cantidad && l.precio_unitario);
+    if (seleccionadas.length === 0) return;
+    setPhase("registering");
+    const res = [];
+    for (const l of seleccionadas) {
+      try {
+        await actions.registrarEntrada({
+          producto_id: Number(l.producto_id),
+          proveedor_id: cabecera.proveedor_id ? Number(cabecera.proveedor_id) : null,
+          cantidad: Number(l.cantidad),
+          precio_unitario: Number(l.precio_unitario),
+          porcentaje_iva: Number(l.iva_pct),
+          descuento_porcentaje: Number(l.descuento_pct),
+          numero_albaran: cabecera.numero_factura || null,
+        });
+        res.push({ ok: true, nombre: l.nombre_factura });
+      } catch (e) {
+        res.push({ ok: false, nombre: l.nombre_factura, err: e?.message || "Error" });
+      }
+    }
+    setResultados(res);
+    setPhase("done");
+    if (res.every((r) => r.ok)) onFinished();
+  };
+
+  if (!show) return null;
+
+  const overlay = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "1rem" };
+  const modalBase = { background: "var(--sw-surface)", border: "1px solid var(--sw-border)", borderRadius: 16, width: "100%", animation: "sw-fade-up 0.25s ease both" };
+  const hdrStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1.1rem 1.5rem", borderBottom: "1px solid var(--sw-border)", background: "var(--sw-surface-2)", borderRadius: "16px 16px 0 0", flexShrink: 0 };
+  const ftrStyle = { display: "flex", justifyContent: "flex-end", gap: "0.75rem", padding: "1rem 1.5rem", borderTop: "1px solid var(--sw-border)", background: "var(--sw-surface-2)", borderRadius: "0 0 16px 16px", flexShrink: 0 };
+  const closeBtn = { background: "none", border: "none", color: "var(--sw-muted)", fontSize: "1.1rem", cursor: "pointer", padding: "0.25rem", lineHeight: 1, borderRadius: 6 };
+  const cancelBtn = { padding: "0.5rem 1.2rem", borderRadius: 8, border: "1px solid var(--sw-border)", background: "transparent", color: "var(--sw-muted)", fontSize: "0.85rem", cursor: "pointer" };
+
+  if (phase === "loading") {
+    return (
+      <div style={overlay}>
+        <div style={{ ...modalBase, maxWidth: 420, display: "flex", flexDirection: "column", alignItems: "center", padding: "3rem 2rem", gap: "1.25rem" }}>
+          <span style={{ color: "#a78bfa", width: 48, height: 48, display: "flex" }}>{ICONS.ai}</span>
+          <div style={{ textAlign: "center" }}>
+            <p style={{ fontWeight: 700, color: "var(--sw-text)", fontSize: "1.05rem", margin: "0 0 0.4rem" }}>Claude está leyendo la factura…</p>
+            <p style={{ color: "var(--sw-muted)", fontSize: "0.85rem", margin: 0 }}>Esto puede tardar unos segundos</p>
+          </div>
+          <span style={{ width: 28, height: 28, display: "flex", color: "var(--sw-muted)", opacity: 0.6 }}>{ICONS.spinner}</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "error") {
+    return (
+      <div style={overlay}>
+        <div style={{ ...modalBase, maxWidth: 460, padding: "2rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <Feedback msg={error} type="danger" onClose={() => {}} />
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button onClick={onClose} style={cancelBtn}>Cerrar</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "done") {
+    const ok = resultados.filter((r) => r.ok).length;
+    const fail = resultados.filter((r) => !r.ok).length;
+    return (
+      <div style={overlay}>
+        <div style={{ ...modalBase, maxWidth: 500, display: "flex", flexDirection: "column" }}>
+          <div style={hdrStyle}>
+            <h5 style={{ margin: 0, fontWeight: 700, color: "var(--sw-text)" }}>Registro completado</h5>
+            <button onClick={onClose} style={closeBtn}>✕</button>
+          </div>
+          <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "0.75rem", overflowY: "auto" }}>
+            {ok > 0 && <Feedback msg={`${ok} entrada${ok > 1 ? "s" : ""} registrada${ok > 1 ? "s" : ""} correctamente.`} type="success" onClose={() => {}} />}
+            {fail > 0 && <Feedback msg={`${fail} línea${fail > 1 ? "s" : ""} no se pudo${fail > 1 ? "ron" : ""} registrar.`} type="danger" onClose={() => {}} />}
+            <ul style={{ margin: 0, padding: "0 0 0 1.2rem", fontSize: "0.82rem" }}>
+              {resultados.map((r, i) => (
+                <li key={i} style={{ color: r.ok ? "#86efac" : "#fca5a5", marginBottom: 3 }}>
+                  {r.ok ? "✓" : "✗"} {r.nombre}{r.err ? ` — ${r.err}` : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div style={ftrStyle}>
+            <button onClick={onClose} style={{ padding: "0.5rem 1.5rem", borderRadius: 8, border: "none", background: "var(--sw-accent,#d4af37)", color: "#000", fontWeight: 700, cursor: "pointer" }}>
+              Aceptar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Review / Registering ── */
+  const thStyle = { padding: "0.4rem 0.5rem", textAlign: "left", color: "var(--sw-muted)", fontWeight: 600, fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" };
+  const numInput = { width: "100%", textAlign: "right", padding: "0.3rem 0.4rem", fontSize: "0.82rem" };
+
+  return (
+    <div style={overlay}>
+      <div style={{ ...modalBase, maxWidth: 980, maxHeight: "92vh", display: "flex", flexDirection: "column" }}>
+        {/* Header */}
+        <div style={hdrStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <span style={{ color: "#a78bfa", width: 20, height: 20, display: "flex" }}>{ICONS.ai}</span>
+            <div>
+              <p style={{ margin: 0, fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a78bfa", opacity: 0.9 }}>IA · Factura multi-producto</p>
+              <h5 style={{ margin: 0, fontWeight: 700, color: "var(--sw-text)", fontSize: "1rem" }}>Revisar y registrar entradas</h5>
+            </div>
+          </div>
+          <button onClick={onClose} style={closeBtn}>✕</button>
+        </div>
+
+        {/* Body */}
+        <div style={{ overflowY: "auto", flex: 1, padding: "1.25rem 1.5rem" }}>
+          {/* Cabecera factura */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px,1fr))", gap: "0.75rem", marginBottom: "1.25rem" }}>
+            <Field label="Proveedor">
+              <GoldSelect
+                value={cabecera.proveedor_id}
+                onChange={(v) => setCabecera((c) => ({ ...c, proveedor_id: v }))}
+                placeholder={cabecera.proveedor_detectado ? `Detectado: ${cabecera.proveedor_detectado}` : "— Sin proveedor —"}
+                options={(store.proveedores || []).map((p) => ({ value: p.id, label: p.nombre }))}
+              />
+            </Field>
+            <Field label="Nº Factura / Albarán">
+              <input className="form-control sw-pinput"
+                value={cabecera.numero_factura}
+                onChange={(e) => setCabecera((c) => ({ ...c, numero_factura: e.target.value }))}
+                placeholder="Nº factura" />
+            </Field>
+            <Field label="Fecha">
+              <input className="form-control sw-pinput"
+                value={cabecera.fecha}
+                onChange={(e) => setCabecera((c) => ({ ...c, fecha: e.target.value }))}
+                placeholder="YYYY-MM-DD" />
+            </Field>
+          </div>
+
+          <p style={{ margin: "0 0 0.75rem", fontSize: "0.78rem", color: "var(--sw-muted)" }}>
+            {lineas.length} línea{lineas.length !== 1 ? "s" : ""} detectada{lineas.length !== 1 ? "s" : ""}. Revisa producto, cantidad y precio antes de registrar.
+          </p>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--sw-border)" }}>
+                  <th style={{ ...thStyle, width: 32 }}>✓</th>
+                  <th style={thStyle}>Nombre en factura</th>
+                  <th style={{ ...thStyle, minWidth: 210 }}>Producto sistema</th>
+                  <th style={{ ...thStyle, textAlign: "right", width: 72 }}>Cant.</th>
+                  <th style={{ ...thStyle, textAlign: "right", width: 90 }}>Precio s/IVA</th>
+                  <th style={{ ...thStyle, textAlign: "right", width: 60 }}>IVA%</th>
+                  <th style={{ ...thStyle, textAlign: "right", width: 65 }}>Dto%</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lineas.map((l, idx) => {
+                  const sinProducto = !l.producto_id && l.checked;
+                  return (
+                    <tr key={l._key} style={{
+                      borderBottom: "1px solid color-mix(in srgb, var(--sw-border) 45%, transparent)",
+                      opacity: l.checked ? 1 : 0.4,
+                      background: sinProducto ? "rgba(239,68,68,0.04)" : "transparent",
+                      transition: "opacity 0.15s",
+                    }}>
+                      <td style={{ padding: "0.5rem 0.5rem" }}>
+                        <input type="checkbox" checked={l.checked}
+                          onChange={(e) => updateLinea(idx, "checked", e.target.checked)}
+                          style={{ accentColor: "#a78bfa", width: 15, height: 15, cursor: "pointer" }} />
+                      </td>
+                      <td style={{ padding: "0.5rem 0.5rem" }}>
+                        <span style={{ fontSize: "0.78rem", color: "var(--sw-text)", display: "block", lineHeight: 1.3 }}>{l.nombre_factura}</span>
+                        {l.match_score > 0 && (
+                          <span style={{ fontSize: "0.64rem", color: l.match_score >= 0.55 ? "#86efac" : "#fcd34d", marginTop: 2, display: "block" }}>
+                            coincidencia {Math.round(l.match_score * 100)}%
+                          </span>
+                        )}
+                        {l.match_score === 0 && l.producto_id && (
+                          <span style={{ fontSize: "0.64rem", color: "#fcd34d", marginTop: 2, display: "block" }}>sin coincidencia automática</span>
+                        )}
+                      </td>
+                      <td style={{ padding: "0.5rem 0.5rem" }}>
+                        <GoldSelect
+                          value={l.producto_id}
+                          onChange={(v) => updateLinea(idx, "producto_id", v)}
+                          placeholder="— Seleccione —"
+                          options={(store.productos || []).map((p) => ({ value: p.id, label: p.nombre }))}
+                        />
+                        {sinProducto && (
+                          <span style={{ fontSize: "0.64rem", color: "#fca5a5", marginTop: 2, display: "block" }}>Requerido para registrar</span>
+                        )}
+                      </td>
+                      <td style={{ padding: "0.5rem 0.5rem" }}>
+                        <input type="number" min="0" step="1" className="form-control sw-pinput"
+                          style={numInput} value={l.cantidad}
+                          onChange={(e) => updateLinea(idx, "cantidad", e.target.value)} />
+                      </td>
+                      <td style={{ padding: "0.5rem 0.5rem" }}>
+                        <input type="number" min="0" step="0.01" className="form-control sw-pinput"
+                          style={numInput} value={l.precio_unitario}
+                          onChange={(e) => updateLinea(idx, "precio_unitario", e.target.value)} />
+                      </td>
+                      <td style={{ padding: "0.5rem 0.5rem" }}>
+                        <input type="number" min="0" max="100" step="1" className="form-control sw-pinput"
+                          style={numInput} value={l.iva_pct}
+                          onChange={(e) => updateLinea(idx, "iva_pct", e.target.value)} />
+                      </td>
+                      <td style={{ padding: "0.5rem 0.5rem" }}>
+                        <input type="number" min="0" max="100" step="0.01" className="form-control sw-pinput"
+                          style={numInput} value={l.descuento_pct}
+                          onChange={(e) => updateLinea(idx, "descuento_pct", e.target.value)} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={ftrStyle}>
+          <button type="button" onClick={onClose} style={cancelBtn} disabled={phase === "registering"}>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            disabled={phase === "registering" || checkedCount === 0}
+            onClick={handleRegistrar}
+            style={{
+              padding: "0.5rem 1.4rem", borderRadius: 8, border: "none",
+              background: checkedCount > 0 ? "#a78bfa" : "var(--sw-surface-2)",
+              color: checkedCount > 0 ? "#fff" : "var(--sw-muted)",
+              fontWeight: 700, cursor: checkedCount > 0 ? "pointer" : "not-allowed",
+              fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "0.5rem",
+              opacity: phase === "registering" ? 0.7 : 1, transition: "opacity 0.2s",
+            }}
+          >
+            {phase === "registering" ? (
+              <><span style={{ width: 15, height: 15, display: "flex" }}>{ICONS.spinner}</span> Registrando…</>
+            ) : (
+              <>Registrar seleccionados ({checkedCount})</>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

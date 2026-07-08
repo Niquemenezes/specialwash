@@ -10,6 +10,9 @@ COLUMNS = {
     "requiere_hoja_intervencion": "INTEGER NOT NULL DEFAULT 0",
     "observaciones_tecnicas_adicionales": "TEXT",
     "tabla_estado": "TEXT",
+    "albaran_numero": "TEXT",
+    "albaran_fecha": "TEXT",
+    "albaran_precios": "TEXT",
 }
 
 

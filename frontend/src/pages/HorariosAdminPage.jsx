@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { obtenerMensual, obtenerEmpleadosActivos, obtenerSelfieBlobUrl, editarRegistro } from "../utils/horarioApi";
+import { obtenerMensual, obtenerAusencias, obtenerEmpleadosActivos, obtenerSelfieBlobUrl, editarRegistro, sincronizarAsistencia } from "../utils/horarioApi";
 
 const MESES = [
   "Enero","Febrero","Marzo","Abril","Mayo","Junio",
@@ -77,18 +77,21 @@ export default function HorariosAdminPage() {
   const [editando, setEditando] = useState(null);
   const [formHoras, setFormHoras] = useState({ entrada: "", inicio_comida: "", fin_comida: "", salida: "" });
   const [guardando, setGuardando] = useState(false);
+  const [ausenciasHoy, setAusenciasHoy] = useState([]);
+  const [ausenciasEmpleado, setAusenciasEmpleado] = useState([]);
+  const [sincronizando, setSincronizando] = useState(false);
+
+  const hoyISO = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
 
   useEffect(() => {
     obtenerEmpleadosActivos()
       .then(setEmpleados)
       .catch(() => setEmpleados([]));
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (fotoPreview.url) URL.revokeObjectURL(fotoPreview.url);
-    };
-  }, [fotoPreview.url]);
+    // Cargar ausencias de hoy siempre, independientemente del panel
+    obtenerAusencias({ fecha: hoyISO, periodo: "dia" })
+      .then(setAusenciasHoy)
+      .catch(() => setAusenciasHoy([]));
+  }, [hoyISO]);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -103,7 +106,36 @@ export default function HorariosAdminPage() {
     }
   }, [anio, mes, empleadoId]);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
+
+  // Cargar ausencias del empleado seleccionado para colorear filas
+  useEffect(() => {
+    if (!empleadoId) { setAusenciasEmpleado([]); return; }
+    obtenerAusencias({ anio, mes, empleado_id: empleadoId })
+      .then(setAusenciasEmpleado)
+      .catch(() => setAusenciasEmpleado([]));
+  }, [anio, mes, empleadoId]);
+
+  useEffect(() => {
+    return () => {
+      if (fotoPreview.url) URL.revokeObjectURL(fotoPreview.url);
+    };
+  }, [fotoPreview.url]);
+
+  const handleSincronizarAsistencia = async () => {
+    setSincronizando(true);
+    setError("");
+    try {
+      const res = await sincronizarAsistencia({ anio, mes });
+      window.alert(`Hoja de asistencia de ${MESES[mes - 1]} sincronizada (${res.empleados} empleados).`);
+    } catch (e) {
+      setError(e.message || "Error al sincronizar con la hoja de asistencia.");
+    } finally {
+      setSincronizando(false);
+    }
+  };
 
   const handleImprimir = (filas) => {
     const datos = filas || registrosVisibles;
@@ -262,13 +294,61 @@ export default function HorariosAdminPage() {
     : registros;
   const periodoLabel = `${dia ? `${String(dia).padStart(2, "0")} de ` : ""}${MESES[mes - 1]} ${anio}`;
 
+  const AUSENCIA_STYLE = {
+    vacaciones: { bg: "#d1fae5", border: "#6ee7b7", label: "Vacaciones", icon: "fa-umbrella-beach" },
+    falta:      { bg: "#fee2e2", border: "#fca5a5", label: "Falta",       icon: "fa-circle-xmark"   },
+    permiso:    { bg: "#fef9c3", border: "#fde047", label: "Permiso",     icon: "fa-clock"          },
+  };
+
+  // Helper: ausencia activa para una fecha
+  const ausenciaDeFecha = (fechaISO) =>
+    ausenciasEmpleado.find(
+      (a) => a.estado !== "rechazado" && fechaISO >= a.fecha_inicio && fechaISO <= a.fecha_fin
+    ) || null;
+
+  // Cuando hay empleado seleccionado, añadir filas sintéticas para días de ausencia sin fichaje
+  const filasVisibles = (() => {
+    if (!empleadoId || ausenciasEmpleado.length === 0) return registrosVisibles;
+
+    const fechasConRegistro = new Set(registrosVisibles.map((r) => r.fecha));
+    const primeroDeMes = new Date(anio, mes - 1, 1);
+    const ultimoDeMes = new Date(anio, mes, 0);
+    const filasExtra = [];
+
+    ausenciasEmpleado.forEach((aus) => {
+      if (aus.estado === "rechazado") return;
+      const inicio = new Date(aus.fecha_inicio + "T00:00:00");
+      const fin = new Date(aus.fecha_fin + "T00:00:00");
+      const desde = inicio < primeroDeMes ? primeroDeMes : inicio;
+      const hasta = fin > ultimoDeMes ? ultimoDeMes : fin;
+
+      for (let d = new Date(desde); d <= hasta; d.setDate(d.getDate() + 1)) {
+        const fechaISO = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        if (dia && Number(fechaISO.slice(8)) !== Number(dia)) continue;
+        if (!fechasConRegistro.has(fechaISO)) {
+          filasExtra.push({
+            id: `aus-${aus.id}-${fechaISO}`,
+            fecha: fechaISO,
+            empleado_id: aus.empleado_id,
+            empleado_nombre: aus.empleado_nombre || empleadoNombre,
+            entrada: null, salida: null,
+            _ausencia: aus,
+          });
+        }
+      }
+    });
+
+    return [...registrosVisibles, ...filasExtra].sort((a, b) => a.fecha.localeCompare(b.fecha));
+  })();
+
   useEffect(() => {
     if (dia && Number(dia) > diasDelMes.length) setDia("");
   }, [dia, diasDelMes.length]);
 
-  // Resumen de totales por empleado
+  // Resumen de totales por empleado (solo filas reales, no sintéticas)
   const totalesPorEmpleado = {};
-  registrosVisibles.forEach(r => {
+  filasVisibles.forEach(r => {
+    if (r._ausencia) return;
     if (!totalesPorEmpleado[r.empleado_nombre]) totalesPorEmpleado[r.empleado_nombre] = 0;
     if (r.entrada && r.salida) {
       let ms = new Date(r.salida) - new Date(r.entrada);
@@ -287,8 +367,38 @@ export default function HorariosAdminPage() {
     <>
       <style>{`
         @media print {
+          @page { size: A4 landscape; margin: 12mm; }
+          html, body {
+            width: 100%;
+            min-height: auto;
+            background: #fff !important;
+            color: #000 !important;
+          }
+          body { margin: 0; }
           .no-print { display: none !important; }
           .horario-print-header { display: block !important; }
+          .horarios-admin-table,
+          .horarios-admin-table thead,
+          .horarios-admin-table tbody,
+          .horarios-admin-table tr,
+          .horarios-admin-table th,
+          .horarios-admin-table td {
+            page-break-inside: avoid !important;
+            page-break-after: auto !important;
+          }
+          .horarios-admin-table th,
+          .horarios-admin-table td {
+            border-color: #aaa !important;
+          }
+          .horarios-admin-table thead th {
+            background: #eceff4 !important;
+          }
+          .table-responsive { overflow: visible !important; }
+          .horario-print-header {
+            padding: 0 0 10px;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 10px;
+          }
         }
         .horario-print-header { display: none; }
 
@@ -358,10 +468,23 @@ export default function HorariosAdminPage() {
             <i className="fa-solid fa-rotate-right me-1" />Actualizar
           </button>
 
-          {/* Botón imprimir: siempre disponible */}
-          <button className="btn btn-outline-primary btn-sm ms-auto" onClick={() => handleImprimir()}>
-            <i className="fa-solid fa-print me-1" />
-            {empleadoNombre ? `Imprimir — ${empleadoNombre}` : "Imprimir"}
+          <button
+            className="btn btn-outline-success btn-sm"
+            onClick={handleSincronizarAsistencia}
+            disabled={sincronizando}
+            title="Rellena la hoja de asistencia de Google Sheets con los fichajes y ausencias de este mes"
+          >
+            <i className="fa-solid fa-file-excel me-1" />
+            {sincronizando ? "Sincronizando..." : "Sincronizar con Excel"}
+          </button>
+
+          <button
+            className="btn btn-outline-primary btn-sm ms-auto"
+            onClick={() => handleImprimir()}
+            title="Generar vista para imprimir o guardar como PDF"
+          >
+            <i className="fa-solid fa-file-pdf me-1" />
+            {empleadoNombre ? `Exportar PDF — ${empleadoNombre}` : "Exportar PDF"}
           </button>
         </div>
 
@@ -374,9 +497,50 @@ export default function HorariosAdminPage() {
         </div>
 
         <h4 className="mb-1 fw-bold no-print">Control de horarios</h4>
-        <p className="text-muted small mb-4 no-print">
+        <p className="text-muted small mb-3 no-print">
           {periodoLabel}{empleadoNombre ? ` — ${empleadoNombre}` : ""}
         </p>
+
+        {/* Estado del equipo hoy */}
+        {empleados.length > 0 && (
+          <div className="no-print mb-4 p-3 rounded border" style={{ background: "var(--sw-surface-2, #f8fafc)" }}>
+            <div className="fw-semibold small mb-2 text-muted text-uppercase" style={{ letterSpacing: "0.05em" }}>
+              <i className="fa-solid fa-users me-2" />Estado del equipo hoy — {formatFecha(hoyISO)}
+            </div>
+            <div className="d-flex flex-wrap gap-2">
+              {empleados.map((emp) => {
+                const aus = ausenciasHoy.find(
+                  (a) => a.empleado_id === emp.id && a.estado !== "rechazado"
+                );
+                const color = aus
+                  ? aus.tipo === "vacaciones" ? "#198754"
+                  : aus.tipo === "falta"      ? "#dc3545"
+                  : "#f59e0b"
+                  : "#6c757d";
+                const etiqueta = aus
+                  ? aus.tipo === "vacaciones" ? "Vacaciones"
+                  : aus.tipo === "falta"      ? "Falta"
+                  : "Permiso"
+                  : "Trabajando";
+                return (
+                  <span
+                    key={emp.id}
+                    title={aus?.motivo || etiqueta}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      background: color + "22", border: `1px solid ${color}55`,
+                      color, borderRadius: 20, padding: "3px 12px", fontSize: 13, fontWeight: 500,
+                    }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: color, display: "inline-block", flexShrink: 0 }} />
+                    {emp.nombre}
+                    {aus && <span style={{ opacity: 0.75, fontSize: 11 }}>({etiqueta})</span>}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {error && <div className="alert alert-danger no-print">{error}</div>}
 
@@ -440,12 +604,11 @@ export default function HorariosAdminPage() {
             </div>
           </div>
         )}
-
         {cargando ? (
           <div className="text-center py-5 no-print">
             <span className="spinner-border spinner-border-sm me-2" />Cargando...
           </div>
-        ) : registrosVisibles.length === 0 ? (
+        ) : filasVisibles.length === 0 ? (
           <div className="text-muted text-center py-5">No hay registros para este período.</div>
         ) : (
           <>
@@ -465,60 +628,80 @@ export default function HorariosAdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {registrosVisibles.map((r) => {
-                    const horas = calcularHoras(r);
-                    const incompleto = !r.entrada || !r.salida;
+                  {filasVisibles.map((r) => {
+                    const esSintetica = Boolean(r._ausencia);
+                    const aus = esSintetica ? r._ausencia : (empleadoId ? ausenciaDeFecha(r.fecha) : null);
+                    const ausStyle = aus ? AUSENCIA_STYLE[aus.tipo] : null;
+                    const horas = esSintetica ? null : calcularHoras(r);
+                    const incompleto = !esSintetica && (!r.entrada || !r.salida);
+                    const trStyle = ausStyle
+                      ? { background: ausStyle.bg, borderLeft: `4px solid ${ausStyle.border}` }
+                      : {};
                     return (
-                      <tr key={r.id} className={incompleto ? "horario-row-incompleto" : ""}>
-                        <td className="text-nowrap">{formatFecha(r.fecha)}</td>
-                        <td>{r.empleado_nombre}</td>
-                        <td className="text-nowrap">{formatHora(r.entrada)}</td>
+                      <tr key={r.id} className={!aus && incompleto ? "horario-row-incompleto" : ""} style={trStyle}>
                         <td className="text-nowrap">
-                          {getPausas(r).length > 0 ? getPausas(r).map((pausa, idx) => (
+                          {formatFecha(r.fecha)}
+                          {ausStyle && (
+                            <span className="ms-2 badge" style={{ background: ausStyle.border, color: "#111", fontSize: 10 }}>
+                              <i className={`fa-solid ${ausStyle.icon} me-1`} />{ausStyle.label}
+                            </span>
+                          )}
+                        </td>
+                        <td>{r.empleado_nombre}</td>
+                        <td className="text-nowrap">{esSintetica ? <span className="text-muted">—</span> : formatHora(r.entrada)}</td>
+                        <td className="text-nowrap">
+                          {!esSintetica && getPausas(r).length > 0 ? getPausas(r).map((pausa, idx) => (
                             <div key={`${r.id}-inicio-${idx}`}>{formatHora(pausa[0])}</div>
-                          )) : "--:--"}
+                          )) : <span className="text-muted">—</span>}
                         </td>
                         <td className="text-nowrap">
-                          {getPausas(r).length > 0 ? (
+                          {!esSintetica && getPausas(r).length > 0 ? (
                             <>
                               {getPausas(r).map((pausa, idx) => (
                                 <div key={`${r.id}-fin-${idx}`}>{pausa[1] ? formatHora(pausa[1]) : "en curso"}</div>
                               ))}
                               {formatDescansoTotal(r) && <small className="text-muted">Total: {formatDescansoTotal(r)}</small>}
                             </>
-                          ) : "--:--"}
+                          ) : <span className="text-muted">—</span>}
                         </td>
-                        <td className="text-nowrap">{formatHora(r.salida)}</td>
+                        <td className="text-nowrap">{esSintetica ? <span className="text-muted">—</span> : formatHora(r.salida)}</td>
                         <td className="fw-semibold text-nowrap">
-                          {horas || <span className="text-muted">—</span>}
+                          {esSintetica
+                            ? <span className="text-muted" style={{ fontWeight: 400 }}>No fichó</span>
+                            : horas || <span className="text-muted">—</span>
+                          }
                         </td>
                         <td className="no-print" style={{ minWidth: 220 }}>
-                          <div className="d-flex flex-wrap gap-1">
-                            {TIPOS_FOTO.map((tipo) => {
-                              const key = `${r.id}-${tipo}`;
-                              const tieneFoto = Boolean(r[`tiene_foto_${tipo}`]);
-                              return (
-                                <button
-                                  key={tipo}
-                                  type="button"
-                                  className={`btn btn-sm ${tieneFoto ? "btn-foto-on" : "btn-outline-secondary"}`}
-                                  disabled={!tieneFoto || fotoLoadingKey === key}
-                                  onClick={() => verSelfie(r, tipo)}
-                                >
-                                  {fotoLoadingKey === key ? "..." : `Foto ${tipo}`}
-                                </button>
-                              );
-                            })}
-                          </div>
+                          {esSintetica ? <span className="text-muted small">—</span> : (
+                            <div className="d-flex flex-wrap gap-1">
+                              {TIPOS_FOTO.map((tipo) => {
+                                const key = `${r.id}-${tipo}`;
+                                const tieneFoto = Boolean(r[`tiene_foto_${tipo}`]);
+                                return (
+                                  <button
+                                    key={tipo}
+                                    type="button"
+                                    className={`btn btn-sm ${tieneFoto ? "btn-foto-on" : "btn-outline-secondary"}`}
+                                    disabled={!tieneFoto || fotoLoadingKey === key}
+                                    onClick={() => verSelfie(r, tipo)}
+                                  >
+                                    {fotoLoadingKey === key ? "..." : `Foto ${tipo}`}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
                         </td>
                         <td className="no-print text-nowrap" style={{ minWidth: 120 }}>
-                          <button
-                            type="button"
-                            className={`btn btn-sm ${incompleto ? "btn-editar-pendiente" : "btn-primary"}`}
-                            onClick={() => abrirEdicion(r)}
-                          >
-                            Editar
-                          </button>
+                          {esSintetica ? <span className="text-muted small">—</span> : (
+                            <button
+                              type="button"
+                              className={`btn btn-sm ${incompleto ? "btn-editar-pendiente" : "btn-primary"}`}
+                              onClick={() => abrirEdicion(r)}
+                            >
+                              Editar
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );

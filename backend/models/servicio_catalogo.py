@@ -9,6 +9,9 @@ class ServicioCatalogo(db.Model):
     nombre = db.Column(db.String(150), nullable=False)
     descripcion = db.Column(db.Text)
     precio_base = db.Column(db.Float, nullable=True)
+    precio_turismo = db.Column(db.Float, nullable=True)
+    precio_suv = db.Column(db.Float, nullable=True)
+    precio_todoterreno = db.Column(db.Float, nullable=True)
     tiempo_estimado_minutos = db.Column(db.Integer, nullable=True)
     rol_responsable = db.Column(db.String(50), nullable=True, default=None)
     activo = db.Column(db.Boolean, default=True, nullable=False)
@@ -20,6 +23,9 @@ class ServicioCatalogo(db.Model):
             "nombre": self.nombre,
             "descripcion": self.descripcion,
             "precio_base": self.precio_base,
+            "precio_turismo": self.precio_turismo,
+            "precio_suv": self.precio_suv,
+            "precio_todoterreno": self.precio_todoterreno,
             "tiempo_estimado_minutos": self.tiempo_estimado_minutos,
             "rol_responsable": self.rol_responsable,
             "activo": self.activo,

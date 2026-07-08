@@ -567,3 +567,133 @@ def resumen_mensual():
             for r in data
         ]
     )
+
+
+@almacen_bp.route("/registro-entrada/ocr-factura-multilinea", methods=["POST"])
+@role_required("administrador")
+def ocr_factura_multilinea():
+    import os, base64, json as _json
+
+    try:
+        import anthropic as _anthropic
+    except ImportError:
+        return jsonify({"msg": "Librería anthropic no instalada en el servidor"}), 503
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return jsonify({"msg": "ANTHROPIC_API_KEY no configurada"}), 503
+
+    file = request.files.get("file")
+    if not file:
+        return jsonify({"msg": "Debe adjuntar una imagen o PDF"}), 400
+
+    image_data = file.read()
+    image_b64 = base64.standard_b64encode(image_data).decode("utf-8")
+    content_type = file.content_type or "image/jpeg"
+    if not content_type or content_type == "application/octet-stream":
+        fname = (file.filename or "").lower()
+        if fname.endswith(".pdf"):
+            content_type = "application/pdf"
+        elif fname.endswith(".png"):
+            content_type = "image/png"
+        else:
+            content_type = "image/jpeg"
+
+    ALLOWED = {"image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"}
+    if content_type not in ALLOWED:
+        return jsonify({"msg": f"Formato no soportado: {content_type}. Usa JPG, PNG o PDF."}), 400
+
+    client = _anthropic.Anthropic(api_key=api_key)
+
+    prompt = (
+        "Analiza esta factura o albarán y extrae TODAS las líneas de productos.\n"
+        "Devuelve SOLO un objeto JSON con esta estructura, sin texto adicional:\n"
+        "{\n"
+        '  "proveedor": "nombre del proveedor",\n'
+        '  "numero_factura": "número de factura o albarán",\n'
+        '  "fecha": "fecha en formato DD/MM/YYYY",\n'
+        '  "lineas": [\n'
+        "    {\n"
+        '      "codigo_proveedor": "código del artículo del proveedor (si aparece)",\n'
+        '      "nombre": "nombre completo del producto tal como aparece",\n'
+        '      "cantidad": número de unidades (columna Unds o Cantidad),\n'
+        '      "precio_unitario": precio unitario sin IVA como número decimal,\n'
+        '      "iva_pct": porcentaje de IVA como número (ej: 21),\n'
+        '      "descuento_pct": descuento en porcentaje como número (0 si no hay),\n'
+        '      "total": importe total de la línea como número decimal\n'
+        "    }\n"
+        "  ]\n"
+        "}\n"
+        "Notas importantes:\n"
+        "- Usa el campo Unds (unidades) para la cantidad, NO el campo Cajas\n"
+        "- precio_unitario es el campo Precio de la tabla\n"
+        "- Los números usan punto como separador decimal\n"
+        "- Extrae TODAS las líneas sin omitir ninguna\n"
+        "- Devuelve SOLO el JSON, sin markdown ni texto adicional"
+    )
+
+    try:
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=2048,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": content_type,
+                            "data": image_b64,
+                        },
+                    },
+                    {"type": "text", "text": prompt},
+                ],
+            }],
+        )
+    except Exception as e:
+        return jsonify({"msg": f"Error llamando a Claude: {str(e)}"}), 500
+
+    raw = message.content[0].text.strip()
+    if raw.startswith("```"):
+        raw = re.sub(r"```(?:json)?\n?", "", raw).strip().rstrip("`").strip()
+
+    try:
+        data = _json.loads(raw)
+    except _json.JSONDecodeError:
+        return jsonify({"msg": "Claude no devolvió JSON válido", "raw": raw[:500]}), 500
+
+    lineas = data.get("lineas", [])
+
+    # Fuzzy match cada línea con productos en la BD
+    todos_productos = Producto.query.all()
+
+    def _normalizar(s):
+        return re.sub(r"\s+", " ", (s or "").lower().strip())
+
+    def _score(a, b):
+        pa = set(_normalizar(a).split())
+        pb = set(_normalizar(b).split())
+        if not pa or not pb:
+            return 0.0
+        return len(pa & pb) / max(len(pa), len(pb))
+
+    for linea in lineas:
+        nombre_det = linea.get("nombre", "")
+        mejor = None
+        mejor_score = 0.25
+        for prod in todos_productos:
+            s = _score(nombre_det, prod.nombre)
+            if s > mejor_score:
+                mejor_score = s
+                mejor = prod
+        linea["producto_id_sugerido"] = mejor.id if mejor else None
+        linea["producto_nombre_sugerido"] = mejor.nombre if mejor else None
+        linea["match_score"] = round(mejor_score, 2) if mejor else 0
+
+    return jsonify({
+        "proveedor": data.get("proveedor"),
+        "numero_factura": data.get("numero_factura"),
+        "fecha": data.get("fecha"),
+        "lineas": lineas,
+    }), 200

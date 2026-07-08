@@ -209,6 +209,7 @@ const ClienteModal = ({ show, cliente, onClose, onSaved }) => {
   const { actions } = useContext(Context);
   const [form, setForm] = useState({
     nombre: "",
+    nombre_fiscal: "",
     cif: "",
     telefono: "",
     email: "",
@@ -222,6 +223,7 @@ const ClienteModal = ({ show, cliente, onClose, onSaved }) => {
     if (cliente) {
       setForm({
         nombre: cliente.nombre || "",
+        nombre_fiscal: cliente.nombre_fiscal || "",
         cif: cliente.cif || "",
         telefono: cliente.telefono || "",
         email: cliente.email || "",
@@ -273,7 +275,8 @@ const ClienteModal = ({ show, cliente, onClose, onSaved }) => {
               </div>
             )}
             {[
-              { name: "nombre", label: "Nombre", required: true, type: "text", placeholder: "" },
+              { name: "nombre", label: "Nombre comercial", required: true, type: "text", placeholder: "" },
+              { name: "nombre_fiscal", label: "Nombre fiscal", required: false, type: "text", placeholder: "Si es distinto al nombre comercial" },
               { name: "cif", label: "CIF/NIF", required: false, type: "text", placeholder: "B12345678" },
               { name: "telefono", label: "Teléfono", required: false, type: "text", placeholder: "" },
               { name: "email", label: "Email", required: false, type: "email", placeholder: "" },

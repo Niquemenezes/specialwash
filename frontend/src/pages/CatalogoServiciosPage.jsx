@@ -21,6 +21,9 @@ const EMPTY_FORM = {
   nombre: "",
   descripcion: "",
   precio_base: "",
+  precio_turismo: "",
+  precio_suv: "",
+  precio_todoterreno: "",
   tiempo_estimado_minutos: "",
   rol_responsable: "detailing",
 };
@@ -92,6 +95,9 @@ export default function CatalogoServiciosPage() {
       nombre: s.nombre || "",
       descripcion: s.descripcion || "",
       precio_base: s.precio_base != null ? String(s.precio_base) : "",
+      precio_turismo: s.precio_turismo != null ? String(s.precio_turismo) : "",
+      precio_suv: s.precio_suv != null ? String(s.precio_suv) : "",
+      precio_todoterreno: s.precio_todoterreno != null ? String(s.precio_todoterreno) : "",
       tiempo_estimado_minutos: s.tiempo_estimado_minutos != null ? String(s.tiempo_estimado_minutos) : "",
       rol_responsable: s.rol_responsable || "detailing",
     });
@@ -119,17 +125,21 @@ export default function CatalogoServiciosPage() {
     setSaving(true);
     setModalError("");
     try {
+      const parsePrice = (v) => v !== "" && v != null ? parseFloat(v) : null;
       const payload = {
         nombre,
         descripcion: form.descripcion.trim() || null,
-        precio_base: form.precio_base !== "" ? parseFloat(form.precio_base) : null,
+        precio_base: parsePrice(form.precio_base),
+        precio_turismo: parsePrice(form.precio_turismo),
+        precio_suv: parsePrice(form.precio_suv),
+        precio_todoterreno: parsePrice(form.precio_todoterreno),
         tiempo_estimado_minutos: tiempo,
         rol_responsable: String(form.rol_responsable || "").trim() || null,
       };
       if (editandoId) {
-        await apiFetch(`/api/servicios_catalogo/${editandoId}`, { method: "PUT", body: JSON.stringify(payload) });
+        await apiFetch(`/api/servicios_catalogo/${editandoId}`, { method: "PUT", body: payload });
       } else {
-        await apiFetch("/api/servicios_catalogo", { method: "POST", body: JSON.stringify(payload) });
+        await apiFetch("/api/servicios_catalogo", { method: "POST", body: payload });
       }
       toast.success(editandoId ? "Servicio actualizado" : "Servicio creado");
       await cargar();
@@ -143,7 +153,7 @@ export default function CatalogoServiciosPage() {
 
   const toggleActivo = async (s) => {
     try {
-      await apiFetch(`/api/servicios_catalogo/${s.id}`, { method: "PUT", body: JSON.stringify({ activo: !s.activo }) });
+      await apiFetch(`/api/servicios_catalogo/${s.id}`, { method: "PUT", body: { activo: !s.activo } });
       await cargar();
     } catch (e) {
       setError(e.message || "Error al cambiar estado");
@@ -336,10 +346,18 @@ export default function CatalogoServiciosPage() {
                           {s.descripcion || <span style={{ fontStyle: "italic", opacity: 0.5 }}>—</span>}
                         </span>
                       </td>
-                      <td style={{ padding: "0.85rem 1rem", textAlign: "right", fontWeight: 700, color: "var(--sw-accent,#d4af37)" }}>
-                        {s.precio_base != null
-                          ? `${Number(s.precio_base).toFixed(2)} €`
-                          : <span style={{ fontStyle: "italic", color: "var(--sw-muted)", fontWeight: 400 }}>—</span>}
+                      <td style={{ padding: "0.85rem 1rem", textAlign: "right", fontWeight: 700, color: "var(--sw-accent,#d4af37)", fontSize: "0.82rem" }}>
+                        {s.precio_turismo != null || s.precio_suv != null || s.precio_todoterreno != null ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "0.1rem", alignItems: "flex-end" }}>
+                            {s.precio_turismo != null && <span>T: {Number(s.precio_turismo).toFixed(0)} €</span>}
+                            {s.precio_suv != null && <span>SUV: {Number(s.precio_suv).toFixed(0)} €</span>}
+                            {s.precio_todoterreno != null && <span>4x4: {Number(s.precio_todoterreno).toFixed(0)} €</span>}
+                          </div>
+                        ) : s.precio_base != null ? (
+                          `${Number(s.precio_base).toFixed(2)} €`
+                        ) : (
+                          <span style={{ fontStyle: "italic", color: "var(--sw-muted)", fontWeight: 400 }}>—</span>
+                        )}
                       </td>
                       <td style={{ padding: "0.85rem 1rem", textAlign: "right" }}>
                         {s.tiempo_estimado_minutos != null ? (
@@ -507,9 +525,47 @@ export default function CatalogoServiciosPage() {
                   />
                 </div>
 
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                  <label className="sw-plbl" style={{ fontSize: "0.78rem", color: "var(--sw-muted)" }}>
+                    Precio por tamaño de vehículo (€) — deja vacío si el precio no varía por tamaño
+                  </label>
+                  <div className="sw-ent-grid" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+                      <label className="sw-plbl" style={{ fontSize: "0.72rem" }}>Turismo</label>
+                      <input
+                        className="form-control sw-pinput"
+                        type="number" step="0.01" min="0"
+                        value={form.precio_turismo}
+                        onChange={(e) => setForm({ ...form, precio_turismo: e.target.value })}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+                      <label className="sw-plbl" style={{ fontSize: "0.72rem" }}>SUV / Minifurgoneta</label>
+                      <input
+                        className="form-control sw-pinput"
+                        type="number" step="0.01" min="0"
+                        value={form.precio_suv}
+                        onChange={(e) => setForm({ ...form, precio_suv: e.target.value })}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+                      <label className="sw-plbl" style={{ fontSize: "0.72rem" }}>Todoterreno / Furgoneta</label>
+                      <input
+                        className="form-control sw-pinput"
+                        type="number" step="0.01" min="0"
+                        value={form.precio_todoterreno}
+                        onChange={(e) => setForm({ ...form, precio_todoterreno: e.target.value })}
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="sw-ent-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-                    <label className="sw-plbl">Precio base (€)</label>
+                    <label className="sw-plbl">Precio fijo (€) — para servicios sin variante de tamaño</label>
                     <input
                       className="form-control sw-pinput"
                       type="number" step="0.01" min="0"

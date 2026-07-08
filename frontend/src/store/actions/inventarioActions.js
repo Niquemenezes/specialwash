@@ -144,6 +144,13 @@ export function createInventarioActions({ apiFetch, getStore, setStore }) {
         return await apiFetch("/api/registro-entrada/ocr-sugerencia", { method: "POST", body: formData, json: false, headers: {} });
       } catch (err) { console.error("sugerirEntradaOCR:", err); throw err; }
     },
+    ocr_factura_multilinea: async (archivo) => {
+      try {
+        const formData = new FormData();
+        formData.append("file", archivo);
+        return await apiFetch("/api/registro-entrada/ocr-factura-multilinea", { method: "POST", body: formData, headers: {} });
+      } catch (err) { console.error("ocr_factura_multilinea:", err); throw err; }
+    },
     actualizarEntrada: async (id, payload) => {
       try { return await apiFetch(`/api/registro-entrada/${id}`, { method: "PUT", body: payload }); }
       catch (err) { console.error("actualizarEntrada:", err); throw err; }

@@ -55,8 +55,45 @@ export async function obtenerDiario({ fecha, empleado_id } = {}) {
   return (todos || []).filter((r) => r.fecha === fecha);
 }
 
+export async function obtenerAusencias({ anio, mes, empleado_id, fecha, periodo } = {}) {
+  const params = new URLSearchParams();
+  if (periodo) params.set("periodo", periodo);
+  if (anio) params.set("anio", anio);
+  if (mes) params.set("mes", mes);
+  if (fecha) params.set("fecha", fecha);
+  if (empleado_id) params.set("empleado_id", empleado_id);
+  return apiFetch(`/api/horario/ausencias?${params}`);
+}
+
+export async function crearAusencia(data) {
+  return apiFetch("/api/horario/ausencias", {
+    method: "POST",
+    body: data,
+  });
+}
+
+export async function editarAusencia(id, data) {
+  return apiFetch(`/api/horario/ausencias/${id}`, {
+    method: "PUT",
+    body: data,
+  });
+}
+
+export async function eliminarAusencia(id) {
+  return apiFetch(`/api/horario/ausencias/${id}`, {
+    method: "DELETE",
+  });
+}
+
 export async function obtenerEmpleadosActivos() {
   return apiFetch("/api/horario/empleados-activos");
+}
+
+export async function sincronizarAsistencia({ anio, mes } = {}) {
+  return apiFetch("/api/horario/asistencia/sincronizar", {
+    method: "POST",
+    body: { anio, mes },
+  });
 }
 
 export async function editarRegistro(id, horas) {

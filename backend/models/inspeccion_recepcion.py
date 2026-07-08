@@ -56,6 +56,11 @@ class InspeccionRecepcion(db.Model):
     cobro_observaciones = db.Column(db.Text, nullable=True)
     tabla_estado = db.Column(db.String(100), nullable=True)
 
+    # Albarán
+    albaran_numero = db.Column(db.String(50), nullable=True, unique=True)
+    albaran_fecha = db.Column(db.DateTime(timezone=True), nullable=True)
+    albaran_precios = db.Column(db.Text, nullable=True)
+
     # Repaso pre-entrega
     repaso_checklist = db.Column(db.Text, default="{}")
     repaso_notas = db.Column(db.Text)
@@ -131,6 +136,9 @@ class InspeccionRecepcion(db.Model):
             "cobro_referencia": self.cobro_referencia,
             "cobro_observaciones": self.cobro_observaciones,
             "tabla_estado": self.tabla_estado,
+            "albaran_numero": self.albaran_numero,
+            "albaran_fecha": iso(self.albaran_fecha),
+            "albaran_precios": json.loads(self.albaran_precios) if self.albaran_precios else [],
             "repaso_checklist": json.loads(self.repaso_checklist or "{}"),
             "repaso_notas": self.repaso_notas,
             "repaso_completado": self.repaso_completado,

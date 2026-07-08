@@ -242,7 +242,11 @@ const ActaEntregaView = () => {
       navigate("/entregados", { replace: true });
       return;
     }
-    navigate(isEmployeeRole(rol) ? "/repaso-entrega?tab=firma" : "/inspecciones-guardadas?tab=pendientes", { replace: true });
+    if (isEmployeeRole(rol)) {
+      navigate(`/repaso-entrega?tab=firma&inspeccion=${id}`, { replace: true });
+      return;
+    }
+    navigate("/inspecciones-guardadas?tab=pendientes", { replace: true });
   };
 
   useEffect(() => {

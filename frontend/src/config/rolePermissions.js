@@ -72,10 +72,14 @@ export const ROUTE_PERMISSIONS = {
   // ═══ TABLA DE REGISTROS ═══
   "/tabla-registros": [ROLES.ADMIN],
 
+  // ═══ ALBARANES ═══
+  "/albaranes": [ROLES.ADMIN],
+
   // ═══ CITAS Y RESPALDO ═══
   "/citas": [ROLES.ADMIN, ROLES.CALIDAD],
   "/fichar": [ROLES.ADMIN, ROLES.CALIDAD, ...EMPLOYEE_ROLES],
   "/horarios": [ROLES.ADMIN],
+  "/ausencias": [ROLES.ADMIN],
 
   // ═══ PEDIDOS ═══
   "/pedido-bajo-stock": [ROLES.ADMIN],

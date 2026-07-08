@@ -28,6 +28,9 @@ yarn-error.log*
 # VSCode
 .vscode/
 
+# Credenciales (nunca commitear)
+backend/google_credentials.json
+
 # Otros
 *.log
 *.bak

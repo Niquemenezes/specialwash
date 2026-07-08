@@ -1,13 +1,32 @@
 import os
+import sys
 from flask import abort, has_request_context, request
-from flask_admin import Admin
-from flask_admin.contrib.sqla import ModelView
-from flask_jwt_extended import get_jwt, verify_jwt_in_request
-from wtforms.fields import PasswordField
+
+try:
+    from flask_admin import Admin
+    from flask_admin.contrib.sqla import ModelView
+    from flask_jwt_extended import get_jwt, verify_jwt_in_request
+    from wtforms.fields import PasswordField
+    _ADMIN_IMPORT_ERROR = None
+except ImportError as exc:
+    Admin = None
+    ModelView = object
+    get_jwt = lambda: {}
+
+    def verify_jwt_in_request():
+        raise RuntimeError("Flask-JWT-Extended is not available")
+
+    class PasswordField:
+        def __init__(self, *args, **kwargs):
+            pass
+
+    _ADMIN_IMPORT_ERROR = str(exc)
+
 from models import (
     db, User, Producto, ProductoCodigoBarras, Proveedor, Entrada, Salida, 
     Maquinaria, Cliente, Coche, Servicio, ServicioCatalogo, ServicioCliente, 
-    InspeccionRecepcion, GastoEmpresa, ActaEntrega, ParteTrabajo, Cita
+    InspeccionRecepcion, GastoEmpresa, ActaEntrega, ParteTrabajo, Cita,
+    AusenciaPersonal
 )
 
 
@@ -65,10 +84,12 @@ class SecureModelView(ModelView):
     def is_accessible(self):
         if not _admin_enabled():
             return False
-        return True
+        if _ADMIN_IMPORT_ERROR:
+            return False
+        return _current_user_is_admin()
 
     def inaccessible_callback(self, name, **kwargs):
-        if not _admin_enabled():
+        if not _admin_enabled() or _ADMIN_IMPORT_ERROR:
             abort(404)
         abort(403)
 
@@ -138,6 +159,13 @@ def setup_admin(app):
             "[SECURITY] Flask secret_key no está configurada. "
             "Define SECRET_KEY o FLASK_APP_KEY en el entorno antes de arrancar."
         )
+    if _ADMIN_IMPORT_ERROR:
+        raise RuntimeError(
+            "Flask-Admin dependencies are faltantes: {}. "
+            "Instala Flask-Admin, Flask-JWT-Extended y WTForms en el entorno virtual de backend."
+            .format(_ADMIN_IMPORT_ERROR)
+        )
+
     app.config['FLASK_ADMIN_SWATCH'] = 'flatly'   # 🌙 Tema moderno y limpio
 
     admin = Admin(
@@ -172,6 +200,9 @@ def setup_admin(app):
     admin.add_view(ServicioCatalogoAdmin(ServicioCatalogo, db.session, name="📋 Catálogo Servicios"))
     admin.add_view(SecureModelView(Servicio, db.session, name="🛠️ Servicios Realizados"))
     admin.add_view(SecureModelView(ServicioCliente, db.session, name="💰 Tarifas Personalizadas"))
+    
+    # AUSENCIAS Y VACACIONES
+    admin.add_view(SecureModelView(AusenciaPersonal, db.session, name="🛌 Ausencias"))
     
     # PARTES DE TRABAJO
     admin.add_view(ParteTrabajoAdmin(ParteTrabajo, db.session, name="🧰 Partes Trabajo"))

@@ -16,7 +16,7 @@ from cloudinary.utils import cloudinary_url
 
 from sqlalchemy import inspect, text
 
-from models import User, db
+from models import User, db, AusenciaPersonal
 from models.registro_horario import RegistroHorario
 from models.base import now_madrid
 from utils.auth_utils import role_required
@@ -26,6 +26,8 @@ horario_bp = Blueprint("horario_routes", __name__)
 _MEDIA_BASE = Path(os.path.dirname(os.path.abspath(__file__))).parent / "media" / "horarios"
 
 TIPOS_VALIDOS = {"entrada", "inicio_comida", "fin_comida", "salida", "inicio_descanso", "fin_descanso"}
+TIPOS_AUSENCIA = {"vacaciones", "falta", "permiso", "baja_temporal", "baja_permanente"}
+ESTADOS_AUSENCIA = {"pendiente", "aprobado", "rechazado"}
 RETENCION_FOTOS_DIAS = 60
 _CLOUDINARY_READY = None
 _HORARIO_SCHEMA_READY = False
@@ -317,6 +319,16 @@ def fichar():
         db.session.rollback()
         return jsonify({"msg": "Error al guardar en base de datos"}), 500
 
+    if tipo == "entrada":
+        try:
+            from services.google_sheets_service import marcar_asistencia as _sheets_marcar_asistencia
+            empleado = User.query.get(empleado_id)
+            if empleado:
+                _sheets_marcar_asistencia(empleado.nombre, hoy, "P")
+        except Exception as e:
+            import logging as _log
+            _log.warning(f"[Google Sheets] Error al marcar asistencia: {e}")
+
     resp = {"msg": "Fichaje registrado", "registro": registro.to_dict()}
     if tipo == "salida" and partes_pausados > 0:
         resp["aviso_partes_pausados"] = partes_pausados
@@ -533,6 +545,272 @@ def horario_hoy_todos():
         d["empleado_nombre"] = emp.nombre
         result.append(d)
     return jsonify(result), 200
+
+
+def _build_periodo_fechas(args):
+    hoy = now_madrid().date()
+    anio = args.get("anio", type=int, default=hoy.year)
+    mes = args.get("mes", type=int, default=hoy.month)
+    dia = args.get("dia", type=int, default=hoy.day)
+    periodo = (args.get("periodo") or "mes").strip().lower()
+    fecha_str = args.get("fecha")
+
+    if fecha_str:
+        try:
+            fecha_ref = date.fromisoformat(fecha_str)
+        except ValueError:
+            return None, jsonify({"msg": "Formato de fecha inválido. Usa YYYY-MM-DD"}), 400
+    else:
+        try:
+            fecha_ref = date(anio, mes, dia)
+        except ValueError:
+            return None, jsonify({"msg": "Fecha inválida"}), 400
+
+    if periodo == "dia":
+        fecha_inicio = fecha_ref
+        fecha_fin = fecha_ref
+    elif periodo == "semana":
+        semana = args.get("semana", type=int)
+        if semana:
+            try:
+                fecha_inicio = date.fromisocalendar(anio, semana, 1)
+            except ValueError:
+                return None, jsonify({"msg": "Semana inválida"}), 400
+        else:
+            fecha_inicio = fecha_ref - timedelta(days=fecha_ref.weekday())
+        fecha_fin = fecha_inicio + timedelta(days=6)
+    elif periodo == "anio":
+        fecha_inicio = date(anio, 1, 1)
+        fecha_fin = date(anio, 12, 31)
+    else:
+        ultimo_dia = calendar.monthrange(anio, mes)[1]
+        fecha_inicio = date(anio, mes, 1)
+        fecha_fin = date(anio, mes, ultimo_dia)
+
+    return (fecha_inicio, fecha_fin), None, None
+
+
+# ─── GET /api/horario/ausencias ─────────────────────────────────────────────
+@horario_bp.route("/horario/ausencias", methods=["GET"])
+@role_required("administrador", "encargado")
+def obtener_ausencias():
+    periodo, error, status = _build_periodo_fechas(request.args)
+    if error:
+        return error, status
+
+    fecha_inicio, fecha_fin = periodo
+    empleado_id = request.args.get("empleado_id", type=int)
+
+    query = AusenciaPersonal.query.filter(
+        AusenciaPersonal.fecha_inicio <= fecha_fin,
+        AusenciaPersonal.fecha_fin >= fecha_inicio,
+    )
+    if empleado_id:
+        query = query.filter_by(empleado_id=empleado_id)
+
+    ausencias = query.order_by(AusenciaPersonal.fecha_inicio, AusenciaPersonal.empleado_id).all()
+    return jsonify([a.to_dict() for a in ausencias]), 200
+
+
+def _parse_ausencia_date(value, field_name, required=False):
+    if value in (None, ""):
+        if required:
+            raise ValueError(f"'{field_name}' es obligatorio")
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        raise ValueError(f"Formato inválido para '{field_name}', usa YYYY-MM-DD")
+
+
+def _validar_tipo_estado(tipo, estado):
+    tipo = (tipo or "").strip().lower()
+    estado = (estado or "").strip().lower()
+    if tipo not in TIPOS_AUSENCIA:
+        raise ValueError(f"Tipo inválido. Usa: {', '.join(sorted(TIPOS_AUSENCIA))}")
+    if estado and estado not in ESTADOS_AUSENCIA:
+        raise ValueError(f"Estado inválido. Usa: {', '.join(sorted(ESTADOS_AUSENCIA))}")
+    return tipo, estado or "pendiente"
+
+
+def _crear_o_actualizar_ausencia(ausencia, data):
+    empleado_id = data.get("empleado_id")
+    if not empleado_id:
+        raise ValueError("empleado_id es obligatorio")
+
+    tipo, estado = _validar_tipo_estado(data.get("tipo"), data.get("estado"))
+    fecha_inicio = _parse_ausencia_date(data.get("fecha_inicio"), "fecha_inicio", required=True)
+    fecha_fin = _parse_ausencia_date(data.get("fecha_fin"), "fecha_fin", required=True)
+    if fecha_fin < fecha_inicio:
+        raise ValueError("fecha_fin no puede ser anterior a fecha_inicio")
+
+    dias = max(1, (fecha_fin - fecha_inicio).days + 1)
+    ausencia.empleado_id = int(empleado_id)
+    ausencia.tipo = tipo
+    ausencia.estado = estado
+    ausencia.fecha_inicio = fecha_inicio
+    ausencia.fecha_fin = fecha_fin
+    ausencia.dias = dias
+    ausencia.motivo = (data.get("motivo") or "").strip() or None
+
+
+# ─── POST /api/horario/ausencias ────────────────────────────────────────────
+@horario_bp.route("/horario/ausencias", methods=["POST"])
+@role_required("administrador")
+def crear_ausencia():
+    data = request.get_json() or {}
+    ausencia = AusenciaPersonal()
+    try:
+        _crear_o_actualizar_ausencia(ausencia, data)
+        db.session.add(ausencia)
+        db.session.commit()
+    except ValueError as exc:
+        return jsonify({"msg": str(exc)}), 400
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al guardar la ausencia"}), 500
+
+    if ausencia.estado == "aprobado":
+        try:
+            from services.google_sheets_service import marcar_ausencia_sheets as _sheets_marcar_ausencia
+            empleado = User.query.get(ausencia.empleado_id)
+            if empleado:
+                _sheets_marcar_ausencia(empleado.nombre, ausencia.tipo, ausencia.fecha_inicio, ausencia.fecha_fin)
+        except Exception as e:
+            import logging as _log
+            _log.warning(f"[Google Sheets] Error al marcar ausencia: {e}")
+
+    return jsonify({"msg": "Ausencia creada", "ausencia": ausencia.to_dict()}), 200
+
+
+# ─── PUT /api/horario/ausencias/<id> ─────────────────────────────────────────
+@horario_bp.route("/horario/ausencias/<int:ausencia_id>", methods=["PUT"])
+@role_required("administrador")
+def editar_ausencia(ausencia_id):
+    ausencia = AusenciaPersonal.query.get(ausencia_id)
+    if not ausencia:
+        return jsonify({"msg": "Ausencia no encontrada"}), 404
+
+    estado_previo = ausencia.estado
+    tipo_previo = ausencia.tipo
+    fecha_inicio_previa = ausencia.fecha_inicio
+    fecha_fin_previa = ausencia.fecha_fin
+    empleado_id_previo = ausencia.empleado_id
+
+    data = request.get_json() or {}
+    try:
+        _crear_o_actualizar_ausencia(ausencia, data)
+        db.session.commit()
+    except ValueError as exc:
+        return jsonify({"msg": str(exc)}), 400
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al actualizar la ausencia"}), 500
+
+    try:
+        from services.google_sheets_service import marcar_ausencia_sheets as _sheets_marcar, revertir_ausencia_sheets as _sheets_revertir
+        empleado_previo = User.query.get(empleado_id_previo)
+        if estado_previo == "aprobado" and empleado_previo:
+            _sheets_revertir(empleado_previo.nombre, tipo_previo, fecha_inicio_previa, fecha_fin_previa)
+        if ausencia.estado == "aprobado":
+            empleado = User.query.get(ausencia.empleado_id)
+            if empleado:
+                _sheets_marcar(empleado.nombre, ausencia.tipo, ausencia.fecha_inicio, ausencia.fecha_fin)
+    except Exception as e:
+        import logging as _log
+        _log.warning(f"[Google Sheets] Error al sincronizar ausencia editada: {e}")
+
+    return jsonify({"msg": "Ausencia actualizada", "ausencia": ausencia.to_dict()}), 200
+
+
+# ─── DELETE /api/horario/ausencias/<id> ───────────────────────────────────────
+@horario_bp.route("/horario/ausencias/<int:ausencia_id>", methods=["DELETE"])
+@role_required("administrador")
+def eliminar_ausencia(ausencia_id):
+    ausencia = AusenciaPersonal.query.get(ausencia_id)
+    if not ausencia:
+        return jsonify({"msg": "Ausencia no encontrada"}), 404
+
+    estado_previo = ausencia.estado
+    tipo_previo = ausencia.tipo
+    fecha_inicio_previa = ausencia.fecha_inicio
+    fecha_fin_previa = ausencia.fecha_fin
+    empleado_id_previo = ausencia.empleado_id
+
+    try:
+        db.session.delete(ausencia)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"msg": "Error al eliminar la ausencia"}), 500
+
+    if estado_previo == "aprobado":
+        try:
+            from services.google_sheets_service import revertir_ausencia_sheets as _sheets_revertir
+            empleado = User.query.get(empleado_id_previo)
+            if empleado:
+                _sheets_revertir(empleado.nombre, tipo_previo, fecha_inicio_previa, fecha_fin_previa)
+        except Exception as e:
+            import logging as _log
+            _log.warning(f"[Google Sheets] Error al revertir ausencia eliminada: {e}")
+
+    return jsonify({"msg": "Ausencia eliminada"}), 200
+
+
+# ─── POST /api/horario/asistencia/sincronizar ────────────────────────────────
+@horario_bp.route("/horario/asistencia/sincronizar", methods=["POST"])
+@role_required("administrador")
+def sincronizar_asistencia():
+    """Recalcula y sobrescribe el mes indicado en el Google Sheet de asistencia
+    a partir de los fichajes y ausencias aprobadas ya guardados en la BD."""
+    data = request.get_json() or {}
+    hoy = now_madrid()
+    anio = int(data.get("anio") or hoy.year)
+    mes = int(data.get("mes") or hoy.month)
+
+    ultimo_dia = calendar.monthrange(anio, mes)[1]
+    fecha_inicio = date(anio, mes, 1)
+    fecha_fin = date(anio, mes, ultimo_dia)
+
+    empleados = User.query.filter_by(activo=True).order_by(User.nombre).all()
+    empleados_por_id = {e.id: e.nombre for e in empleados}
+    empleados_nombres = [e.nombre for e in empleados]
+
+    from services.google_sheets_service import CODIGO_AUSENCIA, sincronizar_asistencia_mes
+
+    datos = {nombre: {} for nombre in empleados_nombres}
+
+    # Ausencias aprobadas primero; un fichaje real del mismo día las sobrescribe después
+    ausencias = AusenciaPersonal.query.filter(
+        AusenciaPersonal.estado == "aprobado",
+        AusenciaPersonal.fecha_inicio <= fecha_fin,
+        AusenciaPersonal.fecha_fin >= fecha_inicio,
+    ).all()
+    for a in ausencias:
+        nombre = empleados_por_id.get(a.empleado_id)
+        if not nombre:
+            continue
+        codigo = CODIGO_AUSENCIA.get(a.tipo, "A")
+        d = max(a.fecha_inicio, fecha_inicio)
+        fin = min(a.fecha_fin, fecha_fin)
+        while d <= fin:
+            datos[nombre][d.day] = codigo
+            d += timedelta(days=1)
+
+    registros = RegistroHorario.query.filter(
+        RegistroHorario.fecha >= fecha_inicio,
+        RegistroHorario.fecha <= fecha_fin,
+        RegistroHorario.entrada.isnot(None),
+    ).all()
+    for r in registros:
+        nombre = empleados_por_id.get(r.empleado_id)
+        if nombre:
+            datos[nombre][r.fecha.day] = "P"
+
+    ok = sincronizar_asistencia_mes(mes, anio, datos, empleados_nombres)
+    if not ok:
+        return jsonify({"msg": "Error al sincronizar con Google Sheets"}), 500
+    return jsonify({"msg": "Asistencia sincronizada", "mes": mes, "anio": anio, "empleados": len(empleados_nombres)}), 200
 
 
 # ─── GET /api/horario/empleados-activos ──────────────────────────────────────

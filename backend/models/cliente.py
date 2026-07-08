@@ -7,6 +7,7 @@ class Cliente(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False)
+    nombre_fiscal = db.Column(db.String(200), nullable=True)
     cif = db.Column(db.String(20))
     telefono = db.Column(db.String(20))
     email = db.Column(db.String(120))
@@ -24,6 +25,7 @@ class Cliente(db.Model):
         return {
             "id": self.id,
             "nombre": self.nombre,
+            "nombre_fiscal": self.nombre_fiscal,
             "cif": self.cif,
             "telefono": self.telefono,
             "email": self.email,
