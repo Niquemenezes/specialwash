@@ -46,3 +46,7 @@ deploy-hoy-*.txt
 # Artefactos de build
 frontend/build.zip
 *.zip
+
+# Scripts locales con credenciales en texto plano (no versionar)
+/deploy_build.py
+/deploy_full.py
