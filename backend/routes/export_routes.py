@@ -1,10 +1,18 @@
 import io
 from datetime import datetime
 
-from flask import Blueprint, send_file
-from openpyxl import Workbook
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-from openpyxl.utils import get_column_letter
+from flask import Blueprint, jsonify, send_file
+
+try:
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.utils import get_column_letter
+    _OPENPYXL_IMPORT_ERROR = None
+except Exception as exc:
+    Workbook = None
+    Alignment = Border = Font = PatternFill = Side = None
+    get_column_letter = None
+    _OPENPYXL_IMPORT_ERROR = exc
 from sqlalchemy import func
 
 from extensions import db
@@ -61,6 +69,11 @@ def _mes_label(mes):
     nombres = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
                "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     return nombres[mes] if 1 <= mes <= 12 else str(mes)
+
+
+def _require_openpyxl():
+    if _OPENPYXL_IMPORT_ERROR is not None:
+        raise RuntimeError("La exportación a Excel no está disponible porque falta openpyxl en el servidor.") from _OPENPYXL_IMPORT_ERROR
 
 
 # ── Hoja: portada / dashboard ────────────────────────────────────────────────
@@ -293,6 +306,11 @@ def export_excel():
     """Genera y descarga el Excel anual de SpecialWash."""
     from flask import request as req
     anio = req.args.get("anio", datetime.now().year, type=int)
+
+    try:
+        _require_openpyxl()
+    except RuntimeError as exc:
+        return jsonify({"msg": str(exc)}), 503
 
     wb = Workbook()
     # Eliminar hoja por defecto

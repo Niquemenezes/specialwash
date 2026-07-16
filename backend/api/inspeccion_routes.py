@@ -26,6 +26,132 @@ from utils.inspeccion_helpers import (
 inspeccion_bp = Blueprint('inspeccion', __name__, url_prefix='/api')
 
 
+@inspeccion_bp.route("/inspeccion-recepcion/clientes/<int:cliente_id>/historial-resumen", methods=["GET"])
+@role_required("administrador", "calidad")
+def historial_resumen_cliente(cliente_id):
+    """Resumen rápido de trabajos anteriores de un cliente para alerta en recepción."""
+    cliente = Cliente.query.get(cliente_id)
+    if not cliente:
+        return jsonify({"msg": "Cliente no encontrado"}), 404
+
+    inspecciones = (
+        InspeccionRecepcion.query
+        .filter(InspeccionRecepcion.cliente_id == cliente_id)
+        .order_by(InspeccionRecepcion.fecha_inspeccion.desc(), InspeccionRecepcion.id.desc())
+        .all()
+    )
+
+    def _trabajo_label(inspeccion):
+        texto = (inspeccion.trabajos_realizados or "").strip()
+        if texto:
+            return texto
+        try:
+            servicios = json.loads(inspeccion.servicios_aplicados or "[]")
+        except Exception:
+            servicios = []
+        nombres = []
+        if isinstance(servicios, list):
+            for item in servicios:
+                if isinstance(item, dict):
+                    nombre = str(item.get("nombre") or "").strip()
+                    if nombre:
+                        nombres.append(nombre)
+        if nombres:
+            return ", ".join(nombres)
+        return "Trabajo registrado"
+
+    ultimos = []
+    for insp in inspecciones[:3]:
+        ultimos.append({
+            "inspeccion_id": insp.id,
+            "fecha_inspeccion": insp.fecha_inspeccion.isoformat() if insp.fecha_inspeccion else None,
+            "fecha_entrega": insp.fecha_entrega.isoformat() if insp.fecha_entrega else None,
+            "matricula": insp.matricula,
+            "coche_descripcion": insp.coche_descripcion,
+            "trabajo": _trabajo_label(insp),
+            "entregado": bool(insp.entregado),
+        })
+
+    return jsonify({
+        "cliente_id": cliente_id,
+        "total_trabajos": len(inspecciones),
+        "ultimo_trabajo": ultimos[0] if ultimos else None,
+        "ultimos_trabajos": ultimos,
+    }), 200
+
+
+@inspeccion_bp.route("/inspeccion-recepcion/historial-coche/<string:matricula>/resumen", methods=["GET"])
+@role_required("administrador", "calidad")
+def historial_resumen_coche_por_matricula(matricula):
+    """Resumen de trabajos previos del mismo coche (solo particulares)."""
+    matricula_norm = (matricula or "").strip().upper()
+    if not matricula_norm:
+        return jsonify({"msg": "Matrícula requerida"}), 400
+
+    excluir_id = request.args.get("excluir_inspeccion_id")
+    excluir_inspeccion_id = None
+    if excluir_id not in (None, ""):
+        try:
+            excluir_inspeccion_id = int(excluir_id)
+        except (TypeError, ValueError):
+            return jsonify({"msg": "excluir_inspeccion_id inválido"}), 400
+
+    query = (
+        InspeccionRecepcion.query
+        .filter(InspeccionRecepcion.matricula == matricula_norm)
+        .filter(InspeccionRecepcion.es_concesionario.is_(False))
+    )
+
+    if excluir_inspeccion_id:
+        query = query.filter(InspeccionRecepcion.id != excluir_inspeccion_id)
+
+    inspecciones = query.order_by(
+        InspeccionRecepcion.fecha_inspeccion.desc(),
+        InspeccionRecepcion.id.desc(),
+    ).all()
+
+    def _trabajo_label(inspeccion):
+        texto = (inspeccion.trabajos_realizados or "").strip()
+        if texto:
+            return texto
+        try:
+            servicios = json.loads(inspeccion.servicios_aplicados or "[]")
+        except Exception:
+            servicios = []
+        nombres = []
+        if isinstance(servicios, list):
+            for item in servicios:
+                if isinstance(item, dict):
+                    nombre = str(item.get("nombre") or "").strip()
+                    if nombre:
+                        nombres.append(nombre)
+        if nombres:
+            return ", ".join(nombres)
+        return "Trabajo registrado"
+
+    ultimos = []
+    for insp in inspecciones[:3]:
+        ultimos.append({
+            "inspeccion_id": insp.id,
+            "fecha_inspeccion": insp.fecha_inspeccion.isoformat() if insp.fecha_inspeccion else None,
+            "fecha_entrega": insp.fecha_entrega.isoformat() if insp.fecha_entrega else None,
+            "cliente_id": insp.cliente_id,
+            "cliente_nombre": insp.cliente_nombre,
+            "matricula": insp.matricula,
+            "coche_descripcion": insp.coche_descripcion,
+            "trabajo": _trabajo_label(insp),
+            "entregado": bool(insp.entregado),
+        })
+
+    return jsonify({
+        "matricula": matricula_norm,
+        "solo_particulares": True,
+        "total_trabajos": len(inspecciones),
+        "ultimo_trabajo": ultimos[0] if ultimos else None,
+        "ultimos_trabajos": ultimos,
+    }), 200
+
+
 # ============ CREAR INSPECCIÓN ============
 @inspeccion_bp.route("/inspeccion-recepcion", methods=["POST"])
 @role_required("administrador", "calidad")
@@ -92,46 +218,32 @@ def crear_inspeccion():
         if not servicios_aplicados:
             return jsonify({"msg": "Debes añadir al menos un servicio para crear los partes de trabajo automáticos"}), 400
 
-        # 1. Resolver cliente: prioridad por cliente_id para evitar duplicados.
-        cliente = Cliente.query.get(cliente_id) if cliente_id else None
+        if not cliente_nombre:
+            return jsonify({"msg": "Campo requerido: cliente_nombre"}), 400
+        if not cliente_telefono:
+            return jsonify({"msg": "Campo requerido: cliente_telefono"}), 400
 
-        if cliente_id and not cliente:
-            return jsonify({"msg": "Cliente no encontrado para cliente_id proporcionado"}), 400
+        # 0) Prioridad por matrícula para identificar cliente solo por coche.
+        coche_existente = Coche.query.filter_by(matricula=matricula).first()
+        cliente_por_matricula = None
+        if coche_existente and coche_existente.cliente_id:
+            cliente_por_matricula = Cliente.query.get(coche_existente.cliente_id)
+            if not cliente_por_matricula:
+                return jsonify({"msg": "Inconsistencia: el coche existe pero su cliente no está disponible"}), 400
 
-        if cliente and not _cliente_payload_matches(cliente, cliente_nombre, cliente_telefono):
-            cliente = None
-            cliente_id = None
-
-        if cliente:
-            if not cliente_nombre:
-                cliente_nombre = (cliente.nombre or "").strip()
-            if not cliente_telefono:
-                cliente_telefono = (cliente.telefono or "").strip()
-            if not (cliente.nombre or "").strip() and cliente_nombre:
-                cliente.nombre = cliente_nombre
-            if not (cliente.telefono or "").strip() and cliente_telefono:
-                cliente.telefono = cliente_telefono
-
-        # Si no viene cliente_id, intentar localizar por teléfono/nombre para no duplicar.
-        if not cliente and cliente_telefono:
-            candidato = Cliente.query.filter_by(telefono=cliente_telefono).first()
-            if candidato and _cliente_payload_matches(candidato, cliente_nombre, cliente_telefono):
-                cliente = candidato
-
-        if not cliente:
-            telefono_digits = _telefono_digits(cliente_telefono)
-            if telefono_digits:
-                candidatos = Cliente.query.filter(Cliente.telefono.isnot(None)).all()
-                for candidato in candidatos:
-                    if _telefono_digits(candidato.telefono) == telefono_digits and _cliente_payload_matches(candidato, cliente_nombre, cliente_telefono):
-                        cliente = candidato
-                        break
-
-        if not cliente:
-            cliente = Cliente.query.filter_by(nombre=cliente_nombre, telefono=cliente_telefono).first()
-
-        if not cliente:
-            # Crear cliente automáticamente
+        # 1) Resolver cliente sin búsquedas por nombre/teléfono.
+        #    Solo se acepta: cliente_id explícito o cliente del coche por matrícula.
+        cliente = None
+        if cliente_id:
+            cliente = Cliente.query.get(cliente_id)
+            if not cliente:
+                return jsonify({"msg": "Cliente no encontrado para cliente_id proporcionado"}), 400
+            if cliente_por_matricula and cliente.id != cliente_por_matricula.id:
+                return jsonify({"msg": "La matrícula ya está vinculada a otro cliente"}), 400
+        elif cliente_por_matricula:
+            cliente = cliente_por_matricula
+        else:
+            # Si no hay cliente explícito ni matrícula conocida, crear nuevo cliente.
             cliente = Cliente(
                 nombre=cliente_nombre,
                 telefono=cliente_telefono,
@@ -141,23 +253,9 @@ def crear_inspeccion():
             )
             db.session.add(cliente)
             db.session.flush()  # Obtener el ID sin commit aún
-        else:
-            # Si existe el cliente pero viene sin nombre, se completa con el de inspeccion.
-            if not (cliente.nombre or "").strip() and cliente_nombre:
-                cliente.nombre = cliente_nombre
-
-        if not cliente_nombre:
-            cliente_nombre = (cliente.nombre or "").strip()
-        if not cliente_telefono:
-            cliente_telefono = (cliente.telefono or "").strip()
-
-        if not cliente_nombre:
-            return jsonify({"msg": "Campo requerido: cliente_nombre"}), 400
-        if not cliente_telefono:
-            return jsonify({"msg": "Campo requerido: cliente_telefono"}), 400
 
         # 2. Buscar o crear coche
-        coche = Coche.query.filter_by(matricula=matricula).first()
+        coche = coche_existente or Coche.query.filter_by(matricula=matricula).first()
         if not coche:
             # Crear coche automáticamente
             coche_desc = data.get("coche_descripcion", "").split()
@@ -173,6 +271,8 @@ def crear_inspeccion():
             )
             db.session.add(coche)
             db.session.flush()
+        elif not coche.cliente_id and cliente:
+            coche.cliente_id = cliente.id
 
         # 3. Crear inspección vinculada
         inspeccion = InspeccionRecepcion(
@@ -241,7 +341,13 @@ def crear_inspeccion():
         # Registrar en Google Sheets (no bloquea si falla)
         try:
             from services.google_sheets_service import registrar_inspeccion as _sheets_registrar
-            _sheets_registrar(inspeccion, servicios_aplicados_raw=inspeccion.servicios_aplicados)
+            ok = _sheets_registrar(inspeccion, servicios_aplicados_raw=inspeccion.servicios_aplicados)
+            if not ok:
+                logging.error(
+                    "[Google Sheets] No se pudo registrar inspección id=%s matricula=%s",
+                    inspeccion.id,
+                    inspeccion.matricula,
+                )
         except Exception as _e:
             import logging as _log
             _log.warning(f"[Google Sheets] Error al registrar inspección: {_e}")

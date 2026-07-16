@@ -83,6 +83,20 @@ pip install --upgrade pip setuptools wheel >/dev/null 2>&1
 # Install requirements
 pip install -r requirements.txt gunicorn >/dev/null 2>&1
 
+python - <<'PY'
+import importlib
+import sys
+
+modules = ["openpyxl", "gspread", "google.oauth2.service_account"]
+for module_name in modules:
+    try:
+        importlib.import_module(module_name)
+    except Exception as exc:
+        print(f"Falta dependencia obligatoria: {module_name}: {exc}")
+        sys.exit(1)
+print("Validación de dependencias Python OK")
+PY
+
 success "Backend dependencias instaladas"
 echo ""
 

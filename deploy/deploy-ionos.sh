@@ -68,6 +68,21 @@ fi
 source "$VENV_DIR/bin/activate"
 pip install --upgrade pip setuptools wheel >/dev/null 2>&1
 pip install -r backend/requirements.txt >/dev/null 2>&1
+
+python - <<'PY'
+import importlib
+import sys
+
+modules = ["openpyxl", "gspread", "google.oauth2.service_account"]
+for module_name in modules:
+  try:
+    importlib.import_module(module_name)
+  except Exception as exc:
+    print(f"Falta dependencia obligatoria: {module_name}: {exc}")
+    sys.exit(1)
+print("Validación de dependencias Python OK")
+PY
+
 echo -e "${GREEN}✅ Dependencias Python instaladas${NC}"
 echo ""
 

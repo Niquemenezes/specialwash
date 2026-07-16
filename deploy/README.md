@@ -48,6 +48,18 @@ nano backend/.env
 
 # Ejecutar deploy automático
 bash deploy/deploy.sh
+
+# Si ya existe el servidor y solo has subido cambios de código
+cd /var/www/specialwash/app
+git pull
+cd backend
+source venv/bin/activate
+pip install -r requirements.txt
+cd ..
+systemctl restart specialwash-backend.service
+
+# O usar el script único de actualización
+bash deploy/update_ionos.sh
 ```
 
 ### 3️⃣ SSL Certificate
@@ -145,6 +157,22 @@ https://127.0.0.1:5050/admin/
 ### Verificar backend
 ```bash
 curl -I https://specialwash.studio/api/salud
+
+# Prueba rápida de dependencias e importes para Sheets/Excel
+cd /var/www/specialwash/app/backend
+source venv/bin/activate
+python - <<'PY'
+import importlib
+for module_name in ["openpyxl", "gspread", "google.oauth2.service_account"]:
+  importlib.import_module(module_name)
+print("OK")
+PY
+```
+
+### Actualización rápida en servidor
+```bash
+cd /var/www/specialwash/app
+bash deploy/update_ionos.sh
 ```
 
 ### Verificar frontend
@@ -171,6 +199,7 @@ tail -20 /var/www/specialwash/logs/nginx-access.log
 | Síntoma | Solución |
 |--------|----------|
 | **502 Bad Gateway** | `systemctl restart specialwash-backend.service` |
+| **Sheets no actualiza** | Reinstalar `backend/requirements.txt`, reiniciar `specialwash-backend.service` y revisar `journalctl -u specialwash-backend.service -n 50` |
 | **CORS error** | Verificar `FRONTEND_URLS` en .env |
 | **SSL error** | `certbot renew --force-renewal` |
 | **BD no se crea** | Verificar permisos en `/var/www/specialwash/data` |

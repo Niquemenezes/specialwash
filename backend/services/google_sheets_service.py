@@ -5,22 +5,23 @@ Sincroniza inspecciones (crear, actualizar, eliminar) con el spreadsheet.
 import json
 import logging
 import os
-from datetime import datetime
+import calendar as _calendar
+from datetime import datetime, date
 
 SPREADSHEET_ID = "1snVAvnfJ39abubFXGFZ2be566G0QEiEsBjSTS9tcf6M"
 MAQUINARIA_SPREADSHEET_ID = "13TsK50_ycdntTXPKWfsYVbX0k0EndvOPH-NL0mog6M4"
 ASISTENCIA_SPREADSHEET_ID = "1kW05BB98bVHcqlSsqY536xA7enSIKLyVxKU_qqub0Io"
 CREDENTIALS_FILE = os.path.join(os.path.dirname(__file__), "..", "google_credentials.json")
 
-# Mapeo de tipo de ausencia -> código de celda en la hoja de asistencia.
+# Mapeo de tipo de ausencia -> texto de celda en la hoja de asistencia.
 # Sólo existen 3 categorías en la hoja (Presente/Ausente/Vacaciones), así que
 # los tipos que no son "vacaciones" se cuentan como Ausente.
 CODIGO_AUSENCIA = {
-    "vacaciones": "V",
-    "falta": "A",
-    "permiso": "A",
-    "baja_temporal": "A",
-    "baja_permanente": "A",
+    "vacaciones": "Vacaciones",
+    "falta": "Ausente",
+    "permiso": "Ausente",
+    "baja_temporal": "Ausente",
+    "baja_permanente": "Ausente",
 }
 
 MESES_ES = [
@@ -123,57 +124,95 @@ def _buscar_fila_por_matricula(worksheet, matricula):
     return None
 
 
+def _existe_fecha_matricula(worksheet, fecha_str, matricula):
+    """Comprueba si ya existe una fila con esa fecha (A) y matrícula (D)."""
+    target_mat = (matricula or "").strip().upper()
+    if not fecha_str or not target_mat:
+        return False
+    rows = worksheet.get("A1:D2000")
+    for row in rows:
+        if len(row) < 4:
+            continue
+        row_fecha = str(row[0]).strip()
+        row_mat = str(row[3]).strip().upper()
+        if row_fecha == fecha_str and row_mat == target_mat:
+            return True
+    return False
+
+
 def registrar_inspeccion(inspeccion, servicios_aplicados_raw=None):
     """Añade una fila al Google Sheet cuando se crea una inspección."""
-    try:
-        # Escribir en la hoja del mes actual (comportamiento por defecto)
-        worksheet = _get_worksheet()
+    fecha = inspeccion.fecha_inspeccion or datetime.now()
+    fecha_str = fecha.strftime("%d/%m/%Y") if hasattr(fecha, "strftime") else str(fecha)[:10]
+    matricula = inspeccion.matricula or ""
+    servicios_str = _extraer_servicios(servicios_aplicados_raw or inspeccion.servicios_aplicados)
+    fila = [
+        fecha_str,
+        inspeccion.coche_descripcion or "",
+        inspeccion.cliente_nombre or "",
+        matricula,
+        servicios_str,
+        "",  # Precio
+        "",  # IVA
+        "",  # Método de Pago
+        "",  # Entrega
+        inspeccion.averias_notas or "",
+        "",  # Estado
+    ]
 
-        fecha = inspeccion.fecha_inspeccion or datetime.now()
-        fecha_str = fecha.strftime("%d/%m/%Y") if hasattr(fecha, "strftime") else str(fecha)[:10]
-        servicios_str = _extraer_servicios(servicios_aplicados_raw or inspeccion.servicios_aplicados)
+    # Usar el mes de la inspección para evitar desajustes por timezone/servidor.
+    month = getattr(fecha, "month", None)
 
-        fila = [
-            fecha_str,
-            inspeccion.coche_descripcion or "",
-            inspeccion.cliente_nombre or "",
-            inspeccion.matricula or "",
-            servicios_str,
-            "",  # Precio
-            "",  # IVA
-            "",  # Método de Pago
-            "",  # Entrega
-            inspeccion.averias_notas or "",
-            "",  # Estado
-        ]
+    for intento in range(1, 4):
+        try:
+            worksheet = _get_worksheet(month=month)
 
-        # Insertar justo antes de la fila "Total"; si no existe, al final
-        col_a = worksheet.col_values(1)
-        total_row = next((idx + 1 for idx, v in enumerate(col_a) if str(v).strip().lower() == "total"), None)
+            # Evita duplicados en reintentos o reenvíos.
+            if _existe_fecha_matricula(worksheet, fecha_str, matricula):
+                logging.info(
+                    f"[Google Sheets] Registro ya existente ({worksheet.title}): {matricula} · fecha={fecha_str}"
+                )
+                return True
 
-        if total_row:
-            # Buscar la última fila con datos antes de Total para no insertar en filas vacías
-            insert_at = total_row
-            for idx in range(total_row - 2, 0, -1):
-                if idx < len(col_a) and str(col_a[idx]).strip():
-                    insert_at = idx + 2  # fila siguiente al último dato
-                    break
+            # Insertar justo antes de la fila "Total"; si no existe, al final.
+            col_a = worksheet.col_values(1)
+            total_row = next((idx + 1 for idx, v in enumerate(col_a) if str(v).strip().lower() == "total"), None)
 
-            worksheet.insert_row(fila, index=insert_at, value_input_option="USER_ENTERED")
-            # Tras insertar, Total se desplaza una fila hacia abajo
-            new_total_row = total_row + 1
-            _actualizar_formulas_total(worksheet, new_total_row)
-            logging.info(f"[Google Sheets] Fila insertada en {insert_at} (Total en {new_total_row}): {inspeccion.matricula}")
-        else:
-            last = len(col_a)
-            while last > 0 and not str(col_a[last - 1]).strip():
-                last -= 1
-            new_data_row = last + 1
-            worksheet.update(f"A{new_data_row}", [fila])
-            logging.info(f"[Google Sheets] Fila añadida al final: {inspeccion.matricula}")
+            if total_row:
+                insert_at = total_row
+                for idx in range(total_row - 2, 0, -1):
+                    if idx < len(col_a) and str(col_a[idx]).strip():
+                        insert_at = idx + 2
+                        break
 
-    except Exception as e:
-        logging.warning(f"[Google Sheets] Error al registrar {getattr(inspeccion, 'matricula', '?')}: {e}")
+                worksheet.insert_row(fila, index=insert_at, value_input_option="USER_ENTERED")
+                new_total_row = total_row + 1
+                _actualizar_formulas_total(worksheet, new_total_row)
+            else:
+                last = len(col_a)
+                while last > 0 and not str(col_a[last - 1]).strip():
+                    last -= 1
+                new_data_row = last + 1
+                worksheet.update(f"A{new_data_row}", [fila], value_input_option="USER_ENTERED")
+
+            # Verificación final para detectar fallos silenciosos de inserción.
+            if _existe_fecha_matricula(worksheet, fecha_str, matricula):
+                logging.info(
+                    f"[Google Sheets] Fila registrada ({worksheet.title}) intento={intento}: "
+                    f"{matricula} · fecha={fecha_str}"
+                )
+                return True
+
+            raise RuntimeError("Inserción ejecutada pero la fila no aparece al verificar")
+        except Exception as e:
+            logging.warning(
+                f"[Google Sheets] Error al registrar {matricula} intento {intento}/3: {e}"
+            )
+
+    logging.error(
+        f"[Google Sheets] Fallo definitivo al registrar {matricula} · fecha={fecha_str} tras 3 intentos"
+    )
+    return False
 
 
 def actualizar_inspeccion(inspeccion):
@@ -955,9 +994,9 @@ def eliminar_maquinaria(nombre):
 
 ASISTENCIA_DIAS_FILA_INICIO = 2
 ASISTENCIA_TOTAL_LABELS = {
-    "Total Presente": "P",
-    "Total Ausente": "A",
-    "Total Vacaciones": "V",
+    "Total Presente": "Presente",
+    "Total Ausente": "Ausente",
+    "Total Vacaciones": "Vacaciones",
 }
 
 
@@ -980,23 +1019,100 @@ def _col_letter(col_idx):
     return gspread.utils.rowcol_to_a1(1, col_idx).rstrip("1")
 
 
-def _escribir_cabecera_asistencia(worksheet, empleados_nombres):
+DIAS_SEMANA_ES = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+COLOR_FIN_DE_SEMANA = {"red": 0.90, "green": 0.90, "blue": 0.93}
+COLOR_FESTIVO = {"red": 0.99, "green": 0.90, "blue": 0.80}
+
+# Festivos de Vélez-Málaga (Andalucía): nacionales + autonómicos (Decreto 101/2025, BOJA)
+# + los 2 festivos locales del municipio (Resolución 6-oct-2025, BOJA). Clave: año -> {(mes,dia): nombre}.
+FESTIVOS_VELEZ_MALAGA = {
+    2026: {
+        (1, 1): "Año Nuevo",
+        (1, 6): "Epifanía del Señor",
+        (2, 28): "Día de Andalucía",
+        (4, 2): "Jueves Santo",
+        (4, 3): "Viernes Santo",
+        (5, 1): "Fiesta del Trabajo",
+        (7, 24): "Fiesta Local (Vélez-Málaga)",
+        (8, 15): "Asunción de la Virgen",
+        (10, 2): "Fiesta Local (Vélez-Málaga)",
+        (10, 12): "Fiesta Nacional de España",
+        (11, 2): "Todos los Santos",
+        (12, 7): "Día de la Constitución",
+        (12, 8): "Inmaculada Concepción",
+        (12, 25): "Navidad",
+    },
+}
+
+
+def _festivos_mes(anio, mes):
+    """Devuelve {dia: nombre_festivo} para el mes indicado, si hay calendario cargado para ese año."""
+    festivos_anio = FESTIVOS_VELEZ_MALAGA.get(anio, {})
+    return {dia: nombre for (m, dia), nombre in festivos_anio.items() if m == mes}
+
+
+def _dias_semana_mes(anio, mes):
+    """Devuelve {dia: texto} con el día de la semana (y el nombre del festivo si lo hay)
+    para los días reales del mes (1..N)."""
+    ultimo = _calendar.monthrange(anio, mes)[1]
+    festivos = _festivos_mes(anio, mes)
+    resultado = {}
+    for dia in range(1, ultimo + 1):
+        nombre_dia = DIAS_SEMANA_ES[date(anio, mes, dia).weekday()]
+        festivo = festivos.get(dia)
+        resultado[dia] = f"{nombre_dia} · {festivo}" if festivo else nombre_dia
+    return resultado
+
+
+def _colorear_fines_de_semana(worksheet, anio, mes, num_cols):
+    """Pinta de fondo las filas de fin de semana (gris) y festivos (naranja claro,
+    con prioridad si un festivo cae en fin de semana)."""
+    ultimo = _calendar.monthrange(anio, mes)[1]
+    festivos = _festivos_mes(anio, mes)
+    requests = []
+    for dia in range(1, ultimo + 1):
+        es_festivo = dia in festivos
+        es_finde = date(anio, mes, dia).weekday() >= 5  # 5=sábado, 6=domingo
+        if not es_festivo and not es_finde:
+            continue
+        color = COLOR_FESTIVO if es_festivo else COLOR_FIN_DE_SEMANA
+        fila = ASISTENCIA_DIAS_FILA_INICIO - 1 + dia
+        requests.append({
+            "repeatCell": {
+                "range": {
+                    "sheetId": worksheet.id,
+                    "startRowIndex": fila - 1,
+                    "endRowIndex": fila,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": num_cols,
+                },
+                "cell": {"userEnteredFormat": {"backgroundColor": color}},
+                "fields": "userEnteredFormat.backgroundColor",
+            }
+        })
+    if requests:
+        worksheet.spreadsheet.batch_update({"requests": requests})
+
+
+def _escribir_cabecera_asistencia(worksheet, empleados_nombres, anio, mes):
     # Limpia cualquier contenido previo (evita mezclar con una rejilla manual antigua)
     worksheet.clear()
 
-    header = ["Día"] + list(empleados_nombres)
+    header = ["Día", "Día semana"] + list(empleados_nombres)
     fila_fin = ASISTENCIA_DIAS_FILA_INICIO + 30  # última fila de días (31)
     fila_labels = fila_fin + 2  # deja una fila en blanco antes de los totales
+    dias_semana = _dias_semana_mes(anio, mes)
 
     updates = [
         {"range": "A1", "values": [header]},
         {"range": f"A{ASISTENCIA_DIAS_FILA_INICIO}:A{fila_fin}", "values": [[str(d)] for d in range(1, 32)]},
+        {"range": f"B{ASISTENCIA_DIAS_FILA_INICIO}:B{fila_fin}", "values": [[dias_semana.get(d, "")] for d in range(1, 32)]},
     ]
     for offset, label in enumerate(ASISTENCIA_TOTAL_LABELS):
         updates.append({"range": f"A{fila_labels + offset}", "values": [[label]]})
 
     for idx, _nombre in enumerate(empleados_nombres):
-        col = _col_letter(idx + 2)
+        col = _col_letter(idx + 3)  # C, D, E... (B es ahora "Día semana")
         for offset, (label, codigo) in enumerate(ASISTENCIA_TOTAL_LABELS.items()):
             # separador ";" porque la hoja usa configuración regional es_ES
             formula = f'=COUNTIF({col}{ASISTENCIA_DIAS_FILA_INICIO}:{col}{fila_fin};"{codigo}")'
@@ -1004,9 +1120,29 @@ def _escribir_cabecera_asistencia(worksheet, empleados_nombres):
 
     # Una sola petición batch en vez de ~26 individuales (evita 429 de cuota)
     worksheet.batch_update(updates, value_input_option="USER_ENTERED")
+    _colorear_fines_de_semana(worksheet, anio, mes, len(header))
 
 
-def preparar_hoja_asistencia_mes(mes, empleados_nombres, spreadsheet=None, forzar=False):
+def _asegurar_columna_dia_semana(worksheet, anio, mes):
+    """Retrofit no destructivo: si la pestaña ya existía sin la columna 'Día semana' la inserta;
+    si ya existe, refresca su texto (día semana + festivo) y el coloreado sin tocar P/A/V/asistencia."""
+    header = worksheet.row_values(1)
+    fila_fin = ASISTENCIA_DIAS_FILA_INICIO + 30
+    dias_semana = _dias_semana_mes(anio, mes)
+
+    if len(header) > 1 and header[1].strip().lower() == "día semana":
+        valores = [[dias_semana.get(d, "")] for d in range(1, 32)]
+        worksheet.update(f"B{ASISTENCIA_DIAS_FILA_INICIO}:B{fila_fin}", valores, value_input_option="USER_ENTERED")
+    else:
+        columna = ["Día semana"] + [dias_semana.get(d, "") for d in range(1, 32)]
+        worksheet.insert_cols([columna], col=2, value_input_option="USER_ENTERED")
+        header = worksheet.row_values(1)
+        logging.info("[Sheets Asistencia] Columna 'Día semana' añadida retroactivamente")
+
+    _colorear_fines_de_semana(worksheet, anio, mes, len(header))
+
+
+def preparar_hoja_asistencia_mes(mes, empleados_nombres, spreadsheet=None, forzar=False, anio=None):
     """Crea (o normaliza) la pestaña del mes indicado con cabecera, días 1-31 y fórmulas Total.
     `mes` acepta int (1-12) o nombre en español. No pisa datos si la pestaña ya tiene cabecera,
     salvo que `forzar=True`.
@@ -1017,13 +1153,20 @@ def preparar_hoja_asistencia_mes(mes, empleados_nombres, spreadsheet=None, forza
     if own_spreadsheet:
         _, spreadsheet = _get_asistencia_client_spreadsheet()
 
-    mes_nombre = MESES_ES[(mes - 1) % 12] if isinstance(mes, int) else mes
+    if isinstance(mes, int):
+        mes_int = mes
+        mes_nombre = MESES_ES[(mes - 1) % 12]
+    else:
+        mes_nombre = mes
+        mes_int = (MESES_ES.index(mes) + 1) if mes in MESES_ES else datetime.now().month
+    anio = anio or datetime.now().year
 
     try:
         ws = spreadsheet.worksheet(mes_nombre)
         if not forzar:
             cabecera_actual = ws.row_values(1)
             if cabecera_actual and cabecera_actual[0].strip().lower() == "día":
+                _asegurar_columna_dia_semana(ws, anio, mes_int)
                 return ws  # ya inicializada, no tocar datos existentes
     except gspread.WorksheetNotFound:
         hojas = spreadsheet.worksheets()
@@ -1031,9 +1174,9 @@ def preparar_hoja_asistencia_mes(mes, empleados_nombres, spreadsheet=None, forza
             ws = hojas[0]
             ws.update_title(mes_nombre)
         else:
-            ws = spreadsheet.add_worksheet(title=mes_nombre, rows=40, cols=max(12, len(empleados_nombres) + 2))
+            ws = spreadsheet.add_worksheet(title=mes_nombre, rows=40, cols=max(13, len(empleados_nombres) + 3))
 
-    _escribir_cabecera_asistencia(ws, empleados_nombres)
+    _escribir_cabecera_asistencia(ws, empleados_nombres, anio, mes_int)
     logging.info(f"[Sheets Asistencia] Pestaña preparada: {mes_nombre}")
     return ws
 
@@ -1043,7 +1186,7 @@ def preparar_hojas_asistencia_anio(empleados_nombres, anio=None):
     try:
         _, spreadsheet = _get_asistencia_client_spreadsheet()
         for mes in range(1, 13):
-            preparar_hoja_asistencia_mes(mes, empleados_nombres, spreadsheet=spreadsheet)
+            preparar_hoja_asistencia_mes(mes, empleados_nombres, spreadsheet=spreadsheet, anio=anio)
         logging.info("[Sheets Asistencia] 12 pestañas preparadas")
     except Exception as e:
         logging.warning(f"[Sheets Asistencia] Error preparando pestañas del año: {e}")
@@ -1103,7 +1246,7 @@ def marcar_asistencia(empleado_nombre, fecha, codigo):
     try:
         _, spreadsheet = _get_asistencia_client_spreadsheet()
         mes_nombre = MESES_ES[fecha.month - 1]
-        ws = preparar_hoja_asistencia_mes(mes_nombre, [empleado_nombre], spreadsheet=spreadsheet)
+        ws = preparar_hoja_asistencia_mes(mes_nombre, [empleado_nombre], spreadsheet=spreadsheet, anio=fecha.year)
 
         celda = _celda_asistencia(ws, empleado_nombre, fecha)
         if not celda:
@@ -1134,7 +1277,7 @@ def limpiar_asistencia(empleado_nombre, fecha, codigo_esperado):
             return
         col = _col_letter(col_idx)
         valor_actual = ws.acell(f"{col}{fila}").value
-        if str(valor_actual or "").strip().upper() == codigo_esperado:
+        if str(valor_actual or "").strip().lower() == codigo_esperado.strip().lower():
             ws.update(f"{col}{fila}", [[""]], value_input_option="USER_ENTERED")
             logging.info(f"[Sheets Asistencia] {empleado_nombre} {fecha.isoformat()} limpiado")
     except Exception as e:
@@ -1158,7 +1301,7 @@ def sincronizar_asistencia_mes(mes, anio, datos_por_empleado, empleados_nombres)
     """
     try:
         _, spreadsheet = _get_asistencia_client_spreadsheet()
-        ws = preparar_hoja_asistencia_mes(mes, empleados_nombres, spreadsheet=spreadsheet)
+        ws = preparar_hoja_asistencia_mes(mes, empleados_nombres, spreadsheet=spreadsheet, anio=anio)
 
         # Asegurar columna para cada empleado activo (por si alguno se añadió después de crear la hoja)
         for nombre in empleados_nombres:
@@ -1169,11 +1312,11 @@ def sincronizar_asistencia_mes(mes, anio, datos_por_empleado, empleados_nombres)
         fila_fin = ASISTENCIA_DIAS_FILA_INICIO + 30
         matriz = []
         for dia in range(1, 32):
-            fila = [datos_por_empleado.get(nombre, {}).get(dia, "") for nombre in header[1:]]
+            fila = [datos_por_empleado.get(nombre, {}).get(dia, "") for nombre in header[2:]]
             matriz.append(fila)
 
         ultima_col = _col_letter(len(header))
-        rango = f"B{ASISTENCIA_DIAS_FILA_INICIO}:{ultima_col}{fila_fin}"
+        rango = f"C{ASISTENCIA_DIAS_FILA_INICIO}:{ultima_col}{fila_fin}"
         ws.update(rango, matriz, value_input_option="USER_ENTERED")
 
         mes_nombre = MESES_ES[(mes - 1) % 12] if isinstance(mes, int) else mes
@@ -1186,13 +1329,13 @@ def sincronizar_asistencia_mes(mes, anio, datos_por_empleado, empleados_nombres)
 
 def marcar_ausencia_sheets(empleado_nombre, tipo, fecha_inicio, fecha_fin):
     """Marca V/A en la hoja de asistencia para cada día del rango de una ausencia aprobada."""
-    codigo = CODIGO_AUSENCIA.get(tipo, "A")
+    codigo = CODIGO_AUSENCIA.get(tipo, "Ausente")
     for dia in _rango_fechas(fecha_inicio, fecha_fin):
         marcar_asistencia(empleado_nombre, dia, codigo)
 
 
 def revertir_ausencia_sheets(empleado_nombre, tipo, fecha_inicio, fecha_fin):
     """Limpia las celdas V/A marcadas por una ausencia que se rechaza/elimina/deja de estar aprobada."""
-    codigo = CODIGO_AUSENCIA.get(tipo, "A")
+    codigo = CODIGO_AUSENCIA.get(tipo, "Ausente")
     for dia in _rango_fechas(fecha_inicio, fecha_fin):
         limpiar_asistencia(empleado_nombre, dia, codigo)
