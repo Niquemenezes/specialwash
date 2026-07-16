@@ -1179,9 +1179,26 @@ export default function EstadoCochesPage() {
                         className="ec-card-btn"
                         onClick={() => setEditandoRow(r)}
                         style={{ background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.25)", color: "var(--sw-accent)" }}
+                        title="Editar solo trabajos/partes"
                       >
-                        ✎ Editar
+                        🛠 Trabajos
                       </button>
+                      <Link
+                        to={`/inspeccion-recepcion?editId=${r.id}`}
+                        className="ec-card-btn"
+                        style={{
+                          background: "rgba(56,189,248,0.1)",
+                          border: "1px solid rgba(56,189,248,0.35)",
+                          color: "#38bdf8",
+                          textDecoration: "none",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                        title="Editar inspección completa (incluye fotos y datos del vehículo)"
+                      >
+                        ✎ Editar inspección
+                      </Link>
                     </div>
                   </div>
                 </div>

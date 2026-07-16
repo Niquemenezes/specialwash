@@ -36,8 +36,13 @@ backend/google_credentials.json
 *.bak
 *.bak.*
 *.bak_*
+*.bak-*
 *.swp
 *.swo
 .idea/
 *.tar.gz
 deploy-hoy-*.txt
+
+# Artefactos de build
+frontend/build.zip
+*.zip

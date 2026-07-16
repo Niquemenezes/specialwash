@@ -1684,6 +1684,19 @@ button {
   background: color-mix(in srgb, var(--sw-accent, #d4af37) 5%, transparent);
 }
 
+.sw-ent-actions-col {
+  width: 156px;
+  min-width: 156px;
+}
+
+.sw-ent-actions-cell {
+  min-width: 156px;
+  white-space: nowrap;
+  text-align: right;
+  padding-left: 0.45rem !important;
+  padding-right: 0.45rem !important;
+}
+
 /* ── Botones icono de fila ────────────────────────────────────── */
 .sw-ent-row-actions {
   display: inline-flex;

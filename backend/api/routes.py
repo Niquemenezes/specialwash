@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import (
     jwt_required, get_jwt_identity
 )
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, or_
 from datetime import datetime, timedelta
 import json
 import os
@@ -378,6 +378,54 @@ def clientes_list():
         }
         for c in clientes
     ])
+
+
+@api.route("/clientes/<int:cid>/historial", methods=["GET"])
+@role_required("administrador")
+def clientes_historial(cid):
+    """
+    Historial de trabajos por cliente.
+    Devuelve inspecciones previas (incluyendo fechas y trabajos realizados),
+    asociadas por cliente_id o por cualquiera de sus coches.
+    """
+    cliente = Cliente.query.get_or_404(cid)
+    coche_ids = [car.id for car in (cliente.coches or [])]
+
+    filtros = [InspeccionRecepcion.cliente_id == cid]
+    if coche_ids:
+        filtros.append(InspeccionRecepcion.coche_id.in_(coche_ids))
+
+    inspecciones = (
+        InspeccionRecepcion.query
+        .filter(or_(*filtros))
+        .order_by(InspeccionRecepcion.fecha_inspeccion.desc(), InspeccionRecepcion.id.desc())
+        .all()
+    )
+
+    historial = []
+    for insp in inspecciones:
+        item = {
+            "inspeccion_id": insp.id,
+            "cliente_id": cid,
+            "coche_id": insp.coche_id,
+            "coche": insp.coche.to_dict() if insp.coche else None,
+            "coche_descripcion": insp.coche_descripcion,
+            "matricula": insp.matricula,
+            "entregado": bool(insp.entregado),
+            "fecha_inspeccion": insp.fecha_inspeccion.isoformat() if insp.fecha_inspeccion else None,
+            "fecha_entrega": insp.fecha_entrega.isoformat() if insp.fecha_entrega else None,
+            "trabajos_realizados": insp.trabajos_realizados,
+            "entrega_observaciones": insp.entrega_observaciones,
+            "servicios_aplicados": json.loads(insp.servicios_aplicados or "[]"),
+            "estado_cobro": insp.cobro_estado,
+        }
+        historial.append(item)
+
+    return jsonify({
+        "cliente": cliente.to_dict(),
+        "total_trabajos": len(historial),
+        "historial": historial,
+    }), 200
 
 
 @api.route("/clientes", methods=["POST"])

@@ -20,6 +20,25 @@ export function createInspeccionActions({ apiFetch }) {
       try { return await apiFetch(`/api/inspeccion-recepcion/${id}`); }
       catch (err) { console.error("getInspeccion:", err); throw err; }
     },
+    getHistorialResumenCliente: async (clienteId) => {
+      try {
+        return await apiFetch(`/api/inspeccion-recepcion/clientes/${clienteId}/historial-resumen`);
+      } catch (err) {
+        console.error("getHistorialResumenCliente:", err);
+        throw err;
+      }
+    },
+    getHistorialResumenPorMatricula: async (matricula, options = {}) => {
+      try {
+        const params = new URLSearchParams();
+        if (options?.excluirInspeccionId) params.append("excluir_inspeccion_id", String(options.excluirInspeccionId));
+        const suffix = params.toString() ? `?${params.toString()}` : "";
+        return await apiFetch(`/api/inspeccion-recepcion/historial-coche/${encodeURIComponent(matricula)}/resumen${suffix}`);
+      } catch (err) {
+        console.error("getHistorialResumenPorMatricula:", err);
+        throw err;
+      }
+    },
     actualizarInspeccion: async (id, payload) => {
       try { return await apiFetch(`/api/inspeccion-recepcion/${id}`, { method: "PUT", body: payload }); }
       catch (err) { console.error("actualizarInspeccion:", err); throw err; }

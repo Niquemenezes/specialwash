@@ -86,27 +86,6 @@ const mapServicioForPayload = (servicio) => {
   };
 };
 
-const normalizeText = (value) =>
-  String(value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase();
-
-const normalizePhoneDigits = (value) => String(value || "").replace(/\D/g, "");
-const sameClientName = (cliente, nombre) => {
-  if (!cliente) return false;
-  const nombreManual = normalizeText(nombre);
-  if (!nombreManual) return true;
-  return normalizeText(cliente?.nombre) === nombreManual;
-};
-const sameClientPhone = (cliente, telefono) => {
-  if (!cliente) return false;
-  const telefonoManual = normalizePhoneDigits(telefono);
-  if (!telefonoManual) return true;
-  return normalizePhoneDigits(cliente?.telefono) === telefonoManual;
-};
-
 const formatCocheDescripcion = (coche) => {
   if (!coche) return "";
   return [coche?.marca, coche?.modelo].filter(Boolean).join(" ").trim();
@@ -157,6 +136,8 @@ const InspeccionRecepcionPage = () => {
   const [servicioCatalogoSeleccionado, setServicioCatalogoSeleccionado] = useState(EMPTY_CATALOG_SELECTION);
   const [tamanoVehiculo, setTamanoVehiculo] = useState(""); // "turismo" | "suv" | "todoterreno" | ""
   const [clienteVinculado, setClienteVinculado] = useState(null);
+  const [historialClienteResumen, setHistorialClienteResumen] = useState(null);
+  const [historialClienteCargando, setHistorialClienteCargando] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const rol = getStoredRol();
   const isAdmin = rol === "administrador";
@@ -270,6 +251,50 @@ const InspeccionRecepcionPage = () => {
 
   useEffect(() => {
     let active = true;
+    const matricula = String(formData.matricula || "").trim().toUpperCase();
+    const esConcesionario = Boolean(formData.es_concesionario);
+    const excluirInspeccionId = Number.parseInt(inspeccionEditandoId || "", 10);
+
+    if (esConcesionario || matricula.length < 4) {
+      setHistorialClienteResumen(null);
+      setHistorialClienteCargando(false);
+      return;
+    }
+
+    setHistorialClienteCargando(true);
+    actions.getHistorialResumenPorMatricula(matricula, {
+      excluirInspeccionId: Number.isFinite(excluirInspeccionId) && excluirInspeccionId > 0 ? excluirInspeccionId : undefined,
+    })
+      .then((data) => {
+        if (!active) return;
+        setHistorialClienteResumen(data || null);
+      })
+      .catch(() => {
+        if (!active) return;
+        setHistorialClienteResumen(null);
+      })
+      .finally(() => {
+        if (active) setHistorialClienteCargando(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [actions, formData.matricula, formData.es_concesionario, inspeccionEditandoId]);
+
+  const formatHistorialDate = (value) => {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+    return new Intl.DateTimeFormat("es-ES", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(date);
+  };
+
+  useEffect(() => {
+    let active = true;
     (async () => {
       try {
         const clientes = await actions.getClientes();
@@ -284,73 +309,18 @@ const InspeccionRecepcionPage = () => {
     };
   }, [actions]);
 
-  const buscarClientePorNombre = (nombre) => {
-    const nombreNormalizado = normalizeText(nombre);
-    if (!nombreNormalizado) return null;
-    return (
-      clientesDisponibles.find((c) =>
-        normalizeText(c?.nombre) === nombreNormalizado ||
-        (c?.nombre_fiscal && normalizeText(c?.nombre_fiscal) === nombreNormalizado)
-      ) || null
-    );
-  };
-
-  const buscarClientePorTelefono = (telefono) => {
-    const telefonoDigits = normalizePhoneDigits(telefono);
-    if (!telefonoDigits) return null;
-
-    const coincidencias = clientesDisponibles.filter((c) => {
-      const candidatoDigits = normalizePhoneDigits(c?.telefono);
-      if (!candidatoDigits) return false;
-      return (
-        candidatoDigits === telefonoDigits ||
-        candidatoDigits.startsWith(telefonoDigits) ||
-        telefonoDigits.startsWith(candidatoDigits)
-      );
-    });
-
-    if (coincidencias.length === 1) return coincidencias[0];
-
-    const exacta = coincidencias.find((c) => normalizePhoneDigits(c?.telefono) === telefonoDigits);
-    return exacta || null;
-  };
-
-
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     const nextValue = type === "checkbox" ? checked : value;
 
-    if (name === "cliente_nombre") {
-      const clienteCoincidente = buscarClientePorNombre(value);
-      setClienteVinculado(clienteCoincidente || null);
+    if (name === "cliente_nombre" || name === "cliente_telefono") {
+      setClienteVinculado(null);
+      setCocheExistenteSeleccionado("");
       setFormData((prev) => ({
         ...prev,
-        cliente_id: clienteCoincidente?.id ? String(clienteCoincidente.id) : "",
-        cliente_nombre: value,
-        cliente_telefono: !prev.cliente_telefono && clienteCoincidente?.telefono
-          ? clienteCoincidente.telefono
-          : prev.cliente_telefono,
+        cliente_id: "",
+        [name]: nextValue,
       }));
-      setCocheExistenteSeleccionado("");
-      return;
-    }
-
-    if (name === "cliente_telefono") {
-      const clienteCoincidente = buscarClientePorTelefono(value);
-      setFormData((prev) => {
-        const vincularCliente = Boolean(
-          clienteCoincidente?.id && sameClientName(clienteCoincidente, prev.cliente_nombre)
-        );
-        return {
-          ...prev,
-          cliente_id: vincularCliente ? String(clienteCoincidente.id) : "",
-          cliente_nombre: !prev.cliente_nombre && vincularCliente
-            ? (clienteCoincidente?.nombre || "")
-            : prev.cliente_nombre,
-          cliente_telefono: value,
-        };
-      });
-      setCocheExistenteSeleccionado("");
       return;
     }
 
@@ -651,7 +621,7 @@ const InspeccionRecepcionPage = () => {
 
       const payload = {
         ...formData,
-        cliente_id: formData.cliente_id ? Number.parseInt(formData.cliente_id, 10) : null,
+        cliente_id: null,
         kilometros,
         servicios_aplicados: serviciosPayload
       };
@@ -924,37 +894,53 @@ const InspeccionRecepcionPage = () => {
 
                 <div className="col-12 col-md-6">
                   <label style={_lbl}>Nombre del cliente <span style={{ color: "#f87171" }}>*</span></label>
-                  <input type="text" className="form-control" name="cliente_nombre" value={formData.cliente_nombre} onChange={handleInputChange} placeholder="Ej: Juan Pérez / Flexicar / YokaMotril" list="clientes-existentes" autoComplete="off" required style={_inp} />
-                  <datalist id="clientes-existentes">
-                    {clientesDisponibles.flatMap((c) => {
-                      const opts = [String(c?.nombre || "").trim()];
-                      if (c?.nombre_fiscal && c.nombre_fiscal !== c.nombre) opts.push(String(c.nombre_fiscal).trim());
-                      return opts;
-                    }).filter((n, i, a) => n && a.indexOf(n) === i).sort((a, b) => a.localeCompare(b, "es")).map((n) => (<option key={n} value={n} />))}
-                  </datalist>
-                  {clienteVinculado ? (
-                    clienteVinculado.nombre_fiscal && clienteVinculado.nombre_fiscal !== clienteVinculado.nombre ? (
-                      <small style={{ color: "#22c55e", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>
-                        ✓ Cliente vinculado · Nombre fiscal: <strong>{clienteVinculado.nombre_fiscal}</strong> (se usará en albaranes)
-                      </small>
-                    ) : (
-                      <small style={{ color: "#22c55e", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>
-                        ✓ Cliente existente vinculado
-                      </small>
-                    )
-                  ) : (
-                    <small style={{ color: "var(--sw-muted)", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>Escribe el nombre o selecciónalo de la lista si ya existe.</small>
-                  )}
+                  <input type="text" className="form-control" name="cliente_nombre" value={formData.cliente_nombre} onChange={handleInputChange} placeholder="Ej: Juan Pérez / Flexicar / YokaMotril" autoComplete="off" required style={_inp} />
+                  <small style={{ color: "var(--sw-muted)", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>Dato manual obligatorio. No se vincula automáticamente por nombre.</small>
                 </div>
 
                 <div className="col-12 col-md-6">
                   <label style={_lbl}>Teléfono del cliente <span style={{ color: "var(--sw-danger)" }}>*</span></label>
-                  <input type="tel" className="form-control" name="cliente_telefono" value={formData.cliente_telefono} onChange={handleInputChange} placeholder="Ej: 600123123" list="telefonos-existentes" required style={_inp} />
-                  <datalist id="telefonos-existentes">
-                    {clientesDisponibles.map((c) => ({ id: c?.id, telefono: String(c?.telefono || "").trim(), nombre: String(c?.nombre || "").trim() })).filter((i) => i.telefono).sort((a, b) => a.telefono.localeCompare(b.telefono, "es")).map((i) => (<option key={`${i.id}-${i.telefono}`} value={i.telefono}>{i.nombre}</option>))}
-                  </datalist>
-                  <small style={{ color: "var(--sw-muted)", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>Al escribir un teléfono existente se vincula el cliente automáticamente.</small>
+                  <input type="tel" className="form-control" name="cliente_telefono" value={formData.cliente_telefono} onChange={handleInputChange} placeholder="Ej: 600123123" required style={_inp} />
+                  <small style={{ color: "var(--sw-muted)", fontSize: "0.74rem", display: "block", marginTop: "0.35rem" }}>Dato manual obligatorio. No se vincula automáticamente por teléfono.</small>
                 </div>
+
+                {historialClienteCargando && (
+                  <div className="col-12">
+                    <div style={{
+                      borderRadius: "10px",
+                      padding: "0.7rem 0.9rem",
+                      border: "1px solid color-mix(in srgb, var(--sw-accent) 30%, transparent)",
+                      background: "color-mix(in srgb, var(--sw-accent) 8%, var(--sw-surface))",
+                      color: "var(--sw-muted)",
+                      fontSize: "0.82rem",
+                    }}>
+                      Revisando historial previo del cliente...
+                    </div>
+                  </div>
+                )}
+
+                {!historialClienteCargando && Number(historialClienteResumen?.total_trabajos || 0) > 0 && (
+                  <div className="col-12">
+                    <div style={{
+                      borderRadius: "10px",
+                      padding: "0.85rem 1rem",
+                      border: "1px solid rgba(245,158,11,0.45)",
+                      background: "rgba(245,158,11,0.12)",
+                      color: "#fcd34d",
+                    }}>
+                      <div style={{ fontWeight: 700, fontSize: "0.88rem", marginBottom: "0.35rem" }}>
+                        ⚠ Este coche ({historialClienteResumen?.matricula || String(formData.matricula || "").trim().toUpperCase()}) ya tiene {historialClienteResumen.total_trabajos} trabajo{historialClienteResumen.total_trabajos !== 1 ? "s" : ""} previo{historialClienteResumen.total_trabajos !== 1 ? "s" : ""} en particulares
+                      </div>
+                      {historialClienteResumen.ultimo_trabajo && (
+                        <div style={{ fontSize: "0.8rem", color: "#fde68a" }}>
+                          Último trabajo: <strong>{historialClienteResumen.ultimo_trabajo.trabajo || "Trabajo registrado"}</strong>
+                          {" · "}Fecha: {formatHistorialDate(historialClienteResumen.ultimo_trabajo.fecha_entrega || historialClienteResumen.ultimo_trabajo.fecha_inspeccion)}
+                          {historialClienteResumen.ultimo_trabajo.matricula ? ` · Matrícula: ${historialClienteResumen.ultimo_trabajo.matricula}` : ""}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="col-12 col-md-6">
                   <label style={_lbl}>Coche (Marca/Modelo) <span style={{ color: "var(--sw-danger)" }}>*</span></label>

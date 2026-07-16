@@ -33,6 +33,20 @@ _CLOUDINARY_READY = None
 _HORARIO_SCHEMA_READY = False
 _MAX_DESCANSO_MINUTOS = 60
 
+# Cuentas de prueba/sistema que no son personal real y no deben aparecer en la
+# hoja de asistencia (además de cualquier usuario con rol "administrador").
+EMPLEADOS_EXCLUIDOS_ASISTENCIA = {"aldair2", "carlos2", "general"}
+
+
+def _cuenta_para_asistencia(empleado) -> bool:
+    if not empleado:
+        return False
+    if (empleado.rol or "").strip().lower() == "administrador":
+        return False
+    if (empleado.nombre or "").strip().lower() in EMPLEADOS_EXCLUIDOS_ASISTENCIA:
+        return False
+    return True
+
 
 def _ensure_registro_horario_schema() -> None:
     global _HORARIO_SCHEMA_READY
@@ -323,8 +337,8 @@ def fichar():
         try:
             from services.google_sheets_service import marcar_asistencia as _sheets_marcar_asistencia
             empleado = User.query.get(empleado_id)
-            if empleado:
-                _sheets_marcar_asistencia(empleado.nombre, hoy, "P")
+            if _cuenta_para_asistencia(empleado):
+                _sheets_marcar_asistencia(empleado.nombre, hoy, "Presente")
         except Exception as e:
             import logging as _log
             _log.warning(f"[Google Sheets] Error al marcar asistencia: {e}")
@@ -674,7 +688,7 @@ def crear_ausencia():
         try:
             from services.google_sheets_service import marcar_ausencia_sheets as _sheets_marcar_ausencia
             empleado = User.query.get(ausencia.empleado_id)
-            if empleado:
+            if _cuenta_para_asistencia(empleado):
                 _sheets_marcar_ausencia(empleado.nombre, ausencia.tipo, ausencia.fecha_inicio, ausencia.fecha_fin)
         except Exception as e:
             import logging as _log
@@ -710,11 +724,11 @@ def editar_ausencia(ausencia_id):
     try:
         from services.google_sheets_service import marcar_ausencia_sheets as _sheets_marcar, revertir_ausencia_sheets as _sheets_revertir
         empleado_previo = User.query.get(empleado_id_previo)
-        if estado_previo == "aprobado" and empleado_previo:
+        if estado_previo == "aprobado" and _cuenta_para_asistencia(empleado_previo):
             _sheets_revertir(empleado_previo.nombre, tipo_previo, fecha_inicio_previa, fecha_fin_previa)
         if ausencia.estado == "aprobado":
             empleado = User.query.get(ausencia.empleado_id)
-            if empleado:
+            if _cuenta_para_asistencia(empleado):
                 _sheets_marcar(empleado.nombre, ausencia.tipo, ausencia.fecha_inicio, ausencia.fecha_fin)
     except Exception as e:
         import logging as _log
@@ -748,7 +762,7 @@ def eliminar_ausencia(ausencia_id):
         try:
             from services.google_sheets_service import revertir_ausencia_sheets as _sheets_revertir
             empleado = User.query.get(empleado_id_previo)
-            if empleado:
+            if _cuenta_para_asistencia(empleado):
                 _sheets_revertir(empleado.nombre, tipo_previo, fecha_inicio_previa, fecha_fin_previa)
         except Exception as e:
             import logging as _log
@@ -772,7 +786,7 @@ def sincronizar_asistencia():
     fecha_inicio = date(anio, mes, 1)
     fecha_fin = date(anio, mes, ultimo_dia)
 
-    empleados = User.query.filter_by(activo=True).order_by(User.nombre).all()
+    empleados = [e for e in User.query.filter_by(activo=True).order_by(User.nombre).all() if _cuenta_para_asistencia(e)]
     empleados_por_id = {e.id: e.nombre for e in empleados}
     empleados_nombres = [e.nombre for e in empleados]
 
@@ -790,7 +804,7 @@ def sincronizar_asistencia():
         nombre = empleados_por_id.get(a.empleado_id)
         if not nombre:
             continue
-        codigo = CODIGO_AUSENCIA.get(a.tipo, "A")
+        codigo = CODIGO_AUSENCIA.get(a.tipo, "Ausente")
         d = max(a.fecha_inicio, fecha_inicio)
         fin = min(a.fecha_fin, fecha_fin)
         while d <= fin:
@@ -805,7 +819,7 @@ def sincronizar_asistencia():
     for r in registros:
         nombre = empleados_por_id.get(r.empleado_id)
         if nombre:
-            datos[nombre][r.fecha.day] = "P"
+            datos[nombre][r.fecha.day] = "Presente"
 
     ok = sincronizar_asistencia_mes(mes, anio, datos, empleados_nombres)
     if not ok:

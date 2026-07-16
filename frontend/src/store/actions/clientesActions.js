@@ -23,6 +23,15 @@ export function createClientesActions({ apiFetch, getStore, setStore }) {
       try { return await apiFetch(`/api/clientes/${id}`, { method: "PUT", body: payload }); }
       catch (err) { console.error("actualizarCliente:", err); throw err; }
     },
+    getClienteHistorial: async (id) => {
+      try {
+        const data = await apiFetch(`/api/clientes/${id}/historial`);
+        return data || { cliente: null, total_trabajos: 0, historial: [] };
+      } catch (err) {
+        console.error("getClienteHistorial:", err);
+        throw err;
+      }
+    },
     eliminarCliente: async (id) => {
       try {
         await apiFetch(`/api/clientes/${id}`, { method: "DELETE" });
