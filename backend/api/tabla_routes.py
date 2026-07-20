@@ -58,7 +58,7 @@ def get_tabla_registros():
 
 @tabla_bp.route("/tabla-registros/<int:inspeccion_id>", methods=["PATCH"])
 @jwt_required()
-@role_required("administrador", "calidad")
+@role_required("administrador", "calidad", "detailing")
 def patch_tabla_registro(inspeccion_id):
     """Actualiza campos editables de la fila en la tabla de registros."""
     inspeccion = InspeccionRecepcion.query.get(inspeccion_id)

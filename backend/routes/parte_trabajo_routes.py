@@ -709,7 +709,7 @@ def sumarme_a_coche_activo(coche_id):
 
 # Crear parte de trabajo (solo admin/calidad)
 @bp.route('/parte_trabajo', methods=['POST'])
-@role_required('administrador', 'calidad')
+@role_required('administrador', 'calidad', 'detailing')
 def crear_parte_trabajo():
     data = request.get_json() or {}
 
@@ -983,7 +983,7 @@ def listar_partes_trabajo():
 
 
 @bp.route('/parte_trabajo/<int:parte_id>', methods=['PUT'])
-@role_required('administrador', 'calidad', 'encargado')
+@role_required('administrador', 'calidad', 'encargado', 'detailing')
 def editar_parte_trabajo(parte_id):
     parte = ParteTrabajo.query.get_or_404(parte_id)
     data = request.get_json() or {}
@@ -1043,7 +1043,7 @@ def editar_parte_trabajo(parte_id):
 
 
 @bp.route('/parte_trabajo/<int:parte_id>', methods=['DELETE'])
-@role_required('administrador', 'calidad', 'encargado')
+@role_required('administrador', 'calidad', 'encargado', 'detailing')
 def eliminar_parte_trabajo(parte_id):
     parte = ParteTrabajo.query.get_or_404(parte_id)
 
@@ -1295,7 +1295,7 @@ def quitar_pausa(parte_id):
 
 # Analítica: partes por empleado y semana
 @bp.route('/parte_trabajo/analitica', methods=['GET'])
-@role_required('administrador', 'calidad')
+@role_required('administrador', 'calidad', 'detailing')
 def analitica_partes():
     empleado_id = request.args.get('empleado_id')
     fecha_inicio = request.args.get('fecha_inicio')
@@ -1368,7 +1368,7 @@ def _colab_minutos_individuales(colab):
 
 
 @bp.route('/parte_trabajo/reporte_empleados', methods=['GET'])
-@role_required('administrador', 'calidad')
+@role_required('administrador', 'calidad', 'detailing')
 def reporte_empleados():
     """Tiempo trabajado por empleado con detalle de coche y tipo de tarea.
     Para partes colaborativos (pintura) usa el tiempo individual de cada colaborador,
@@ -1475,7 +1475,7 @@ def reporte_empleados():
 
 
 @bp.route('/parte_trabajo/reporte_coches', methods=['GET'])
-@role_required('administrador', 'calidad')
+@role_required('administrador', 'calidad', 'detailing')
 def reporte_coches():
     """Agrega tiempo de trabajo por vehículo.
     - minutos_persona: suma real de tiempo individual de cada trabajador (para saber cuánto costó en mano de obra)
@@ -1645,7 +1645,7 @@ def siguiente_parte_empleado(empleado_id):
 
 
 @bp.route('/parte_trabajo/coche/<int:coche_id>/urgente', methods=['PUT'])
-@role_required('administrador', 'calidad')
+@role_required('administrador', 'calidad', 'detailing')
 def set_coche_urgente(coche_id):
     data = request.get_json() or {}
     urgente = bool(data.get('urgente', False))

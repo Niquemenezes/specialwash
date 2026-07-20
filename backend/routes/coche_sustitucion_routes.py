@@ -37,7 +37,7 @@ def serve_media(filepath):
 
 
 @coche_sust_bp.route("/coche-sustitucion", methods=["GET"])
-@role_required("administrador", "calidad")
+@role_required("administrador", "calidad", "detailing")
 def listar():
     solo_activos = request.args.get("activos", "0") == "1"
     q = CocheSustitucion.query
@@ -48,14 +48,14 @@ def listar():
 
 
 @coche_sust_bp.route("/coche-sustitucion/<int:id>", methods=["GET"])
-@role_required("administrador", "calidad")
+@role_required("administrador", "calidad", "detailing")
 def obtener(id):
     item = CocheSustitucion.query.get_or_404(id)
     return jsonify(item.to_dict())
 
 
 @coche_sust_bp.route("/coche-sustitucion", methods=["POST"])
-@role_required("administrador", "calidad")
+@role_required("administrador", "calidad", "detailing")
 def crear():
     data = request.get_json() or {}
 
@@ -89,7 +89,7 @@ def crear():
 
 
 @coche_sust_bp.route("/coche-sustitucion/<int:id>/upload-carnet", methods=["POST"])
-@role_required("administrador", "calidad")
+@role_required("administrador", "calidad", "detailing")
 def upload_carnet(id):
     item = CocheSustitucion.query.get_or_404(id)
     file = request.files.get("file")
@@ -108,7 +108,7 @@ def upload_carnet(id):
 
 
 @coche_sust_bp.route("/coche-sustitucion/<int:id>/upload-foto", methods=["POST"])
-@role_required("administrador", "calidad")
+@role_required("administrador", "calidad", "detailing")
 def upload_foto(id):
     item = CocheSustitucion.query.get_or_404(id)
     file = request.files.get("file")
@@ -125,7 +125,7 @@ def upload_foto(id):
 
 
 @coche_sust_bp.route("/coche-sustitucion/<int:id>/devolucion", methods=["PUT"])
-@role_required("administrador", "calidad")
+@role_required("administrador", "calidad", "detailing")
 def registrar_devolucion(id):
     item = CocheSustitucion.query.get_or_404(id)
     if item.devuelto:
@@ -142,7 +142,7 @@ def registrar_devolucion(id):
 
 
 @coche_sust_bp.route("/coche-sustitucion/<int:id>", methods=["PUT"])
-@role_required("administrador", "calidad")
+@role_required("administrador", "calidad", "detailing")
 def editar(id):
     item = CocheSustitucion.query.get_or_404(id)
     data = request.get_json() or {}

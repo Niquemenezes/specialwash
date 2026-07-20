@@ -91,7 +91,7 @@ def _build_dashboard_sheet(wb, anio, servicios_rows, gastos_total):
     # Título
     ws.row_dimensions[2].height = 36
     ws.merge_cells("B2:G2")
-    ws["B2"].value = f"SPECIAL WASH AUTO SPA — RESUMEN {anio}"
+    ws["B2"].value = f"SW AUTO SPA — RESUMEN {anio}"
     ws["B2"].font = Font(name="Arial", bold=True, size=14, color=C_WHITE)
     ws["B2"].fill = _fill(C_DARK)
     ws["B2"].alignment = Alignment(horizontal="center", vertical="center")

@@ -77,7 +77,7 @@ export default function AlbaranDocumentoPage() {
                 width: 120, height: 60, border: "2px solid #ddd", borderRadius: 6,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: "9pt", color: "#bbb", textAlign: "center", lineHeight: 1.3,
-              }}>Special Wash<br />Studio</div>
+              }}>SW AUTO<br />SPA</div>
             )}
           </div>
 

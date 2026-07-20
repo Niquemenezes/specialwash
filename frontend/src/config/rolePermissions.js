@@ -24,23 +24,24 @@ export const ROUTE_PERMISSIONS = {
   "/login": ["*"], // Todos (sin autenticar)
 
   // ═══ FLUJO CALIDAD (Inspección → Repaso → Entrega → Cobro) ═══
-  "/inspeccion-recepcion": [ROLES.ADMIN, ROLES.CALIDAD],
-  "/vehiculo-detalle/:inspeccion_id": [ROLES.ADMIN, ROLES.CALIDAD],
-  "/inspecciones-guardadas": [ROLES.ADMIN, ROLES.CALIDAD],
-  "/repaso-entrega": [ROLES.ADMIN, ROLES.CALIDAD],
-  "/calidad-entrega": [ROLES.ADMIN, ROLES.CALIDAD],
-  "/entrega-cliente/:inspeccion_id": [ROLES.ADMIN, ROLES.CALIDAD],
-  "/entregados": [ROLES.ADMIN, ROLES.CALIDAD],
-  "/acta-entrega/:id": [ROLES.ADMIN, ROLES.CALIDAD],
-  "/acta-entrega-doc/:id": [ROLES.ADMIN, ROLES.CALIDAD],
+  // Detailing tiene acceso también para poder cubrir a Calidad si no está.
+  "/inspeccion-recepcion": [ROLES.ADMIN, ROLES.CALIDAD, ROLES.DETAILING],
+  "/vehiculo-detalle/:inspeccion_id": [ROLES.ADMIN, ROLES.CALIDAD, ROLES.DETAILING],
+  "/inspecciones-guardadas": [ROLES.ADMIN, ROLES.CALIDAD, ROLES.DETAILING],
+  "/repaso-entrega": [ROLES.ADMIN, ROLES.CALIDAD, ROLES.DETAILING],
+  "/calidad-entrega": [ROLES.ADMIN, ROLES.CALIDAD, ROLES.DETAILING],
+  "/entrega-cliente/:inspeccion_id": [ROLES.ADMIN, ROLES.CALIDAD, ROLES.DETAILING],
+  "/entregados": [ROLES.ADMIN, ROLES.CALIDAD, ROLES.DETAILING],
+  "/acta-entrega/:id": [ROLES.ADMIN, ROLES.CALIDAD, ROLES.DETAILING],
+  "/acta-entrega-doc/:id": [ROLES.ADMIN, ROLES.CALIDAD, ROLES.DETAILING],
 
   // ═══ INFORME TÉCNICO (Solo Admin) ═══
   "/hoja-tecnica/:inspeccion_id": [ROLES.ADMIN],
 
   // ═══ PARTES DE TRABAJO ═══
-  "/partes-trabajo": [ROLES.ADMIN, ROLES.CALIDAD], // Acompañamiento en tiempo real
-  "/productividad-trabajadores": [ROLES.ADMIN, ROLES.CALIDAD],
-  "/mis-partes-trabajo": [...EMPLOYEE_ROLES], // Mis trabajos
+  "/partes-trabajo": [ROLES.ADMIN, ROLES.CALIDAD, ROLES.DETAILING], // Acompañamiento en tiempo real
+  "/productividad-trabajadores": [ROLES.ADMIN, ROLES.CALIDAD, ROLES.DETAILING],
+  "/mis-partes-trabajo": [...EMPLOYEE_ROLES, ROLES.CALIDAD], // Mis trabajos
   "/partes-trabajo-finalizados": [ROLES.ADMIN],
   "/partes": [ROLES.ADMIN, ROLES.CALIDAD, ...EMPLOYEE_ROLES],
 
@@ -59,7 +60,7 @@ export const ROUTE_PERMISSIONS = {
   "/clientes": [ROLES.ADMIN],
   "/coches": [ROLES.ADMIN],
   "/resumen-clientes": [ROLES.ADMIN],
-  "/vehiculos": [ROLES.ADMIN, ROLES.CALIDAD],
+  "/vehiculos": [ROLES.ADMIN, ROLES.CALIDAD, ROLES.DETAILING],
   "/proveedores": [ROLES.ADMIN],
   "/maquinaria": [ROLES.ADMIN],
   "/catalogo-servicios": [ROLES.ADMIN],
@@ -67,7 +68,7 @@ export const ROUTE_PERMISSIONS = {
   // ═══ FINANZAS Y COBROS ═══
   "/administracion/finanzas": [ROLES.ADMIN],
   "/administracion/cobros-profesionales": [ROLES.ADMIN], // Cobro concesionarios
-  "/cobro-particulares": [ROLES.ADMIN, ROLES.CALIDAD], // Cobro particulares (NUEVO)
+  "/cobro-particulares": [ROLES.ADMIN, ROLES.CALIDAD, ROLES.DETAILING], // Cobro particulares (NUEVO)
 
   // ═══ TABLA DE REGISTROS ═══
   "/tabla-registros": [ROLES.ADMIN],
@@ -76,7 +77,7 @@ export const ROUTE_PERMISSIONS = {
   "/albaranes": [ROLES.ADMIN],
 
   // ═══ CITAS Y RESPALDO ═══
-  "/citas": [ROLES.ADMIN, ROLES.CALIDAD],
+  "/citas": [ROLES.ADMIN, ROLES.CALIDAD, ROLES.DETAILING],
   "/fichar": [ROLES.ADMIN, ROLES.CALIDAD, ...EMPLOYEE_ROLES],
   "/horarios": [ROLES.ADMIN],
   "/ausencias": [ROLES.ADMIN],
@@ -89,7 +90,7 @@ export const ROUTE_PERMISSIONS = {
   "/uniformes": [ROLES.ADMIN],
 
   // ═══ COCHE DE SUSTITUCIÓN ═══
-  "/coche-sustitucion": [ROLES.ADMIN, ROLES.CALIDAD],
+  "/coche-sustitucion": [ROLES.ADMIN, ROLES.CALIDAD, ROLES.DETAILING],
 };
 
 /**
@@ -140,11 +141,33 @@ export const NAVIGATION_BY_ROLE = {
   ],
 
   [ROLES.CALIDAD]: [
-    { label: "🚙 Coches sustitución", to: "/coche-sustitucion" },
+    {
+      section: "Flujo principal",
+      items: [
+        { label: "📋 Mis trabajos", to: "/mis-partes-trabajo" },
+        { label: "🔍 Inspección de entrada", to: "/inspeccion-recepcion" },
+        { label: "📝 Inspecciones guardadas", to: "/inspecciones-guardadas" },
+        { label: "✅ Repaso", to: "/repaso-entrega?tab=repaso" },
+        { label: "📝 Hoja de entrega", to: "/repaso-entrega?tab=firma" },
+        { label: "✓ Coches entregados", to: "/entregados" },
+        { label: "🚙 Coches sustitución", to: "/coche-sustitucion" },
+      ],
+    },
   ],
 
   [ROLES.DETAILING]: [
-    { label: "📋 Mis trabajos", to: "/mis-partes-trabajo" },
+    {
+      section: "Flujo principal",
+      items: [
+        { label: "📋 Mis trabajos", to: "/mis-partes-trabajo" },
+        { label: "🔍 Inspección de entrada", to: "/inspeccion-recepcion" },
+        { label: "📝 Inspecciones guardadas", to: "/inspecciones-guardadas" },
+        { label: "✅ Repaso", to: "/repaso-entrega?tab=repaso" },
+        { label: "📝 Hoja de entrega", to: "/repaso-entrega?tab=firma" },
+        { label: "✓ Coches entregados", to: "/entregados" },
+        { label: "🚙 Coches sustitución", to: "/coche-sustitucion" },
+      ],
+    },
   ],
   [ROLES.PINTURA]: [
     { label: "📋 Mis trabajos", to: "/mis-partes-trabajo" },
@@ -162,8 +185,8 @@ export const NAVIGATION_BY_ROLE = {
  */
 export const ROLE_DESCRIPTIONS = {
   [ROLES.ADMIN]: "Acceso completo: administración, control de flujos, finanzas y usuarios",
-  [ROLES.CALIDAD]: "Inspección, repaso, entrega, citas y cobro de particulares",
-  [ROLES.DETAILING]: "Fichaje y partes de detailing",
+  [ROLES.CALIDAD]: "Inspección, repaso, entrega, citas y cobro de particulares. Puede cubrir tareas de Detailing.",
+  [ROLES.DETAILING]: "Fichaje y partes de detailing. Puede cubrir el flujo de Calidad (inspección, repaso, entrega) si hace falta.",
   [ROLES.PINTURA]: "Fichaje y partes de pintura",
   [ROLES.TAPICERO]: "Fichaje y partes de tapicería",
   [ROLES.SALIDA]: "Salida de productos: acceso directo a registrar salidas",

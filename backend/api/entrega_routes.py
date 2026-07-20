@@ -57,7 +57,7 @@ def guardar_acta_entrega(inspeccion_id):
 
 
 @entrega_bp.route("/inspeccion-recepcion/<int:inspeccion_id>/entrega", methods=["POST"])
-@role_required("administrador", "calidad")
+@role_required("administrador", "calidad", "detailing")
 def registrar_entrega(inspeccion_id):
     """
     Registrar entrega del vehiculo con acta tecnica.

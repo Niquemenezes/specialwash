@@ -46,7 +46,7 @@ def _ensure_citas_access():
 
 # ── Listar citas ──────────────────────────────────────────────────────────────
 @citas_bp.route("/citas", methods=["GET"])
-@role_required("administrador", "encargado", "calidad")
+@role_required("administrador", "encargado", "calidad", "detailing")
 def listar_citas():
     """
     GET /api/citas
@@ -101,7 +101,7 @@ def listar_citas():
 
 # ── Obtener una cita ──────────────────────────────────────────────────────────
 @citas_bp.route("/citas/<int:cita_id>", methods=["GET"])
-@role_required("administrador", "encargado", "calidad")
+@role_required("administrador", "encargado", "calidad", "detailing")
 def obtener_cita(cita_id):
     denied = _ensure_citas_access()
     if denied:
@@ -113,7 +113,7 @@ def obtener_cita(cita_id):
 
 # ── Crear cita ────────────────────────────────────────────────────────────────
 @citas_bp.route("/citas", methods=["POST"])
-@role_required("administrador", "encargado", "calidad")
+@role_required("administrador", "encargado", "calidad", "detailing")
 def crear_cita():
     """Permite gestionar citas a administración, encargado y calidad."""
     denied = _ensure_citas_access()
@@ -178,7 +178,7 @@ def crear_cita():
 
 # ── Editar cita ───────────────────────────────────────────────────────────────
 @citas_bp.route("/citas/<int:cita_id>", methods=["PUT"])
-@role_required("administrador", "encargado", "calidad")
+@role_required("administrador", "encargado", "calidad", "detailing")
 def editar_cita(cita_id):
     """Permite editar citas a administración, encargado y calidad."""
     denied = _ensure_citas_access()
@@ -233,7 +233,7 @@ def editar_cita(cita_id):
 
 # ── Cambiar solo el estado ─────────────────────────────────────────────────────
 @citas_bp.route("/citas/<int:cita_id>/estado", methods=["PATCH"])
-@role_required("administrador", "encargado", "calidad")
+@role_required("administrador", "encargado", "calidad", "detailing")
 def cambiar_estado_cita(cita_id):
     """Permite actualizar el estado de citas a administración, encargado y calidad."""
     denied = _ensure_citas_access()

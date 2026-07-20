@@ -21,7 +21,7 @@ def _get_or_create_config():
         cfg = EmpresaConfig(
             id=1,
             nombre="Special Wash Car Solutions, S.R.L.",
-            nombre_comercial="SPECIAL WASH STUDIO",
+            nombre_comercial="SW AUTO SPA",
             cif="B21816566",
             direccion="Calle Salvador Dalí, 22, 29700, Vélez-Málaga, ES",
             email="alejandro@specialwash.es",

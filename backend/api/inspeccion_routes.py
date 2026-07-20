@@ -27,7 +27,7 @@ inspeccion_bp = Blueprint('inspeccion', __name__, url_prefix='/api')
 
 
 @inspeccion_bp.route("/inspeccion-recepcion/clientes/<int:cliente_id>/historial-resumen", methods=["GET"])
-@role_required("administrador", "calidad")
+@role_required("administrador", "calidad", "detailing")
 def historial_resumen_cliente(cliente_id):
     """Resumen rápido de trabajos anteriores de un cliente para alerta en recepción."""
     cliente = Cliente.query.get(cliente_id)
@@ -81,7 +81,7 @@ def historial_resumen_cliente(cliente_id):
 
 
 @inspeccion_bp.route("/inspeccion-recepcion/historial-coche/<string:matricula>/resumen", methods=["GET"])
-@role_required("administrador", "calidad")
+@role_required("administrador", "calidad", "detailing")
 def historial_resumen_coche_por_matricula(matricula):
     """Resumen de trabajos previos del mismo coche (solo particulares)."""
     matricula_norm = (matricula or "").strip().upper()
@@ -154,7 +154,7 @@ def historial_resumen_coche_por_matricula(matricula):
 
 # ============ CREAR INSPECCIÓN ============
 @inspeccion_bp.route("/inspeccion-recepcion", methods=["POST"])
-@role_required("administrador", "calidad")
+@role_required("administrador", "calidad", "detailing")
 def crear_inspeccion():
     """
     Crear una nueva inspección de recepción.
@@ -406,7 +406,7 @@ def listar_inspecciones():
 
 # ============ LISTAR PENDIENTES DE ENTREGA (OPERATIVO) ============
 @inspeccion_bp.route("/inspeccion-recepcion/pendientes-entrega", methods=["GET"])
-@role_required("administrador", "calidad")
+@role_required("administrador", "calidad", "detailing")
 def listar_pendientes_entrega():
     """
     Lista operativa para firma de entrega.

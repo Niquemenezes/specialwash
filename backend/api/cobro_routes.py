@@ -17,7 +17,7 @@ cobro_bp = Blueprint('cobro', __name__, url_prefix='/api')
 
 
 @cobro_bp.route("/inspeccion-recepcion/<int:inspeccion_id>/cobro", methods=["POST"])
-@role_required("administrador", "calidad")
+@role_required("administrador", "calidad", "detailing")
 def registrar_cobro_inspeccion(inspeccion_id):
     """Registrar cobro parcial o total y reflejarlo en caja (finanzas).
     Calidad solo puede cobrar particulares. Admin puede cobrar ambos."""

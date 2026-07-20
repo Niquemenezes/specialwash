@@ -559,8 +559,8 @@ def _jwt_user_id():
         return None
 
 
-INSPECCION_ALLOWED_ROLES = {"administrador", "calidad"}
-INSPECCION_MANAGER_ROLES = {"administrador", "calidad"}
+INSPECCION_ALLOWED_ROLES = {"administrador", "calidad", "detailing"}
+INSPECCION_MANAGER_ROLES = {"administrador", "calidad", "detailing"}
 
 
 def _is_inspeccion_role(user):

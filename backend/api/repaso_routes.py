@@ -12,7 +12,7 @@ repaso_bp = Blueprint('repaso', __name__, url_prefix='/api')
 
 
 @repaso_bp.route("/inspeccion-recepcion/<int:inspeccion_id>/repaso", methods=["POST"])
-@role_required("administrador", "calidad")
+@role_required("administrador", "calidad", "detailing")
 def guardar_repaso_entrega(inspeccion_id):
     """Guardar checklist de repaso pre-entrega y marcar listo para entrega."""
     inspeccion = InspeccionRecepcion.query.get(inspeccion_id)
