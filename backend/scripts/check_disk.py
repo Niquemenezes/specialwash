@@ -129,7 +129,7 @@ def main():
     crear_notificacion_app(titulo, cuerpo)
 
     env = leer_env()
-    mensaje_wa = f"⚠️ SpecialWash — Aviso de disco:\nEl servidor tiene solo {libre_str} libres. Revisa el espacio en IONOS."
+    mensaje_wa = f"⚠️ SW AUTO SPA — Aviso de disco:\nEl servidor tiene solo {libre_str} libres. Revisa el espacio en IONOS."
     enviar_whatsapp(mensaje_wa, env)
 
     marcar_notificado()

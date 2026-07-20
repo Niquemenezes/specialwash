@@ -1,6 +1,6 @@
-# SpecialWash — Plataforma de gestión operativa para taller
+# SW AUTO SPA — Plataforma de gestión operativa para taller
 
-SpecialWash es una aplicación web interna orientada a talleres de detailing, pintura, tapicería y reacondicionamiento de vehículos. Centraliza la operativa diaria desde la recepción del coche hasta su entrega final, incluyendo planificación, partes de trabajo, control de calidad, inventario, cobros, control horario, uniformes y utilidades administrativas.
+SW AUTO SPA es una aplicación web interna orientada a talleres de detailing, pintura, tapicería y reacondicionamiento de vehículos. Centraliza la operativa diaria desde la recepción del coche hasta su entrega final, incluyendo planificación, partes de trabajo, control de calidad, inventario, cobros, control horario, uniformes y utilidades administrativas.
 
 **Producción:** [https://specialwash.studio](https://specialwash.studio)
 
@@ -359,7 +359,7 @@ No subir nunca el archivo de credenciales de Google (`google_credentials.json`) 
 
 ## Estado actual del proyecto
 
-SpecialWash no es un CRM genérico: está modelado alrededor de una operativa física real de recepción, ejecución, repaso y entrega de vehículos.
+SW AUTO SPA no es un CRM genérico: está modelado alrededor de una operativa física real de recepción, ejecución, repaso y entrega de vehículos.
 
 Su alcance actual combina:
 

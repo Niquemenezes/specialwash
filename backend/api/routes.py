@@ -352,7 +352,7 @@ def maquinaria_delete_factura(mid, factura_index):
 
 @api.route("/hello", methods=["GET"])
 def hello():
-    return jsonify({"msg": "Hello SpecialWash API"}), 200
+    return jsonify({"msg": "Hello SW AUTO SPA API"}), 200
 
 
 # =====================================================

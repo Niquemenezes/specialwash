@@ -94,9 +94,9 @@ function HomeGuest() {
   return (
     <div className="sw-home-guest">
       <div className="sw-home-guest-inner">
-        <div className="sw-home-guest-eyebrow">Panel profesional · SpecialWash</div>
+        <div className="sw-home-guest-eyebrow">Panel profesional · SW AUTO SPA</div>
         <h1 className="sw-home-guest-title">
-          Bienvenido a <span className="sw-home-guest-brand">SpecialWashStudio</span>
+          Bienvenido a <span className="sw-home-guest-brand">SW AUTO SPA</span>
         </h1>
         <p className="sw-home-guest-sub">
           Gestión integral de taller: vehículos, inventario, partes de trabajo y más.
@@ -133,7 +133,7 @@ export default function Home() {
       <div className="sw-home-hero">
         <div className="sw-home-hero-inner container">
           <div className="sw-home-hero-left">
-            <p className="sw-home-eyebrow">Panel interno · SpecialWashStudio</p>
+            <p className="sw-home-eyebrow">Panel interno · SW AUTO SPA</p>
             <h1 className="sw-home-heading">
               {getGreeting()}{nombre ? <>, <span className="sw-home-heading-name">{nombre}</span></> : ""}.
             </h1>

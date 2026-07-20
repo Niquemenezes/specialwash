@@ -1,4 +1,4 @@
-// src/store/flux.js — SpecialWash
+// src/store/flux.js — SW AUTO SPA
 // Orquestador principal: combina módulos de acciones por dominio.
 // La interfaz pública (store + actions) no cambia — todos los componentes siguen funcionando igual.
 

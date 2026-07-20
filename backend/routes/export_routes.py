@@ -21,7 +21,7 @@ from utils.auth_utils import role_required
 
 export_bp = Blueprint("export", __name__)
 
-# ── Colores SpecialWash ──────────────────────────────────────────────────────
+# ── Colores SW AUTO SPA ───────────────────────────────────────────────────────
 C_DARK   = "1B2A4A"
 C_GOLD   = "D4AF37"
 C_WHITE  = "FFFFFF"
@@ -303,7 +303,7 @@ def _build_clientes_sheet(wb, anio):
 @export_bp.route("/api/export/excel", methods=["GET"])
 @role_required("administrador")
 def export_excel():
-    """Genera y descarga el Excel anual de SpecialWash."""
+    """Genera y descarga el Excel anual de SW AUTO SPA."""
     from flask import request as req
     anio = req.args.get("anio", datetime.now().year, type=int)
 
@@ -371,7 +371,7 @@ def export_excel():
     wb.save(output)
     output.seek(0)
 
-    filename = f"SpecialWash_{anio}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    filename = f"SW_AUTO_SPA_{anio}_{datetime.now().strftime('%Y%m%d')}.xlsx"
 
     return send_file(
         output,

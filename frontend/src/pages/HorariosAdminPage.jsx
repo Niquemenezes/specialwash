@@ -139,7 +139,7 @@ export default function HorariosAdminPage() {
 
   const handleImprimir = (filas) => {
     const datos = filas || registrosVisibles;
-    const titulo = `SpecialWash — Horarios — ${periodoLabel}${empleadoNombre ? " — " + empleadoNombre : ""}`;
+    const titulo = `SW AUTO SPA — Horarios — ${periodoLabel}${empleadoNombre ? " — " + empleadoNombre : ""}`;
 
     const filaHtml = (r) => {
       const horas = calcularHoras(r);
@@ -195,8 +195,8 @@ export default function HorariosAdminPage() {
   </style>
 </head>
 <body>
-  <h2>SpecialWash — Control de horarios</h2>
-  <p>${titulo.replace("SpecialWash — Horarios — ", "")}</p>
+  <h2>SW AUTO SPA — Control de horarios</h2>
+  <p>${titulo.replace("SW AUTO SPA — Horarios — ", "")}</p>
   <table>
     <thead><tr>
       <th>Fecha</th><th>Empleado</th><th>Entrada</th>
@@ -490,7 +490,7 @@ export default function HorariosAdminPage() {
 
         {/* Cabecera visible solo en impresión */}
         <div className="horario-print-header mb-3">
-          <strong style={{ fontSize: 15 }}>SpecialWash — Control de horarios</strong>
+          <strong style={{ fontSize: 15 }}>SW AUTO SPA — Control de horarios</strong>
           <div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>
             {periodoLabel}{empleadoNombre ? ` — ${empleadoNombre}` : ""}
           </div>

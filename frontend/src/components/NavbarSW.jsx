@@ -300,7 +300,7 @@ const NavbarSW = () => {
             title="Ir a inicio"
           >
             <div className="sw-logo-wrap">
-              <img src={logo} alt="SpecialWash" className="sw-logo-img" />
+              <img src={logo} alt="SW AUTO SPA" className="sw-logo-img" />
             </div>
             <div className="sw-brand-text d-none d-xl-flex flex-column">
               <span className="sw-brand-title">Special Wash Studio</span>

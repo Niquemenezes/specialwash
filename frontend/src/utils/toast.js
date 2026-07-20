@@ -1,5 +1,5 @@
 /**
- * toast — notificaciones no bloqueantes para SpecialWash.
+ * toast — notificaciones no bloqueantes para SW AUTO SPA.
  * Uso: import { toast } from "../utils/toast";
  *      toast.success("Guardado correctamente");
  *      toast.error("Error al eliminar");

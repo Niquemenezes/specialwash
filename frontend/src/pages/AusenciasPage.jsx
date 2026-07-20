@@ -122,11 +122,11 @@ function exportarExcelCompleto({ ausenciasAnio, empleados, anio }) {
     XLSX.utils.book_append_sheet(wb, ws, nombreMes.slice(0, 31));
   });
 
-  XLSX.writeFile(wb, `SpecialWash_Vacaciones_${anio}.xlsx`);
+  XLSX.writeFile(wb, `SW_AUTO_SPA_Vacaciones_${anio}.xlsx`);
 }
 
 function imprimirAusencias({ visibles, mes, anio, empleadoNombre }) {
-  const titulo = `SpecialWash — Vacaciones y ausencias — ${mes ? MESES[mes - 1] + " " : ""}${anio}${empleadoNombre ? " — " + empleadoNombre : ""}`;
+  const titulo = `SW AUTO SPA — Vacaciones y ausencias — ${mes ? MESES[mes - 1] + " " : ""}${anio}${empleadoNombre ? " — " + empleadoNombre : ""}`;
   const filaHtml = (a) => `<tr>
     <td>${a.empleado_nombre || ""}</td>
     <td>${TIPO_LABEL[a.tipo] || a.tipo}</td>
@@ -152,8 +152,8 @@ function imprimirAusencias({ visibles, mes, anio, empleadoNombre }) {
   </style>
 </head>
 <body>
-  <h2>SpecialWash — Vacaciones y ausencias</h2>
-  <p>${titulo.replace("SpecialWash — Vacaciones y ausencias — ", "")}</p>
+  <h2>SW AUTO SPA — Vacaciones y ausencias</h2>
+  <p>${titulo.replace("SW AUTO SPA — Vacaciones y ausencias — ", "")}</p>
   <table>
     <thead><tr>
       <th>Empleado</th><th>Tipo</th><th>Desde</th><th>Hasta</th>
