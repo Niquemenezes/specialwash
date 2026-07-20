@@ -1,5 +1,5 @@
 /**
- * toast — notificaciones no bloqueantes para SW AUTO SPA.
+ * toast — notificaciones no bloqueantes para SW Studio.
  * Uso: import { toast } from "../utils/toast";
  *      toast.success("Guardado correctamente");
  *      toast.error("Error al eliminar");

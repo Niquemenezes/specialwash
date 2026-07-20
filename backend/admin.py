@@ -170,7 +170,7 @@ def setup_admin(app):
 
     admin = Admin(
         app,
-        name="SW AUTO SPA Admin",
+        name="SW Studio Admin",
         url="/admin"
     )
 

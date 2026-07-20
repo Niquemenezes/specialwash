@@ -1,5 +1,5 @@
 /**
- * apiFetch — helper de fetch centralizado para SW AUTO SPA.
+ * apiFetch — helper de fetch centralizado para SW Studio.
  *
  * Úsalo en utils/*, pages/* o cualquier módulo que no tenga acceso al store de flux.
  * flux.js tiene su propia variante que además actualiza el store; no la reemplaces.

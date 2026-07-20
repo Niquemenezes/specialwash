@@ -227,7 +227,7 @@ export default function RepasoEntregaPage() {
       }}>
         <div className="container" style={{ maxWidth: "1200px", paddingTop: "1.5rem" }}>
           <p style={{ fontSize: "0.73rem", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--sw-accent)", opacity: 0.85, marginBottom: "0.3rem" }}>
-            Entrega de coches · SW AUTO SPA
+            Entrega de coches · SW Studio
           </p>
           <h2 style={{ fontSize: "clamp(1.3rem, 2.5vw, 1.8rem)", fontWeight: 700, color: "var(--sw-text)", margin: "0 0 0.6rem", letterSpacing: "-0.01em" }}>
             Repaso y entrega

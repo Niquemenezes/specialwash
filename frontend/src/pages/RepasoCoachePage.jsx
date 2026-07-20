@@ -187,7 +187,7 @@ export default function RepasoCoachePage() {
       }}>
         <div className="container" style={{ maxWidth: "1200px", paddingTop: "1.5rem" }}>
           <p style={{ fontSize: "0.73rem", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--sw-accent)", opacity: 0.85, marginBottom: "0.3rem" }}>
-            Repaso de coche · SW AUTO SPA
+            Repaso de coche · SW Studio
           </p>
           <h2 style={{ fontSize: "clamp(1.3rem, 2.5vw, 1.8rem)", fontWeight: 700, color: "var(--sw-text)", margin: "0 0 1.2rem", letterSpacing: "-0.01em" }}>
             {inspeccion.matricula || "Coche"} — Verificación antes de entrega

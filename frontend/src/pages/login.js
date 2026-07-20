@@ -50,7 +50,7 @@ export default function Login() {
               </div>
               <h2 className="sw-auth-title mb-1">Iniciar sesión</h2>
               <p className="sw-auth-subtitle mb-0">
-                Introduce tus credenciales para acceder al panel de SW AUTO SPA.
+                Introduce tus credenciales para acceder al panel de SW Studio.
               </p>
             </div>
 

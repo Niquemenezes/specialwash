@@ -51,7 +51,7 @@ export default function Signup() {
               </div>
               <h2 className="sw-auth-title mb-1">Crear cuenta</h2>
               <p className="sw-auth-subtitle mb-0">
-                Registra un nuevo usuario para el panel interno de SW AUTO SPA.
+                Registra un nuevo usuario para el panel interno de SW Studio.
               </p>
             </div>
 

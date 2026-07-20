@@ -91,7 +91,7 @@ def _build_dashboard_sheet(wb, anio, servicios_rows, gastos_total):
     # Título
     ws.row_dimensions[2].height = 36
     ws.merge_cells("B2:G2")
-    ws["B2"].value = f"SW AUTO SPA — RESUMEN {anio}"
+    ws["B2"].value = f"SW Studio — RESUMEN {anio}"
     ws["B2"].font = Font(name="Arial", bold=True, size=14, color=C_WHITE)
     ws["B2"].fill = _fill(C_DARK)
     ws["B2"].alignment = Alignment(horizontal="center", vertical="center")
@@ -303,7 +303,7 @@ def _build_clientes_sheet(wb, anio):
 @export_bp.route("/api/export/excel", methods=["GET"])
 @role_required("administrador")
 def export_excel():
-    """Genera y descarga el Excel anual de SW AUTO SPA."""
+    """Genera y descarga el Excel anual de SW Studio."""
     from flask import request as req
     anio = req.args.get("anio", datetime.now().year, type=int)
 
@@ -371,7 +371,7 @@ def export_excel():
     wb.save(output)
     output.seek(0)
 
-    filename = f"SW_AUTO_SPA_{anio}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    filename = f"SW_STUDIO_{anio}_{datetime.now().strftime('%Y%m%d')}.xlsx"
 
     return send_file(
         output,

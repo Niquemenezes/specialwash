@@ -313,10 +313,10 @@ const NavbarSW = () => {
             title="Ir a inicio"
           >
             <div className="sw-logo-wrap">
-              <img src={logo} alt="SW AUTO SPA" className="sw-logo-img" />
+              <img src={logo} alt="SW Studio" className="sw-logo-img" />
             </div>
             <div className="sw-brand-text d-none d-xl-flex flex-column">
-              <span className="sw-brand-title">SW AUTO SPA</span>
+              <span className="sw-brand-title">SW Studio</span>
               <span className="sw-brand-subtitle">Internal Management System</span>
             </div>
           </Link>

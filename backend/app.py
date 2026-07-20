@@ -115,9 +115,9 @@ def create_app():
     def index():
         return """
         <html>
-          <head><title>SW AUTO SPA Backend</title></head>
+          <head><title>SW Studio Backend</title></head>
           <body style='background-color:#111; color:#f5d76e; font-family:Arial; text-align:center; padding-top:50px'>
-            <h1>🚗 SW AUTO SPA Backend</h1>
+            <h1>🚗 SW Studio Backend</h1>
             <p>Servidor Flask funcionando correctamente.</p>
             <p><a href='/admin/' style='color:#f5d76e; text-decoration:none;'>Ir al panel de administración</a></p>
           </body>

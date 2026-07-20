@@ -194,7 +194,7 @@ export default function PedidoBajoStock() {
       setFeedback({ type: "warning", msg: "Selecciona un proveedor con email para enviar correo." });
       return;
     }
-    const subject = encodeURIComponent(nombrePedido || "Pedido de reposicion - SW AUTO SPA");
+    const subject = encodeURIComponent(nombrePedido || "Pedido de reposicion - SW Studio");
     const body = encodeURIComponent(textoPedido);
     window.location.href = `mailto:${proveedorSeleccionado.email}?subject=${subject}&body=${body}`;
   };
@@ -448,13 +448,13 @@ export default function PedidoBajoStock() {
         {/* -------- CABECERA -------- */}
         <div className="pedido-header">
           <div className="pedido-brand">
-            <img src={logo} alt="SW AUTO SPA" />
+            <img src={logo} alt="SW Studio" />
           </div>
 
           <div className="pedido-meta">
             <h1>
               Pedido de Reposición
-              <span className="badge-gold">SW AUTO SPA</span>
+              <span className="badge-gold">SW Studio</span>
             </h1>
 
             <small><strong>Fecha:</strong> {fecha}</small><br />

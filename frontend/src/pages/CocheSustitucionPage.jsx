@@ -602,7 +602,7 @@ function generarHtmlContrato(item) {
   <div style="max-width:780px;margin:0 auto;">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:12px;">
       <div>
-        <div style="font-weight:bold;font-size:16px;">SW AUTO SPA</div>
+        <div style="font-weight:bold;font-size:16px;">SW Studio</div>
         <div style="font-size:12px;color:#555;">Calle Salvador Dalí, 22 · CP 29700</div>
         <div style="font-size:12px;color:#555;">Tel: 645 811 313 · CIF: B21816566</div>
       </div>
@@ -687,7 +687,7 @@ function generarHtmlContrato(item) {
       <div style="flex:1;text-align:center;">
         <p style="margin-bottom:4px;font-weight:bold;font-size:12px;">Sello / Firma del taller</p>
         <div style="height:80px;border:1px solid #ccc;"></div>
-        <div style="border-top:1px solid #000;margin-top:8px;padding-top:4px;font-size:11px;">SW AUTO SPA</div>
+        <div style="border-top:1px solid #000;margin-top:8px;padding-top:4px;font-size:11px;">SW Studio</div>
         <div style="font-size:10px;color:#666;">CIF: B21816566</div>
       </div>
     </div>

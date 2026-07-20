@@ -133,7 +133,7 @@ const ActaEntregaDocumento = () => {
 
   useEffect(() => {
     const previousTitle = document.title;
-    document.title = "Informe Tecnico de Intervencion - SW AUTO SPA";
+    document.title = "Informe Tecnico de Intervencion - SW Studio";
     return () => {
       document.title = previousTitle;
     };
@@ -363,7 +363,7 @@ const ActaEntregaDocumento = () => {
         <div className="single-header avoid-break">
           <div>
             <h3 className="single-title">INFORME TECNICO DE INTERVENCION</h3>
-            <div className="single-subtitle">SW AUTO SPA</div>
+            <div className="single-subtitle">SW Studio</div>
             <div className="single-tagline">Detailing · Paint Lab · Restauracion de Interiores</div>
           </div>
         </div>

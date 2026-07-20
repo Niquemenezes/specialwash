@@ -244,7 +244,7 @@ const ActaEntregaView = () => {
 
   useEffect(() => {
     const previousTitle = document.title;
-    document.title = "Hoja de intervencion tecnica de entrega - SW AUTO SPA";
+    document.title = "Hoja de intervencion tecnica de entrega - SW Studio";
     return () => {
       document.title = previousTitle;
     };
@@ -633,7 +633,7 @@ const ActaEntregaView = () => {
               <h3 className="single-title">
                 {inspeccion.requiere_hoja_intervencion || esConcesionario ? "INFORME TECNICO DE INTERVENCION" : "ACTA DE ENTREGA"}
               </h3>
-              <div className="single-subtitle">SW AUTO SPA</div>
+              <div className="single-subtitle">SW Studio</div>
               <div className="single-tagline">Detailing · Paint Lab · Restauracion de Interiores</div>
             </div>
             {inspeccion.entregado && <span className="final-stamp">ENTREGA FINALIZADA</span>}
@@ -750,7 +750,7 @@ const ActaEntregaView = () => {
         <div className="legal-note avoid-break mb-3">
           <strong>Proteccion de datos</strong>
           <div>
-            Los datos personales facilitados seran tratados por SW AUTO SPA como responsable del tratamiento,
+            Los datos personales facilitados seran tratados por SW Studio como responsable del tratamiento,
             con la finalidad de gestionar el servicio, la entrega del vehiculo y las obligaciones administrativas o
             legales derivadas. La base juridica es la ejecucion del servicio y, en su caso, el consentimiento otorgado.
             Los datos se conservaran durante los plazos legalmente exigibles. Puede ejercer sus derechos de acceso,

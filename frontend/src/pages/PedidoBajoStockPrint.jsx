@@ -212,7 +212,7 @@ export default function PedidoBajoStockPrint() {
       <div className="print-sheet">
         <div className="print-header">
           <div className="print-logo">
-            <img src={logo} alt="SW AUTO SPA" />
+            <img src={logo} alt="SW Studio" />
           </div>
           <div>
             <h2 className="mb-1">Pedido de Reposición</h2>

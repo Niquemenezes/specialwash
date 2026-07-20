@@ -47,7 +47,7 @@ export default function DashboardPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `SW_AUTO_SPA_${anio}.xlsx`;
+      a.download = `SW_STUDIO_${anio}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -89,7 +89,7 @@ export default function DashboardPage() {
               <span style={{ width: 24, height: 24, display: "flex" }}>{ICONS.dashboard}</span>
             </div>
             <div style={{ flex: 1 }}>
-              <p className="sw-home-eyebrow" style={{ marginBottom: "0.2rem" }}>Panel interno · SW AUTO SPA</p>
+              <p className="sw-home-eyebrow" style={{ marginBottom: "0.2rem" }}>Panel interno · SW Studio</p>
               <h1 className="sw-veh-hero-title">Dashboard</h1>
               <p className="sw-veh-hero-sub">Resumen de facturación, cobros y actividad del taller</p>
             </div>
