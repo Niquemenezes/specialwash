@@ -2,6 +2,7 @@
 import importlib.util
 from pathlib import Path
 
+from dotenv import load_dotenv
 from sqlalchemy import inspect, text
 
 from models import db
@@ -10,6 +11,7 @@ from models import db
 # Existe también el paquete ``app/``; cargar app.py por ruta evita que Linux
 # resuelva ese paquete en lugar del punto de entrada Flask de producción.
 app_path = Path(__file__).resolve().parents[1] / "app.py"
+load_dotenv(app_path.parent / ".env")
 spec = importlib.util.spec_from_file_location("swstudio_app_main", app_path)
 app_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(app_module)
