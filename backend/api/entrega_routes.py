@@ -65,6 +65,7 @@ def registrar_entrega(inspeccion_id):
     - trabajos_realizados (str)
     Campos opcionales:
     - entrega_observaciones (str)
+    - kilometros_entrega (int)
     - firma_cliente_entrega (base64)
     - consentimiento_datos_entrega (bool)
     - conformidad_revision_entrega (bool)
@@ -120,6 +121,15 @@ def registrar_entrega(inspeccion_id):
     registrar_cobro = _to_bool(data.get("registrar_cobro", False))
     cobro_registrado_en_entrega = False
 
+    kilometros_entrega = data.get("kilometros_entrega")
+    if kilometros_entrega not in (None, ""):
+        try:
+            kilometros_entrega = int(kilometros_entrega)
+            if kilometros_entrega < 0:
+                return jsonify({"msg": "El kilometraje de entrega debe ser mayor o igual a 0"}), 400
+        except (TypeError, ValueError):
+            return jsonify({"msg": "El kilometraje de entrega debe ser un número entero"}), 400
+
     try:
         inspeccion.trabajos_realizados = trabajos_realizados_final
         inspeccion.entrega_observaciones = data.get("entrega_observaciones", "").strip()
@@ -128,6 +138,8 @@ def registrar_entrega(inspeccion_id):
         inspeccion.firma_empleado_entrega = None
         inspeccion.consentimiento_datos_entrega = consentimiento_datos_entrega if not es_concesionario else False
         inspeccion.conformidad_revision_entrega = conformidad_revision_entrega if not es_concesionario else False
+        if kilometros_entrega not in (None, ""):
+            inspeccion.kilometros = kilometros_entrega
         inspeccion.entregado = True
         inspeccion.fecha_entrega = now_madrid()
 

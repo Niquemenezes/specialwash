@@ -566,13 +566,19 @@ INSPECCION_MANAGER_ROLES = {"administrador", "calidad", "detailing"}
 def _is_inspeccion_role(user):
     if not user:
         return False
-    return normalize_role(getattr(user, "rol", "")) in INSPECCION_ALLOWED_ROLES
+    return (
+        normalize_role(getattr(user, "rol", "")) in INSPECCION_ALLOWED_ROLES
+        or bool(getattr(user, "acceso_calidad", False))
+    )
 
 
 def _can_view_all_inspecciones(user):
     if not user:
         return False
-    return normalize_role(getattr(user, "rol", "")) in INSPECCION_MANAGER_ROLES
+    return (
+        normalize_role(getattr(user, "rol", "")) in INSPECCION_MANAGER_ROLES
+        or bool(getattr(user, "acceso_calidad", False))
+    )
 
 
 # ============ AUTO-CREAR PARTES DE TRABAJO DESDE INSPECCIÓN ============
@@ -1102,7 +1108,8 @@ def role_required(*roles):
             user = User.query.get(current_user_id)
             allowed_roles = {normalize_role(r) for r in roles}
             user_role = normalize_role(getattr(user, "rol", "")) if user else ""
-            if not user or user_role not in allowed_roles:
+            quality_capability = "calidad" in allowed_roles and bool(getattr(user, "acceso_calidad", False))
+            if not user or (user_role not in allowed_roles and not quality_capability):
                 return jsonify({"msg": "No tienes permiso para esta acción"}), 403
             return fn(*args, **kwargs)
         return wrapper

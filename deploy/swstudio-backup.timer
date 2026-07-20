@@ -1,0 +1,10 @@
+[Unit]
+Description=Run SW Studio backup every day
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+Unit=swstudio-backup.service
+
+[Install]
+WantedBy=timers.target

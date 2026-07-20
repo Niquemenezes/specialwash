@@ -3,7 +3,7 @@ import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Context } from "../store/appContext";
 import { useNavigate } from "react-router-dom";
 import { confirmar } from "../utils/confirmar";
-import logo from "../img/logo-specialwash-icon-black.png";
+import logo from "../img/logo-specialwash-icon-black.svg";
 
 export default function PedidoBajoStock() {
   const { store, actions } = useContext(Context);

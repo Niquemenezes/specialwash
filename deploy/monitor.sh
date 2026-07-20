@@ -1,10 +1,10 @@
 #!/bin/bash
 # ══════════════════════════════════════════════════════════════
-# SpecialWash Status & Health Check
+# SW Studio Status & Health Check
 # Uso: bash monitor.sh
 # ══════════════════════════════════════════════════════════════
 
-echo "📊 SpecialWash Health Check"
+echo "📊 SW Studio Health Check"
 echo "════════════════════════════════════════"
 echo ""
 
@@ -30,7 +30,7 @@ else
     status_err "Nginx DOWN"
 fi
 
-if systemctl is-active --quiet specialwash-backend.service; then
+if systemctl is-active --quiet swstudio-backend.service; then
     status_ok "Backend running"
 else
     status_err "Backend DOWN"
@@ -76,8 +76,8 @@ else
     status_err "Backend not responding"
 fi
 
-if curl -s -o /dev/null -w "%{http_code}" https://specialwash.studio 2>/dev/null | grep -q "200"; then
-    status_ok "Frontend (https://specialwash.studio)"
+if curl -s -o /dev/null -w "%{http_code}" https://sw-studio.es 2>/dev/null | grep -q "200"; then
+    status_ok "Frontend (https://sw-studio.es)"
 else
     status_warn "Frontend may not be responding"
 fi
@@ -90,10 +90,10 @@ echo ""
 echo "🔐 SSL CERTIFICATE"
 echo "─────────────────────────────────────────"
 
-if [[ -f "/etc/letsencrypt/live/specialwash.studio/cert.pem" ]]; then
-    EXPIRY=$(openssl x509 -enddate -noout -in /etc/letsencrypt/live/specialwash.studio/cert.pem | cut -d= -f2)
+if [[ -f "/etc/letsencrypt/live/sw-studio.es/cert.pem" ]]; then
+    EXPIRY=$(openssl x509 -enddate -noout -in /etc/letsencrypt/live/sw-studio.es/cert.pem | cut -d= -f2)
     DAYS_LEFT=$(( ($(date -d "$EXPIRY" +%s) - $(date +%s)) / 86400 ))
-    
+
     if [[ $DAYS_LEFT -gt 30 ]]; then
         status_ok "SSL valid ($DAYS_LEFT days left)"
     elif [[ $DAYS_LEFT -gt 0 ]]; then
@@ -113,14 +113,14 @@ echo ""
 echo "💾 DISK USAGE"
 echo "─────────────────────────────────────────"
 
-USAGE=$(df /var/www/specialwash | tail -1 | awk '{print $5}' | sed 's/%//')
+USAGE=$(df /var/www/swstudio | tail -1 | awk '{print $5}' | sed 's/%//')
 
 if [[ $USAGE -lt 80 ]]; then
-    status_ok "/var/www/specialwash: ${USAGE}%"
+    status_ok "/var/www/swstudio: ${USAGE}%"
 elif [[ $USAGE -lt 90 ]]; then
-    status_warn "/var/www/specialwash: ${USAGE}%"
+    status_warn "/var/www/swstudio: ${USAGE}%"
 else
-    status_err "/var/www/specialwash: ${USAGE}% - CRITICAL"
+    status_err "/var/www/swstudio: ${USAGE}% - CRITICAL"
 fi
 
 echo ""
@@ -131,8 +131,8 @@ echo ""
 echo "🗄️  DATABASE"
 echo "─────────────────────────────────────────"
 
-if [[ -f "/var/www/specialwash/data/specialwash.db" ]]; then
-    SIZE=$(du -h /var/www/specialwash/data/specialwash.db | cut -f1)
+if [[ -f "/var/www/swstudio/data/swstudio.db" ]]; then
+    SIZE=$(du -h /var/www/swstudio/data/swstudio.db | cut -f1)
     status_ok "Database exists (${SIZE})"
 else
     status_warn "Database not found (will be created on first run)"
@@ -147,11 +147,11 @@ echo "📝 RECENT LOGS"
 echo "─────────────────────────────────────────"
 
 echo "Backend errors (last 5):"
-tail -5 /var/www/specialwash/logs/gunicorn-error.log 2>/dev/null | sed 's/^/  /'
+tail -5 /var/www/swstudio/logs/gunicorn-error.log 2>/dev/null | sed 's/^/  /'
 
 echo ""
 echo "Nginx errors (last 5):"
-tail -5 /var/www/specialwash/logs/nginx-error.log 2>/dev/null | sed 's/^/  /'
+tail -5 /var/www/swstudio/logs/nginx-error.log 2>/dev/null | sed 's/^/  /'
 
 echo ""
 
@@ -160,14 +160,14 @@ echo ""
 # ──────────────────────────────────────────────────────────────
 echo "════════════════════════════════════════"
 echo "📍 Logs Location:"
-echo "   Backend:  journalctl -u specialwash-backend.service -f"
-echo "   Nginx:    tail -100 /var/www/specialwash/logs/nginx-error.log"
+echo "   Backend:  journalctl -u swstudio-backend.service -f"
+echo "   Nginx:    tail -100 /var/www/swstudio/logs/nginx-error.log"
 echo ""
 echo "📍 Config:"
-echo "   Backend:  /var/www/specialwash/app/backend/.env"
-echo "   Nginx:    /etc/nginx/sites-available/specialwash"
+echo "   Backend:  /var/www/swstudio/app/backend/.env"
+echo "   Nginx:    /etc/nginx/sites-available/swstudio"
 echo ""
 echo "🔄 Restart Commands:"
-echo "   systemctl restart specialwash-backend.service"
+echo "   systemctl restart swstudio-backend.service"
 echo "   systemctl restart nginx"
 echo ""

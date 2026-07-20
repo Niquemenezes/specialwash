@@ -4,6 +4,80 @@ import { Context } from "../store/appContext";
 import { buildApiUrl } from "../utils/apiBase";
 import "../styles/inspeccion-responsive.css";
 
+const TECH_SCHEMA = "swstudio_tecnica_v1";
+
+const EMPTY_MEDICIONES_TECNICAS = {
+  barniz: [],
+  brillo: [],
+  microscopia: [],
+};
+
+const createMedicionBase = (unidad = "") => ({
+  zona: "",
+  localizacion: "",
+  lecturas: [],
+  unidad,
+  incluir_en_informe: true,
+});
+
+const createMicroscopiaBase = () => ({
+  zona: "",
+  localizacion: "",
+  nota: "",
+  media_refs: [],
+  incluir_en_informe: true,
+});
+
+const PARTES_COCHE_SUGERIDAS = [
+  "Paragolpes delantero izquierdo",
+  "Paragolpes delantero derecho",
+  "Paragolpes trasero izquierdo",
+  "Paragolpes trasero derecho",
+  "Capó",
+  "Techo",
+  "Portón trasero",
+  "Aleta delantera izquierda",
+  "Aleta delantera derecha",
+  "Aleta trasera izquierda",
+  "Aleta trasera derecha",
+  "Puerta delantera izquierda",
+  "Puerta delantera derecha",
+  "Puerta trasera izquierda",
+  "Puerta trasera derecha",
+  "Retrovisor izquierdo",
+  "Retrovisor derecho",
+  "Pilar A izquierdo",
+  "Pilar A derecho",
+  "Pilar B izquierdo",
+  "Pilar B derecho",
+  "Pilar C izquierdo",
+  "Pilar C derecho",
+  "Talonera izquierda",
+  "Talonera derecha",
+];
+
+const MAPA_PARTES_COCHE = [
+  { label: "Paragolpes delantero izquierdo", x: 22, y: 16 },
+  { label: "Paragolpes delantero derecho", x: 78, y: 16 },
+  { label: "Capó", x: 50, y: 22 },
+  { label: "Aleta delantera izquierda", x: 24, y: 28 },
+  { label: "Aleta delantera derecha", x: 76, y: 28 },
+  { label: "Retrovisor izquierdo", x: 16, y: 39 },
+  { label: "Retrovisor derecho", x: 84, y: 39 },
+  { label: "Puerta delantera izquierda", x: 28, y: 43 },
+  { label: "Puerta delantera derecha", x: 72, y: 43 },
+  { label: "Puerta trasera izquierda", x: 30, y: 57 },
+  { label: "Puerta trasera derecha", x: 70, y: 57 },
+  { label: "Talonera izquierda", x: 24, y: 66 },
+  { label: "Talonera derecha", x: 76, y: 66 },
+  { label: "Aleta trasera izquierda", x: 24, y: 74 },
+  { label: "Aleta trasera derecha", x: 76, y: 74 },
+  { label: "Portón trasero", x: 50, y: 82 },
+  { label: "Paragolpes trasero izquierdo", x: 22, y: 88 },
+  { label: "Paragolpes trasero derecho", x: 78, y: 88 },
+  { label: "Techo", x: 50, y: 50 },
+];
+
 const safeDate = (value) => {
   if (!value) return "-";
   const dt = new Date(value);
@@ -18,6 +92,8 @@ const EMPTY_FORM = {
   productos_aplicados: "",
   resultado_final: "",
   observaciones_tecnicas_adicionales: "",
+  mediciones_tecnicas_recepcion: { ...EMPTY_MEDICIONES_TECNICAS },
+  mediciones_tecnicas: { ...EMPTY_MEDICIONES_TECNICAS },
   recomendaciones: "",
 };
 
@@ -41,6 +117,132 @@ const parseServicios = (value) => {
   } catch {
     return [];
   }
+};
+
+const safeNumber = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+
+const parseLecturasText = (value) => {
+  const parts = String(value || "")
+    .split(/[\n,;]+/)
+    .map((item) => item.trim().replace(",", "."))
+    .filter(Boolean);
+  return parts
+    .map((item) => safeNumber(item))
+    .filter((item) => item !== null);
+};
+
+const lecturasToText = (lecturas = []) => {
+  if (!Array.isArray(lecturas) || lecturas.length === 0) return "";
+  return lecturas.join(", ");
+};
+
+const calcMedia = (lecturas = []) => {
+  const nums = Array.isArray(lecturas)
+    ? lecturas.map((v) => safeNumber(v)).filter((v) => v !== null)
+    : [];
+  if (nums.length === 0) return null;
+  const sum = nums.reduce((acc, val) => acc + val, 0);
+  return sum / nums.length;
+};
+
+const normalizeMedicionesTecnicas = (input) => {
+  const source = input && typeof input === "object" ? input : {};
+
+  const barniz = Array.isArray(source.barniz)
+    ? source.barniz.map((item) => ({
+      ...createMedicionBase("um"),
+      ...item,
+      lecturas: Array.isArray(item?.lecturas)
+        ? item.lecturas.map((v) => safeNumber(v)).filter((v) => v !== null)
+        : [],
+      incluir_en_informe: item?.incluir_en_informe !== false,
+    }))
+    : [];
+
+  const brillo = Array.isArray(source.brillo)
+    ? source.brillo.map((item) => ({
+      ...createMedicionBase("GU"),
+      ...item,
+      lecturas: Array.isArray(item?.lecturas)
+        ? item.lecturas.map((v) => safeNumber(v)).filter((v) => v !== null)
+        : [],
+      incluir_en_informe: item?.incluir_en_informe !== false,
+    }))
+    : [];
+
+  const microscopia = Array.isArray(source.microscopia)
+    ? source.microscopia.map((item) => ({
+      ...createMicroscopiaBase(),
+      ...item,
+      media_refs: Array.isArray(item?.media_refs)
+        ? item.media_refs.map((v) => String(v || "")).filter(Boolean)
+        : [],
+      incluir_en_informe: item?.incluir_en_informe !== false,
+    }))
+    : [];
+
+  return { barniz, brillo, microscopia };
+};
+
+const parseObservacionesTecnicas = (rawValue) => {
+  const raw = String(rawValue || "").trim();
+  if (!raw) {
+    return {
+      textoLibre: "",
+      medicionesRecepcion: { ...EMPTY_MEDICIONES_TECNICAS },
+      medicionesEntrega: { ...EMPTY_MEDICIONES_TECNICAS },
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.schema === TECH_SCHEMA) {
+      const root = parsed.mediciones_tecnicas || {};
+      const hasStages = root && typeof root === "object" && (root.recepcion || root.entrega);
+      return {
+        textoLibre: String(parsed.texto_libre || ""),
+        medicionesRecepcion: hasStages
+          ? normalizeMedicionesTecnicas(root.recepcion || {})
+          : { ...EMPTY_MEDICIONES_TECNICAS },
+        medicionesEntrega: hasStages
+          ? normalizeMedicionesTecnicas(root.entrega || {})
+          : normalizeMedicionesTecnicas(root),
+      };
+    }
+  } catch {
+    // Compatibilidad con registros históricos en texto plano.
+  }
+
+  return {
+    textoLibre: raw,
+    medicionesRecepcion: { ...EMPTY_MEDICIONES_TECNICAS },
+    medicionesEntrega: { ...EMPTY_MEDICIONES_TECNICAS },
+  };
+};
+
+const hasMedicionesData = (mediciones) => {
+  const m = normalizeMedicionesTecnicas(mediciones);
+  return m.barniz.length > 0 || m.brillo.length > 0 || m.microscopia.length > 0;
+};
+
+const serializeObservacionesTecnicas = (textoLibre, medicionesRecepcion, medicionesEntrega) => {
+  const text = String(textoLibre || "").trim();
+  const normalizedRecepcion = normalizeMedicionesTecnicas(medicionesRecepcion);
+  const normalizedEntrega = normalizeMedicionesTecnicas(medicionesEntrega);
+  if (!text && !hasMedicionesData(normalizedRecepcion) && !hasMedicionesData(normalizedEntrega)) return "";
+
+  const payload = {
+    schema: TECH_SCHEMA,
+    texto_libre: text,
+    mediciones_tecnicas: {
+      recepcion: normalizedRecepcion,
+      entrega: normalizedEntrega,
+    },
+  };
+  return JSON.stringify(payload);
 };
 
 const composeActaTexto = (form) => {
@@ -90,6 +292,7 @@ const parseActaTexto = (texto = "") => {
 const hydrateForm = (insp) => {
   const structured = parseActaTexto(insp?.trabajos_realizados || "");
   const servicios = parseServicios(insp?.servicios_aplicados || "[]");
+  const tecnicas = parseObservacionesTecnicas(insp?.observaciones_tecnicas_adicionales);
 
   // Auto-rellenar motivo desde servicios contratados si está vacío
   if (!structured.motivo_intervencion && servicios.length) {
@@ -119,7 +322,9 @@ const hydrateForm = (insp) => {
   return {
     ...EMPTY_FORM,
     ...structured,
-    observaciones_tecnicas_adicionales: insp?.observaciones_tecnicas_adicionales || "",
+    observaciones_tecnicas_adicionales: tecnicas.textoLibre,
+    mediciones_tecnicas_recepcion: tecnicas.medicionesRecepcion,
+    mediciones_tecnicas: tecnicas.medicionesEntrega,
   };
 };
 
@@ -136,6 +341,8 @@ export default function HojaTecnicaPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [usando_ia, setUsandoIa] = useState(false);
   const [iaGeneradaAuto, setIaGeneradaAuto] = useState(false);
+  const [targetMapa, setTargetMapa] = useState(null);
+  const [localizacionManualMapa, setLocalizacionManualMapa] = useState("");
 
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const iaPreparar = searchParams.get("ia") === "true" || searchParams.get("ai") === "true";
@@ -144,6 +351,39 @@ export default function HojaTecnicaPage() {
     () => parseServicios(inspeccion?.servicios_aplicados || "[]"),
     [inspeccion?.servicios_aplicados]
   );
+
+  const mediaToken =
+    sessionStorage.getItem("token") || localStorage.getItem("token") || "";
+
+  const fotosInspeccion = useMemo(() => {
+    const fotos = Array.isArray(inspeccion?.fotos_cloudinary) ? inspeccion.fotos_cloudinary : [];
+    return fotos.map((foto, index) => {
+      const filename = String(foto?.filename || "").trim();
+      const id = filename || String(foto?.public_id || "").trim() || `foto-${index}`;
+      const rawUrl = String(foto?.url || "").trim();
+      const absoluteUrl = rawUrl
+        ? (rawUrl.startsWith("http")
+          ? rawUrl
+          : buildApiUrl(rawUrl))
+        : "";
+      const urlConToken = absoluteUrl
+        ? `${absoluteUrl}${absoluteUrl.includes("?") ? "&" : "?"}token=${encodeURIComponent(mediaToken)}`
+        : "";
+
+      return {
+        id,
+        filename,
+        tipo: foto?.tipo || "general",
+        original_name: foto?.original_name || filename || `Foto ${index + 1}`,
+        url: mediaToken ? urlConToken : absoluteUrl,
+      };
+    });
+  }, [inspeccion?.fotos_cloudinary, mediaToken]);
+
+  const fotosMicroscopio = useMemo(() => {
+    const marcadas = fotosInspeccion.filter((foto) => String(foto?.tipo || "").toLowerCase() === "microscopio");
+    return marcadas.length > 0 ? marcadas : fotosInspeccion;
+  }, [fotosInspeccion]);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -167,6 +407,93 @@ export default function HojaTecnicaPage() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const addMedicion = (tipo) => {
+    setForm((prev) => ({
+      ...prev,
+      mediciones_tecnicas: {
+        ...prev.mediciones_tecnicas,
+        [tipo]: [
+          ...(prev.mediciones_tecnicas?.[tipo] || []),
+          tipo === "microscopia" ? createMicroscopiaBase() : createMedicionBase(tipo === "barniz" ? "um" : "GU"),
+        ],
+      },
+    }));
+  };
+
+  const removeMedicion = (tipo, index) => {
+    setForm((prev) => ({
+      ...prev,
+      mediciones_tecnicas: {
+        ...prev.mediciones_tecnicas,
+        [tipo]: (prev.mediciones_tecnicas?.[tipo] || []).filter((_, idx) => idx !== index),
+      },
+    }));
+  };
+
+  const updateMedicionField = (tipo, index, field, value) => {
+    setForm((prev) => ({
+      ...prev,
+      mediciones_tecnicas: {
+        ...prev.mediciones_tecnicas,
+        [tipo]: (prev.mediciones_tecnicas?.[tipo] || []).map((item, idx) => {
+          if (idx !== index) return item;
+          return { ...item, [field]: value };
+        }),
+      },
+    }));
+  };
+
+  const updateLecturas = (tipo, index, value) => {
+    const lecturas = parseLecturasText(value);
+    updateMedicionField(tipo, index, "lecturas", lecturas);
+  };
+
+  const toggleMicroscopiaFoto = (index, fotoId) => {
+    setForm((prev) => ({
+      ...prev,
+      mediciones_tecnicas: {
+        ...prev.mediciones_tecnicas,
+        microscopia: (prev.mediciones_tecnicas?.microscopia || []).map((item, idx) => {
+          if (idx !== index) return item;
+          const current = Array.isArray(item.media_refs) ? item.media_refs : [];
+          const exists = current.includes(fotoId);
+          return {
+            ...item,
+            media_refs: exists ? current.filter((id) => id !== fotoId) : [...current, fotoId],
+          };
+        }),
+      },
+    }));
+  };
+
+  const seleccionarTargetMapa = (tipo, index) => {
+    setTargetMapa({ tipo, index });
+    setFeedback({ type: "success", msg: "Ahora haz clic en la zona del coche para asignar la localización." });
+  };
+
+  const aplicarZonaMapa = (pieza) => {
+    if (!targetMapa || targetMapa.index < 0) {
+      setFeedback({ type: "error", msg: "Selecciona primero una medición y luego pulsa 'Usar dibujo'." });
+      return;
+    }
+    updateMedicionField(targetMapa.tipo, targetMapa.index, "localizacion", pieza);
+    setFeedback({ type: "success", msg: `Zona asignada: ${pieza}` });
+  };
+
+  const aplicarLocalizacionManualMapa = () => {
+    const manual = String(localizacionManualMapa || "").trim();
+    if (!targetMapa || targetMapa.index < 0) {
+      setFeedback({ type: "error", msg: "Selecciona primero una medición y luego pulsa 'Usar dibujo'." });
+      return;
+    }
+    if (!manual) {
+      setFeedback({ type: "error", msg: "Escribe una localización manual antes de aplicar." });
+      return;
+    }
+    updateMedicionField(targetMapa.tipo, targetMapa.index, "localizacion", manual);
+    setFeedback({ type: "success", msg: `Localización manual asignada: ${manual}` });
   };
 
   const guardarActa = async (abrirFirma = false) => {
@@ -193,7 +520,11 @@ export default function HojaTecnicaPage() {
           body: JSON.stringify({
             trabajos_realizados: contenidoActa,
             entrega_observaciones: "",
-            observaciones_tecnicas_adicionales: form.observaciones_tecnicas_adicionales || "",
+            observaciones_tecnicas_adicionales: serializeObservacionesTecnicas(
+              form.observaciones_tecnicas_adicionales,
+              form.mediciones_tecnicas_recepcion,
+              form.mediciones_tecnicas
+            ),
           }),
         }
       );
@@ -251,8 +582,9 @@ export default function HojaTecnicaPage() {
       setForm((prev) => ({
         ...prev,
         ...parsed,
-        // Preservar el campo técnico adicional (la IA no lo gestiona)
+        // Preservar bloque técnico, la IA no lo gestiona.
         observaciones_tecnicas_adicionales: prev.observaciones_tecnicas_adicionales,
+        mediciones_tecnicas: prev.mediciones_tecnicas,
       }));
 
       setFeedback({ type: "success", msg: "Borrador generado con IA. Revisa y ajusta antes de guardar." });
@@ -496,6 +828,328 @@ export default function HojaTecnicaPage() {
           </div>
 
           <hr />
+
+          <div className="mb-4">
+            <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+              <label className="form-label fw-semibold mb-0">Mediciones técnicas</label>
+              <span className="text-muted small">Múltiples lecturas por zona/localización con media automática</span>
+            </div>
+
+            <datalist id="sw-partes-coche-lista">
+              {PARTES_COCHE_SUGERIDAS.map((pieza) => (
+                <option key={pieza} value={pieza} />
+              ))}
+            </datalist>
+
+            <div className="card mb-3">
+              <div className="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <strong>Dibujo del coche para marcar zona</strong>
+                <span className="small text-muted">
+                  {targetMapa
+                    ? `Objetivo activo: ${targetMapa.tipo} #${targetMapa.index + 1}`
+                    : "Selecciona una medición con 'Usar dibujo'"}
+                </span>
+              </div>
+              <div className="card-body">
+                <div
+                  className="position-relative mx-auto"
+                  style={{ maxWidth: 520, width: "100%", aspectRatio: "5 / 9", border: "1px solid #d9e1ea", borderRadius: 14, background: "linear-gradient(180deg,#f9fcff,#eef4fb)" }}
+                >
+                  <svg viewBox="0 0 100 180" className="w-100 h-100" aria-hidden="true">
+                    <rect x="20" y="8" width="60" height="164" rx="20" ry="20" fill="#dde7f3" stroke="#8ca0b8" strokeWidth="1.2" />
+                    <rect x="30" y="26" width="40" height="24" rx="8" fill="#f7fbff" stroke="#a7b7ca" strokeWidth="1" />
+                    <rect x="28" y="58" width="44" height="58" rx="10" fill="#f7fbff" stroke="#a7b7ca" strokeWidth="1" />
+                    <rect x="30" y="124" width="40" height="24" rx="8" fill="#f7fbff" stroke="#a7b7ca" strokeWidth="1" />
+                  </svg>
+
+                  {MAPA_PARTES_COCHE.map((part) => (
+                    <button
+                      key={part.label}
+                      type="button"
+                      className="btn btn-sm btn-light border position-absolute"
+                      onClick={() => aplicarZonaMapa(part.label)}
+                      style={{
+                        left: `${part.x}%`,
+                        top: `${part.y}%`,
+                        transform: "translate(-50%, -50%)",
+                        fontSize: 10,
+                        lineHeight: 1.1,
+                        padding: "2px 5px",
+                        whiteSpace: "nowrap",
+                      }}
+                      title={part.label}
+                    >
+                      •
+                    </button>
+                  ))}
+                </div>
+                <div className="small text-muted mt-2">
+                  Pulsa una medición en "Usar dibujo" y luego marca la zona en el esquema.
+                </div>
+                <div className="row g-2 mt-2">
+                  <div className="col-12 col-md-8">
+                    <input
+                      className="form-control"
+                      list="sw-partes-coche-lista"
+                      placeholder="O escribe localización manual (ej: paragolpes delantero derecho)"
+                      value={localizacionManualMapa}
+                      onChange={(e) => setLocalizacionManualMapa(e.target.value)}
+                      disabled={saving}
+                    />
+                  </div>
+                  <div className="col-12 col-md-4">
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary w-100"
+                      onClick={aplicarLocalizacionManualMapa}
+                      disabled={saving}
+                    >
+                      Aplicar manual
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="card mb-3">
+              <div className="card-header d-flex justify-content-between align-items-center">
+                <strong>Grosor de barniz (um)</strong>
+                <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => addMedicion("barniz")} disabled={saving}>
+                  + Añadir medición
+                </button>
+              </div>
+              <div className="card-body">
+                {(form.mediciones_tecnicas?.barniz || []).length === 0 && (
+                  <div className="text-muted small">Sin mediciones de barniz registradas.</div>
+                )}
+                {(form.mediciones_tecnicas?.barniz || []).map((item, idx) => {
+                  const media = calcMedia(item.lecturas);
+                  return (
+                    <div key={`barniz-${idx}`} className="border rounded p-3 mb-3">
+                      <div className="row g-2">
+                        <div className="col-12 col-md-4">
+                          <label className="form-label small">Zona</label>
+                          <input className="form-control" value={item.zona || ""} onChange={(e) => updateMedicionField("barniz", idx, "zona", e.target.value)} disabled={saving} />
+                        </div>
+                        <div className="col-12 col-md-4">
+                          <label className="form-label small">Localización</label>
+                          <input
+                            className="form-control"
+                            list="sw-partes-coche-lista"
+                            placeholder="Ej: Paragolpes delantero derecho"
+                            value={item.localizacion || ""}
+                            onChange={(e) => updateMedicionField("barniz", idx, "localizacion", e.target.value)}
+                            disabled={saving}
+                          />
+                        </div>
+                        <div className="col-12 col-md-4 d-flex align-items-end justify-content-between gap-2">
+                          <div className="small text-muted">Media: <strong>{media !== null ? media.toFixed(2) : "-"} um</strong></div>
+                          <div className="d-flex gap-2">
+                            <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => seleccionarTargetMapa("barniz", idx)} disabled={saving}>Usar dibujo</button>
+                            <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => removeMedicion("barniz", idx)} disabled={saving}>Eliminar</button>
+                          </div>
+                        </div>
+                        <div className="col-12">
+                          <label className="form-label small">Lecturas (separadas por coma o salto de línea)</label>
+                          <textarea
+                            className="form-control"
+                            rows={2}
+                            value={lecturasToText(item.lecturas)}
+                            onChange={(e) => updateLecturas("barniz", idx, e.target.value)}
+                            disabled={saving}
+                            placeholder="98, 102, 101"
+                          />
+                        </div>
+                        <div className="col-12">
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id={`barniz-informe-${idx}`}
+                              checked={item.incluir_en_informe !== false}
+                              onChange={(e) => updateMedicionField("barniz", idx, "incluir_en_informe", e.target.checked)}
+                              disabled={saving}
+                            />
+                            <label className="form-check-label" htmlFor={`barniz-informe-${idx}`}>
+                              Incluir en relatorio / hoja técnica
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="card mb-3">
+              <div className="card-header d-flex justify-content-between align-items-center">
+                <strong>Brillo glosómetro (GU)</strong>
+                <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => addMedicion("brillo")} disabled={saving}>
+                  + Añadir medición
+                </button>
+              </div>
+              <div className="card-body">
+                {(form.mediciones_tecnicas?.brillo || []).length === 0 && (
+                  <div className="text-muted small">Sin mediciones de brillo registradas.</div>
+                )}
+                {(form.mediciones_tecnicas?.brillo || []).map((item, idx) => {
+                  const media = calcMedia(item.lecturas);
+                  return (
+                    <div key={`brillo-${idx}`} className="border rounded p-3 mb-3">
+                      <div className="row g-2">
+                        <div className="col-12 col-md-4">
+                          <label className="form-label small">Zona</label>
+                          <input className="form-control" value={item.zona || ""} onChange={(e) => updateMedicionField("brillo", idx, "zona", e.target.value)} disabled={saving} />
+                        </div>
+                        <div className="col-12 col-md-4">
+                          <label className="form-label small">Localización</label>
+                          <input
+                            className="form-control"
+                            list="sw-partes-coche-lista"
+                            placeholder="Ej: Capó o puerta delantera izquierda"
+                            value={item.localizacion || ""}
+                            onChange={(e) => updateMedicionField("brillo", idx, "localizacion", e.target.value)}
+                            disabled={saving}
+                          />
+                        </div>
+                        <div className="col-12 col-md-4 d-flex align-items-end justify-content-between gap-2">
+                          <div className="small text-muted">Media: <strong>{media !== null ? media.toFixed(2) : "-"} GU</strong></div>
+                          <div className="d-flex gap-2">
+                            <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => seleccionarTargetMapa("brillo", idx)} disabled={saving}>Usar dibujo</button>
+                            <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => removeMedicion("brillo", idx)} disabled={saving}>Eliminar</button>
+                          </div>
+                        </div>
+                        <div className="col-12">
+                          <label className="form-label small">Lecturas (separadas por coma o salto de línea)</label>
+                          <textarea
+                            className="form-control"
+                            rows={2}
+                            value={lecturasToText(item.lecturas)}
+                            onChange={(e) => updateLecturas("brillo", idx, e.target.value)}
+                            disabled={saving}
+                            placeholder="85, 87, 84"
+                          />
+                        </div>
+                        <div className="col-12">
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id={`brillo-informe-${idx}`}
+                              checked={item.incluir_en_informe !== false}
+                              onChange={(e) => updateMedicionField("brillo", idx, "incluir_en_informe", e.target.checked)}
+                              disabled={saving}
+                            />
+                            <label className="form-check-label" htmlFor={`brillo-informe-${idx}`}>
+                              Incluir en relatorio / hoja técnica
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-header d-flex justify-content-between align-items-center">
+                <strong>Fotos de microscopio</strong>
+                <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => addMedicion("microscopia")} disabled={saving}>
+                  + Añadir bloque microscopia
+                </button>
+              </div>
+              <div className="card-body">
+                {(form.mediciones_tecnicas?.microscopia || []).length === 0 && (
+                  <div className="text-muted small">Sin bloques de microscopía registrados.</div>
+                )}
+                {(form.mediciones_tecnicas?.microscopia || []).map((item, idx) => (
+                  <div key={`micro-${idx}`} className="border rounded p-3 mb-3">
+                    <div className="row g-2 mb-2">
+                      <div className="col-12 col-md-4">
+                        <label className="form-label small">Zona</label>
+                        <input className="form-control" value={item.zona || ""} onChange={(e) => updateMedicionField("microscopia", idx, "zona", e.target.value)} disabled={saving} />
+                      </div>
+                      <div className="col-12 col-md-4">
+                        <label className="form-label small">Localización</label>
+                        <input
+                          className="form-control"
+                          list="sw-partes-coche-lista"
+                          placeholder="Ej: Aleta trasera derecha"
+                          value={item.localizacion || ""}
+                          onChange={(e) => updateMedicionField("microscopia", idx, "localizacion", e.target.value)}
+                          disabled={saving}
+                        />
+                      </div>
+                      <div className="col-12 col-md-4 d-flex align-items-end justify-content-end gap-2">
+                        <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => seleccionarTargetMapa("microscopia", idx)} disabled={saving}>Usar dibujo</button>
+                        <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => removeMedicion("microscopia", idx)} disabled={saving}>Eliminar</button>
+                      </div>
+                    </div>
+
+                    <label className="form-label small">Nota técnica</label>
+                    <textarea
+                      className="form-control mb-2"
+                      rows={2}
+                      value={item.nota || ""}
+                      onChange={(e) => updateMedicionField("microscopia", idx, "nota", e.target.value)}
+                      disabled={saving}
+                      placeholder="Observación al microscopio en esta zona"
+                    />
+
+                    <div className="form-check mb-2">
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        id={`micro-informe-${idx}`}
+                        checked={item.incluir_en_informe !== false}
+                        onChange={(e) => updateMedicionField("microscopia", idx, "incluir_en_informe", e.target.checked)}
+                        disabled={saving}
+                      />
+                      <label className="form-check-label" htmlFor={`micro-informe-${idx}`}>
+                        Incluir en relatorio / hoja técnica
+                      </label>
+                    </div>
+
+                    {fotosMicroscopio.length > 0 ? (
+                      <div>
+                        <div className="small text-muted mb-2">Fotos asociadas</div>
+                        <div className="row g-2">
+                          {fotosMicroscopio.map((foto) => {
+                            const selected = (item.media_refs || []).includes(foto.id);
+                            return (
+                              <div className="col-12 col-md-6 col-xl-4" key={`foto-ref-${idx}-${foto.id}`}>
+                                <label className="border rounded p-2 d-block" style={{ cursor: "pointer" }}>
+                                  <div className="form-check mb-2">
+                                    <input
+                                      className="form-check-input"
+                                      type="checkbox"
+                                      checked={selected}
+                                      onChange={() => toggleMicroscopiaFoto(idx, foto.id)}
+                                      disabled={saving}
+                                    />
+                                    <span className="form-check-label small ms-2">{foto.original_name || foto.id}</span>
+                                  </div>
+                                  {foto.url ? (
+                                    <img src={foto.url} alt={foto.original_name || foto.id} style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 6 }} />
+                                  ) : (
+                                    <div className="text-muted small">Sin vista previa</div>
+                                  )}
+                                </label>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="small text-muted">No hay fotos de inspección subidas para asociar.</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
 
           {/* SECCIÓN 4: Observaciones técnicas adicionales (no contratadas) */}
           <div className="mb-4">

@@ -1,10 +1,10 @@
 #!/bin/bash
 # ══════════════════════════════════════════════════════════════
-# Generar claves secretas seguras para SpecialWash
+# Generar claves secretas seguras para SW Studio
 # Uso: bash generate-secrets.sh
 # ══════════════════════════════════════════════════════════════
 
-echo "🔐 SpecialWash Secret Generator"
+echo "🔐 SW Studio Secret Generator"
 echo "════════════════════════════════════════"
 echo ""
 
@@ -23,5 +23,5 @@ echo ""
 echo "════════════════════════════════════════"
 echo "✅ Copiar estos valores a .env en el servidor"
 echo ""
-echo "Archivo: /var/www/specialwash/app/backend/.env"
+echo "Archivo: /var/www/swstudio/app/backend/.env"
 echo ""

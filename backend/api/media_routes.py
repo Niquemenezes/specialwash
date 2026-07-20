@@ -94,6 +94,10 @@ def upload_foto(inspeccion_id):
     if ext not in FOTO_ALLOWED_EXTS:
         return jsonify({"msg": f"Formato de imagen no admitido: {ext or 'sin extensión'}"}), 400
 
+    tipo_foto = (request.form.get("tipo") or "general").strip().lower()
+    if tipo_foto not in {"general", "microscopio"}:
+        tipo_foto = "general"
+
     try:
         now = datetime.now(timezone.utc)
         expires_at = now + timedelta(days=FOTO_EXPIRY_DAYS)
@@ -104,6 +108,7 @@ def upload_foto(inspeccion_id):
         foto_entry = {
             "filename": unique_name,
             "original_name": raw_name,
+            "tipo": tipo_foto,
             "uploaded_at": now.isoformat(),
             "expires_at": expires_at.isoformat(),
         }

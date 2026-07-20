@@ -3,18 +3,22 @@
   "name": "SW AUTO SPA",
   "icons": [
     {
-      "src": "logo-specialwash-icon-black.png",
-      "type": "image/png",
+      "src": "sw-studio-logo.svg",
+      "type": "image/svg+xml",
       "sizes": "192x192"
     },
     {
-      "src": "logo-specialwash-icon-black.png",
-      "type": "image/png",
+      "src": "sw-studio-logo.svg",
+      "type": "image/svg+xml",
       "sizes": "512x512"
     }
   ],
-  "start_url": ".",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "orientation": "any",
+  "theme_color": "#1d1714",
+  "background_color": "#120e0c",
+  "description": "Gestión interna de taller de SW Studio"
 }

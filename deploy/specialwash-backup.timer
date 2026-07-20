@@ -1,11 +1,3 @@
-[Unit]
-Description=Run SpecialWash backup every day
-
-[Timer]
-OnCalendar=*-*-* 03:30:00
-Persistent=true
-Unit=specialwash-backup.service
-
-[Install]
-WantedBy=timers.target
-
+# OBSOLETO — sustituido por swstudio-backup.timer
+# Este archivo se deja vacío intencionalmente para evitar que se use por error.
+# Puedes borrarlo manualmente cuando quieras.

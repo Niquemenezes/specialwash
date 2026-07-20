@@ -2,11 +2,11 @@
 
 set -euo pipefail
 
-APP_DIR="/var/www/specialwash/app"
+APP_DIR="/var/www/swstudio/app"
 BACKEND_DIR="$APP_DIR/backend"
 VENV_DIR="$BACKEND_DIR/venv"
 
-echo "SpecialWash IONOS update"
+echo "SW Studio update"
 echo "========================"
 
 if [[ ! -d "$APP_DIR/.git" ]]; then
@@ -40,8 +40,8 @@ print("Imports OK")
 PY
 
 echo "-> reiniciando servicio"
-systemctl restart specialwash-backend.service
+systemctl restart swstudio-backend.service
 
 echo "-> comprobando estado"
-systemctl is-active --quiet specialwash-backend.service
+systemctl is-active --quiet swstudio-backend.service
 echo "OK: backend reiniciado correctamente"

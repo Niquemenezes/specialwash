@@ -1,0 +1,10 @@
+[Unit]
+Description=SW Studio backup freshness check
+After=network.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/root/swstudio
+Environment=MAX_AGE_HOURS=36
+ExecStart=/usr/bin/env bash /root/swstudio/deploy/check_backup_fresh.sh

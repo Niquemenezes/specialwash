@@ -8,6 +8,7 @@ class User(db.Model):
     nombre = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     rol = db.Column(db.String(32), default="detailing", nullable=False)
+    acceso_calidad = db.Column(db.Boolean, default=False, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     activo = db.Column(db.Boolean, default=True, nullable=False)
 
@@ -20,5 +21,6 @@ class User(db.Model):
             "nombre": self.nombre,
             "email": self.email,
             "rol": self.rol,
+            "acceso_calidad": bool(self.acceso_calidad),
             "activo": self.activo,
         }

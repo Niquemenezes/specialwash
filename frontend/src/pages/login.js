@@ -109,7 +109,7 @@ export default function Login() {
 
               <div className="text-center">
                 <small className="sw-auth-subtext">
-                  Contacta con administración para solicitar acceso.
+                  Si no recuerdas tus credenciales, contacta con administración.
                 </small>
               </div>
             </form>

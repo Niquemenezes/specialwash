@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Context } from "../store/appContext";
-import logo from "../img/logo-specialwash-icon-black.png";
+import logo from "../img/logo-specialwash-icon-black.svg";
 
 function parseIdsParam(raw) {
   if (!raw) return null;

@@ -1,7 +1,7 @@
 import React, { useContext, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Context } from "../store/appContext";
-import { getStoredRol, getStoredToken, normalizeRol } from "../utils/authSession";
+import { getStoredRol, getStoredToken, hasStoredQualityAccess, normalizeRol } from "../utils/authSession";
 
 const getGreeting = () => {
   const h = new Date().getHours();
@@ -56,7 +56,7 @@ const MODULES = [
     accent: "#6366f1",
     to: () => "/mis-partes-trabajo",
     cta: () => "Ver mis trabajos",
-    roles: ["detailing", "pintura", "tapicero"],
+    roles: ["detailing", "calidad", "pintura", "tapicero"],
   },
   {
     id: "partes-admin",
@@ -99,8 +99,26 @@ function HomeGuest() {
           Bienvenido a <span className="sw-home-guest-brand">SW AUTO SPA</span>
         </h1>
         <p className="sw-home-guest-sub">
-          Gestión integral de taller: vehículos, inventario, partes de trabajo y más.
+          Gestión integral de taller con una interfaz más limpia, elegante y centrada en la operativa real.
         </p>
+        <div className="sw-home-guest-stats" aria-label="Datos importantes">
+          <div className="sw-home-guest-stat">
+            <span className="sw-home-guest-stat-label">Recepción</span>
+            <span className="sw-home-guest-stat-value">Entrada de coches</span>
+          </div>
+          <div className="sw-home-guest-stat">
+            <span className="sw-home-guest-stat-label">Trazabilidad</span>
+            <span className="sw-home-guest-stat-value">Matrícula y cliente</span>
+          </div>
+          <div className="sw-home-guest-stat">
+            <span className="sw-home-guest-stat-label">Operativa</span>
+            <span className="sw-home-guest-stat-value">Partes y estado</span>
+          </div>
+          <div className="sw-home-guest-stat">
+            <span className="sw-home-guest-stat-label">Entrega</span>
+            <span className="sw-home-guest-stat-value">Entrega y cobro</span>
+          </div>
+        </div>
         <Link to="/login" className="sw-home-guest-btn">
           Iniciar sesión
           <span className="sw-home-guest-btn-arrow">{ICONS.arrow}</span>
@@ -115,7 +133,8 @@ export default function Home() {
   const { store, actions } = useContext(Context);
   const token = getStoredToken();
   const rol = normalizeRol(store?.user?.rol) || normalizeRol(getStoredRol()) || "detailing";
-  const isOperationalEmployee = ["detailing", "pintura", "tapicero", "salida"].includes(rol);
+  const hasQualityAccess = rol === "calidad" || hasStoredQualityAccess();
+  const isOperationalEmployee = ["detailing", "calidad", "pintura", "tapicero", "salida"].includes(rol);
 
   useEffect(() => {
     if (token && !store.user) {
@@ -125,7 +144,9 @@ export default function Home() {
 
   if (!token) return <HomeGuest />;
 
-  const visibleModules = MODULES.filter((m) => m.roles.includes(rol));
+  const visibleModules = MODULES.filter(
+    (module) => module.roles.includes(rol) || (hasQualityAccess && module.roles.includes("calidad"))
+  );
   const nombre = store.user?.nombre ?? "";
 
   return (
@@ -137,6 +158,9 @@ export default function Home() {
             <h1 className="sw-home-heading">
               {getGreeting()}{nombre ? <>, <span className="sw-home-heading-name">{nombre}</span></> : ""}.
             </h1>
+            <p className="sw-home-lead">
+              Acceso directo al flujo del taller, con seguimiento claro de recepción, trabajo y entrega.
+            </p>
            </div>
           <div className="sw-home-hero-badge">
             <span className="sw-home-badge-dot" />
@@ -161,7 +185,7 @@ export default function Home() {
                 style={{ "--card-accent": mod.accent }}
               >
                 <div className="sw-hcard-header">
-                  <span className="sw-hcard-icon">{ICONS[mod.id]}</span>
+                  <span className={`sw-hcard-icon sw-hcard-icon--${mod.id}`}>{ICONS[mod.id]}</span>
                   <div className="sw-hcard-header-text">
                     <h3 className="sw-hcard-title">{titleText}</h3>
                     <p className="sw-hcard-subtitle">{subtitleText}</p>

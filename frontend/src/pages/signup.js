@@ -100,7 +100,7 @@ export default function Signup() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   type="email"
-                  placeholder="tucorreo@specialwash.es"
+                  placeholder="tucorreo@swstudio.es"
                   required
                 />
               </div>

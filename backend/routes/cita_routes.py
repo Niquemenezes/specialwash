@@ -35,6 +35,8 @@ def _parse_datetime_flexible(raw_value):
 
 def _current_role():
     claims = get_jwt() or {}
+    if claims.get("acceso_calidad"):
+        return "calidad"
     return normalize_role(claims.get("rol", ""))
 
 

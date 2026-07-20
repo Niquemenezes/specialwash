@@ -22,6 +22,7 @@ def usuarios_create():
     email = (data.get("email") or "").strip().lower()
     password = data.get("password") or ""
     rol = normalize_role(data.get("rol", "detailing"))
+    acceso_calidad = bool(data.get("acceso_calidad", False))
 
     if not nombre or not email or not password:
         return jsonify({"msg": "Faltan campos obligatorios (nombre, email, password)"}), 400
@@ -36,6 +37,7 @@ def usuarios_create():
         nombre=nombre,
         email=email,
         rol=rol,
+        acceso_calidad=acceso_calidad if rol == "detailing" else False,
         activo=True,
         password_hash=generate_password_hash(password),
     )
@@ -85,6 +87,9 @@ def usuarios_update(uid):
     # Estado activo
     if "activo" in data:
         u.activo = bool(data["activo"])
+
+    if "acceso_calidad" in data:
+        u.acceso_calidad = bool(data["acceso_calidad"]) if u.rol == "detailing" else False
 
     try:
         db.session.commit()

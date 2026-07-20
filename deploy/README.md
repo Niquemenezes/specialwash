@@ -1,6 +1,7 @@
-# 🚀 SpecialWash Deploy - IONOS VPS
+# 🚀 SW Studio Deploy - VPS (94.143.143.148)
 
-Todos los archivos necesarios para deploying SpecialWash en IONOS VPS Linux.
+Todos los archivos necesarios para desplegar SW Studio en su propio servidor,
+independiente del de specialwash.studio.
 
 ---
 
@@ -8,17 +9,41 @@ Todos los archivos necesarios para deploying SpecialWash en IONOS VPS Linux.
 
 | Archivo | Propósito |
 |---------|----------|
-| `DEPLOY_IONOS.md` | Guía completa paso a paso (en raíz del proyecto) |
 | `env.example` | Template de variables de entorno |
-| `nginx-specialwash.conf` | Configuración de Nginx |
-| `specialwash-backend.service` | Servicio Systemd para Gunicorn |
-| `deploy.sh` | Script de deploy automático |
+| `nginx-swstudio.conf` | Configuración de Nginx |
+| `swstudio-backend.service` | Servicio Systemd para Gunicorn |
+| `deploy.sh` | Script de deploy automático (recomendado) |
+| `deploy-ionos.sh` | Script alternativo, requiere SECRET_KEY/JWT_SECRET_KEY exportadas |
+| `update_ionos.sh` | Actualización rápida cuando ya está desplegado y usas git |
+| `monitor.sh` | Chequeo de salud del servidor |
 | `generate-secrets.sh` | Generador de claves secretas |
+| `backup_db.sh` / `check_backup_fresh.sh` | Backups automáticos diarios |
 | `README.md` | Este archivo |
 
 ---
 
-## 🚀 Quick Start (30 min)
+## ⚠️ Primer paso: llevar el código al servidor
+
+Este proyecto todavía no tiene un repositorio git remoto configurado, así que
+`git clone`/`git pull` no van a funcionar hasta que crees uno (GitHub, GitLab, etc.)
+Mientras tanto, la forma más simple de subir el código la primera vez es con `scp`
+desde tu PC (ajusta la ruta de origen a donde tengas el proyecto):
+
+```bash
+# Desde tu PC (PowerShell o Git Bash), sube el proyecto entero
+scp -r C:/Users/ALEJANDRO FERRER/Desktop/swstudio root@94.143.143.148:/root/swstudio
+```
+
+Luego en el servidor, copia backend y frontend build a las rutas que espera el deploy:
+
+```bash
+mkdir -p /var/www/swstudio/app
+cp -r /root/swstudio/backend /var/www/swstudio/app/backend
+```
+
+---
+
+## 🚀 Quick Start
 
 ### 1️⃣ En tu PC Local
 
@@ -26,40 +51,27 @@ Todos los archivos necesarios para deploying SpecialWash en IONOS VPS Linux.
 # Compilar frontend
 cd frontend
 npm run build
-
-# Generar claves secretas
-bash ../deploy/generate-secrets.sh
 ```
 
-### 2️⃣ En el Servidor IONOS (SSH)
+Luego sube la carpeta `frontend/build` a `/var/www/swstudio-frontend` en el servidor
+(por ejemplo con `scp -r frontend/build root@94.143.143.148:/var/www/swstudio-frontend`).
+
+### 2️⃣ En el Servidor (SSH)
 
 ```bash
-# Conectar
-ssh root@YOUR_SERVER_IP
-# Usa clave SSH o solicita la credencial por canal seguro
+ssh root@94.143.143.148
 
-# Clonar o descargar código
-cd /var/www/specialwash/app
-git clone <tu-repo> .
+# Generar claves secretas
+bash /root/swstudio/deploy/generate-secrets.sh
 
-# Crear .env con valores de step 1
-nano backend/.env
-# Pegar template: deploy/env.example
+# Crear .env a partir del template
+cp /root/swstudio/deploy/env.example /var/www/swstudio/app/backend/.env
+nano /var/www/swstudio/app/backend/.env
+# Pega ahí las claves generadas arriba
 
 # Ejecutar deploy automático
+cd /root/swstudio
 bash deploy/deploy.sh
-
-# Si ya existe el servidor y solo has subido cambios de código
-cd /var/www/specialwash/app
-git pull
-cd backend
-source venv/bin/activate
-pip install -r requirements.txt
-cd ..
-systemctl restart specialwash-backend.service
-
-# O usar el script único de actualización
-bash deploy/update_ionos.sh
 ```
 
 ### 3️⃣ SSL Certificate
@@ -68,36 +80,35 @@ bash deploy/update_ionos.sh
 # En el servidor
 apt install -y certbot python3-certbot-nginx
 certbot certonly --standalone \
-  -d specialwash.studio \
-  -d www.specialwash.studio \
+  -d sw-studio.es \
+  -d www.sw-studio.es \
   -m tu_email@example.com \
   --agree-tos --non-interactive
 ```
 
-✅ **¡Listo!** Abre: https://specialwash.studio
+✅ **¡Listo!** Abre: https://sw-studio.es
+
+**No olvides el DNS**: antes de que esto funcione, el dominio `sw-studio.es` (registro A,
+y opcionalmente uno para `www`) tiene que apuntar a `94.143.143.148` en el panel de tu
+registrador de dominios.
 
 ---
 
 ## 📝 Structure en Servidor
 
 ```
-/var/www/specialwash/
-├── app/                     # Código (backend + frontend)
-│   ├── backend/
-│   │   ├── venv/           # Virtual env
-│   │   ├── .env            # Variables (CREAR)
-│   │   └── ...
-│   └── frontend/
-│       └── build/          # Frontend compilado
-├── data/                   # Base de datos SQLite
-│   └── specialwash.db      # BD (sin tocar la actual)
-├── logs/                   # Logs nginx + gunicorn
-│   ├── gunicorn-access.log
-│   ├── gunicorn-error.log
-│   ├── nginx-access.log
-│   └── nginx-error.log
-└── backup/                 # Backups automáticos
-    └── specialwash_*.db.bak
+/var/www/swstudio/
+├── app/                     # Código (backend)
+│   └── backend/
+│       ├── venv/            # Virtual env
+│       ├── .env             # Variables (CREAR)
+│       └── ...
+├── data/                    # Base de datos SQLite
+│   └── swstudio.db          # BD nueva, propia de SW Studio
+├── logs/                    # Logs nginx + gunicorn
+└── backup/                  # Backups automáticos
+
+/var/www/swstudio-frontend/  # Frontend compilado (npm run build)
 ```
 
 ---
@@ -106,23 +117,23 @@ certbot certonly --standalone \
 
 ```bash
 # Status servicios
-systemctl status specialwash-backend.service
+systemctl status swstudio-backend.service
 systemctl status nginx
 
 # Restart
-systemctl restart specialwash-backend.service
+systemctl restart swstudio-backend.service
 systemctl restart nginx
 
 # Logs en vivo
-journalctl -u specialwash-backend.service -f
-tail -100 /var/www/specialwash/logs/nginx-error.log
+journalctl -u swstudio-backend.service -f
+tail -100 /var/www/swstudio/logs/nginx-error.log
 
 # Verificar conectividad
 curl http://127.0.0.1:8000/api/salud
-curl https://specialwash.studio
+curl https://sw-studio.es
 
 # Entrar en venv
-cd /var/www/specialwash/app/backend
+cd /var/www/swstudio/app/backend
 source venv/bin/activate
 ```
 
@@ -142,7 +153,7 @@ source venv/bin/activate
 
 ```bash
 # Crear túnel SSH desde tu equipo
-ssh -L 5050:127.0.0.1:443 root@YOUR_SERVER_IP
+ssh -L 5050:127.0.0.1:443 root@94.143.143.148
 
 # Luego abrir en tu navegador
 https://127.0.0.1:5050/admin/
@@ -154,42 +165,8 @@ https://127.0.0.1:5050/admin/
 
 ## 📊 Monitoreo
 
-### Verificar backend
 ```bash
-curl -I https://specialwash.studio/api/salud
-
-# Prueba rápida de dependencias e importes para Sheets/Excel
-cd /var/www/specialwash/app/backend
-source venv/bin/activate
-python - <<'PY'
-import importlib
-for module_name in ["openpyxl", "gspread", "google.oauth2.service_account"]:
-  importlib.import_module(module_name)
-print("OK")
-PY
-```
-
-### Actualización rápida en servidor
-```bash
-cd /var/www/specialwash/app
-bash deploy/update_ionos.sh
-```
-
-### Verificar frontend
-```bash
-curl -I https://specialwash.studio
-```
-
-### Logs
-```bash
-# Backend
-journalctl -u specialwash-backend.service -n 50
-
-# Nginx error
-tail -20 /var/www/specialwash/logs/nginx-error.log
-
-# Nginx access
-tail -20 /var/www/specialwash/logs/nginx-access.log
+bash deploy/monitor.sh
 ```
 
 ---
@@ -198,82 +175,37 @@ tail -20 /var/www/specialwash/logs/nginx-access.log
 
 | Síntoma | Solución |
 |--------|----------|
-| **502 Bad Gateway** | `systemctl restart specialwash-backend.service` |
-| **Sheets no actualiza** | Reinstalar `backend/requirements.txt`, reiniciar `specialwash-backend.service` y revisar `journalctl -u specialwash-backend.service -n 50` |
-| **CORS error** | Verificar `FRONTEND_URLS` en .env |
+| **502 Bad Gateway** | `systemctl restart swstudio-backend.service` |
+| **CORS error** | Verificar `FRONTEND_URLS` en `.env` (debe incluir `https://sw-studio.es`) |
 | **SSL error** | `certbot renew --force-renewal` |
-| **BD no se crea** | Verificar permisos en `/var/www/specialwash/data` |
+| **BD no se crea** | Verificar permisos en `/var/www/swstudio/data` |
 | **Nginx no arranca** | `nginx -t` para validar config |
+| **Dominio no resuelve** | Revisar el registro DNS tipo A de `sw-studio.es` apuntando a `94.143.143.148` |
 
 ---
 
-## 📈 Performance
-
-- Frontend: Caché de 30 días (CSS/JS)
-- API: Gzip compression habilitado
-- BD: SQLite (suficiente para pequeño/mediano) 
-- Workers Gunicorn: 4 (VPS 2-4Core recomendado)
-
----
-
-## 🔄 Actualizaciones Futuras
-
-```bash
-# Sin tocar BD
-cd /var/www/specialwash/app
-git pull
-npm run build --prefix frontend
-systemctl restart specialwash-backend.service
-```
-
----
-
-## ❓ FAQ
-
-**¿Mi BD actual se usa o se crea una nueva?**  
-→ Por defecto el deploy **no bootstrappea** la BD en producción (`ENABLE_DB_BOOTSTRAP=0`). Solo se inicializa una nueva si activas ese flag de forma temporal y controlada.
-
-**¿Cómo hago backup de la BD en servidor?**  
-→ Manual: `cp /var/www/specialwash/data/specialwash.db ./backup-$(date +%s).db`  
-→ Automático recomendado: activar los timers `specialwash-backup.timer` y `specialwash-backup-check.timer`
-
-### Backup diario recomendado
-
-Archivos incluidos en `deploy/`:
-
-- `backup_db.sh`: crea una copia consistente con `sqlite3 .backup`
-- `check_backup_fresh.sh`: valida que exista un backup reciente
-- `specialwash-backup.service` + `specialwash-backup.timer`: backup diario a las `03:30`
-- `specialwash-backup-check.service` + `specialwash-backup-check.timer`: comprobación diaria a las `08:00`
+## 🔄 Backups automáticos
 
 Instalación en servidor:
 
 ```bash
-sudo cp /root/specialwash/deploy/specialwash-backup.service /etc/systemd/system/
-sudo cp /root/specialwash/deploy/specialwash-backup.timer /etc/systemd/system/
-sudo cp /root/specialwash/deploy/specialwash-backup-check.service /etc/systemd/system/
-sudo cp /root/specialwash/deploy/specialwash-backup-check.timer /etc/systemd/system/
+sudo cp /root/swstudio/deploy/swstudio-backup.service /etc/systemd/system/
+sudo cp /root/swstudio/deploy/swstudio-backup.timer /etc/systemd/system/
+sudo cp /root/swstudio/deploy/swstudio-backup-check.service /etc/systemd/system/
+sudo cp /root/swstudio/deploy/swstudio-backup-check.timer /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now specialwash-backup.timer
-sudo systemctl enable --now specialwash-backup-check.timer
-sudo systemctl start specialwash-backup.service
+sudo systemctl enable --now swstudio-backup.timer
+sudo systemctl enable --now swstudio-backup-check.timer
+sudo systemctl start swstudio-backup.service
 ```
 
 Comandos útiles:
 
 ```bash
-systemctl list-timers --all | grep specialwash-backup
-systemctl status specialwash-backup.timer
-systemctl status specialwash-backup-check.timer
-cat /root/specialwash/backend/instance/backups/auto/LAST_BACKUP_STATUS.txt
-ls -lah /root/specialwash/backend/instance/backups/auto
+systemctl list-timers --all | grep swstudio-backup
+cat /root/swstudio/backend/instance/backups/auto/LAST_BACKUP_STATUS.txt
+ls -lah /root/swstudio/backend/instance/backups/auto
 ```
-
-**¿Se pierde información entre redeploys?**  
-→ No, la BD persiste en `/var/www/specialwash/data/`
-
-**¿Necesito ftp o sftp?**  
-→ No, todo es SSH + Git (más seguro)
 
 ---
 

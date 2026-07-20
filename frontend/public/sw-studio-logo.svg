@@ -1,0 +1,21 @@
+<svg width="768" height="768" viewBox="0 0 768 768" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="768" height="768" fill="#000000"/>
+  <g transform="translate(132 228)">
+    <g transform="translate(0 18)">
+      <path d="M84 0H118L95 23H61L84 0Z" fill="#FFFFFF"/>
+      <path d="M151 55L117 89H83L117 55H151Z" fill="#FFFFFF"/>
+      <path d="M118 89H83L60 112H96L118 89Z" fill="#FFFFFF"/>
+      <path d="M61 23L83 0H49L26 23H61Z" fill="#FFFFFF"/>
+      <path d="M26 23H61L38 46H3L26 23Z" fill="#FFFFFF"/>
+      <path d="M0 49H34L12 72H0V49Z" fill="#FFFFFF"/>
+      <path d="M12 72H46L23 95H-11L12 72Z" fill="#FFFFFF"/>
+      <path d="M95 23H129L151 0H117L95 23Z" fill="#FFFFFF"/>
+      <path d="M129 23H163L140 46H106L129 23Z" fill="#FFFFFF"/>
+      <path d="M163 49H197L175 72H140L163 49Z" fill="#FFFFFF"/>
+    </g>
+    <g transform="translate(178 0)" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif">
+      <text x="0" y="68" font-size="110" font-weight="300" letter-spacing="2">SW</text>
+      <text x="0" y="170" font-size="112" font-weight="300" letter-spacing="1">Studio</text>
+    </g>
+  </g>
+</svg>

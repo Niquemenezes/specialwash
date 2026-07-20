@@ -6,8 +6,8 @@ class EmpresaConfig(db.Model):
     __tablename__ = "empresa_config"
 
     id = db.Column(db.Integer, primary_key=True)
-    nombre = db.Column(db.String(200), default="Special Wash Car Solutions, S.R.L.")
-    nombre_comercial = db.Column(db.String(200), default="SPECIAL WASH STUDIO")
+    nombre = db.Column(db.String(200), default="SW Studio Car Solutions, S.R.L.")
+    nombre_comercial = db.Column(db.String(200), default="SW STUDIO")
     cif = db.Column(db.String(20), default="B21816566")
     direccion = db.Column(db.String(300), default="Calle Salvador Dalí, 22, 29700, Vélez-Málaga, ES")
     email = db.Column(db.String(120), default="alejandro@specialwash.es")

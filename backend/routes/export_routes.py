@@ -98,7 +98,7 @@ def _build_dashboard_sheet(wb, anio, servicios_rows, gastos_total):
 
     ws.row_dimensions[3].height = 14
     ws.merge_cells("B3:G3")
-    ws["B3"].value = f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}  ·  specialwash.studio"
+    ws["B3"].value = f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}  ·  SW Studio"
     ws["B3"].font = Font(name="Arial", size=9, color="94A3B8", italic=True)
     ws["B3"].fill = _fill(C_DARK)
     ws["B3"].alignment = Alignment(horizontal="center", vertical="center")

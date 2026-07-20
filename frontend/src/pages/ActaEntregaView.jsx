@@ -19,6 +19,7 @@ const safeNumber = (value) => {
 
 const SIGNER_PREFIX = "[firmante_entrega]:";
 const COBRO_METODOS = ["efectivo", "bizum", "tarjeta", "transferencia"];
+const TECH_SCHEMA = "swstudio_tecnica_v1";
 
 const splitObservaciones = (texto = "") => {
   const lines = String(texto || "").split("\n");
@@ -66,6 +67,80 @@ const parseServicios = (value) => {
   } catch {
     return [];
   }
+};
+
+const parseObservacionesTecnicas = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return {
+      textoLibre: "",
+      medicionesRecepcion: { barniz: [], brillo: [], microscopia: [] },
+      medicionesEntrega: { barniz: [], brillo: [], microscopia: [] },
+    };
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.schema === TECH_SCHEMA) {
+      const root = parsed.mediciones_tecnicas && typeof parsed.mediciones_tecnicas === "object"
+        ? parsed.mediciones_tecnicas
+        : {};
+      const hasStages = root && typeof root === "object" && (root.recepcion || root.entrega);
+      const recepcion = hasStages ? root.recepcion || {} : {};
+      const entrega = hasStages ? root.entrega || {} : root;
+      return {
+        textoLibre: String(parsed.texto_libre || ""),
+        medicionesRecepcion: {
+          barniz: Array.isArray(recepcion.barniz) ? recepcion.barniz : [],
+          brillo: Array.isArray(recepcion.brillo) ? recepcion.brillo : [],
+          microscopia: Array.isArray(recepcion.microscopia) ? recepcion.microscopia : [],
+        },
+        medicionesEntrega: {
+          barniz: Array.isArray(entrega.barniz) ? entrega.barniz : [],
+          brillo: Array.isArray(entrega.brillo) ? entrega.brillo : [],
+          microscopia: Array.isArray(entrega.microscopia) ? entrega.microscopia : [],
+        },
+      };
+    }
+  } catch {
+    // Compatibilidad con registros antiguos en texto libre.
+  }
+  return {
+    textoLibre: raw,
+    medicionesRecepcion: { barniz: [], brillo: [], microscopia: [] },
+    medicionesEntrega: { barniz: [], brillo: [], microscopia: [] },
+  };
+};
+
+const mediaLecturas = (lecturas = []) => {
+  const nums = Array.isArray(lecturas)
+    ? lecturas.map((v) => Number(v)).filter((v) => Number.isFinite(v))
+    : [];
+  if (nums.length === 0) return null;
+  return nums.reduce((acc, val) => acc + val, 0) / nums.length;
+};
+
+const keyMedicion = (m) => `${String(m?.zona || "").trim().toLowerCase()}|${String(m?.localizacion || "").trim().toLowerCase()}`;
+
+const buildComparativa = (recepcion = [], entrega = []) => {
+  const byKey = new Map();
+  recepcion.forEach((m) => {
+    const key = keyMedicion(m);
+    if (key !== "|") byKey.set(key, m);
+  });
+  return entrega
+    .filter((m) => m?.incluir_en_informe !== false)
+    .map((fin) => {
+      const inicio = byKey.get(keyMedicion(fin));
+      const mediaInicio = mediaLecturas(inicio?.lecturas);
+      const mediaFin = mediaLecturas(fin?.lecturas);
+      return {
+        zona: String(fin?.zona || "Sin zona"),
+        localizacion: String(fin?.localizacion || "Sin localización"),
+        mediaInicio,
+        mediaFin,
+        delta: mediaInicio !== null && mediaFin !== null ? mediaFin - mediaInicio : null,
+      };
+    });
 };
 
 const buildFallbackTrabajos = (data) => {
@@ -154,6 +229,7 @@ const ActaEntregaView = () => {
   const [firmaCliente, setFirmaCliente] = useState("");
   const [trabajosEditados, setTrabajosEditados] = useState("");
   const [nombreFirmante, setNombreFirmante] = useState("");
+  const [kilometrosEntrega, setKilometrosEntrega] = useState("");
   const [consentimiento, setConsentimiento] = useState(false);
   const [conformidad, setConformidad] = useState(false);
   const [printTriggered, setPrintTriggered] = useState(false);
@@ -194,6 +270,7 @@ const ActaEntregaView = () => {
           setTrabajosEditados(fallbackTrabajos);
         }
         setNombreFirmante(parsedObs.firmante || data?.cliente_nombre || "");
+        setKilometrosEntrega(data?.kilometros != null ? String(data.kilometros) : "");
         setConsentimiento(Boolean(data?.consentimiento_datos_entrega));
         setConformidad(Boolean(data?.conformidad_revision_entrega));
         setCobroMetodo(data?.cobro_metodo || data?.cobro?.metodo || "efectivo");
@@ -224,6 +301,18 @@ const ActaEntregaView = () => {
     return buildFallbackTrabajos(inspeccion);
   }, [inspeccion]);
   const acta = useMemo(() => parseActa(actaFuente), [actaFuente]);
+  const tecnicas = useMemo(
+    () => parseObservacionesTecnicas(inspeccion?.observaciones_tecnicas_adicionales),
+    [inspeccion?.observaciones_tecnicas_adicionales]
+  );
+  const comparativaBarniz = useMemo(
+    () => buildComparativa(tecnicas.medicionesRecepcion.barniz, tecnicas.medicionesEntrega.barniz),
+    [tecnicas]
+  );
+  const comparativaBrillo = useMemo(
+    () => buildComparativa(tecnicas.medicionesRecepcion.brillo, tecnicas.medicionesEntrega.brillo),
+    [tecnicas]
+  );
   const observacionesLimpias = useMemo(() => {
     const parsed = splitObservaciones(inspeccion?.entrega_observaciones || "");
     return parsed.observaciones || acta.observaciones || "-";
@@ -273,6 +362,11 @@ const ActaEntregaView = () => {
       setFormError("Debes confirmar la proteccion de datos.");
       return;
     }
+    const km = Number.parseInt(String(kilometrosEntrega || "").trim(), 10);
+    if (Number.isNaN(km) || km < 0) {
+      setFormError("Debes indicar un kilometraje válido (0 o mayor).");
+      return;
+    }
     if (!esConcesionario && registrarCobroEntrega && cobroAccion === "abono") {
       const importe = Number(cobroImporte);
       if (!Number.isFinite(importe) || importe <= 0) {
@@ -292,6 +386,7 @@ const ActaEntregaView = () => {
           nombreFirmante
         ),
         firma_cliente_entrega: esConcesionario ? null : firmaCliente,
+        kilometros_entrega: km,
         consentimiento_datos_entrega: esConcesionario ? false : consentimiento,
         conformidad_revision_entrega: esConcesionario ? false : conformidad,
         registrar_cobro: !esConcesionario && registrarCobroEntrega,
@@ -564,6 +659,94 @@ const ActaEntregaView = () => {
           </div>
         </div>
 
+        {(tecnicas.medicionesEntrega.barniz.length > 0 || tecnicas.medicionesEntrega.brillo.length > 0 || tecnicas.medicionesEntrega.microscopia.length > 0 || tecnicas.textoLibre) && (
+          <div className="box mb-3 avoid-break">
+            <div className="section-title">Bloque Tecnico de Mediciones</div>
+
+            {tecnicas.medicionesEntrega.barniz.filter((m) => m?.incluir_en_informe !== false).length > 0 && (
+              <div className="mb-2">
+                <strong className="small">Barniz (um)</strong>
+                <div className="content">
+                  {tecnicas.medicionesEntrega.barniz
+                    .filter((m) => m?.incluir_en_informe !== false)
+                    .map((m, idx) => {
+                      const media = mediaLecturas(m?.lecturas);
+                      const zona = String(m?.zona || "Sin zona");
+                      const loc = String(m?.localizacion || "Sin localización");
+                      const lecturas = Array.isArray(m?.lecturas) ? m.lecturas.join(", ") : "";
+                      return `${idx + 1}. ${zona} - ${loc}. Lecturas: ${lecturas || "-"}. Media: ${media !== null ? media.toFixed(2) : "-"} um.`;
+                    })
+                    .join("\n")}
+                </div>
+              </div>
+            )}
+
+            {tecnicas.medicionesEntrega.brillo.filter((m) => m?.incluir_en_informe !== false).length > 0 && (
+              <div className="mb-2">
+                <strong className="small">Brillo glosómetro (GU)</strong>
+                <div className="content">
+                  {tecnicas.medicionesEntrega.brillo
+                    .filter((m) => m?.incluir_en_informe !== false)
+                    .map((m, idx) => {
+                      const media = mediaLecturas(m?.lecturas);
+                      const zona = String(m?.zona || "Sin zona");
+                      const loc = String(m?.localizacion || "Sin localización");
+                      const lecturas = Array.isArray(m?.lecturas) ? m.lecturas.join(", ") : "";
+                      return `${idx + 1}. ${zona} - ${loc}. Lecturas: ${lecturas || "-"}. Media: ${media !== null ? media.toFixed(2) : "-"} GU.`;
+                    })
+                    .join("\n")}
+                </div>
+              </div>
+            )}
+
+            {tecnicas.medicionesEntrega.microscopia.filter((m) => m?.incluir_en_informe !== false).length > 0 && (
+              <div className="mb-2">
+                <strong className="small">Microscopía</strong>
+                <div className="content">
+                  {tecnicas.medicionesEntrega.microscopia
+                    .filter((m) => m?.incluir_en_informe !== false)
+                    .map((m, idx) => {
+                      const zona = String(m?.zona || "Sin zona");
+                      const loc = String(m?.localizacion || "Sin localización");
+                      const nota = String(m?.nota || "Sin nota");
+                      const refs = Array.isArray(m?.media_refs) && m.media_refs.length > 0
+                        ? ` Referencias: ${m.media_refs.join(", ")}.`
+                        : "";
+                      return `${idx + 1}. ${zona} - ${loc}. ${nota}.${refs}`;
+                    })
+                    .join("\n")}
+                </div>
+              </div>
+            )}
+
+            {tecnicas.textoLibre && (
+              <div className="content">{tecnicas.textoLibre}</div>
+            )}
+
+            {(comparativaBarniz.length > 0 || comparativaBrillo.length > 0) && (
+              <div className="mt-2">
+                <strong className="small">Mejoría respecto a recepción</strong>
+                <div className="content">
+                  {[
+                    ...comparativaBarniz.map((item) => {
+                      const deltaTxt = item.delta === null ? "sin referencia inicial" : `${item.delta >= 0 ? "+" : ""}${item.delta.toFixed(2)} um`;
+                      const iniTxt = item.mediaInicio === null ? "-" : item.mediaInicio.toFixed(2);
+                      const finTxt = item.mediaFin === null ? "-" : item.mediaFin.toFixed(2);
+                      return `Barniz · ${item.zona} - ${item.localizacion}: inicial ${iniTxt} um, final ${finTxt} um, cambio ${deltaTxt}.`;
+                    }),
+                    ...comparativaBrillo.map((item) => {
+                      const deltaTxt = item.delta === null ? "sin referencia inicial" : `${item.delta >= 0 ? "+" : ""}${item.delta.toFixed(2)} GU`;
+                      const iniTxt = item.mediaInicio === null ? "-" : item.mediaInicio.toFixed(2);
+                      const finTxt = item.mediaFin === null ? "-" : item.mediaFin.toFixed(2);
+                      return `Brillo · ${item.zona} - ${item.localizacion}: inicial ${iniTxt} GU, final ${finTxt} GU, cambio ${deltaTxt}.`;
+                    }),
+                  ].join("\n")}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="legal-note avoid-break mb-3">
           <strong>Proteccion de datos</strong>
           <div>
@@ -604,6 +787,21 @@ const ActaEntregaView = () => {
             onChange={(e) => setNombreFirmante(e.target.value)}
           />
           <div className="form-text">Puede ser distinto al titular si otra persona recoge el vehiculo.</div>
+        </div>
+
+        <div className="mb-3">
+          <label className="form-label fw-bold">Kilometraje actual en la entrega</label>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            className="form-control"
+            placeholder="Ejemplo: 125430"
+            value={kilometrosEntrega}
+            disabled={isEntregado}
+            onChange={(e) => setKilometrosEntrega(e.target.value)}
+          />
+          <div className="form-text">Se guarda como kilometraje final del coche para esta entrega.</div>
         </div>
 
         {!esConcesionario && (

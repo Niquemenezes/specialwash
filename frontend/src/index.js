@@ -20,3 +20,12 @@ document.documentElement.setAttribute("data-theme", savedTheme || (prefersDark ?
 
 const root = createRoot(document.getElementById("root"));
 root.render(<App />);
+
+// PWA: cachea únicamente la interfaz; las rutas /api quedan siempre fuera.
+if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/service-worker.js").catch((error) => {
+      console.warn("No se pudo registrar la aplicación instalable:", error);
+    });
+  });
+}

@@ -67,6 +67,13 @@ def expand_allowed_roles(roles):
     return normalized
 
 
+def has_quality_access(subject):
+    """Indica si un usuario o claims JWT tienen el permiso adicional de calidad."""
+    if isinstance(subject, dict):
+        return bool(subject.get("acceso_calidad"))
+    return bool(getattr(subject, "acceso_calidad", False))
+
+
 def _dev_auth_bypass_enabled():
     raw = str(os.getenv("DEV_AUTH_BYPASS", "0")).strip().lower()
     is_enabled = raw in {"1", "true", "yes", "on"}
@@ -84,7 +91,8 @@ def role_required(*roles):
             if _dev_auth_bypass_enabled() and not rol:
                 rol = "administrador"
             allowed = expand_allowed_roles(roles)
-            if rol not in allowed:
+            quality_capability = "calidad" in allowed and has_quality_access(claims)
+            if rol not in allowed and not quality_capability:
                 return jsonify({"msg": "Acceso denegado"}), 403
             return fn(*args, **kwargs)
 

@@ -1,0 +1,10 @@
+[Unit]
+Description=SW Studio SQLite daily backup
+After=network.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/root/swstudio
+Environment=KEEP_DAILY=60
+ExecStart=/usr/bin/env bash /root/swstudio/deploy/backup_db.sh

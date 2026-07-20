@@ -1,12 +1,12 @@
 #!/bin/bash
 # ══════════════════════════════════════════════════════════════
-# SpecialWash Deploy Script for IONOS VPS
+# SW Studio Deploy Script for VPS
 # Usage: bash deploy.sh
 # ══════════════════════════════════════════════════════════════
 
 set -e
 
-echo "🚀 SpecialWash Deploy Script - IONOS VPS"
+echo "🚀 SW Studio Deploy Script - VPS"
 echo "════════════════════════════════════════"
 echo ""
 
@@ -36,13 +36,13 @@ echo ""
 # ──────────────────────────────────────────────────────────────
 # 2. Create dedicated system user
 # ──────────────────────────────────────────────────────────────
-echo "Creando usuario del sistema 'specialwash'..."
+echo "Creando usuario del sistema 'swstudio'..."
 
-if ! id -u specialwash >/dev/null 2>&1; then
-    useradd --system --no-create-home --shell /usr/sbin/nologin --groups www-data specialwash
-    success "Usuario 'specialwash' creado"
+if ! id -u swstudio >/dev/null 2>&1; then
+    useradd --system --no-create-home --shell /usr/sbin/nologin --groups www-data swstudio
+    success "Usuario 'swstudio' creado"
 else
-    success "Usuario 'specialwash' ya existe"
+    success "Usuario 'swstudio' ya existe"
 fi
 echo ""
 
@@ -51,13 +51,13 @@ echo ""
 # ──────────────────────────────────────────────────────────────
 echo "Configurando directorios..."
 
-mkdir -p /var/www/specialwash/{app,logs,data,backup}
-chmod 755 /var/www/specialwash
+mkdir -p /var/www/swstudio/{app,logs,data,backup}
+chmod 755 /var/www/swstudio
 # Directories that the service user needs to write to
-chown specialwash:www-data /var/www/specialwash/logs
-chown specialwash:www-data /var/www/specialwash/data
-chmod 750 /var/www/specialwash/logs
-chmod 750 /var/www/specialwash/data
+chown swstudio:www-data /var/www/swstudio/logs
+chown swstudio:www-data /var/www/swstudio/data
+chmod 750 /var/www/swstudio/logs
+chmod 750 /var/www/swstudio/data
 
 success "Directorios listos"
 echo ""
@@ -67,7 +67,7 @@ echo ""
 # ──────────────────────────────────────────────────────────────
 echo "Configurando backend Python..."
 
-cd /var/www/specialwash/app/backend
+cd /var/www/swstudio/app/backend
 
 # Check if venv exists
 if [[ ! -d "venv" ]]; then
@@ -107,11 +107,11 @@ echo "Verificando configuración..."
 
 if [[ ! -f ".env" ]]; then
     warning ".env no encontrado en backend/"
-    warning "Por favor, copia el archivo .env.production a backend/.env"
+    warning "Por favor, copia el archivo env.example a backend/.env"
     warning "y actualiza los valores de SECRET_KEY y JWT_SECRET_KEY"
     echo ""
     echo "Ejemplo:"
-    echo "  cp /carpeta/deploy/env.example /var/www/specialwash/app/backend/.env"
+    echo "  cp /root/swstudio/deploy/env.example /var/www/swstudio/app/backend/.env"
     echo ""
     error "Configuración incompleta. Abortar."
 fi
@@ -124,9 +124,9 @@ echo ""
 # ──────────────────────────────────────────────────────────────
 echo "Verificando base de datos..."
 
-mkdir -p /var/www/specialwash/data
-chown specialwash:www-data /var/www/specialwash/data
-chmod 750 /var/www/specialwash/data
+mkdir -p /var/www/swstudio/data
+chown swstudio:www-data /var/www/swstudio/data
+chmod 750 /var/www/swstudio/data
 
 python init_db.py 2>&1 || warning "init_db no pudo completarse"
 python update_servicio_catalogo_schema.py 2>&1 || warning "schema update no aplicado"
@@ -140,11 +140,11 @@ echo ""
 echo "Configurando nginx..."
 
 # Copy nginx config
-if [[ -f "/root/deploy/nginx-specialwash.conf" ]]; then
-    cp /root/deploy/nginx-specialwash.conf /etc/nginx/sites-available/specialwash
-    ln -sf /etc/nginx/sites-available/specialwash /etc/nginx/sites-enabled/specialwash
+if [[ -f "/root/swstudio/deploy/nginx-swstudio.conf" ]]; then
+    cp /root/swstudio/deploy/nginx-swstudio.conf /etc/nginx/sites-available/swstudio
+    ln -sf /etc/nginx/sites-available/swstudio /etc/nginx/sites-enabled/swstudio
     rm -f /etc/nginx/sites-enabled/default
-    
+
     # Test nginx config
     if nginx -t >/dev/null 2>&1; then
         systemctl restart nginx
@@ -153,8 +153,8 @@ if [[ -f "/root/deploy/nginx-specialwash.conf" ]]; then
         error "Configuración de nginx inválida"
     fi
 else
-    warning "nginx-specialwash.conf no encontrado"
-    warning "Copiar manualmente: /root/deploy/nginx-specialwash.conf → /etc/nginx/sites-available/specialwash"
+    warning "nginx-swstudio.conf no encontrado"
+    warning "Copiar manualmente: /root/swstudio/deploy/nginx-swstudio.conf → /etc/nginx/sites-available/swstudio"
 fi
 
 echo ""
@@ -164,16 +164,16 @@ echo ""
 # ──────────────────────────────────────────────────────────────
 echo "Configurando servicio systemd..."
 
-if [[ -f "/root/deploy/specialwash-backend.service" ]]; then
-    cp /root/deploy/specialwash-backend.service /etc/systemd/system/
+if [[ -f "/root/swstudio/deploy/swstudio-backend.service" ]]; then
+    cp /root/swstudio/deploy/swstudio-backend.service /etc/systemd/system/
     systemctl daemon-reload
-    systemctl enable specialwash-backend.service
-    systemctl restart specialwash-backend.service
-    
+    systemctl enable swstudio-backend.service
+    systemctl restart swstudio-backend.service
+
     success "Servicio systemd configurado"
 else
-    warning "specialwash-backend.service no encontrado"
-    warning "Copiar manualmente: /root/deploy/specialwash-backend.service → /etc/systemd/system/"
+    warning "swstudio-backend.service no encontrado"
+    warning "Copiar manualmente: /root/swstudio/deploy/swstudio-backend.service → /etc/systemd/system/"
 fi
 
 echo ""
@@ -193,10 +193,10 @@ fi
 
 # Check backend
 sleep 2
-if systemctl is-active --quiet specialwash-backend; then
+if systemctl is-active --quiet swstudio-backend; then
     success "Backend corriendo"
 else
-    error "Backend no activo - ver: journalctl -u specialwash-backend.service"
+    error "Backend no activo - ver: journalctl -u swstudio-backend.service"
 fi
 
 # Check connectivity
@@ -211,7 +211,7 @@ echo "════════════════════════�
 success "🎉 Deploy completado!"
 echo ""
 echo "Próximos pasos:"
-echo "1. Generar certificado SSL: certbot certonly --standalone -d specialwash.studio -d www.specialwash.studio"
-echo "2. Verificar: https://specialwash.studio"
-echo "3. Logs: journalctl -u specialwash-backend.service -f"
+echo "1. Generar certificado SSL: certbot certonly --standalone -d sw-studio.es -d www.sw-studio.es"
+echo "2. Verificar: https://sw-studio.es"
+echo "3. Logs: journalctl -u swstudio-backend.service -f"
 echo ""

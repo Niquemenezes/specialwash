@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useContext } from "rea
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import logo from "../img/logo-specialwash-icon-black.png";
 import { buildApiUrl } from "../utils/apiBase";
-import { clearStoredSession, getDefaultRouteForRole, getStoredRol, getStoredToken } from "../utils/authSession";
+import { clearStoredSession, getDefaultRouteForRole, getStoredRol, getStoredToken, hasStoredQualityAccess } from "../utils/authSession";
 import { NAVIGATION_BY_ROLE } from "../config/rolePermissions.js";
 import { Context } from "../store/appContext";
 
@@ -193,6 +193,7 @@ const NavbarSW = () => {
   const token = getStoredToken();
   const rol = getStoredRol();
   const isAdmin = rol === "administrador";
+  const hasQualityAccess = rol === "calidad" || hasStoredQualityAccess();
   const nombreUsuario = String(store?.user?.nombre || "").trim();
   const homeTarget = token ? getDefaultRouteForRole(rol) : "/";
 
@@ -215,15 +216,27 @@ const NavbarSW = () => {
     }
   };
 
-  const roleNavItems = !token || isAdmin
+  const baseRoleNavItems = !token || isAdmin
     ? []
     : (NAVIGATION_BY_ROLE[rol] || []).flatMap((item) => Array.isArray(item?.items) ? item.items : [item]);
+  const qualityNavItems = hasQualityAccess ? [
+    { label: "🚗 Seguimiento", to: "/partes-trabajo" },
+    { label: "🔍 Inspección", to: "/inspeccion-recepcion" },
+    { label: "📁 Inspecciones", to: "/inspecciones-guardadas" },
+    { label: "✅ Repaso", to: "/repaso-entrega?tab=repaso" },
+    { label: "✍️ Entrega", to: "/repaso-entrega?tab=firma" },
+    { label: "✓ Entregados", to: "/entregados" },
+  ] : [];
+  const roleNavItems = [...baseRoleNavItems, ...qualityNavItems].filter(
+    (item, index, items) => item?.to && items.findIndex((candidate) => candidate.to === item.to) === index
+  );
 
   const quickNavItems = (() => {
     if (!token || isAdmin) return [];
 
-    if (rol === "calidad") {
+    if (hasQualityAccess) {
       return [
+        ...(["detailing", "calidad"].includes(rol) ? [{ label: "📋 Mis trabajos", to: "/mis-partes-trabajo" }] : []),
         { label: "🚗 Seguimiento", to: "/partes-trabajo" },
         { label: "🔍 Inspección", to: "/inspeccion-recepcion" },
         { label: "✍️ Entrega", to: "/repaso-entrega?tab=firma" },
@@ -236,10 +249,10 @@ const NavbarSW = () => {
     );
   })();
 
-  const showQuickShortcuts = token && !isAdmin && quickNavItems.length > 0 && location.pathname !== "/" && location.pathname !== "/login" && !(rol === "calidad" && location.pathname === "/repaso-entrega");
+  const showQuickShortcuts = token && !isAdmin && quickNavItems.length > 0 && location.pathname !== "/" && location.pathname !== "/login" && !(hasQualityAccess && location.pathname === "/repaso-entrega");
   const canAccessCitas = Boolean(
     token &&
-    (rol === "administrador" || rol === "calidad" || roleNavItems.some((item) => item?.to === "/citas"))
+    (rol === "administrador" || hasQualityAccess || roleNavItems.some((item) => item?.to === "/citas"))
   );
 
   const renderMobileHeaderLink = (to, title, icon, extraClass = "") => (
@@ -327,7 +340,7 @@ const NavbarSW = () => {
                 {nombreUsuario ? `${nombreUsuario} · ` : ""}
                 {rol ? rol.charAt(0).toUpperCase() + rol.slice(1) : "—"}
               </span>
-              {["administrador", "calidad"].includes(rol) && (
+              {(isAdmin || hasQualityAccess) && (
                 <CampanaNotificaciones token={token} compact />
               )}
               {canAccessCitas && renderMobileHeaderLink("/citas", "Abrir citas", "fa-calendar")}
@@ -360,7 +373,7 @@ const NavbarSW = () => {
           {token && !isAdmin && (
             <ul className="navbar-nav me-auto mt-3 mt-xl-0 sw-nav-left">
               {(() => {
-                const navItems = NAVIGATION_BY_ROLE[rol];
+                const navItems = roleNavItems;
                 if (!navItems) return null;
 
                 return navItems.map((item, idx) => {
@@ -439,7 +452,7 @@ const NavbarSW = () => {
             ) : (
               <>
                 {/* Campana: admin y calidad */}
-                {["administrador", "calidad"].includes(rol) && (
+                {(isAdmin || hasQualityAccess) && (
                   <CampanaNotificaciones token={token} />
                 )}
 

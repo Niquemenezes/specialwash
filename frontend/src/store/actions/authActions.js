@@ -11,6 +11,7 @@ export function createAuthActions({ apiFetch, setStore }) {
       const rol = (user.rol || user.role || "detailing").toLowerCase();
       localStorage.setItem("rol", rol);
       if (user.id) localStorage.setItem("userId", user.id);
+      localStorage.setItem("acceso_calidad", user.acceso_calidad ? "1" : "0");
     }
     return { token: t, user };
   };
@@ -62,6 +63,7 @@ export function createAuthActions({ apiFetch, setStore }) {
           const rol = (user.rol || user.role || "detailing").toLowerCase();
           localStorage.setItem("rol", rol);
           if (user.id) localStorage.setItem("userId", user.id);
+          localStorage.setItem("acceso_calidad", user.acceso_calidad ? "1" : "0");
         }
         setStore({ auth: true, user });
         return user;

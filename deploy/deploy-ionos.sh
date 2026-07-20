@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Deploy Script para SpecialWash en IONOS VPS
+# Deploy Script para SW Studio en VPS
 # =============================================
 
 set -e
 
 echo "╔════════════════════════════════════════════════════════════════╗"
-echo "║          🚀 DEPLOY SPECIALWASH A IONOS 🚀                     ║"
+echo "║          🚀 DEPLOY SW STUDIO 🚀                                ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -18,9 +18,9 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # Variables
-APP_DIR="/var/www/specialwash/app"
-DATA_DIR="/var/www/specialwash/data"
-LOG_DIR="/var/www/specialwash/logs"
+APP_DIR="/var/www/swstudio/app"
+DATA_DIR="/var/www/swstudio/data"
+LOG_DIR="/var/www/swstudio/logs"
 VENV_DIR="$APP_DIR/venv"
 
 echo -e "${BLUE}📂 Paso 1: Crear estructura de directorios${NC}"
@@ -36,7 +36,7 @@ if [ -d ".git" ]; then
   echo "  Actualizando código..."
   git pull origin main || echo "  ⚠️  Pull failed, continuando..."
 else
-  echo "  ℹ️  Repo no encontrado, verificar código copiado/clonado"
+  echo "  ℹ️  Repo no encontrado, verificar código copiado/clonado (scp, rsync o git clone)"
 fi
 
 echo -e "${GREEN}✅ Código preparado${NC}"
@@ -51,8 +51,8 @@ ENABLE_ADMIN=0
 ENABLE_DB_BOOTSTRAP=0
 SECRET_KEY=${SECRET_KEY}
 JWT_SECRET_KEY=${JWT_SECRET_KEY}
-DATABASE_URL=sqlite:////var/www/specialwash/data/specialwash.db
-FRONTEND_URLS=https://specialwash.studio,https://www.specialwash.studio
+DATABASE_URL=sqlite:////var/www/swstudio/data/swstudio.db
+FRONTEND_URLS=https://sw-studio.es,https://www.sw-studio.es
 DEBUG=False
 EOF
 chmod 600 backend/.env
@@ -101,18 +101,18 @@ echo -e "${GREEN}✅ Base de datos lista${NC}"
 echo ""
 
 echo -e "${BLUE}🌐 Paso 6: Configurar Nginx${NC}"
-cp deploy/nginx-specialwash.conf /etc/nginx/sites-available/specialwash.conf
-ln -sf /etc/nginx/sites-available/specialwash.conf /etc/nginx/sites-enabled/specialwash.conf
+cp deploy/nginx-swstudio.conf /etc/nginx/sites-available/swstudio.conf
+ln -sf /etc/nginx/sites-available/swstudio.conf /etc/nginx/sites-enabled/swstudio.conf
 nginx -t >/dev/null 2>&1 && systemctl restart nginx
 echo -e "${GREEN}✅ Nginx configurado${NC}"
 echo ""
 
 echo -e "${BLUE}⚙️  Paso 7: Crear servicio systemd${NC}"
-cp deploy/specialwash-backend.service /etc/systemd/system/
+cp deploy/swstudio-backend.service /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable specialwash-backend.service
-systemctl restart specialwash-backend.service
-systemctl status specialwash-backend.service | head -3
+systemctl enable swstudio-backend.service
+systemctl restart swstudio-backend.service
+systemctl status swstudio-backend.service | head -3
 echo -e "${GREEN}✅ Servicio systemd activado${NC}"
 echo ""
 
@@ -130,13 +130,13 @@ echo -e "${YELLOW}📋 Próximos pasos:${NC}"
 echo ""
 echo "1️⃣  Generar SSL (ejecutar en el servidor):"
 echo "    certbot certonly --standalone \\"
-echo "      -d specialwash.studio -d www.specialwash.studio \\"
-echo "      --agree-tos --non-interactive -m admin@specialwash.studio"
+echo "      -d sw-studio.es -d www.sw-studio.es \\"
+echo "      --agree-tos --non-interactive -m admin@sw-studio.es"
 echo ""
 echo "2️⃣  Verificar estado:"
 echo "    bash deploy/monitor.sh"
 echo ""
 echo "3️⃣  Acceder a:"
-echo -e "    ${BLUE}https://specialwash.studio${NC}"
+echo -e "    ${BLUE}https://sw-studio.es${NC}"
 echo ""
 echo "═════════════════════════════════════════════════════════════════"

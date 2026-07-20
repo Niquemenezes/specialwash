@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-BACKUP_DIR="/root/specialwash/backend/instance/backups/auto"
+BACKUP_DIR="/root/swstudio/backend/instance/backups/auto"
 MAX_AGE_HOURS="${MAX_AGE_HOURS:-36}"
 STATUS_FILE="${BACKUP_DIR}/LAST_BACKUP_STATUS.txt"
 
 mkdir -p "$BACKUP_DIR"
 
-latest_backup="$(find "$BACKUP_DIR" -maxdepth 1 -type f -name 'specialwash-auto-*.db' | sort | tail -n 1)"
+latest_backup="$(find "$BACKUP_DIR" -maxdepth 1 -type f -name 'swstudio-auto-*.db' | sort | tail -n 1)"
 
 if [[ -z "${latest_backup:-}" ]]; then
   msg="ERROR: no backup files found in $BACKUP_DIR"

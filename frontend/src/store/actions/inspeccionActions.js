@@ -71,10 +71,11 @@ export function createInspeccionActions({ apiFetch }) {
       try { return await apiFetch(`/api/inspeccion-recepcion/${id}/chat-acta`, { method: "POST", body: payload }); }
       catch (err) { console.error("chatActaInspeccion:", err); throw err; }
     },
-    subirFotoInspeccion: async (inspeccionId, archivo) => {
+    subirFotoInspeccion: async (inspeccionId, archivo, options = {}) => {
       try {
         const formData = new FormData();
         formData.append("file", archivo);
+        if (options?.tipo) formData.append("tipo", options.tipo);
         return await apiFetch(`/api/inspeccion-recepcion/${inspeccionId}/upload-foto`, { method: "POST", body: formData, json: false, headers: {} });
       } catch (err) { console.error("subirFotoInspeccion:", err); throw err; }
     },

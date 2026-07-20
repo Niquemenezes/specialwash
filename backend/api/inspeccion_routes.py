@@ -291,6 +291,7 @@ def crear_inspeccion():
             firma_empleado_recepcion=None,
             consentimiento_datos_recepcion=consentimiento_datos_recepcion,
             averias_notas=data.get("averias_notas", ""),
+            observaciones_tecnicas_adicionales=(data.get("observaciones_tecnicas_adicionales") or "").strip() or None,
             servicios_aplicados=json.dumps(servicios_aplicados),
             fotos_cloudinary="[]",
             videos_cloudinary="[]",
@@ -506,7 +507,7 @@ def actualizar_inspeccion(inspeccion_id):
 
     # Validar permisos: admin y calidad pueden actualizar cualquier inspección
     # para reflejar cambios posteriores solicitados por el cliente.
-    if normalize_role(getattr(user, "rol", "")) not in {"administrador", "calidad"} and inspeccion.usuario_id != user_id:
+    if not _can_view_all_inspecciones(user) and inspeccion.usuario_id != user_id:
         return jsonify({"msg": "No tienes permiso para actualizar esta inspección"}), 403
 
     data = request.get_json()
@@ -583,6 +584,11 @@ def actualizar_inspeccion(inspeccion_id):
 
         if "averias_notas" in data:
             inspeccion.averias_notas = data["averias_notas"]
+
+        if "observaciones_tecnicas_adicionales" in data:
+            inspeccion.observaciones_tecnicas_adicionales = (
+                (data.get("observaciones_tecnicas_adicionales") or "").strip() or None
+            )
 
         if "servicios_aplicados" in data:
             servicios_aplicados = _normalize_servicios_aplicados(data.get("servicios_aplicados"))

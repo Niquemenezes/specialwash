@@ -30,7 +30,7 @@ def registrar_cobro_inspeccion(inspeccion_id):
     user = User.query.get(user_id) if user_id else None
     user_role = normalize_role(getattr(user, "rol", "")) if user else ""
 
-    if user_role == "calidad" and inspeccion.es_concesionario:
+    if (user_role == "calidad" or bool(getattr(user, "acceso_calidad", False))) and inspeccion.es_concesionario:
         return jsonify({"msg": "Calidad solo puede cobrar clientes particulares"}), 403
 
     data = request.get_json(silent=True) or {}

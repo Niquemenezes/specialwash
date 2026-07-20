@@ -24,7 +24,7 @@ export default function AlbaranDocumentoPage() {
   if (error) return <div style={{ textAlign: "center", padding: 60, color: "#ef4444", fontFamily: "Arial" }}>{error}</div>;
   if (!data) return null;
 
-  const { albaran_numero, albaran_fecha, cliente, empresa, vehiculo, lineas } = data;
+  const { albaran_numero, albaran_fecha, cliente, empresa, lineas } = data;
   const baseTotal = lineas.reduce((s, l) => s + parseFloat(l.precio_base || 0), 0);
   const ivaTotal = baseTotal * 0.21;
   const total = baseTotal + ivaTotal;

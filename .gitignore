@@ -50,3 +50,5 @@ frontend/build.zip
 # Scripts locales con credenciales en texto plano (no versionar)
 /deploy_build.py
 /deploy_full.py
+/_deploy_dual_access.py
+/_inspect_swstudio_backend.py

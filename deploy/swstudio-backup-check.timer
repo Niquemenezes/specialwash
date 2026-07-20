@@ -1,0 +1,10 @@
+[Unit]
+Description=Check SW Studio backup freshness every morning
+
+[Timer]
+OnCalendar=*-*-* 08:00:00
+Persistent=true
+Unit=swstudio-backup-check.service
+
+[Install]
+WantedBy=timers.target

@@ -44,7 +44,8 @@ export const roleMatches = (currentRol, allowedRol) => {
 };
 
 export const hasAllowedRole = (currentRol, allowedRoles = []) =>
-  allowedRoles.some((allowedRol) => roleMatches(currentRol, allowedRol));
+  allowedRoles.some((allowedRol) => roleMatches(currentRol, allowedRol)) ||
+  (hasStoredQualityAccess() && allowedRoles.some((allowedRol) => normalizeRol(allowedRol) === "calidad"));
 
 export const getStoredToken = () =>
   (typeof localStorage !== "undefined" && localStorage.getItem("token")) ||
@@ -66,12 +67,14 @@ export const clearStoredSession = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("rol");
     localStorage.removeItem("userId");
+    localStorage.removeItem("acceso_calidad");
     localStorage.removeItem(LAST_ACTIVITY_KEY);
   }
   if (typeof sessionStorage !== "undefined") {
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("rol");
     sessionStorage.removeItem("userId");
+    sessionStorage.removeItem("acceso_calidad");
   }
 };
 
@@ -148,4 +151,12 @@ export const getStoredRol = () => {
   }
 
   return fromToken;
+};
+
+export const hasStoredQualityAccess = () => {
+  const stored = typeof localStorage !== "undefined"
+    ? localStorage.getItem("acceso_calidad")
+    : null;
+  if (stored !== null) return stored === "1" || stored === "true";
+  return Boolean(decodeJwtPayload(getStoredToken())?.acceso_calidad);
 };

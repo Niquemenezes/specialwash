@@ -38,6 +38,7 @@ export default function Usuarios() {
     email: "",
     password: "",
     rol: "detailing",
+    acceso_calidad: false,
     activo: true,
   });
 
@@ -88,6 +89,7 @@ export default function Usuarios() {
       email: "",
       password: "",
       rol: "detailing",
+      acceso_calidad: false,
       activo: true,
     });
   };
@@ -99,6 +101,7 @@ export default function Usuarios() {
       email: u.email || "",
       password: "",
       rol: normalizeRol(u.rol) || "detailing",
+      acceso_calidad: !!u.acceso_calidad,
       activo: "activo" in u ? !!u.activo : true,
     });
   };
@@ -111,6 +114,7 @@ export default function Usuarios() {
       email: "",
       password: "",
       rol: "detailing",
+      acceso_calidad: false,
       activo: true,
     });
   };
@@ -128,6 +132,7 @@ export default function Usuarios() {
         nombre: form.nombre.trim(),
         email: form.email.trim().toLowerCase(),
         rol: form.rol,
+        acceso_calidad: form.rol === "detailing" && form.acceso_calidad,
         activo: form.activo,
       };
       if (form.password.trim()) payload.password = form.password.trim();
@@ -244,6 +249,24 @@ export default function Usuarios() {
                   </div>
                 </div>
 
+                {form.rol === "detailing" && (
+                  <label style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", cursor: "pointer", fontSize: "0.875rem", color: "var(--sw-text)", userSelect: "none" }}>
+                    <input
+                      type="checkbox"
+                      name="acceso_calidad"
+                      checked={!!form.acceso_calidad}
+                      onChange={onChange}
+                      style={{ width: 16, height: 16, marginTop: 2, accentColor: "var(--sw-accent,#d4af37)", cursor: "pointer" }}
+                    />
+                    <span>
+                      <strong>Acceso adicional a Calidad</strong>
+                      <small style={{ display: "block", color: "var(--sw-muted)", marginTop: 2 }}>
+                        Mantiene sus trabajos de detailing y añade inspección, seguimiento, repaso y entrega.
+                      </small>
+                    </span>
+                  </label>
+                )}
+
                 {"activo" in form && (
                   <label style={{ display: "flex", alignItems: "center", gap: "0.6rem", cursor: "pointer", fontSize: "0.875rem", color: "var(--sw-text)", userSelect: "none" }}>
                     <input
@@ -359,6 +382,11 @@ export default function Usuarios() {
                         }}>
                           {rol}
                         </span>
+                        {u.acceso_calidad && (
+                          <span style={{ display: "inline-block", marginLeft: 6, padding: "0.2rem 0.55rem", borderRadius: 999, fontSize: "0.68rem", fontWeight: 700, background: "rgba(34,197,94,0.10)", border: "1px solid rgba(34,197,94,0.30)", color: "#22c55e" }}>
+                            + Calidad
+                          </span>
+                        )}
                       </td>
                       <td>
                         <span style={{

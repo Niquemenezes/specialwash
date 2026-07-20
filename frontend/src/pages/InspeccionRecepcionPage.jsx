@@ -5,6 +5,167 @@ import SignaturePad from "../components/SignaturePad.jsx";
 import { getStoredRol, normalizeRol } from "../utils/authSession";
 import "../styles/inspeccion-responsive.css";
 
+const TECH_SCHEMA = "swstudio_tecnica_v1";
+
+const EMPTY_MEDICIONES_TECNICAS = {
+  barniz: [],
+  brillo: [],
+  microscopia: [],
+};
+
+const PARTES_COCHE_SUGERIDAS = [
+  "Paragolpes delantero izquierdo",
+  "Paragolpes delantero derecho",
+  "Paragolpes trasero izquierdo",
+  "Paragolpes trasero derecho",
+  "Capó",
+  "Techo",
+  "Portón trasero",
+  "Aleta delantera izquierda",
+  "Aleta delantera derecha",
+  "Aleta trasera izquierda",
+  "Aleta trasera derecha",
+  "Puerta delantera izquierda",
+  "Puerta delantera derecha",
+  "Puerta trasera izquierda",
+  "Puerta trasera derecha",
+  "Retrovisor izquierdo",
+  "Retrovisor derecho",
+  "Pilar A izquierdo",
+  "Pilar A derecho",
+  "Pilar B izquierdo",
+  "Pilar B derecho",
+  "Pilar C izquierdo",
+  "Pilar C derecho",
+  "Talonera izquierda",
+  "Talonera derecha",
+];
+
+const MAPA_PARTES_COCHE = [
+  { label: "Paragolpes delantero izquierdo", x: 22, y: 16 },
+  { label: "Paragolpes delantero derecho", x: 78, y: 16 },
+  { label: "Capó", x: 50, y: 22 },
+  { label: "Aleta delantera izquierda", x: 24, y: 28 },
+  { label: "Aleta delantera derecha", x: 76, y: 28 },
+  { label: "Retrovisor izquierdo", x: 16, y: 39 },
+  { label: "Retrovisor derecho", x: 84, y: 39 },
+  { label: "Puerta delantera izquierda", x: 28, y: 43 },
+  { label: "Puerta delantera derecha", x: 72, y: 43 },
+  { label: "Puerta trasera izquierda", x: 30, y: 57 },
+  { label: "Puerta trasera derecha", x: 70, y: 57 },
+  { label: "Talonera izquierda", x: 24, y: 66 },
+  { label: "Talonera derecha", x: 76, y: 66 },
+  { label: "Aleta trasera izquierda", x: 24, y: 74 },
+  { label: "Aleta trasera derecha", x: 76, y: 74 },
+  { label: "Portón trasero", x: 50, y: 82 },
+  { label: "Paragolpes trasero izquierdo", x: 22, y: 88 },
+  { label: "Paragolpes trasero derecho", x: 78, y: 88 },
+  { label: "Techo", x: 50, y: 50 },
+];
+
+const createMedicionBase = (unidad = "") => ({
+  zona: "",
+  localizacion: "",
+  lecturas: [],
+  unidad,
+  incluir_en_informe: true,
+});
+
+const safeNumber = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+
+const parseLecturasText = (value) => {
+  const parts = String(value || "")
+    .split(/[\n,;]+/)
+    .map((item) => item.trim().replace(",", "."))
+    .filter(Boolean);
+  return parts
+    .map((item) => safeNumber(item))
+    .filter((item) => item !== null);
+};
+
+const lecturasToText = (lecturas = []) => {
+  if (!Array.isArray(lecturas) || lecturas.length === 0) return "";
+  return lecturas.join(", ");
+};
+
+const calcMedia = (lecturas = []) => {
+  const nums = Array.isArray(lecturas)
+    ? lecturas.map((v) => safeNumber(v)).filter((v) => v !== null)
+    : [];
+  if (nums.length === 0) return null;
+  return nums.reduce((acc, val) => acc + val, 0) / nums.length;
+};
+
+const normalizeMedicionesTecnicas = (input) => {
+  const source = input && typeof input === "object" ? input : {};
+  return {
+    barniz: Array.isArray(source.barniz)
+      ? source.barniz.map((item) => ({
+        ...createMedicionBase("um"),
+        ...item,
+        lecturas: Array.isArray(item?.lecturas)
+          ? item.lecturas.map((v) => safeNumber(v)).filter((v) => v !== null)
+          : [],
+      }))
+      : [],
+    brillo: Array.isArray(source.brillo)
+      ? source.brillo.map((item) => ({
+        ...createMedicionBase("GU"),
+        ...item,
+        lecturas: Array.isArray(item?.lecturas)
+          ? item.lecturas.map((v) => safeNumber(v)).filter((v) => v !== null)
+          : [],
+      }))
+      : [],
+    microscopia: Array.isArray(source.microscopia) ? source.microscopia : [],
+  };
+};
+
+const parseObservacionesTecnicas = (rawValue) => {
+  const raw = String(rawValue || "").trim();
+  if (!raw) {
+    return {
+      textoLibre: "",
+      medicionesRecepcion: { ...EMPTY_MEDICIONES_TECNICAS },
+      medicionesEntrega: { ...EMPTY_MEDICIONES_TECNICAS },
+    };
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.schema === TECH_SCHEMA) {
+      const root = parsed.mediciones_tecnicas || {};
+      const hasStages = root && typeof root === "object" && (root.recepcion || root.entrega);
+      return {
+        textoLibre: String(parsed.texto_libre || ""),
+        medicionesRecepcion: hasStages ? normalizeMedicionesTecnicas(root.recepcion || {}) : { ...EMPTY_MEDICIONES_TECNICAS },
+        medicionesEntrega: hasStages ? normalizeMedicionesTecnicas(root.entrega || {}) : normalizeMedicionesTecnicas(root),
+      };
+    }
+  } catch {
+    // Registros legacy en texto.
+  }
+  return {
+    textoLibre: raw,
+    medicionesRecepcion: { ...EMPTY_MEDICIONES_TECNICAS },
+    medicionesEntrega: { ...EMPTY_MEDICIONES_TECNICAS },
+  };
+};
+
+const serializeObservacionesTecnicas = ({ textoLibre = "", medicionesRecepcion, medicionesEntrega }) => {
+  const payload = {
+    schema: TECH_SCHEMA,
+    texto_libre: String(textoLibre || "").trim(),
+    mediciones_tecnicas: {
+      recepcion: normalizeMedicionesTecnicas(medicionesRecepcion),
+      entrega: normalizeMedicionesTecnicas(medicionesEntrega),
+    },
+  };
+  return JSON.stringify(payload);
+};
+
 const INITIAL_FORM_DATA = {
   cliente_id: "",
   cliente_nombre: "",
@@ -111,8 +272,10 @@ const InspeccionRecepcionPage = () => {
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
   
   const [fotos, setFotos] = useState([]);
+  const [fotosMicroscopio, setFotosMicroscopio] = useState([]);
   const [videos, setVideos] = useState([]);
   const [fotosPreview, setFotosPreview] = useState([]);
+  const [fotosMicroscopioPreview, setFotosMicroscopioPreview] = useState([]);
   const [videosPreview, setVideosPreview] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [cargandoEdicion, setCargandoEdicion] = useState(false);
@@ -135,9 +298,12 @@ const InspeccionRecepcionPage = () => {
   });
   const [servicioCatalogoSeleccionado, setServicioCatalogoSeleccionado] = useState(EMPTY_CATALOG_SELECTION);
   const [tamanoVehiculo, setTamanoVehiculo] = useState(""); // "turismo" | "suv" | "todoterreno" | ""
-  const [clienteVinculado, setClienteVinculado] = useState(null);
   const [historialClienteResumen, setHistorialClienteResumen] = useState(null);
   const [historialClienteCargando, setHistorialClienteCargando] = useState(false);
+  const [medicionesRecepcion, setMedicionesRecepcion] = useState({ ...EMPTY_MEDICIONES_TECNICAS });
+  const [medicionesEntregaExistentes, setMedicionesEntregaExistentes] = useState({ ...EMPTY_MEDICIONES_TECNICAS });
+  const [targetMapaRecepcion, setTargetMapaRecepcion] = useState(null);
+  const [localizacionManualMapaRecepcion, setLocalizacionManualMapaRecepcion] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
   const rol = getStoredRol();
   const isAdmin = rol === "administrador";
@@ -161,11 +327,8 @@ const InspeccionRecepcionPage = () => {
       try {
         const inspeccion = await actions.getInspeccion(editId);
         if (!active || !inspeccion) return;
+        const tecnicas = parseObservacionesTecnicas(inspeccion.observaciones_tecnicas_adicionales);
 
-        const clienteEdit = inspeccion.cliente_id
-          ? clientesDisponibles.find((c) => String(c.id) === String(inspeccion.cliente_id)) || null
-          : null;
-        setClienteVinculado(clienteEdit);
         setFormData({
           cliente_id: inspeccion.cliente_id ? String(inspeccion.cliente_id) : "",
           cliente_nombre: inspeccion.cliente_nombre || "",
@@ -183,9 +346,15 @@ const InspeccionRecepcionPage = () => {
         });
         setCocheExistenteSeleccionado(inspeccion.coche_id ? String(inspeccion.coche_id) : "");
         setInspeccionEditandoId(inspeccion.id);
+        setMedicionesRecepcion(tecnicas.medicionesRecepcion);
+        setMedicionesEntregaExistentes(tecnicas.medicionesEntrega);
+        setTargetMapaRecepcion(null);
+        setLocalizacionManualMapaRecepcion("");
         setFotos([]);
+        setFotosMicroscopio([]);
         setVideos([]);
         setFotosPreview([]);
+        setFotosMicroscopioPreview([]);
         setVideosPreview([]);
       } catch (error) {
         setFormError(`No se pudo cargar la inspección para editar: ${error.message}`);
@@ -198,7 +367,50 @@ const InspeccionRecepcionPage = () => {
     return () => {
       active = false;
     };
-  }, [actions, searchParams]);
+  }, [actions, searchParams, clientesDisponibles]);
+
+  const addMedicionRecepcion = (tipo) => {
+    setMedicionesRecepcion((prev) => ({
+      ...prev,
+      [tipo]: [
+        ...(prev?.[tipo] || []),
+        createMedicionBase(tipo === "barniz" ? "um" : "GU"),
+      ],
+    }));
+  };
+
+  const removeMedicionRecepcion = (tipo, index) => {
+    setMedicionesRecepcion((prev) => ({
+      ...prev,
+      [tipo]: (prev?.[tipo] || []).filter((_, idx) => idx !== index),
+    }));
+  };
+
+  const updateMedicionRecepcionField = (tipo, index, field, value) => {
+    setMedicionesRecepcion((prev) => ({
+      ...prev,
+      [tipo]: (prev?.[tipo] || []).map((item, idx) => (idx === index ? { ...item, [field]: value } : item)),
+    }));
+  };
+
+  const updateLecturasRecepcion = (tipo, index, value) => {
+    updateMedicionRecepcionField(tipo, index, "lecturas", parseLecturasText(value));
+  };
+
+  const seleccionarTargetMapaRecepcion = (tipo, index) => {
+    setTargetMapaRecepcion({ tipo, index });
+  };
+
+  const aplicarZonaMapaRecepcion = (pieza) => {
+    if (!targetMapaRecepcion || targetMapaRecepcion.index < 0) return;
+    updateMedicionRecepcionField(targetMapaRecepcion.tipo, targetMapaRecepcion.index, "localizacion", pieza);
+  };
+
+  const aplicarLocalizacionManualMapaRecepcion = () => {
+    const manual = String(localizacionManualMapaRecepcion || "").trim();
+    if (!targetMapaRecepcion || targetMapaRecepcion.index < 0 || !manual) return;
+    updateMedicionRecepcionField(targetMapaRecepcion.tipo, targetMapaRecepcion.index, "localizacion", manual);
+  };
 
   useEffect(() => {
     let active = true;
@@ -314,7 +526,6 @@ const InspeccionRecepcionPage = () => {
     const nextValue = type === "checkbox" ? checked : value;
 
     if (name === "cliente_nombre" || name === "cliente_telefono") {
-      setClienteVinculado(null);
       setCocheExistenteSeleccionado("");
       setFormData((prev) => ({
         ...prev,
@@ -488,6 +699,14 @@ const InspeccionRecepcionPage = () => {
     appendFotoPreviews(archivos, setFotosPreview);
   };
 
+  const handleFotosMicroscopioChange = (e) => {
+    const archivos = Array.from(e.target.files);
+    if (archivos.length === 0) return;
+
+    setFotosMicroscopio((prev) => [...prev, ...archivos]);
+    appendFotoPreviews(archivos, setFotosMicroscopioPreview);
+  };
+
   const handleVideosChange = (e) => {
     const archivos = Array.from(e.target.files);
     if (archivos.length === 0) return;
@@ -623,7 +842,12 @@ const InspeccionRecepcionPage = () => {
         ...formData,
         cliente_id: null,
         kilometros,
-        servicios_aplicados: serviciosPayload
+        servicios_aplicados: serviciosPayload,
+        observaciones_tecnicas_adicionales: serializeObservacionesTecnicas({
+          textoLibre: "",
+          medicionesRecepcion,
+          medicionesEntrega: medicionesEntregaExistentes,
+        }),
       };
 
       let inspeccion = null;
@@ -647,6 +871,12 @@ const InspeccionRecepcionPage = () => {
         subirArchivo: actions.subirFotoInspeccion
       });
 
+      await subirArchivos({
+        inspeccionId: inspeccion.id,
+        archivos: fotosMicroscopio,
+        subirArchivo: (inspeccionId, archivo) => actions.subirFotoInspeccion(inspeccionId, archivo, { tipo: "microscopio" })
+      });
+
       const resultVideos = await subirArchivos({
         inspeccionId: inspeccion.id,
         archivos: videos,
@@ -666,11 +896,16 @@ const InspeccionRecepcionPage = () => {
 
       // Limpiar formulario
       setFormData(INITIAL_FORM_DATA);
-      setClienteVinculado(null);
+      setMedicionesRecepcion({ ...EMPTY_MEDICIONES_TECNICAS });
+      setMedicionesEntregaExistentes({ ...EMPTY_MEDICIONES_TECNICAS });
+      setTargetMapaRecepcion(null);
+      setLocalizacionManualMapaRecepcion("");
       setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "", tipo_tarea: "" });
       setFotos([]);
+      setFotosMicroscopio([]);
       setVideos([]);
       setFotosPreview([]);
+      setFotosMicroscopioPreview([]);
       setVideosPreview((prev) => {
         prev.forEach((url) => { if (url && url.startsWith("blob:")) URL.revokeObjectURL(url); });
         return [];
@@ -693,11 +928,16 @@ const InspeccionRecepcionPage = () => {
     setInspeccionEditandoId(null);
     setSearchParams({});
     setFormData(INITIAL_FORM_DATA);
-    setClienteVinculado(null);
+    setMedicionesRecepcion({ ...EMPTY_MEDICIONES_TECNICAS });
+    setMedicionesEntregaExistentes({ ...EMPTY_MEDICIONES_TECNICAS });
+    setTargetMapaRecepcion(null);
+    setLocalizacionManualMapaRecepcion("");
     setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "", tipo_tarea: "" });
     setFotos([]);
+    setFotosMicroscopio([]);
     setVideos([]);
     setFotosPreview([]);
+    setFotosMicroscopioPreview([]);
     setVideosPreview((prev) => {
       prev.forEach((url) => { if (url && url.startsWith("blob:")) URL.revokeObjectURL(url); });
       return [];
@@ -1044,6 +1284,35 @@ const InspeccionRecepcionPage = () => {
             </div>
           </div>
 
+          <div style={{ ..._card, borderTopColor: "#22d3ee" }}>
+            <div style={_cardH}><span style={{ color: "#67e8f9", marginRight: "0.5rem" }}>✦</span>Fotos de microscopio</div>
+            <div style={_cardB}>
+              <input
+                id="input-fotos-microscopio"
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFotosMicroscopioChange}
+                style={{ display: "none" }}
+              />
+              <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "0.6rem" }}>
+                <label htmlFor="input-fotos-microscopio" style={{ background: "rgba(34,211,238,0.12)", border: "1px solid rgba(34,211,238,0.3)", color: "#67e8f9", borderRadius: "10px", padding: "0.55rem 1.2rem", fontSize: "0.88rem", fontWeight: 600, cursor: "pointer" }}>
+                  🔬 Subir fotos de microscopio
+                </label>
+              </div>
+              <small style={{ color: "var(--sw-muted)", fontSize: "0.74rem" }}>Estas fotos se marcarán como microscopio y luego podrás asociarlas a la medición técnica.</small>
+              {fotosMicroscopioPreview.length > 0 && (
+                <div className="row g-2 mt-3">
+                  {fotosMicroscopioPreview.map((src, index) => (
+                    <div key={index} className="col-6 col-sm-4 col-md-3 position-relative">
+                      <img src={src} alt={`Microscopio preview ${index}`} style={{ width: "100%", height: "120px", objectFit: "cover", borderRadius: "8px", border: "1px solid var(--sw-border)" }} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* VIDEOS */}
           <div style={{ ..._card, borderTopColor: "#ef4444" }}>
             <div style={_cardH}><span style={{ color: "#f87171", marginRight: "0.5rem" }}>✦</span>Videos del vehículo</div>
@@ -1101,6 +1370,119 @@ const InspeccionRecepcionPage = () => {
                 placeholder="Describe el estado del vehículo, daños visibles, etc."
                 style={{ ..._inp, fontSize: "0.95rem", resize: "vertical" }}
               />
+            </div>
+          </div>
+
+          <div style={{ ..._card, borderTopColor: "#0ea5e9" }}>
+            <div style={_cardH}><span style={{ color: "#67e8f9", marginRight: "0.5rem" }}>✦</span>Lecturas iniciales de recepción</div>
+            <div style={_cardB}>
+              <p style={{ color: "var(--sw-muted)", fontSize: "0.82rem", marginBottom: "0.9rem" }}>
+                Aquí guardas los valores iniciales. En la entrega se guardarán los valores finales y se calculará automáticamente la mejoría.
+              </p>
+
+              <datalist id="sw-partes-coche-lista-recepcion">
+                {PARTES_COCHE_SUGERIDAS.map((pieza) => (
+                  <option key={pieza} value={pieza} />
+                ))}
+              </datalist>
+
+              <div style={{ marginBottom: "1rem", border: "1px solid var(--sw-border)", borderRadius: "12px", padding: "0.8rem", background: "var(--sw-surface-2)" }}>
+                <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                  <strong style={{ color: "var(--sw-text)", fontSize: "0.85rem" }}>Mapa del coche</strong>
+                  <span style={{ color: "var(--sw-muted)", fontSize: "0.76rem" }}>
+                    {targetMapaRecepcion ? `Objetivo activo: ${targetMapaRecepcion.tipo} #${targetMapaRecepcion.index + 1}` : "Pulsa 'Usar dibujo' en una medición"}
+                  </span>
+                </div>
+                <div className="position-relative mx-auto" style={{ maxWidth: 500, width: "100%", aspectRatio: "5 / 9", border: "1px solid #d9e1ea", borderRadius: 14, background: "linear-gradient(180deg,#f9fcff,#eef4fb)" }}>
+                  <svg viewBox="0 0 100 180" className="w-100 h-100" aria-hidden="true">
+                    <rect x="20" y="8" width="60" height="164" rx="20" ry="20" fill="#dde7f3" stroke="#8ca0b8" strokeWidth="1.2" />
+                    <rect x="30" y="26" width="40" height="24" rx="8" fill="#f7fbff" stroke="#a7b7ca" strokeWidth="1" />
+                    <rect x="28" y="58" width="44" height="58" rx="10" fill="#f7fbff" stroke="#a7b7ca" strokeWidth="1" />
+                    <rect x="30" y="124" width="40" height="24" rx="8" fill="#f7fbff" stroke="#a7b7ca" strokeWidth="1" />
+                  </svg>
+                  {MAPA_PARTES_COCHE.map((part) => (
+                    <button
+                      key={`mapa-rec-${part.label}`}
+                      type="button"
+                      className="btn btn-sm btn-light border position-absolute"
+                      onClick={() => aplicarZonaMapaRecepcion(part.label)}
+                      style={{ left: `${part.x}%`, top: `${part.y}%`, transform: "translate(-50%, -50%)", fontSize: 10, lineHeight: 1.1, padding: "2px 5px", whiteSpace: "nowrap" }}
+                      title={part.label}
+                    >
+                      •
+                    </button>
+                  ))}
+                </div>
+                <div className="row g-2 mt-2">
+                  <div className="col-12 col-md-8">
+                    <input
+                      className="form-control"
+                      list="sw-partes-coche-lista-recepcion"
+                      value={localizacionManualMapaRecepcion}
+                      onChange={(e) => setLocalizacionManualMapaRecepcion(e.target.value)}
+                      placeholder="O escribe localización manual"
+                      style={_inp}
+                    />
+                  </div>
+                  <div className="col-12 col-md-4">
+                    <button
+                      type="button"
+                      onClick={aplicarLocalizacionManualMapaRecepcion}
+                      style={{ background: "transparent", border: "1px solid var(--sw-border)", color: "var(--sw-muted)", borderRadius: "8px", padding: "0.5rem 0.65rem", fontSize: "0.78rem", width: "100%" }}
+                    >
+                      Aplicar manual
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {[{ key: "barniz", label: "Grosor de barniz (um)", unidad: "um" }, { key: "brillo", label: "Brillo glosómetro (GU)", unidad: "GU" }].map((block) => (
+                <div key={`block-${block.key}`} style={{ border: "1px solid var(--sw-border)", borderRadius: "12px", padding: "0.8rem", marginBottom: "0.9rem" }}>
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <strong style={{ color: "var(--sw-text)", fontSize: "0.84rem" }}>{block.label}</strong>
+                    <button
+                      type="button"
+                      onClick={() => addMedicionRecepcion(block.key)}
+                      style={{ background: "rgba(14,165,233,0.12)", border: "1px solid rgba(14,165,233,0.35)", color: "#38bdf8", borderRadius: "8px", padding: "0.35rem 0.8rem", fontSize: "0.8rem", fontWeight: 600 }}
+                    >
+                      + Añadir
+                    </button>
+                  </div>
+
+                  {(medicionesRecepcion?.[block.key] || []).length === 0 && (
+                    <div style={{ color: "var(--sw-muted)", fontSize: "0.78rem" }}>Sin lecturas registradas.</div>
+                  )}
+
+                  {(medicionesRecepcion?.[block.key] || []).map((item, idx) => {
+                    const media = calcMedia(item.lecturas);
+                    return (
+                      <div key={`med-rec-${block.key}-${idx}`} style={{ border: "1px dashed var(--sw-border)", borderRadius: "10px", padding: "0.65rem", marginBottom: "0.6rem" }}>
+                        <div className="row g-2">
+                          <div className="col-12 col-md-3">
+                            <label style={_lbl}>Zona</label>
+                            <input className="form-control" value={item.zona || ""} onChange={(e) => updateMedicionRecepcionField(block.key, idx, "zona", e.target.value)} style={_inp} />
+                          </div>
+                          <div className="col-12 col-md-5">
+                            <label style={_lbl}>Localización</label>
+                            <input className="form-control" list="sw-partes-coche-lista-recepcion" value={item.localizacion || ""} onChange={(e) => updateMedicionRecepcionField(block.key, idx, "localizacion", e.target.value)} style={_inp} placeholder="Ej: Paragolpes delantero derecho" />
+                          </div>
+                          <div className="col-12 col-md-4 d-flex align-items-end justify-content-end gap-2">
+                            <button type="button" onClick={() => seleccionarTargetMapaRecepcion(block.key, idx)} style={{ background: "transparent", border: "1px solid var(--sw-border)", color: "var(--sw-muted)", borderRadius: "8px", padding: "0.35rem 0.65rem", fontSize: "0.78rem" }}>Usar dibujo</button>
+                            <button type="button" onClick={() => removeMedicionRecepcion(block.key, idx)} style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.35)", color: "#f87171", borderRadius: "8px", padding: "0.35rem 0.65rem", fontSize: "0.78rem" }}>Eliminar</button>
+                          </div>
+                          <div className="col-12">
+                            <label style={_lbl}>Lecturas</label>
+                            <textarea className="form-control" rows="2" value={lecturasToText(item.lecturas)} onChange={(e) => updateLecturasRecepcion(block.key, idx, e.target.value)} style={{ ..._inp, resize: "vertical" }} placeholder="98, 102, 101" />
+                          </div>
+                        </div>
+                        <div style={{ color: "var(--sw-muted)", fontSize: "0.78rem", marginTop: "0.35rem" }}>
+                          Media: <strong style={{ color: "var(--sw-text)" }}>{media !== null ? media.toFixed(2) : "-"}</strong> {block.unidad}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </div>
 

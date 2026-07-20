@@ -1,0 +1,57 @@
+# ══════════════════════════════════════════════════════════════
+# Systemd service file for SW Studio backend
+# Copy to: /etc/systemd/system/swstudio-backend.service
+# Then: systemctl daemon-reload && systemctl enable swstudio-backend
+# ══════════════════════════════════════════════════════════════
+
+[Unit]
+Description=SW Studio Backend (Gunicorn + Flask)
+Documentation=https://sw-studio.es
+After=network.target
+
+[Service]
+Type=notify
+User=swstudio
+Group=www-data
+
+# Working directory
+WorkingDirectory=/var/www/swstudio/app/backend
+
+# Environment
+Environment="PATH=/var/www/swstudio/app/backend/venv/bin"
+EnvironmentFile=/var/www/swstudio/app/backend/.env
+
+# Gunicorn startup command
+ExecStart=/var/www/swstudio/app/backend/venv/bin/gunicorn \
+    --workers 4 \
+    --worker-class sync \
+    --bind 127.0.0.1:8000 \
+    --timeout 120 \
+    --keep-alive 5 \
+    --max-requests 1000 \
+    --max-requests-jitter 100 \
+    --access-logfile /var/www/swstudio/logs/gunicorn-access.log \
+    --error-logfile /var/www/swstudio/logs/gunicorn-error.log \
+    --log-level info \
+    "app:create_app()"
+
+# Restart policy
+Restart=always
+RestartSec=10
+StartLimitInterval=600
+StartLimitBurst=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=swstudio-backend
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/www/swstudio/data /var/www/swstudio/logs /tmp
+
+[Install]
+WantedBy=multi-user.target

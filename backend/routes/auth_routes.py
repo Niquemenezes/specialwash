@@ -157,7 +157,11 @@ def login_json():
     expires = _TOKEN_EXPIRES.get(user.rol, timedelta(minutes=10))
     token = create_access_token(
         identity=str(user.id),
-        additional_claims={"rol": user.rol, "email": user.email},
+        additional_claims={
+            "rol": user.rol,
+            "email": user.email,
+            "acceso_calidad": bool(getattr(user, "acceso_calidad", False)),
+        },
         expires_delta=expires,
     )
 

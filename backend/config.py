@@ -45,7 +45,7 @@ class Config:
         os.getenv("FRONTEND_URLS")
         or os.getenv(
             "FRONTEND_URL",
-            "https://specialwash.studio,https://www.specialwash.studio",
+            "https://sw-studio.es,https://www.sw-studio.es",
         )
     )
 

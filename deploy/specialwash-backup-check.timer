@@ -1,11 +1,3 @@
-[Unit]
-Description=Check SpecialWash backup freshness every morning
-
-[Timer]
-OnCalendar=*-*-* 08:00:00
-Persistent=true
-Unit=specialwash-backup-check.service
-
-[Install]
-WantedBy=timers.target
-
+# OBSOLETO — sustituido por swstudio-backup-check.timer
+# Este archivo se deja vacío intencionalmente para evitar que se use por error.
+# Puedes borrarlo manualmente cuando quieras.
