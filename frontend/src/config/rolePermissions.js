@@ -63,7 +63,7 @@ export const ROUTE_PERMISSIONS = {
   "/vehiculos": [ROLES.ADMIN, ROLES.CALIDAD, ROLES.DETAILING],
   "/proveedores": [ROLES.ADMIN],
   "/maquinaria": [ROLES.ADMIN],
-  "/catalogo-servicios": [ROLES.ADMIN],
+  "/catalogo-servicios": [ROLES.ADMIN, ROLES.CALIDAD, ROLES.DETAILING],
 
   // ═══ FINANZAS Y COBROS ═══
   "/administracion/finanzas": [ROLES.ADMIN],
@@ -71,7 +71,7 @@ export const ROUTE_PERMISSIONS = {
   "/cobro-particulares": [ROLES.ADMIN, ROLES.CALIDAD, ROLES.DETAILING], // Cobro particulares (NUEVO)
 
   // ═══ TABLA DE REGISTROS ═══
-  "/tabla-registros": [ROLES.ADMIN],
+  "/tabla-registros": [ROLES.ADMIN, ROLES.CALIDAD, ROLES.DETAILING],
 
   // ═══ ALBARANES ═══
   "/albaranes": [ROLES.ADMIN],
@@ -145,11 +145,19 @@ export const NAVIGATION_BY_ROLE = {
       section: "Flujo principal",
       items: [
         { label: "📋 Mis trabajos", to: "/mis-partes-trabajo" },
+        { label: "🚗 Seguimiento", to: "/partes-trabajo" },
+        { label: "📊 Productividad", to: "/productividad-trabajadores" },
         { label: "🔍 Inspección de entrada", to: "/inspeccion-recepcion" },
         { label: "📝 Inspecciones guardadas", to: "/inspecciones-guardadas" },
         { label: "✅ Repaso", to: "/repaso-entrega?tab=repaso" },
         { label: "📝 Hoja de entrega", to: "/repaso-entrega?tab=firma" },
         { label: "✓ Coches entregados", to: "/entregados" },
+        { label: "🚘 Flujo de vehículos", to: "/vehiculos" },
+        { label: "📦 Inventario", to: "/inventario" },
+        { label: "➡ Salida de productos", to: "/salidas" },
+        { label: "💶 Cobro particulares", to: "/cobro-particulares" },
+        { label: "📋 Tabla de registros", to: "/tabla-registros" },
+        { label: "📖 Catálogo de servicios", to: "/catalogo-servicios" },
         { label: "🚙 Coches sustitución", to: "/coche-sustitucion" },
       ],
     },
@@ -160,11 +168,19 @@ export const NAVIGATION_BY_ROLE = {
       section: "Flujo principal",
       items: [
         { label: "📋 Mis trabajos", to: "/mis-partes-trabajo" },
+        { label: "🚗 Seguimiento", to: "/partes-trabajo" },
+        { label: "📊 Productividad", to: "/productividad-trabajadores" },
         { label: "🔍 Inspección de entrada", to: "/inspeccion-recepcion" },
         { label: "📝 Inspecciones guardadas", to: "/inspecciones-guardadas" },
         { label: "✅ Repaso", to: "/repaso-entrega?tab=repaso" },
         { label: "📝 Hoja de entrega", to: "/repaso-entrega?tab=firma" },
         { label: "✓ Coches entregados", to: "/entregados" },
+        { label: "🚘 Flujo de vehículos", to: "/vehiculos" },
+        { label: "📦 Inventario", to: "/inventario" },
+        { label: "➡ Salida de productos", to: "/salidas" },
+        { label: "💶 Cobro particulares", to: "/cobro-particulares" },
+        { label: "📋 Tabla de registros", to: "/tabla-registros" },
+        { label: "📖 Catálogo de servicios", to: "/catalogo-servicios" },
         { label: "🚙 Coches sustitución", to: "/coche-sustitucion" },
       ],
     },

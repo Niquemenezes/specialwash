@@ -36,6 +36,10 @@ export const roleMatches = (currentRol, allowedRol) => {
   if (!current || !allowed) return false;
   if (current === allowed) return true;
 
+  if (["calidad", "detailing"].includes(current) && ["calidad", "detailing"].includes(allowed)) {
+    return true;
+  }
+
   if (allowed === "empleado") {
     return isEmployeeRole(current);
   }

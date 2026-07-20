@@ -6,7 +6,7 @@ from utils.auth_utils import _dev_auth_bypass_enabled, normalize_role, role_requ
 
 servicio_catalogo_bp = Blueprint("servicio_catalogo_routes", __name__)
 SERVICIO_SCOPED_ROLES = {"detailing", "pintura", "tapicero", "otro"}
-SERVICIO_MANAGER_ROLES = {"administrador", "encargado", "calidad"}
+SERVICIO_MANAGER_ROLES = {"administrador", "encargado", "calidad", "detailing"}
 
 
 def _current_role():

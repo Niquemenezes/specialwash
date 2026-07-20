@@ -64,6 +64,10 @@ def normalize_role(role):
 
 def expand_allowed_roles(roles):
     normalized = {normalize_role(r) for r in roles}
+    # Calidad y Detailing son perfiles operativos equivalentes: cualquiera de
+    # los dos puede cubrir el flujo completo del otro.
+    if normalized & {"calidad", "detailing"}:
+        normalized.update({"calidad", "detailing"})
     return normalized
 
 

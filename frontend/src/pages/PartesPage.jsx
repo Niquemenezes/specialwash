@@ -30,21 +30,21 @@ const GRUPOS = [
         label: "Estado de coches",
         detail: "Dónde está cada coche y en qué fase va", 
         icon: "list",
-        roles: ["administrador", "calidad"],
+        roles: ["administrador", "calidad", "detailing"],
       },
       {
         to: "/repaso-entrega?tab=firma",
         label: "Calidad y entrega",
         detail: "Vehículos completados listos para entregar al cliente",
         icon: "check",
-        roles: ["administrador", "calidad"],
+        roles: ["administrador", "calidad", "detailing"],
       },
       {
         to: "/partes-trabajo-finalizados",
         label: "Historial",
         detail: "Registro histórico de trabajos completados",
         icon: "check",
-        roles: ["administrador"],
+        roles: ["administrador", "calidad", "detailing"],
       },
     ],
   },
@@ -60,7 +60,7 @@ const GRUPOS = [
         label: "Mis trabajos",
         detail: "Tus tareas asignadas en flujo lineal y sin vueltas",
         icon: "wrench",
-        roles: ["detailing", "pintura", "tapicero"],
+        roles: ["detailing", "calidad", "pintura", "tapicero"],
       },
     ],
   },
@@ -121,7 +121,7 @@ export default function PartesPage() {
   );
 
   // CTA según rol
-  const ctaLink = ["detailing", "pintura", "tapicero"].includes(rol)
+  const ctaLink = ["detailing", "calidad", "pintura", "tapicero"].includes(rol)
     ? "/mis-partes-trabajo"
     : "/partes-trabajo";
 

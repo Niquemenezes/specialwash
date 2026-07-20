@@ -11,6 +11,7 @@ from datetime import timedelta
 _TOKEN_EXPIRES = {
     "administrador": timedelta(hours=8),
     "calidad": timedelta(hours=8),
+    "detailing": timedelta(hours=8),
     "salida": timedelta(days=30),
 }
 

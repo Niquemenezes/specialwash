@@ -193,7 +193,7 @@ const NavbarSW = () => {
   const token = getStoredToken();
   const rol = getStoredRol();
   const isAdmin = rol === "administrador";
-  const hasQualityAccess = rol === "calidad" || hasStoredQualityAccess();
+  const hasQualityAccess = ["calidad", "detailing"].includes(rol) || hasStoredQualityAccess();
   const nombreUsuario = String(store?.user?.nombre || "").trim();
   const homeTarget = token ? getDefaultRouteForRole(rol) : "/";
 

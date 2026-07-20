@@ -352,7 +352,7 @@ def _current_role():
 
 
 def _can_manage_all_partes():
-    return _current_role() in {'administrador', 'calidad'}
+    return _current_role() in {'administrador', 'calidad', 'detailing'}
 
 
 ASSIGNABLE_PARTE_ROLES = set(WORKSHOP_ROLES) | {'encargado'}

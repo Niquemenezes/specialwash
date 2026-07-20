@@ -676,7 +676,7 @@ export default function EstadoCochesPage() {
 
   const rolActual = getStoredRol();
   const puedeReabrir = rolActual === "administrador" || rolActual === "encargado";
-  const puedeGestionar = rolActual === "administrador" || rolActual === "calidad";
+  const puedeGestionar = ["administrador", "calidad", "detailing"].includes(rolActual);
 
   const cargar = useCallback(async () => {
     setLoading(true);

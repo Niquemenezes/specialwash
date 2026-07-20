@@ -29,7 +29,7 @@ const PASOS = [
     to: "/inspeccion-recepcion",
     ctaLabel: "Ir a inspección",
     ctaIcon: "plus",
-    roles: ["administrador", "calidad"],
+    roles: ["administrador", "calidad", "detailing"],
     countKey: "guardadas",
   },
   {
@@ -42,7 +42,7 @@ const PASOS = [
     to: "/repaso-entrega?tab=repaso",
     ctaLabel: "Abrir repaso",
     ctaIcon: "pen",
-    roles: ["administrador", "calidad"],
+    roles: ["administrador", "calidad", "detailing"],
     countKey: "en_proceso",
   },
   {
@@ -55,7 +55,7 @@ const PASOS = [
     to: "/repaso-entrega?tab=firma",
     ctaLabel: "Abrir entrega",
     ctaIcon: "check",
-    roles: ["administrador", "calidad"],
+    roles: ["administrador", "calidad", "detailing"],
     countKey: "listos",
   },
 ];

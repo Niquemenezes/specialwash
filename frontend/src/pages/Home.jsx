@@ -33,7 +33,7 @@ const MODULES = [
       { to: "/partes-trabajo", label: "Seguimiento", detail: "Ver dónde está cada coche" },
       { to: "/repaso-entrega?tab=firma", label: "Repaso y entrega", detail: "Control final, entrega y firma" },
     ],
-    roles: ["administrador", "calidad"],
+    roles: ["administrador", "calidad", "detailing"],
   },
   {
     id: "inventario",
@@ -134,7 +134,7 @@ export default function Home() {
   const navigate = useNavigate();
   const token = getStoredToken();
   const rol = normalizeRol(store?.user?.rol) || normalizeRol(getStoredRol()) || "detailing";
-  const hasQualityAccess = rol === "calidad" || hasStoredQualityAccess();
+  const hasQualityAccess = ["calidad", "detailing"].includes(rol) || hasStoredQualityAccess();
   const isOperationalEmployee = ["detailing", "calidad", "pintura", "tapicero", "salida"].includes(rol);
 
   useEffect(() => {

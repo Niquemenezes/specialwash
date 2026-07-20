@@ -14,7 +14,7 @@ from flask_jwt_extended import get_jwt
 citas_bp = Blueprint("citas", __name__)
 
 ESTADOS_VALIDOS = {e.value for e in EstadoCita}
-CITAS_ALLOWED_ROLES = {"administrador", "encargado", "calidad"}
+CITAS_ALLOWED_ROLES = {"administrador", "encargado", "calidad", "detailing"}
 
 
 def _parse_datetime_flexible(raw_value):
