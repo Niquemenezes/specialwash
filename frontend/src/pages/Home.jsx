@@ -1,5 +1,5 @@
 import React, { useContext, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Context } from "../store/appContext";
 import { getStoredRol, getStoredToken, hasStoredQualityAccess, normalizeRol } from "../utils/authSession";
 
@@ -131,6 +131,7 @@ function HomeGuest() {
 // ── Home principal ────────────────────────────────────────────────────────────
 export default function Home() {
   const { store, actions } = useContext(Context);
+  const navigate = useNavigate();
   const token = getStoredToken();
   const rol = normalizeRol(store?.user?.rol) || normalizeRol(getStoredRol()) || "detailing";
   const hasQualityAccess = rol === "calidad" || hasStoredQualityAccess();
@@ -183,6 +184,17 @@ export default function Home() {
                 key={mod.id}
                 className={`sw-hcard sw-hcard--cta${isOperationalEmployee ? " sw-hcard--employee" : ""}`}
                 style={{ "--card-accent": mod.accent }}
+                role="link"
+                tabIndex={0}
+                onClick={(event) => {
+                  if (!event.target.closest("a, button")) navigate(destination);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    navigate(destination);
+                  }
+                }}
               >
                 <div className="sw-hcard-header">
                   <span className={`sw-hcard-icon sw-hcard-icon--${mod.id}`}>{ICONS[mod.id]}</span>
