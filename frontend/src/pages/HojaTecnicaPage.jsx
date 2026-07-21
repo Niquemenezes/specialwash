@@ -126,7 +126,7 @@ const safeNumber = (value) => {
 
 const parseLecturasText = (value) => {
   const parts = String(value || "")
-    .split(/[\n,;]+/)
+    .split(/(?:[\n,;]+|\.(?=\s|$))/)
     .map((item) => item.trim().replace(",", "."))
     .filter(Boolean);
   return parts
@@ -950,14 +950,14 @@ export default function HojaTecnicaPage() {
                           </div>
                         </div>
                         <div className="col-12">
-                          <label className="form-label small">Lecturas (separadas por coma o salto de línea)</label>
+                          <label className="form-label small">Lecturas (coma, punto con espacio o una por línea)</label>
                           <textarea
                             className="form-control"
                             rows={2}
-                            value={lecturasToText(item.lecturas)}
+                            defaultValue={lecturasToText(item.lecturas)}
                             onChange={(e) => updateLecturas("barniz", idx, e.target.value)}
                             disabled={saving}
-                            placeholder="98, 102, 101"
+                            placeholder="98, 102, 101  o  98. 102. 101"
                           />
                         </div>
                         <div className="col-12">
@@ -1021,14 +1021,14 @@ export default function HojaTecnicaPage() {
                           </div>
                         </div>
                         <div className="col-12">
-                          <label className="form-label small">Lecturas (separadas por coma o salto de línea)</label>
+                          <label className="form-label small">Lecturas (coma, punto con espacio o una por línea)</label>
                           <textarea
                             className="form-control"
                             rows={2}
-                            value={lecturasToText(item.lecturas)}
+                            defaultValue={lecturasToText(item.lecturas)}
                             onChange={(e) => updateLecturas("brillo", idx, e.target.value)}
                             disabled={saving}
-                            placeholder="85, 87, 84"
+                            placeholder="81, 88, 58  o  81. 88. 58"
                           />
                         </div>
                         <div className="col-12">

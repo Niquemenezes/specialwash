@@ -78,7 +78,7 @@ const safeNumber = (value) => {
 
 const parseLecturasText = (value) => {
   const parts = String(value || "")
-    .split(/[\n,;]+/)
+    .split(/(?:[\n,;]+|\.(?=\s|$))/)
     .map((item) => item.trim().replace(",", "."))
     .filter(Boolean);
   return parts
@@ -1471,8 +1471,8 @@ const InspeccionRecepcionPage = () => {
                             <button type="button" onClick={() => removeMedicionRecepcion(block.key, idx)} style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.35)", color: "#f87171", borderRadius: "8px", padding: "0.35rem 0.65rem", fontSize: "0.78rem" }}>Eliminar</button>
                           </div>
                           <div className="col-12">
-                            <label style={_lbl}>Lecturas</label>
-                            <textarea className="form-control" rows="2" value={lecturasToText(item.lecturas)} onChange={(e) => updateLecturasRecepcion(block.key, idx, e.target.value)} style={{ ..._inp, resize: "vertical" }} placeholder="98, 102, 101" />
+                            <label style={_lbl}>Lecturas (coma, punto con espacio o una por línea)</label>
+                            <textarea className="form-control" rows="2" defaultValue={lecturasToText(item.lecturas)} onChange={(e) => updateLecturasRecepcion(block.key, idx, e.target.value)} style={{ ..._inp, resize: "vertical" }} placeholder="81, 88, 58  o  81. 88. 58" />
                           </div>
                         </div>
                         <div style={{ color: "var(--sw-muted)", fontSize: "0.78rem", marginTop: "0.35rem" }}>
