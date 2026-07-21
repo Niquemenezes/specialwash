@@ -302,8 +302,10 @@ const InspeccionRecepcionPage = () => {
   const [historialClienteCargando, setHistorialClienteCargando] = useState(false);
   const [medicionesRecepcion, setMedicionesRecepcion] = useState({ ...EMPTY_MEDICIONES_TECNICAS });
   const [medicionesEntregaExistentes, setMedicionesEntregaExistentes] = useState({ ...EMPTY_MEDICIONES_TECNICAS });
-  const [targetMapaRecepcion, setTargetMapaRecepcion] = useState(null);
-  const [localizacionManualMapaRecepcion, setLocalizacionManualMapaRecepcion] = useState("");
+  const [modoRapidoMedicion, setModoRapidoMedicion] = useState("brillo");
+  const [piezaRapidaMedicion, setPiezaRapidaMedicion] = useState("");
+  const [valorRapidoMedicion, setValorRapidoMedicion] = useState("");
+  const valorRapidoRef = useRef(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const rol = getStoredRol();
   const isAdmin = rol === "administrador";
@@ -348,8 +350,6 @@ const InspeccionRecepcionPage = () => {
         setInspeccionEditandoId(inspeccion.id);
         setMedicionesRecepcion(tecnicas.medicionesRecepcion);
         setMedicionesEntregaExistentes(tecnicas.medicionesEntrega);
-        setTargetMapaRecepcion(null);
-        setLocalizacionManualMapaRecepcion("");
         setFotos([]);
         setFotosMicroscopio([]);
         setVideos([]);
@@ -397,19 +397,31 @@ const InspeccionRecepcionPage = () => {
     updateMedicionRecepcionField(tipo, index, "lecturas", parseLecturasText(value));
   };
 
-  const seleccionarTargetMapaRecepcion = (tipo, index) => {
-    setTargetMapaRecepcion({ tipo, index });
+  const seleccionarPiezaRapida = (pieza) => {
+    setPiezaRapidaMedicion(pieza);
+    setValorRapidoMedicion("");
+    window.setTimeout(() => valorRapidoRef.current?.focus(), 0);
   };
 
-  const aplicarZonaMapaRecepcion = (pieza) => {
-    if (!targetMapaRecepcion || targetMapaRecepcion.index < 0) return;
-    updateMedicionRecepcionField(targetMapaRecepcion.tipo, targetMapaRecepcion.index, "localizacion", pieza);
-  };
+  const guardarLecturaRapida = () => {
+    const lectura = safeNumber(String(valorRapidoMedicion).trim().replace(",", "."));
+    if (!piezaRapidaMedicion || lectura === null) return;
 
-  const aplicarLocalizacionManualMapaRecepcion = () => {
-    const manual = String(localizacionManualMapaRecepcion || "").trim();
-    if (!targetMapaRecepcion || targetMapaRecepcion.index < 0 || !manual) return;
-    updateMedicionRecepcionField(targetMapaRecepcion.tipo, targetMapaRecepcion.index, "localizacion", manual);
+    setMedicionesRecepcion((prev) => {
+      const actuales = prev?.[modoRapidoMedicion] || [];
+      const index = actuales.findIndex(
+        (item) => String(item?.localizacion || "").trim().toLowerCase() === piezaRapidaMedicion.toLowerCase()
+      );
+      const unidad = modoRapidoMedicion === "barniz" ? "um" : "GU";
+      const actualizados = index >= 0
+        ? actuales.map((item, idx) => idx === index
+          ? { ...item, lecturas: [...(item.lecturas || []), lectura] }
+          : item)
+        : [...actuales, { ...createMedicionBase(unidad), zona: piezaRapidaMedicion, localizacion: piezaRapidaMedicion, lecturas: [lectura] }];
+      return { ...prev, [modoRapidoMedicion]: actualizados };
+    });
+    setValorRapidoMedicion("");
+    window.setTimeout(() => valorRapidoRef.current?.focus(), 0);
   };
 
   useEffect(() => {
@@ -898,8 +910,8 @@ const InspeccionRecepcionPage = () => {
       setFormData(INITIAL_FORM_DATA);
       setMedicionesRecepcion({ ...EMPTY_MEDICIONES_TECNICAS });
       setMedicionesEntregaExistentes({ ...EMPTY_MEDICIONES_TECNICAS });
-      setTargetMapaRecepcion(null);
-      setLocalizacionManualMapaRecepcion("");
+      setPiezaRapidaMedicion("");
+      setValorRapidoMedicion("");
       setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "", tipo_tarea: "" });
       setFotos([]);
       setFotosMicroscopio([]);
@@ -930,8 +942,8 @@ const InspeccionRecepcionPage = () => {
     setFormData(INITIAL_FORM_DATA);
     setMedicionesRecepcion({ ...EMPTY_MEDICIONES_TECNICAS });
     setMedicionesEntregaExistentes({ ...EMPTY_MEDICIONES_TECNICAS });
-    setTargetMapaRecepcion(null);
-    setLocalizacionManualMapaRecepcion("");
+    setPiezaRapidaMedicion("");
+    setValorRapidoMedicion("");
     setServicioManual({ nombre: "", precio: "", tiempo_estimado_minutos: "", tiempo_estimado_horas: "", tipo_tarea: "" });
     setFotos([]);
     setFotosMicroscopio([]);
@@ -1388,10 +1400,33 @@ const InspeccionRecepcionPage = () => {
 
               <div style={{ marginBottom: "1rem", border: "1px solid var(--sw-border)", borderRadius: "12px", padding: "0.8rem", background: "var(--sw-surface-2)" }}>
                 <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
-                  <strong style={{ color: "var(--sw-text)", fontSize: "0.85rem" }}>Mapa del coche</strong>
-                  <span style={{ color: "var(--sw-muted)", fontSize: "0.76rem" }}>
-                    {targetMapaRecepcion ? `Objetivo activo: ${targetMapaRecepcion.tipo} #${targetMapaRecepcion.index + 1}` : "Pulsa 'Usar dibujo' en una medición"}
-                  </span>
+                  <div>
+                    <strong style={{ color: "var(--sw-text)", fontSize: "0.9rem" }}>Medición rápida sobre el coche</strong>
+                    <div style={{ color: "var(--sw-muted)", fontSize: "0.76rem" }}>Elige el aparato, pulsa una pieza y apunta las lecturas.</div>
+                  </div>
+                  <div className="d-flex gap-2">
+                    {[
+                      { key: "brillo", label: "Glossómetro" },
+                      { key: "barniz", label: "Barniz" },
+                    ].map((modo) => (
+                      <button
+                        key={modo.key}
+                        type="button"
+                        onClick={() => { setModoRapidoMedicion(modo.key); setPiezaRapidaMedicion(""); }}
+                        style={{
+                          border: modoRapidoMedicion === modo.key ? "1px solid #0ea5e9" : "1px solid var(--sw-border)",
+                          background: modoRapidoMedicion === modo.key ? "rgba(14,165,233,0.16)" : "transparent",
+                          color: modoRapidoMedicion === modo.key ? "#38bdf8" : "var(--sw-muted)",
+                          borderRadius: 999,
+                          padding: "0.38rem 0.75rem",
+                          fontSize: "0.78rem",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {modo.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div className="position-relative mx-auto" style={{ maxWidth: 500, width: "100%", aspectRatio: "5 / 9", border: "1px solid #d9e1ea", borderRadius: 14, background: "linear-gradient(180deg,#f9fcff,#eef4fb)" }}>
                   <svg viewBox="0 0 100 180" className="w-100 h-100" aria-hidden="true">
@@ -1400,40 +1435,67 @@ const InspeccionRecepcionPage = () => {
                     <rect x="28" y="58" width="44" height="58" rx="10" fill="#f7fbff" stroke="#a7b7ca" strokeWidth="1" />
                     <rect x="30" y="124" width="40" height="24" rx="8" fill="#f7fbff" stroke="#a7b7ca" strokeWidth="1" />
                   </svg>
-                  {MAPA_PARTES_COCHE.map((part) => (
-                    <button
-                      key={`mapa-rec-${part.label}`}
-                      type="button"
-                      className="btn btn-sm btn-light border position-absolute"
-                      onClick={() => aplicarZonaMapaRecepcion(part.label)}
-                      style={{ left: `${part.x}%`, top: `${part.y}%`, transform: "translate(-50%, -50%)", fontSize: 10, lineHeight: 1.1, padding: "2px 5px", whiteSpace: "nowrap" }}
-                      title={part.label}
-                    >
-                      •
-                    </button>
-                  ))}
+                  {MAPA_PARTES_COCHE.map((part) => {
+                    const medicion = (medicionesRecepcion?.[modoRapidoMedicion] || []).find(
+                      (item) => String(item?.localizacion || "").trim().toLowerCase() === part.label.toLowerCase()
+                    );
+                    const media = calcMedia(medicion?.lecturas);
+                    const activa = piezaRapidaMedicion === part.label;
+                    return (
+                      <button
+                        key={`mapa-rec-${part.label}`}
+                        type="button"
+                        className="btn btn-sm position-absolute"
+                        onClick={() => seleccionarPiezaRapida(part.label)}
+                        style={{
+                          left: `${part.x}%`, top: `${part.y}%`, transform: "translate(-50%, -50%)",
+                          fontSize: media === null ? 10 : 9, lineHeight: 1.1, padding: media === null ? "3px 6px" : "4px 6px",
+                          whiteSpace: "nowrap", border: activa ? "2px solid #0284c7" : "1px solid #94a3b8",
+                          background: media !== null ? "#0ea5e9" : activa ? "#dbeafe" : "#fff",
+                          color: media !== null ? "#fff" : "#334155", borderRadius: 999, fontWeight: 800,
+                        }}
+                        title={`${part.label}${medicion?.lecturas?.length ? ` · ${medicion.lecturas.length} lecturas` : ""}`}
+                      >
+                        {media !== null ? media.toFixed(1) : "•"}
+                      </button>
+                    );
+                  })}
                 </div>
-                <div className="row g-2 mt-2">
-                  <div className="col-12 col-md-8">
-                    <input
-                      className="form-control"
-                      list="sw-partes-coche-lista-recepcion"
-                      value={localizacionManualMapaRecepcion}
-                      onChange={(e) => setLocalizacionManualMapaRecepcion(e.target.value)}
-                      placeholder="O escribe localización manual"
-                      style={_inp}
-                    />
+                {piezaRapidaMedicion && (
+                  <div style={{ marginTop: "0.75rem", border: "1px solid rgba(14,165,233,0.35)", background: "rgba(14,165,233,0.08)", borderRadius: 12, padding: "0.75rem" }}>
+                    <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                      <strong style={{ color: "var(--sw-text)" }}>{piezaRapidaMedicion}</strong>
+                      <span style={{ color: "var(--sw-muted)", fontSize: "0.78rem" }}>
+                        {modoRapidoMedicion === "brillo" ? "Glossómetro (GU)" : "Grosor de barniz (um)"}
+                      </span>
+                    </div>
+                    <div className="d-flex gap-2">
+                      <input
+                        ref={valorRapidoRef}
+                        type="text"
+                        inputMode="decimal"
+                        className="form-control"
+                        value={valorRapidoMedicion}
+                        onChange={(e) => setValorRapidoMedicion(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); guardarLecturaRapida(); } }}
+                        placeholder="Escribe una lectura, por ejemplo 81"
+                        style={{ ..._inp, fontSize: "1.1rem", fontWeight: 700 }}
+                      />
+                      <button type="button" onClick={guardarLecturaRapida} style={{ background: "#0284c7", border: 0, color: "white", borderRadius: 9, padding: "0.55rem 1rem", fontWeight: 800 }}>
+                        Añadir
+                      </button>
+                    </div>
+                    {(() => {
+                      const item = (medicionesRecepcion?.[modoRapidoMedicion] || []).find((m) => String(m?.localizacion || "").trim().toLowerCase() === piezaRapidaMedicion.toLowerCase());
+                      const media = calcMedia(item?.lecturas);
+                      return item?.lecturas?.length ? (
+                        <div style={{ marginTop: "0.55rem", color: "var(--sw-muted)", fontSize: "0.8rem" }}>
+                          Lecturas: <strong style={{ color: "var(--sw-text)" }}>{item.lecturas.join(", ")}</strong> · Media: <strong style={{ color: "#38bdf8" }}>{media.toFixed(2)} {modoRapidoMedicion === "brillo" ? "GU" : "um"}</strong>
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
-                  <div className="col-12 col-md-4">
-                    <button
-                      type="button"
-                      onClick={aplicarLocalizacionManualMapaRecepcion}
-                      style={{ background: "transparent", border: "1px solid var(--sw-border)", color: "var(--sw-muted)", borderRadius: "8px", padding: "0.5rem 0.65rem", fontSize: "0.78rem", width: "100%" }}
-                    >
-                      Aplicar manual
-                    </button>
-                  </div>
-                </div>
+                )}
               </div>
 
               {[{ key: "barniz", label: "Grosor de barniz (um)", unidad: "um" }, { key: "brillo", label: "Brillo glosómetro (GU)", unidad: "GU" }].map((block) => (
@@ -1467,7 +1529,6 @@ const InspeccionRecepcionPage = () => {
                             <input className="form-control" list="sw-partes-coche-lista-recepcion" value={item.localizacion || ""} onChange={(e) => updateMedicionRecepcionField(block.key, idx, "localizacion", e.target.value)} style={_inp} placeholder="Ej: Paragolpes delantero derecho" />
                           </div>
                           <div className="col-12 col-md-4 d-flex align-items-end justify-content-end gap-2">
-                            <button type="button" onClick={() => seleccionarTargetMapaRecepcion(block.key, idx)} style={{ background: "transparent", border: "1px solid var(--sw-border)", color: "var(--sw-muted)", borderRadius: "8px", padding: "0.35rem 0.65rem", fontSize: "0.78rem" }}>Usar dibujo</button>
                             <button type="button" onClick={() => removeMedicionRecepcion(block.key, idx)} style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.35)", color: "#f87171", borderRadius: "8px", padding: "0.35rem 0.65rem", fontSize: "0.78rem" }}>Eliminar</button>
                           </div>
                           <div className="col-12">
